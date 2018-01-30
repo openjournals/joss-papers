@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<article>
+  <articleinfo>
+    <title>origami: A Generalized Framework for Cross-Validation in R</title>
+    <authors>
+      <author>
+        <name>Jeremy R. Coyle</name>
+        <orcid>0000-0002-9874-6649</orcid>
+        <affiliation>
+          <orgname>
+            1
+          </orgname>
+        </affiliation>
+      </author>
+      <author>
+        <name>Nima S. Hejazi</name>
+        <orcid>0000-0002-7127-2789</orcid>
+        <affiliation>
+          <orgname>
+            1
+          </orgname>
+        </affiliation>
+      </author>
+    </authors>
+    <tags>
+      <tag>R</tag>
+      <tag>statistics</tag>
+      <tag>machine learning</tag>
+      <tag>cross-validation</tag>
+    </tags>
+    <date>19 June 2017</date>
+    <paper_doi>10.21105/joss.00512</paper_doi>
+    <software_repository>https://github.com/jeremyrcoyle/origami</software_repository>
+    <software_archive>http://dx.doi.org/10.5281/zenodo.1155901</software_archive>
+    <paper_url>http://www.theoj.org/joss-papers/joss.00512/10.21105.joss.00512.pdf</paper_url>
+  </articleinfo>
+  <body>
+    <h2 id="summary">Summary</h2>
+    <p>Cross-validation is an essential tool for evaluating how any given data analytic procedure extends from a sample to the target population from which the sample is derived. It has seen widespread application in all facets of statistics, perhaps most notably statistical machine learning. When used for model selection, cross-validation has powerful optimality properties <span class="citation" data-cites="Vaart:2006bz vanderLaan:2007bz">(van der Vaart, Dudoit, and van der Laan 2006; van der Laan, Polley, and Hubbard 2007)</span>.</p>
+    <p>Cross-validation works by partitioning a sample into complementary subsets, applying a particular data analytic (statistical) routine on a subset (the “training” set), and evaluating the routine of choice on the complementary subset (the “testing” set). This procedure is repeated across multiple partitions of the data, and a variety of different partitioning schemes exist, such as <span class="math inline"><em>V</em></span>-fold cross-validation and bootstrap cross-validation. <code>origami</code>, a package for the R language for statistical computing <span class="citation" data-cites="R">(R Core Team 2017)</span>, supports many of the existing cross-validation schemes, providing a suite of tools that generalize the application of cross-validation to arbitrary data analytic procedures.</p>
+    <hr />
+    <h2 id="general-workflow">General workflow</h2>
+    <p>The main function in the <code>origami</code> R package is <code>cross_validate</code>. To start off, the user must define folds and a function that operates on each fold. Once these are passed to <code>cross_validate</code>, this function will map the fold-specific function across the folds, combining the results in a reasonable way. Specific details on each each step of this process are given below.</p>
+    <h3 id="define-folds">(1) Define folds</h3>
+    <p>The <code>folds</code> object passed to <code>cross_validate</code> is a list of folds. Such lists can be generated using the <code>make_folds</code> function. Each fold consists of a list with a <code>training</code> index vector, a <code>validation</code> index vector, and a <code>fold_index</code> (its order in the list of folds). This function supports a variety of cross-validation schemes including <span class="math inline"><em>V</em></span>-fold and bootstrap cross-validation, as well as time series methods like <em>“rolling window”</em>. See <span class="citation" data-cites="vanderLaan:2007bz">(van der Laan, Polley, and Hubbard 2007)</span> for formal definitions of these schemes. <code>make_folds</code> can balance across levels of a variable (<code>stratify_ids</code>), and it can also keep all observations from the same independent unit together (<code>cluster</code>). We invite interested users to consult the documentation of the <code>make_folds</code> function for further details.</p>
+    <h3 id="define-fold-function">(2) Define fold function</h3>
+    <p>The <code>cv_fun</code> argument to <code>cross_validate</code> is a function that will perform some operation on each fold. The first argument to this function must be <code>fold</code>, which will receive an individual fold object to operate on. Additional arguments can be passed to <code>cv_fun</code> using the <code>...</code> argument to <code>cross_validate</code>. Within this function, the convenience functions <code>training</code>, <code>validation</code> and <code>fold_index</code> can return the various components of a fold object. If <code>training</code> or <code>validation</code> is passed an object, it will index into it in a sensible way. For instance, if it is a vector, it will index the vector directly. If it is a <code>data.frame</code> or <code>matrix</code>, it will index rows. This allows the user to easily partition data into training and validation sets. This fold function must return a named list of results containing whatever fold-specific outputs are generated.</p>
+    <h3 id="apply-cross-validate">(3) Apply <code>cross-validate</code></h3>
+    <p>After defining folds, <code>cross_validate</code> can be used to map the <code>cv_fun</code> across the <code>folds</code> using <code>future_lapply</code>. This means that it can be easily parallelized by specifying a parallelization scheme (i.e., a <code>plan</code>). See the <a href="https://github.com/HenrikBengtsson/future"><code>future</code> package</a> for further details.</p>
+    <p>The application of <code>cross_validate</code> generates a list of results. As described above, each call to <code>cv_fun</code> itself returns a list of results, with different elements for each type of result we care about. The main loop generates a list of these individual lists of results (a sort of “meta-list”). This “meta-list” is then inverted such that there is one element per result type (this too is a list of the results for each fold). By default, <code>combine_results</code> is used to combine these results type lists in a sensible manner. How results are combined is determined automatically by examining the data types of the results from the first fold. This can be modified by specifying a list of arguments to <code>.combine_control</code>. See the help for <code>combine_results</code> for more details. In most cases, the defaults should suffice.</p>
+    
+    <h1 id="references" class="unnumbered">References</h1>
+    <div id="refs" class="references">
+    <div id="ref-R">
+    <p>R Core Team. 2017. <em>R: A Language and Environment for Statistical Computing</em>. Vienna, Austria: R Foundation for Statistical Computing. <a href="https://www.R-project.org/" class="uri">https://www.R-project.org/</a>.</p>
+    </div>
+    <div id="ref-vanderLaan:2007bz">
+    <p>van der Laan, M.J., E.C. Polley, and A.E. Hubbard. 2007. “Super learner.” <em>Statistical Applications in Genetics and Molecular Biology</em> 6:Art. 25–23 pp. (electronic).</p>
+    </div>
+    <div id="ref-Vaart:2006bz">
+    <p>van der Vaart, A.W., S. Dudoit, and M.J. van der Laan. 2006. “Oracle inequalities for multi-fold cross validation.” <em>Statistics &amp; Decisions</em> 24 (3):351–71.</p>
+    </div>
+    </div>
+  </body>
+</article>
