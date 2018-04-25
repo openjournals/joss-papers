@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<article>
+  <articleinfo>
+    <title>GeoStats.jl – High-performance geostatistics in Julia</title>
+    <authors>
+      <author>
+        <name>Júlio Hoffimann<a href="#fn1" class="footnote-ref" id="fnref1"><sup>1</sup></a></name>
+        <orcid>0000-0003-2789-297X</orcid>
+        <affiliation>
+          <orgname>
+            1
+          </orgname>
+        </affiliation>
+      </author>
+    </authors>
+    <tags>
+      <tag>Geostatistics</tag>
+      <tag>Inverse problems</tag>
+      <tag>Random processes</tag>
+      <tag>Spatial statistics</tag>
+      <tag>Variography</tag>
+      <tag>Kriging</tag>
+      <tag>Estimation</tag>
+      <tag>Simulation</tag>
+      <tag>Julia</tag>
+    </tags>
+    <date>20 April 2018</date>
+    <paper_doi>10.21105/joss.00692</paper_doi>
+    <software_repository>https://github.com/juliohm/GeoStats.jl</software_repository>
+    <software_archive>http://dx.doi.org/10.5281/zenodo.1228609</software_archive>
+    <paper_url>http://www.theoj.org/joss-papers/joss.00692/10.21105.joss.00692.pdf</paper_url>
+  </articleinfo>
+  <body>
+    <h1 id="summary">Summary</h1>
+    <p><a href="https://github.com/juliohm/GeoStats.jl">GeoStats.jl</a> is an extensible framework for high-performance geostatistics in Julia, as well as a formal specification of statistical problems in the spatial setting. It provides highly optimized solvers for estimation and (conditional) simulation of variables defined over general spatial domains (e.g. regular grid, point collection), and can utilize high-performance hardware for parallel execution such as GPUs and computer clusters.</p>
+    <p>Its unique design addresses the very important issue of scientific comparison between different geostatistical methods proposed by the research community. Unlike similar software (e.g. GSLIB, SGeMS, gstat), which implement algorithms for specific data and domain types with varying interfaces, GeoStats.jl introduces an abstraction layer with which users can define their problems precisely once, and switch between different solvers effortlessly. The same abstraction layer enables the development of higher-order routines that operate on solvers as first-class objects (e.g. cross-validation), a feature that gives researchers the ability to experiment with various geomodeling assumptions programatically.</p>
+    <p>Besides its technical contributions, the project aims to educate people outside of the field about state-of-the-art methods in geostatistics, their assumptions, and their limitations.</p>
+    <h2 id="problem-types">Problem types</h2>
+    <p>The framework currently defines two types of problems:</p>
+    <ul>
+    <li><p><strong>Estimation:</strong> given spatial data and domain, estimate variable(s) at unseen locations, and provide whenever possible a variance (or uncertainty) map.</p></li>
+    <li><p><strong>Simulation:</strong> given domain and (optionally) spatial data, simulate multiple realizations of variable(s) matching previously existing data if present.</p></li>
+    </ul>
+    <h2 id="available-solvers">Available solvers</h2>
+    <p>As of version 0.6, the following solvers are available.</p>
+    <ul>
+    <li><p>Estimation solvers</p>
+    <ul>
+    <li>Kriging <span class="citation" data-cites="Matheron1971">(Matheron 1971)</span></li>
+    <li>Inverse Distance Weighting <span class="citation" data-cites="Shepard1968">(Shepard 1968)</span></li>
+    <li>Locally Weighted Regression <span class="citation" data-cites="Cleveland1979">(Cleveland 1979)</span></li>
+    </ul></li>
+    <li><p>Simulation solvers</p>
+    <ul>
+    <li>Direct Gaussian Simulation <span class="citation" data-cites="Alabert1987">(Alabert 1987)</span></li>
+    <li>Sequential Gaussian Simulation <span class="citation" data-cites="Isaaks1990">(Isaaks 1990)</span></li>
+    <li>Fast Image Quilting <span class="citation" data-cites="Hoffimann2017">(J. Hoffimann et al. 2017)</span></li>
+    </ul></li>
+    </ul>
+    <h1 id="example-of-usage">Example of usage</h1>
+    <div class="sourceCode" id="cb1"><pre class="sourceCode julia"><code class="sourceCode julia"><a class="sourceLine" id="cb1-1" data-line-number="1">using GeoStats</a>
+    <a class="sourceLine" id="cb1-2" data-line-number="2">using Plots</a>
+    <a class="sourceLine" id="cb1-3" data-line-number="3"></a>
+    <a class="sourceLine" id="cb1-4" data-line-number="4"><span class="co"># data.csv:</span></a>
+    <a class="sourceLine" id="cb1-5" data-line-number="5"><span class="co">#    x,    y,       station, precipitation</span></a>
+    <a class="sourceLine" id="cb1-6" data-line-number="6"><span class="co"># 25.0, 25.0,     palo alto,           1.0</span></a>
+    <a class="sourceLine" id="cb1-7" data-line-number="7"><span class="co"># 50.0, 75.0,  redwood city,           0.0</span></a>
+    <a class="sourceLine" id="cb1-8" data-line-number="8"><span class="co"># 75.0, 50.0, mountain view,           1.0</span></a>
+    <a class="sourceLine" id="cb1-9" data-line-number="9"></a>
+    <a class="sourceLine" id="cb1-10" data-line-number="10"><span class="co"># read spreadsheet file containing spatial data</span></a>
+    <a class="sourceLine" id="cb1-11" data-line-number="11">geodata = readtable(<span class="st">&quot;data.csv&quot;</span>, coordnames=[:x,:y])</a>
+    <a class="sourceLine" id="cb1-12" data-line-number="12"></a>
+    <a class="sourceLine" id="cb1-13" data-line-number="13"><span class="co"># define spatial domain (e.g. regular grid, point collection)</span></a>
+    <a class="sourceLine" id="cb1-14" data-line-number="14">grid = RegularGrid{<span class="dt">Float64</span>}(<span class="fl">100</span>, <span class="fl">100</span>)</a>
+    <a class="sourceLine" id="cb1-15" data-line-number="15"></a>
+    <a class="sourceLine" id="cb1-16" data-line-number="16"><span class="co"># define estimation problem for any data column(s) (e.g. :precipitation)</span></a>
+    <a class="sourceLine" id="cb1-17" data-line-number="17">problem = EstimationProblem(geodata, grid, :precipitation)</a>
+    <a class="sourceLine" id="cb1-18" data-line-number="18"></a>
+    <a class="sourceLine" id="cb1-19" data-line-number="19"><span class="co"># choose a solver from the list of solvers</span></a>
+    <a class="sourceLine" id="cb1-20" data-line-number="20">solver = Kriging(</a>
+    <a class="sourceLine" id="cb1-21" data-line-number="21">  :precipitation =&gt; @NT(variogram=GaussianVariogram(range=<span class="fl">35</span>.))</a>
+    <a class="sourceLine" id="cb1-22" data-line-number="22">)</a>
+    <a class="sourceLine" id="cb1-23" data-line-number="23"></a>
+    <a class="sourceLine" id="cb1-24" data-line-number="24"><span class="co"># solve the problem</span></a>
+    <a class="sourceLine" id="cb1-25" data-line-number="25">solution = solve(problem, solver)</a>
+    <a class="sourceLine" id="cb1-26" data-line-number="26"></a>
+    <a class="sourceLine" id="cb1-27" data-line-number="27"><span class="co"># plot the solution</span></a>
+    <a class="sourceLine" id="cb1-28" data-line-number="28">plot(solution)</a></code></pre></div>
+    
+    <h1 id="straightforward-scientific-comparison-of-solvers">Straightforward scientific comparison of solvers</h1>
+    <p>Solvers adhering to the interface proposed in the framework can be easily compared on a given problem with different comparison methods. From a user’s perspective, this feature facilitates the selection of solvers for a specific problem. From a researcher’s perspective, this feature serves to guide the efforts of the geostatistics community.</p>
+    <div class="sourceCode" id="cb2"><pre class="sourceCode julia"><code class="sourceCode julia"><a class="sourceLine" id="cb2-1" data-line-number="1">using GeoStats</a>
+    <a class="sourceLine" id="cb2-2" data-line-number="2">using Plots</a>
+    <a class="sourceLine" id="cb2-3" data-line-number="3"></a>
+    <a class="sourceLine" id="cb2-4" data-line-number="4"><span class="co"># define solvers to be compared</span></a>
+    <a class="sourceLine" id="cb2-5" data-line-number="5">solver1 = Kriging(</a>
+    <a class="sourceLine" id="cb2-6" data-line-number="6">    :precipitation =&gt; @NT(variogram=GaussianVariogram(range=<span class="fl">35</span>.))</a>
+    <a class="sourceLine" id="cb2-7" data-line-number="7">)</a>
+    <a class="sourceLine" id="cb2-8" data-line-number="8">solver2 = InvDistWeight()</a>
+    <a class="sourceLine" id="cb2-9" data-line-number="9"></a>
+    <a class="sourceLine" id="cb2-10" data-line-number="10"><span class="co"># compare solvers with a comparison method (e.g. visual comparison)</span></a>
+    <a class="sourceLine" id="cb2-11" data-line-number="11">compare([solver1, solver2], problem, VisualComparison())</a></code></pre></div>
+    
+    <p>As of version 0.6, the following comparison methods are available.</p>
+    <ul>
+    <li>Visual Comparison</li>
+    <li>k-fold Cross-Validation</li>
+    </ul>
+    <h1 id="usage-in-academia-and-industry">Usage in academia and industry</h1>
+    <p>The solvers and tools implemented in the project have been used in both academic and industrial endeavours. To give an example, the <a href="https://github.com/juliohm/ImageQuilting.jl">ImageQuilting.jl</a> <span class="citation" data-cites="Hoffimann2017">(J. Hoffimann et al. 2017)</span> solver has been used inside <a href="https://www.eni.com">ENI</a> to condition 3D process-based models to data acquired in Oil &amp; Gas fields. It has also been used by researchers in Denmark interested in modeling groundwater resources <span class="citation" data-cites="Barfod2017">(A. A. S. Barfod et al. 2017)</span>, and by researchers studying micromodels of porous medium in various research groups worldwise. Research colleagues at Stanford are currently using GeoStats.jl to model fractured reservoirs, mineral deposits, geothermal resources, and glaciers, among other spatial objects.</p>
+    <h1 id="acknowledgements">Acknowledgements</h1>
+    <p>I’d like to thank my research colleagues in the School of Earth Sciences at Stanford for their feedback, feature requests, and bug reports, as well as the Julia community for helping with internal design decisions.</p>
+    <h1 id="funding">Funding</h1>
+    <p>GeoStats.jl will always be open source and free of charge. If you are an organization that supports open source initiatives, please contact the author at  regarding funding opportunities.</p>
+    <h1 id="references" class="unnumbered">References</h1>
+    <div id="refs" class="references">
+    <div id="ref-Alabert1987">
+    <p>Alabert, Francois. 1987. “The Practice of Fast Conditional Simulations Through the Lu Decomposition of the Covariance Matrix.” <em>Mathematical Geology</em> 19 (5). Springer Nature:369–86. <a href="https://doi.org/10.1007/bf00897191" class="uri">https://doi.org/10.1007/bf00897191</a>.</p>
+    </div>
+    <div id="ref-Barfod2017">
+    <p>Barfod, Adrian A. S., Julien Straubhaar, Anne-Sophie Høyer, Júlio Hoffimann, Anders V. Christiansen, Ingelise Møller, and Jef Caers. 2017. “Hydrostratigraphic Modelling Using Multiple-Point Statistics and Airborne Transient Electromagnetic Methods.” <em>Hydrology and Earth System Sciences Discussions</em>, August. Copernicus GmbH, 1–37. <a href="https://doi.org/10.5194/hess-2017-413" class="uri">https://doi.org/10.5194/hess-2017-413</a>.</p>
+    </div>
+    <div id="ref-Cleveland1979">
+    <p>Cleveland, William S. 1979. “Robust Locally Weighted Regression and Smoothing Scatterplots.” <em>Journal of the American Statistical Association</em> 74 (368). Informa UK Limited:829–36. <a href="https://doi.org/10.1080/01621459.1979.10481038" class="uri">https://doi.org/10.1080/01621459.1979.10481038</a>.</p>
+    </div>
+    <div id="ref-Hoffimann2017">
+    <p>Hoffimann, Júlio, Céline Scheidt, Adrian Barfod, and Jef Caers. 2017. “Stochastic Simulation by Image Quilting of Process-Based Geological Models.” <em>Computers &amp; Geosciences</em> 106 (May). Elsevier BV:18–32. <a href="https://doi.org/10.1016/j.cageo.2017.05.012" class="uri">https://doi.org/10.1016/j.cageo.2017.05.012</a>.</p>
+    </div>
+    <div id="ref-Isaaks1990">
+    <p>Isaaks, Edward H. 1990. “The Application of Monte Carlo Methods to the Analysis of Spatially Correlated Data.” PhD thesis.</p>
+    </div>
+    <div id="ref-Matheron1971">
+    <p>Matheron, Georges. 1971. “The Theory of Regionalized Variables and Its Applications.” PhD thesis.</p>
+    </div>
+    <div id="ref-Shepard1968">
+    <p>Shepard, Donald. 1968. “A Two-Dimensional Interpolation Function for Irregularly-Spaced Data.” <em>Proceedings of the 1968 23rd ACM National Conference</em>. ACM Press. <a href="https://doi.org/10.1145/800186.810616" class="uri">https://doi.org/10.1145/800186.810616</a>.</p>
+    </div>
+    </div>
+    <section class="footnotes">
+    <hr />
+    <ol>
+    <li id="fn1"><p>Corresponding author: juliohm@stanford.edu<a href="#fnref1" class="footnote-back">↩</a></p></li>
+    </ol>
+    </section>
+  </body>
+</article>
