@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<article>
+  <articleinfo>
+    <title>The Vascular Modeling Toolkit: A Python Library for the Analysis of Tubular Structures in Medical Images</title>
+    <authors>
+      <author>
+        <name>Richard Izzo</name>
+        <orcid>0000-0002-0811-6513</orcid>
+        <affiliation>
+          <orgname>
+            1
+          </orgname>
+        </affiliation>
+      </author>
+      <author>
+        <name>David Steinman</name>
+        <orcid>0000-0002-7963-1168</orcid>
+        <affiliation>
+          <orgname>
+            2
+          </orgname>
+        </affiliation>
+      </author>
+      <author>
+        <name>Simone Manini</name>
+        <orcid>0000-0003-4350-659X</orcid>
+        <affiliation>
+          <orgname>
+            3
+          </orgname>
+        </affiliation>
+      </author>
+      <author>
+        <name>Luca Antiga</name>
+        <orcid>0000-0002-8367-227X</orcid>
+        <affiliation>
+          <orgname>
+            3
+          </orgname>
+        </affiliation>
+      </author>
+    </authors>
+    <tags>
+      <tag>Python</tag>
+      <tag>C++</tag>
+      <tag>vascular modeling</tag>
+      <tag>image processing</tag>
+      <tag>medical imaging</tag>
+      <tag>image segmentation</tag>
+      <tag>computational geometry</tag>
+      <tag>surface extraction</tag>
+      <tag>CFD Meshing</tag>
+      <tag>hemodynamics</tag>
+      <tag>mesh generation</tag>
+      <tag>centerline</tag>
+    </tags>
+    <date>23 April 2018</date>
+    <paper_doi>10.21105/joss.00745</paper_doi>
+    <software_repository>https://github.com/vmtk/vmtk</software_repository>
+    <software_archive>http://dx.doi.org/10.5281/zenodo.1253598</software_archive>
+    <paper_url>http://www.theoj.org/joss-papers/joss.00745/10.21105.joss.00745.pdf</paper_url>
+  </articleinfo>
+  <body>
+    <h1 id="summary">Summary</h1>
+    <p>Vascular disease is the leading cause of death in the developed world <span class="citation" data-cites="RN569">(Benjamin et al. 2018)</span>. There is a wide body of evidence demonstrating that the geometric structure and layout of the vascular network has a major impact on hemodynamics and the associated severity / progression of vascular diseases such as heart attack, stroke, and aneurysm rupture <span class="citation" data-cites="RN478">(Luca Antiga 2002, <span class="citation" data-cites="RN83">L. Antiga et al. (2008)</span>)</span>. Analysis of diagnostic medical scans designed to highlight vascular structures (such as CT Angiography or MR Angiography) allows for the detailed characterization of these structures <em>in vivo</em>. Such analyses generate quantitative measures which can be used in order to understand both disease characteristics across a population, and the efficacy of potential treatments <span class="citation" data-cites="RN550">(Piccinelli et al. 2009, <span class="citation" data-cites="RN83">L. Antiga et al. (2008)</span>)</span>.</p>
+    <p><code>The Vascular Modeling Toolkit (VMTK)</code> is a collection of python-wrapped C++ classes which enable the efficient segmentation, geometric characterization, network analysis, hemodynamic modeling, and visualization of vascular structures from medical images. Image segmentation can be performed via a 3D gradient based level set algorithm which is initialized from user defined seeds. Surface editing, mesh generation, and geometric characterization is largely automated, relying heavily on the centerline definitions calculated from segmented structures. User interaction is facilitated by a unique system of unix-inspired <code>pypes</code>. This interface allows for the composable creation and execution of entire analyses from simple terminal commands, providing a flexible framework for high-level coding, both from the user’s and from the developer’s point of view.</p>
+    <p><code>VMTK</code> is a mature package with an active development team and user community. It can be used via its standalone interface, included as a Python or C++ library, or as an extension to the medical image processing platform 3D Slicer <span class="citation" data-cites="Kikinis2014">(Kikinis, Pieper, and Vosburgh 2014)</span>. It has received over 400 citations in scientific publications since its first release in 2004 <span class="citation" data-cites="RN83">(L. Antiga et al. 2008)</span>. The library relies upon two major open source frameworks for building highly performant and well validated image analysis algorithms and visualizations: the Visualization Toolkit (<code>VTK</code>) and the Insight Segmentation and Registration Toolkit (<code>ITK</code>). Thorough tutorials and documentation are available on the project webpage: www.vmtk.org.</p>
+    <h1 id="vmtk-in-action">VMTK In Action</h1>
+    <h2 id="generating-a-surface-from-an-image-via-level-set-evolution">Generating a Surface from an Image via Level Set Evolution</h2>
+    <p>Segmenting a complex vascular tract comes down to selecting the endpoints of a branch, letting level sets by attracted to gradient peaks with the sole advection term turned on, repeating the operation for all the branches and merging everything in a single model.</p>
+    <pre><code>vmtklevelsetsegmentation -ifile foo.dcm --pipe vmtkmarchingcubes -i @.o
+    --pipe vmtksurfacewriter -ofile foo.vtp</code></pre>
+    <p><img src="levelset.png" alt="levelset segmentation" /><br />
+    </p>
+    <p><strong>Figure 1:</strong> The process of placing seeds on an image (left). Initializing an isosurface from the seeds using the colliding fronts methods (center). Evolving the isosurface through the level set equations (right).</p>
+    <h2 id="generating-centerlines-from-a-surface">Generating Centerlines from a Surface</h2>
+    <p>Centerlines are determined as the paths defined on Voronoi diagram sheets that minimize the integral of the radius of maximal inscribed spheres along the path, which is equivalent to finding the shortest paths in the radius metric.</p>
+    <pre><code>vmtkcenterlines -ifile foo.vtp -ofile foo_centerlines.vtp</code></pre>
+    <p><img src="centerlines.png" alt="Centerline Generation" /><br />
+    </p>
+    <p><strong>Figure 2:</strong> The input surface representation (left). Visualization of the internal subset of the voronoi diagram where each sheet represents a maximum inscribed sphere radius centered at some point in the surface (center). The centerline extracted from the voronoi diagram rendered as in its position within the input surface (right).</p>
+    <h2 id="splitting-a-surface-from-its-centerlines">Splitting a Surface from its Centerlines</h2>
+    <p>Surface properties can be analyzed, and the surface can be split by analyzing the surface-centerline tube containment relationships.</p>
+    <pre><code>vmtksurfacereader -ifile foo.vtp --pipe vmtkcenterlines --pipe
+    vmtkbranchextractor --pipe vmtkbranchclipper -groupids 0 -insideout 1
+    -ofile foo_sp.vtp</code></pre>
+    <p><img src="splitting.png" alt="centerline splitting" /><br />
+    </p>
+    <p><strong>Figure 3:</strong> Illustration of the centerline-surface tube containment relationships (left). Visualization of the surface being split into independent groups based on the surfaces membership in a centerline tract/group (right).</p>
+    <h2 id="generating-a-volumetric-mesh-from-a-surface">Generating a Volumetric Mesh from a Surface</h2>
+    <p>Tetrahedral, mixed tetrahedral, and boundary layer meshes can be generated from a surface and its centerlines.</p>
+    <pre><code>vmtksurfacereader -ifile foo.vtp --pipe vmtkcenterlines --pipe
+    vmtkdistancetocenterlines -useradius 1 --pipe vmtkmeshgenerator
+    -elementsizemode edgelengtharray -edgelengtharray DistanceToCenterlines
+    -edgelengthfactor 0.3 -boundarylayer 1 -ofile foo.vtu</code></pre>
+    <p><img src="mesh.png" alt="mesh generation" /><br />
+    </p>
+    <p><strong>Figure 4:</strong> The input surface representation (left). Visualization of the internal mesh (center). boundary layer generated within the internal mesh (right).</p>
+    <h2 id="composable-scripting-with-pypes">Composable Scripting With Pypes</h2>
+    <p><code>Pypes</code> is the glue among vmtk scripts. It allows new scripts to be written easily and have a common interface, but, most of all, it allows single vmtk scripts to interact with each other, making <code>VMTK</code> modular and flexible. Pypes can be used from the command line, a python interpreter, or from the custom <code>PypePad</code> user interface.</p>
+    <p><img src="pypepad.png" alt="pypepad" /><br />
+    </p>
+    <p><strong>Figure 5:</strong> Pypepad user interface. <code>vmtkimagereader</code> specifies it’s input file name with the <code>-ifile</code> flag, and the image is stored in memory as an output member of the script. <code>vmtkmarchingcubes</code> is initialized with this image as an input member, and the target isosurface level is set to 700 with the <code>-l</code> flag; the surface is generated and stored as an output member of the script. <code>vmtksurfaceviewer</code> is initialized with this surface as an input member, and the script displays it as an interactive rendering in a new window.</p>
+    <h1 id="acknowledgements-funding">Acknowledgements &amp; Funding</h1>
+    <p>The Vascular Modeling Toolkit is a community project which is open-source and free of charge. We would especially like to recognize significant infrastructure contributions from the team at Kitware Inc. (www.kitware.com). In addition we would like to acknowledge Orobix Srl. (www.orobix.com) for partially funding continued development efforts of <code>VMTK</code>.</p>
+    <p>Finally, we would like to that the following persons for their contributions to the VMTK source code (Full Name followed by Github Username in parentheses): Andras Lassoan (lassoan), Jean-Christophe Fillion-Robin (jcfr), Elena Faggiano (ElenaFagg), Kurt Sansom (kayarre), David Ladd (dladd), Steve Pieper (pieper), Daniel Haehn (haehn), Denis Shamonin (dpshamonin), &amp; Sara Zanchi (SaraZanchi).</p>
+    <h1 id="references" class="unnumbered">References</h1>
+    <div id="refs" class="references">
+    <div id="ref-RN83">
+    <p>Antiga, L., M. Piccinelli, L. Botti, B. Ene-Iordache, A. Remuzzi, and D. A. Steinman. 2008. “An Image-Based Modeling Framework for Patient-Specific Computational Hemodynamics.” Journal Article. <em>Med Biol Eng Comput</em> 46 (11):1097–1112. <a href="https://doi.org/10.1007/s11517-008-0420-1" class="uri">https://doi.org/10.1007/s11517-008-0420-1</a>.</p>
+    </div>
+    <div id="ref-RN478">
+    <p>Antiga, Luca. 2002. “Patient-Specific Modeling of Geometry and Blood Flow in Large Arteries.” Journal Article.</p>
+    </div>
+    <div id="ref-RN569">
+    <p>Benjamin, Emelia J., Salim S. Virani, Clifton W. Callaway, Alexander R. Chang, Susan Cheng, Stephanie E. Chiuve, Mary Cushman, et al. 2018. “Heart Disease and Stroke Statistics—2018 Update: A Report from the American Heart Association.” Journal Article. <em>Circulation</em>. <a href="https://doi.org/10.1161/CIR.0000000000000558" class="uri">https://doi.org/10.1161/CIR.0000000000000558</a>.</p>
+    </div>
+    <div id="ref-Kikinis2014">
+    <p>Kikinis, Ron, Steve D. Pieper, and Kirby G. Vosburgh. 2014. “3D Slicer: A Platform for Subject-Specific Image Analysis, Visualization, and Clinical Support.” In <em>Intraoperative Imaging and Image-Guided Therapy</em>, edited by Ferenc A. Jolesz, 277–89. New York, NY: Springer New York. <a href="https://doi.org/10.1007/978-1-4614-7657-3_19" class="uri">https://doi.org/10.1007/978-1-4614-7657-3_19</a>.</p>
+    </div>
+    <div id="ref-RN550">
+    <p>Piccinelli, M., A. Veneziani, D. A. Steinman, A. Remuzzi, and L. Antiga. 2009. “A Framework for Geometric Analysis of Vascular Structures: Application to Cerebral Aneurysms.” Journal Article. <em>IEEE Trans Med Imaging</em> 28 (8):1141–55. <a href="https://doi.org/10.1109/TMI.2009.2021652" class="uri">https://doi.org/10.1109/TMI.2009.2021652</a>.</p>
+    </div>
+    </div>
+  </body>
+</article>
