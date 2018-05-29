@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<article>
+  <articleinfo>
+    <title>PetIBM: toolbox and applications of the immersed-boundary method on distributed-memory architectures</title>
+    <authors>
+      <author>
+        <name>Pi-Yueh Chuang</name>
+        <orcid>0000-0001-6330-2709</orcid>
+        <affiliation>
+          <orgname>
+            1
+          </orgname>
+        </affiliation>
+      </author>
+      <author>
+        <name>Olivier Mesnard</name>
+        <orcid>0000-0001-5335-7853</orcid>
+        <affiliation>
+          <orgname>
+            1
+          </orgname>
+        </affiliation>
+      </author>
+      <author>
+        <name>Anush Krishnan</name>
+        <orcid>0000-0001-6409-7022</orcid>
+        <affiliation>
+          <orgname>
+            2
+          </orgname>
+        </affiliation>
+      </author>
+      <author>
+        <name>Lorena A. Barba</name>
+        <orcid>0000-0001-5812-2711</orcid>
+        <affiliation>
+          <orgname>
+            1
+          </orgname>
+        </affiliation>
+      </author>
+    </authors>
+    <tags>
+      <tag>Computational Fluid Dynamics</tag>
+      <tag>Immersed-Boundary Method</tag>
+      <tag>PETSc</tag>
+      <tag>GPU</tag>
+      <tag>NVIDIA AmgX</tag>
+    </tags>
+    <date>25 January 2018</date>
+    <paper_doi>10.21105/joss.00558</paper_doi>
+    <software_repository>https://github.com/barbagroup/PetIBM</software_repository>
+    <software_archive>http://dx.doi.org/10.5281/zenodo.1255132</software_archive>
+    <paper_url>http://www.theoj.org/joss-papers/joss.00558/10.21105.joss.00558.pdf</paper_url>
+  </articleinfo>
+  <body>
+    <h1 id="summary">Summary</h1>
+    <p>PetIBM is a C++ library with ready-to-use application codes to solve the two- and three-dimensional incompressible Navier-Stokes equations on fixed structured Cartesian grids with an immersed-boundary method (IBM). PetIBM runs on distributed-memory architectures and can be used to compute the flow around multiple moving rigid immersed boundaries (with prescribed kinematics).</p>
+    <p>In the IBM framework, a collection of Lagrangian markers defines the immersed boundary (where boundary conditions are enforced) and the fluid equations are solved over the extended domain (including the body domain). The Eulerian mesh remains unmodified when computing the flow around multiple moving immersed bodies, which removes the need for remeshing at every time step. PetIBM discretizes the fluid equations using a second-order finite-difference scheme, various optional time-integrators, and a fully discrete projection method (<span class="citation" data-cites="perot_1993">Perot (1993)</span>). It implements two immersed-boundary algorithms: the immersed-boundary projection method (<span class="citation" data-cites="taira_colonius_2007">Taira and Colonius (2007)</span>) and its decoupled version (<span class="citation" data-cites="li_et_al_2016">Li et al. (2016)</span>).</p>
+    <p>Other open-source software packages offer immersed-boundary solvers: for example, IBAMR (<span class="citation" data-cites="griffith_et_al_2007">Griffith et al. (2007)</span>, <span class="citation" data-cites="bhalla_et_al_2013">Bhalla et al. (2013)</span>) is a long-standing C++ library with MPI parallelization that also provides adaptive mesh refinement. It can handle deforming immersed bodies and has been used in a variety of scenarios, including cardiac fluid dynamics, swimming, insect flight, and others. PetIBM and IBAMR use different immersed-boundary schemes, however. We developed PetIBM to work with the immersed-boundary projection method, which is based on the fully discrete formulation of Perot on staggered grids and thus eliminates the need for pressure boundary conditions, which have caused many headaches for CFD practitioners (<span class="citation" data-cites="gresho_sani_1987">Gresho and Sani (1987)</span>, <span class="citation" data-cites="sani_gresho_1994">Sani and Gresho (1994)</span>). PetIBM features an operator-based design, providing routines to create and manipulate discrete operators (e.g., gradient, divergence, Laplacian, convection, diffusion, etc.), so it can be used as a toolbox for researching new solution methods. It is also capable of using graphics processing unit (GPU) architectures, a feature missing from other software, as far as we know. A previous project implementing immersed-boundary methods on GPU architecture is cuIBM (<span class="citation" data-cites="krishnan_et_al_2017">Krishnan, Mesnard, and Barba (2017)</span>), but it is limited to two-dimensional problems that fit on a single GPU device.</p>
+    <p>PetIBM is written in C++ and relies on the PETSc library (<span class="citation" data-cites="petsc_1997">Balay et al. (1997)</span>, <span class="citation" data-cites="petsc_user_ref_2017">Balay et al. (2017)</span>) for data structures and parallel routines to run on memory-distributed architectures. PetIBM can solve one or several linear systems on multiple distributed CUDA-capable GPU devices with the NVIDIA AmgX library and AmgXWrapper (<span class="citation" data-cites="chuang_barba_2017">Chuang and Barba (2017)</span>). The software package includes extended documentation as well as many examples to guide users.</p>
+    <p>PetIBM has already been used to generate results published in <span class="citation" data-cites="mesnard_barba_2017">Mesnard and Barba (2017)</span>, a full replication of a study on the aerodynamics of a gliding snake species (<span class="citation" data-cites="krishnan_et_al_2014">Krishnan et al. (2014)</span>). PetIBM is currently used to compute the three-dimensional flow of a gliding-snake model on the cloud platform Microsoft Azure.</p>
+    <h2 id="appendix-mathematical-formulation">Appendix: mathematical formulation</h2>
+    <p>PetIBM solves the Navier-Stokes equations on an extended discretization grid that includes the interior of the immersed boundary. To model the presence of the boundary, a forcing term is added to the momentum equation and an additional equation for the no-slip condition completes the system. Variants of the immersed-boundary method (IBM) depend on how one models the forcing. In PetIBM, we use regularized-delta functions to transfer data between the Eulerian grid and the Lagrangian boundary points. The system of equations is:</p>
+    
+    <p>where <span class="math inline"><strong>u</strong></span> is the velocity field, <span class="math inline"><em>p</em></span> is the fluid pressure, and <span class="math inline"><em>R</em><em>e</em></span> is the Reynolds number.</p>
+    <p>Currently, PetIBM provides two application codes implementing different versions of the IBM: (1) an immersed-boundary projection method (IBPM) based on the work of <span class="citation" data-cites="taira_colonius_2007">Taira and Colonius (2007)</span> and (2) a decoupled version of the IBPM proposed by <span class="citation" data-cites="li_et_al_2016">Li et al. (2016)</span>. Those two methods fit into the framework of the projection approach of <span class="citation" data-cites="perot_1993">Perot (1993)</span>. The equations are fully discretized (space and time) to form an algebraic system to be solved for the velocity <span class="math inline"><em>u</em><sup><em>n</em> + 1</sup></span>, the pressure field <span class="math inline"><em>ϕ</em></span>, and the Lagrangian forces <span class="math inline"><em>f̃</em></span>. The discretized system is:</p>
+    
+    <p>where <span class="math inline"><em>D</em></span>, <span class="math inline"><em>G</em></span>, and <span class="math inline"><em>A</em></span> are the divergence, gradient, and implicit operators, respectively. <span class="math inline"><em>E</em></span> and <span class="math inline"><em>H</em></span> are the interpolation and spreading operators, respectively, used to transfer the data between the Eulerian grid and the Lagrangian boundary points. On the right-hand side, <span class="math inline"><em>r</em><sup><em>n</em></sup></span> gathers all the explicit terms and <span class="math inline"><em>u</em><sub><em>B</em></sub><sup><em>n</em> + 1</sup></span> is the known (prescribed) boundary velocity; <span class="math inline"><em>b</em><em>c</em><sub>1</sub></span> and <span class="math inline"><em>b</em><em>c</em><sub>2</sub></span> contain the boundary terms that arise from the discretization of momentum and continuity equations, respectively.</p>
+    <p>In the IBPM, we solve a modified Poisson system for the pressure field and Lagrangian forces, coupled together. This way, the divergence-free condition and no-slip constraint are simultaneously enforced on the velocity field at the end of the time step. The fully discretized system can be cast into the following:</p>
+    
+    <p>with</p>
+    
+    <p>In practice, we never form the full system. Instead, we apply a block-LU decomposition as follows:</p>
+    
+    <p>Thus, we retrieve the sequence of operations of the traditional projection method. We solve a system for an intermediate velocity field that is corrected, after solving a modified Poisson system for the variable <span class="math inline"><em>λ</em></span>, to enforce the divergence-free condition and the no-slip constraint at the location of the immersed boundary. The sequence is:</p>
+    
+    <p>The IBPM implemented in PetIBM solves, at every time step, Equations (5) to (6). (Note: the inverse of the implicit operator <span class="math inline"><em>A</em><sup>−1</sup></span> is approximated by a finite Taylor series expansion.)</p>
+    <p>The IBPM requires solving, at each time step, an expensive modified Poisson system, <span class="math inline"><em>Q</em><sub>1</sub><em>A</em><sup>−1</sup><em>Q</em><sub>2</sub></span>, whose non-zero structure changes when the location of the immersed boundary is moving. In the PetIBM implementation of the decoupled IBPM, we apply a second block-LU decomposition to decouple the pressure field from the Lagrangian forces and recover a classical Poisson system. The fully discretized algebraic system can be cast into:</p>
+    
+    <p>The velocity <span class="math inline"><em>u</em><sup><em>n</em> + 1</sup></span> and the Lagrangian forces <span class="math inline"><em>f̃</em></span> are coupled together to form a new unknown <span class="math inline"><em>γ</em><sup><em>n</em> + 1</sup></span>, as follows:</p>
+    
+    <p>where</p>
+    
+    <p>and</p>
+    
+    <p>Two successive block-LU decompositions are applied to decouple the Lagrangian forces <span class="math inline"><em>f̃</em></span> from <span class="math inline"><em>γ</em><sup><em>n</em> + 1</sup></span> and to decouple the velocity from the pressure field.</p>
+    <p>The first block-LU decomposition decouples the pressure field from the new unknown <span class="math inline"><em>γ</em><sup><em>n</em> + 1</sup></span>:</p>
+    
+    <p>which leads to the following sequence of operations:</p>
+    
+    <p>A second block-LU decomposition is applied to the first equation above:</p>
+    
+    <p>and we end up with the following sequence:</p>
+    
+    <p>The decoupled version of the IBPM implemented in PetIBM solves, at every time step, Equations (15) to (17) followed by Equations (12) and (13).</p>
+    <h1 id="references" class="unnumbered">References</h1>
+    <div id="refs" class="references">
+    <div id="ref-petsc_user_ref_2017">
+    <p>Balay, Satish, Shrirang Abhyankar, Mark F. Adams, Jed Brown, Peter Brune, Kris Buschelman, Lisandro Dalcin, et al. 2017. “PETSc Users Manual.” ANL-95/11 - Revision 3.8. Argonne National Laboratory.</p>
+    </div>
+    <div id="ref-petsc_1997">
+    <p>Balay, Satish, William D. Gropp, Lois Curfman McInnes, and Barry F. Smith. 1997. “Efficient Management of Parallelism in Object Oriented Numerical Software Libraries.” In <em>Modern Software Tools in Scientific Computing</em>, edited by E. Arge, A. M. Bruaset, and H. P. Langtangen, 163–202. Birkhäuser Press.</p>
+    </div>
+    <div id="ref-bhalla_et_al_2013">
+    <p>Bhalla, Amneet Pal Singh, Rahul Bale, Boyce E Griffith, and Neelesh A Patankar. 2013. “A Unified Mathematical Framework and an Adaptive Numerical Method for Fluid–Structure Interaction with Rigid, Deforming, and Elastic Bodies.” <em>Journal of Computational Physics</em> 250. Elsevier:446–76. <a href="https://doi.org/10.1016/j.jcp.2013.04.033" class="uri">https://doi.org/10.1016/j.jcp.2013.04.033</a>.</p>
+    </div>
+    <div id="ref-chuang_barba_2017">
+    <p>Chuang, Pi-Yueh, and Lorena A. Barba. 2017. “AmgXWrapper: An Interface Between PETSc and the NVIDIA AmgX Library.” <em>The Journal of Open Source Software</em> 2 (16). The Open Journal:280. <a href="https://doi.org/10.21105/joss.00280" class="uri">https://doi.org/10.21105/joss.00280</a>.</p>
+    </div>
+    <div id="ref-gresho_sani_1987">
+    <p>Gresho, Philip M, and Robert L Sani. 1987. “On Pressure Boundary Conditions for the Incompressible Navier-Stokes Equations.” <em>International Journal for Numerical Methods in Fluids</em> 7 (10). Wiley Online Library:1111–45. <a href="https://doi.org/10.1002/fld.1650071008" class="uri">https://doi.org/10.1002/fld.1650071008</a>.</p>
+    </div>
+    <div id="ref-griffith_et_al_2007">
+    <p>Griffith, Boyce E, Richard D Hornung, David M McQueen, and Charles S Peskin. 2007. “An Adaptive, Formally Second Order Accurate Version of the Immersed Boundary Method.” <em>Journal of Computational Physics</em> 223 (1). Elsevier:10–49. <a href="https://doi.org/10.1016/j.jcp.2006.08.019" class="uri">https://doi.org/10.1016/j.jcp.2006.08.019</a>.</p>
+    </div>
+    <div id="ref-krishnan_et_al_2017">
+    <p>Krishnan, Anush, Olivier Mesnard, and Lorena A. Barba. 2017. “cuIBM: A GPU-Based Immersed Boundary Method Code.” <em>The Journal of Open Source Software</em> 2 (15). The Open Journal:301. <a href="https://doi.org/10.21105/joss.00301" class="uri">https://doi.org/10.21105/joss.00301</a>.</p>
+    </div>
+    <div id="ref-krishnan_et_al_2014">
+    <p>Krishnan, Anush, John J Socha, Pavlos P Vlachos, and LA Barba. 2014. “Lift and Wakes of Flying Snakes.” <em>Physics of Fluids</em> 26 (3). AIP:031901. <a href="https://doi.org/10.1063/1.4866444" class="uri">https://doi.org/10.1063/1.4866444</a>.</p>
+    </div>
+    <div id="ref-li_et_al_2016">
+    <p>Li, Ru-Yang, Chun-Mei Xie, Wei-Xi Huang, and Chun-Xiao Xu. 2016. “An Efficient Immersed Boundary Projection Method for Flow over Complex/Moving Boundaries.” <em>Computers &amp; Fluids</em> 140. Elsevier:122–35. <a href="https://doi.org/10.1016/j.compfluid.2016.09.017" class="uri">https://doi.org/10.1016/j.compfluid.2016.09.017</a>.</p>
+    </div>
+    <div id="ref-mesnard_barba_2017">
+    <p>Mesnard, Olivier, and Lorena A Barba. 2017. “Reproducible and Replicable Computational Fluid Dynamics: It’s Harder Than You Think.” <em>Computing in Science &amp; Engineering</em> 19 (4). IEEE:44–55. <a href="https://doi.org/10.1109/MCSE.2017.3151254" class="uri">https://doi.org/10.1109/MCSE.2017.3151254</a>.</p>
+    </div>
+    <div id="ref-perot_1993">
+    <p>Perot, J Blair. 1993. “An Analysis of the Fractional Step Method.” <em>Journal of Computational Physics</em> 108 (1). Elsevier:51–58. <a href="https://doi.org/10.1006/jcph.1993.1162" class="uri">https://doi.org/10.1006/jcph.1993.1162</a>.</p>
+    </div>
+    <div id="ref-sani_gresho_1994">
+    <p>Sani, Robert L, and Philip M Gresho. 1994. “Résumé and Remarks on the Open Boundary Condition Minisymposium.” <em>International Journal for Numerical Methods in Fluids</em> 18 (10). Wiley Online Library:983–1008. <a href="https://doi.org/10.1002/fld.1650181006" class="uri">https://doi.org/10.1002/fld.1650181006</a>.</p>
+    </div>
+    <div id="ref-taira_colonius_2007">
+    <p>Taira, Kunihiko, and Tim Colonius. 2007. “The Immersed Boundary Method: A Projection Approach.” <em>Journal of Computational Physics</em> 225 (2). Elsevier:2118–37. <a href="https://doi.org/10.1016/j.jcp.2007.03.005" class="uri">https://doi.org/10.1016/j.jcp.2007.03.005</a>.</p>
+    </div>
+    </div>
+  </body>
+</article>
