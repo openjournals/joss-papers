@@ -1,0 +1,751 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+</journal-title-group>
+<issn></issn>
+<publisher>
+<publisher-name></publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">3659</article-id>
+<article-id pub-id-type="doi">10.21105/joss.03659</article-id>
+<title-group>
+<article-title>argodata: An R interface to oceanographic data from the
+International Argo Program</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">0000-0002-9415-4582</contrib-id>
+<string-name>Dewey Dunnington</string-name>
+<xref ref-type="aff" rid="aff-1"/>
+<xref ref-type="corresp" rid="cor-1"><sup>*</sup></xref>
+</contrib>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">0000-0003-3774-3732</contrib-id>
+<string-name>Jaimie Harbin</string-name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">0000-0001-7808-5911</contrib-id>
+<string-name>Dan E. Kelley</string-name>
+<xref ref-type="aff" rid="aff-2"/>
+</contrib>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">0000-0002-7833-206X</contrib-id>
+<string-name>Clark Richards</string-name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Fisheries and Oceans Canada, Bedford Institute of
+Oceanography, Dartmouth, NS, Canada</institution>
+</institution-wrap>
+</aff>
+<aff id="aff-2">
+<institution-wrap>
+<institution>Department of Oceanography, Dalhousie University, Halifax,
+NS, Canada</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<author-notes>
+<corresp id="cor-1">* E-mail: <email></email></corresp>
+</author-notes>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2021-05-14">
+<day>14</day>
+<month>5</month>
+<year>2021</year>
+</pub-date>
+<volume>6</volume>
+<issue>68</issue>
+<fpage>3659</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2021</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>oceanography</kwd>
+<kwd>measurement</kwd>
+<kwd>Argo float</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p>This paper describes <monospace>argodata</monospace>, an R package
+  that makes it easier to work with data acquired in the International
+  Argo Program, which provides over two decades of oceanographic
+  measurements from around the world. Although Argo data are publicly
+  available in NetCDF format and several software packages are available
+  to assist in locating and downloading relevant Argo data, the
+  multidimensional arrays used can be difficult to understand for
+  non-oceanographers, particulary for the expanding arrays of
+  biogeochemical variables measured by Argo floats. Given the increasing
+  use of Argo data in other disciplines, we built a minimal interface to
+  the data set that uses the data frame as the primary data structure.
+  This approach allows users to leverage the rich ecosystem of R
+  packages that manipulate data frames (e.g., the
+  <monospace>tidyverse</monospace>) and associated instructional
+  resources.</p>
+</sec>
+<sec id="introduction">
+  <title>Introduction</title>
+  <p>The ocean is highly variable in both space and time and mapping
+  this variability at appropriate scales is a key factor in many
+  scientific studies. Oceanographic data have direct applications that
+  range from the analysis of near-bottom ecosystems to air-sea
+  interactions. More broadly, ocean measurements are needed to constrain
+  the models that scientists use to understand the evolving state of the
+  ocean and to make predictions about its future, particularly as a
+  component of the global climate system.</p>
+  <p>The International Argo Program
+  (<xref alt="Argo, 2021" rid="ref-argo" ref-type="bibr">Argo,
+  2021</xref>) deploys and collects data from several thousand devices
+  that are programmed to drift with and move vertically through the
+  ocean. Sensors measure electrical conductivity, temperature, pressure,
+  and other quantities along this vertical path yielding “profiles” that
+  are uploaded via satellite to globally distributed data assembly
+  centres
+  (<xref alt="Roemmich et al., 2001" rid="ref-roemmich_argo_2001" ref-type="bibr">Roemmich
+  et al., 2001</xref>,
+  <xref alt="2009" rid="ref-roemmich_argo_2009-2" ref-type="bibr">2009</xref>).
+  Since 1997, the International Argo Program has collected over 2.4
+  million profiles from around the globe and expanded its original array
+  of sensors to measure biogeochemicical variables such as pH,
+  chloryphyll-a, dissolved oxygen, nitrate, and many others.</p>
+  <p>Although the NetCDF data files provided by Argo data servers
+  contain metadata that describe their contents, we identified a number
+  of barriers to data access. These included (1) reading and decoding
+  the index files to locate files of interest, (2) downloading and
+  potentially caching large numbers of small NetCDF files, (3) reading
+  the NetCDF files into a form where the data contained within can be
+  visualized and analyzed, and (4) dealing efficiently with potentially
+  large Argo data sets. In particular, the incorporation of
+  biogeochemical variables in Argo NetCDF files introduced additional
+  complexity such that a novice- to average-level programmer may have
+  difficulty extracting and manipulating data from many profiles.
+  Whereas a variety of applications have been created to address some of
+  these barriers, the <monospace>argodata</monospace> package is our
+  attempt to overcome these barriers for the novice- to average-level
+  programmer who may not be familiar with oceanographic conventions for
+  storing data.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p>In the R language, several tools are available to access data from
+  the International Argo Program. The <monospace>oce</monospace> package
+  provides facilities to read and analyze “profile” and “trajectory”
+  Argo NetCDF files
+  (<xref alt="Kelley, 2018" rid="ref-kelley_oceanographic_2018" ref-type="bibr">Kelley,
+  2018</xref>;
+  <xref alt="Kelley &amp; Richards, 2021" rid="ref-r-oce" ref-type="bibr">Kelley
+  &amp; Richards, 2021</xref>); the <monospace>argoFloats</monospace>
+  package provides additional tools to locate, download, cache, and
+  visualize Argo NetCDF files
+  (<xref alt="Kelley et al., 2021" rid="ref-kelley_argofloats_2021" ref-type="bibr">Kelley
+  et al., 2021</xref>); and <monospace>rnoaa</monospace> provides
+  limited access to a subset of Argo data from the North Atlantic
+  (<xref alt="Chamberlain, 2021" rid="ref-r-rnoaa" ref-type="bibr">Chamberlain,
+  2021</xref>). Outside of R, the <monospace>argopy</monospace> package
+  for Python provides access to the Argo data set with some facilities
+  for analysis and visualization
+  (<xref alt="Maze &amp; Balem, 2020" rid="ref-maze_argopy_2020" ref-type="bibr">Maze
+  &amp; Balem, 2020</xref>), and several web applications provide visual
+  tools to locate relevant Argo profiles based on user-defined search
+  criteria
+  (<xref alt="OceanOPS, 2021" rid="ref-oceanops_oceanops_2021" ref-type="bibr"><italic>OceanOPS</italic>,
+  2021</xref>;
+  <xref alt="Tucker et al., 2020" rid="ref-tucker_argovis_2020" ref-type="bibr">Tucker
+  et al., 2020</xref>).</p>
+  <p>Several barriers we identified are not specific to the Argo data
+  set and can be overcome with well-established R tools. To download and
+  potentially cache Argo NetCDF files, at least one Argo mirror provides
+  an <monospace>rsync</monospace> target for profile and index files.
+  The <monospace>bowerbird</monospace> package provides similar
+  facilities for downloading and caching large numbers of files from a
+  remote source
+  (<xref alt="Raymond &amp; Sumner, 2021" rid="ref-r-bowerbird" ref-type="bibr">Raymond
+  &amp; Sumner, 2021</xref>). To analyze and visualize potentially large
+  data sets, <monospace>dplyr</monospace> and
+  <monospace>ggplot2</monospace> within the wider
+  <monospace>tidyverse</monospace> family of packages are
+  well-established
+  (<xref alt="Wickham et al., 2019" rid="ref-r-tidyverse" ref-type="bibr">Wickham
+  et al., 2019</xref>;
+  <xref alt="Wickham, 2016" rid="ref-r-ggplot2" ref-type="bibr">Wickham,
+  2016</xref>;
+  <xref alt="Wickham et al., 2021" rid="ref-r-dplyr" ref-type="bibr">Wickham
+  et al., 2021</xref>). To read NetCDF files in a form that can be
+  analyzed and plotted using <monospace>dplyr</monospace> and
+  <monospace>ggplot2</monospace>, respectively, the
+  <monospace>tidync</monospace> and <monospace>ncmeta</monospace>
+  packages introduce the concept of “grids” to identify groups of
+  variables that can be loaded into a single data frame
+  (<xref alt="Sumner, 2020a" rid="ref-r-ncmeta" ref-type="bibr">Sumner,
+  2020a</xref>,
+  <xref alt="2020b" rid="ref-r-tidync" ref-type="bibr">2020b</xref>).</p>
+  <p>The <monospace>argodata</monospace> package was designed to work
+  with a range of tools that manipulate R data frames. In particular,
+  the <monospace>tidyverse</monospace> family of packages has a large
+  user base and has widely and freely available educational material in
+  several languages
+  (<xref alt="Wickham &amp; Grolemund, 2017" rid="ref-wickham_grolemund17" ref-type="bibr">Wickham
+  &amp; Grolemund, 2017</xref>). Whereas previous packages for R and
+  Python propagate the multidimensional array format of Argo NetCDF
+  files when read, the ability to leverage the
+  <monospace>tidyverse</monospace> depends on the representation of Argo
+  data as data frames in “tidy” (one observation per row, one variable
+  per column) format
+  (<xref alt="Wickham, 2014" rid="ref-wickham14" ref-type="bibr">Wickham,
+  2014</xref>), around which packages in the
+  <monospace>tidyverse</monospace> are designed.</p>
+</sec>
+<sec id="using-argodata">
+  <title>Using <monospace>argodata</monospace></title>
+  <p>The <monospace>argodata</monospace> package is available as an R
+  source package from GitHub
+  (<ext-link ext-link-type="uri" xlink:href="https://github.com/ArgoCanada/argodata">https://github.com/ArgoCanada/argodata</ext-link>),
+  installable using the <monospace>remotes</monospace> package:</p>
+  <code language="r script"># install.packages(&quot;remotes&quot;)
+remotes::install_github(&quot;ArgoCanada/argodata&quot;)</code>
+  <p>For our example usage, we also load the
+  <monospace>tidyverse</monospace>:</p>
+  <code language="r script">library(tidyverse)
+library(argodata)</code>
+  <p>To locate files of interest on the Argo mirror, index files for
+  profile, trajectory, meta, and technical parameter files are provided
+  in compressed CSV format. <monospace>argodata</monospace> uses the
+  <monospace>vroom</monospace> package to efficiently load these files
+  as they can be time-consuming to repeatedly read otherwise. The most
+  commonly-used index is for profile files:</p>
+  <code language="r script">(prof &lt;- argo_global_prof())</code>
+  <preformat>## Loading argo_global_prof()</preformat>
+  <preformat>## Downloading 1 file from 'https://data-argo.ifremer.fr'</preformat>
+  <preformat>## # A tibble: 2,556,123 x 8
+##    file     date                latitude longitude ocean profiler_type
+##    &lt;chr&gt;    &lt;dttm&gt;                 &lt;dbl&gt;     &lt;dbl&gt; &lt;chr&gt;         &lt;dbl&gt;
+##  1 aoml/13~ 1997-07-29 20:03:00    0.267     -16.0 A               845
+##  2 aoml/13~ 1997-08-09 19:21:12    0.072     -17.7 A               845
+##  3 aoml/13~ 1997-08-20 18:45:45    0.543     -19.6 A               845
+##  4 aoml/13~ 1997-08-31 19:39:05    1.26      -20.5 A               845
+##  5 aoml/13~ 1997-09-11 18:58:08    0.72      -20.8 A               845
+##  6 aoml/13~ 1997-09-22 19:57:02    1.76      -21.6 A               845
+##  7 aoml/13~ 1997-10-03 19:15:49    2.60      -21.6 A               845
+##  8 aoml/13~ 1997-10-14 18:39:35    1.76      -21.6 A               845
+##  9 aoml/13~ 1997-10-25 19:32:34    1.80      -21.8 A               845
+## 10 aoml/13~ 1997-11-05 18:51:42    1.64      -21.4 A               845
+## # ... with 2,556,113 more rows, and 2 more variables:
+## #   institution &lt;chr&gt;, date_update &lt;dttm&gt;</preformat>
+  <p>A typical analysis will focus on a subset of profiles. Users can
+  subset this index using existing knowledge of data frames in R;
+  however, some common subsets are verbose using existing tools or
+  difficult to compute without knowing Argo-specific filename
+  conventions. To match the syntax of
+  <monospace>dplyr::filter()</monospace>,
+  <monospace>argodata</monospace> provides several
+  <monospace>argo_filter_*()</monospace> functions to subset index data
+  frames:</p>
+  <code language="r script">prof_gulf_stream_2020 &lt;- prof %&gt;% 
+  argo_filter_radius(latitude = 26, longitude = -84, radius = 500) %&gt;%
+  argo_filter_date(&quot;2020-01-01&quot;, &quot;2020-12-31&quot;) %&gt;%
+  argo_filter_data_mode(&quot;delayed&quot;)</code>
+  <p>The next step is to download the selected files. The explicit call
+  to <monospace>argo_download()</monospace> is typically omitted as it
+  is done automatically for missing files by the load functions
+  described below; however, one can manually call
+  <monospace>argo_download()</monospace> to download (if necessary) and
+  cache files in an index. To facilitate use of alternative cache
+  solutions like <monospace>rsync</monospace> or
+  <monospace>bowerbird</monospace>
+  (<xref alt="Raymond &amp; Sumner, 2021" rid="ref-r-bowerbird" ref-type="bibr">Raymond
+  &amp; Sumner, 2021</xref>), we use the same file structure as the
+  mirror itself and provide <monospace>argo_set_cache_dir()</monospace>
+  to allow this directory to be used for all calls to
+  <monospace>argo_download()</monospace>.</p>
+  <p>To load data from NetCDF files into meaningful data frames we draw
+  from the concept of “grids” introduced by the
+  <monospace>tidync</monospace> and <monospace>ncmeta</monospace>
+  packages
+  (<xref alt="Sumner, 2020a" rid="ref-r-ncmeta" ref-type="bibr">Sumner,
+  2020a</xref>,
+  <xref alt="2020b" rid="ref-r-tidync" ref-type="bibr">2020b</xref>).
+  For example, temperature values stored in an Argo profile NetCDF file
+  are identified by values of <monospace>N_PROF</monospace> (an integer
+  identifying a profile within an Argo NetCDF file) and
+  <monospace>N_LEVEL</monospace> (an integer identifying a sampling
+  level within a profile). Temperature values can be represented by a
+  matrix with one row per <monospace>N_LEVELS</monospace> and one column
+  per <monospace>N_PROF</monospace> or by a data frame with variables
+  <monospace>N_PROF</monospace>, <monospace>N_LEVELS</monospace>, and
+  <monospace>TEMP</monospace>. Any other variables that share the
+  dimensions of the temperature variable can be added as additional
+  columns in the data frame. After looping through each file in a
+  complete copy of the Argo data set, we identified 19 grids among four
+  Argo NetCDF file formats (profile, trajectory, metadata, and technical
+  information)
+  (<xref alt="Team, 2021" rid="ref-argo-user-manual" ref-type="bibr">Team,
+  2021</xref>). The most commonly-used grid is the levels grid for Argo
+  profile files:</p>
+  <code language="r script">(levels &lt;- prof_gulf_stream_2020 %&gt;% 
+  argo_prof_levels())</code>
+  <preformat>## Downloading 921 files from 'https://data-argo.ifremer.fr'</preformat>
+  <preformat>## Extracting from 921 files</preformat>
+  <preformat>## # A tibble: 1,785,666 x 18
+##    file   n_levels n_prof  pres pres_qc pres_adjusted pres_adjusted_qc
+##    &lt;chr&gt;     &lt;int&gt;  &lt;int&gt; &lt;dbl&gt; &lt;chr&gt;           &lt;dbl&gt; &lt;chr&gt;           
+##  1 aoml/~        1      1  1.12 1                1.12 1               
+##  2 aoml/~        2      1  2    1                2    1               
+##  3 aoml/~        3      1  3    1                3    1               
+##  4 aoml/~        4      1  4    1                4    1               
+##  5 aoml/~        5      1  4.96 1                4.96 1               
+##  6 aoml/~        6      1  6    1                6    1               
+##  7 aoml/~        7      1  7    1                7    1               
+##  8 aoml/~        8      1  7.92 1                7.92 1               
+##  9 aoml/~        9      1  9    1                9    1               
+## 10 aoml/~       10      1 10    1               10    1               
+## # ... with 1,785,656 more rows, and 11 more variables:
+## #   pres_adjusted_error &lt;dbl&gt;, temp &lt;dbl&gt;, temp_qc &lt;chr&gt;,
+## #   temp_adjusted &lt;dbl&gt;, temp_adjusted_qc &lt;chr&gt;,
+## #   temp_adjusted_error &lt;dbl&gt;, psal &lt;dbl&gt;, psal_qc &lt;chr&gt;,
+## #   psal_adjusted &lt;dbl&gt;, psal_adjusted_qc &lt;chr&gt;,
+## #   psal_adjusted_error &lt;dbl&gt;</preformat>
+  <p>Like <monospace>argo_prof_levels()</monospace>, other extraction
+  functions use the pattern
+  <monospace>argo_{file type}_{grid}()</monospace> and use a
+  split-apply-combine strategy that row-binds the results obtained by
+  reading each file individually
+  (<xref alt="Wickham, 2011" rid="ref-wickham11" ref-type="bibr">Wickham,
+  2011</xref>). To facilitate users who prefer to manage their own
+  collection of Argo files, corresponding
+  <monospace>argo_read_{file type}_{grid}()</monospace> functions that
+  read a single file are also exported. Extraction functions are
+  designed to return useful inputs to <monospace>dplyr</monospace> and
+  <monospace>ggplot2</monospace>. For example, a common way to visualize
+  profile data is to plot a dependent variable (e.g., temperature)
+  against pressure (as a proxy for depth), with pressure oriented
+  vertically to simulate its orientation in space.</p>
+  <code language="r script">ggplot(levels, aes(x = temp, y = pres)) +
+  geom_line(aes(group = file), alpha = 0.01, orientation = &quot;y&quot;) +
+  scale_y_reverse() +
+  scale_x_continuous(position = &quot;top&quot;) +
+  theme_bw() +
+  labs(
+    x = &quot;Temperature [°C]&quot;,
+    y = &quot;Pressure [dbar]&quot;
+  )</code>
+  <p><inline-graphic mimetype="image" mime-subtype="png" xlink:href="fig-levels-1.png" /></p>
+</sec>
+<sec id="interoperability">
+  <title>Interoperability</title>
+  <p>The <monospace>argodata</monospace> package was designed to
+  interoperate with the <monospace>argoFloats</monospace> and
+  <monospace>oce</monospace> packages for users who prefer to do part of
+  their analyses using the facilities provided by these packages. In
+  particular, these packages provide specialized functions for mapping
+  and oceanographic analysis that are outside the scope of
+  <monospace>argodata</monospace>. For example, one can combine the
+  trajectory plotting capability of <monospace>argoFloats</monospace>
+  with a <monospace>dplyr</monospace> <monospace>group_by()</monospace>
+  and <monospace>summarise()</monospace> enabled by
+  <monospace>argodata</monospace> and visualized using colour palettes
+  from <monospace>cmocean</monospace>
+  (<xref alt="Thyng et al., 2016" rid="ref-r-cmocean" ref-type="bibr">Thyng
+  et al., 2016</xref>).</p>
+  <code language="r script">library(argoFloats)
+
+# use argoFloats to locate profiles
+index &lt;- getIndex() %&gt;% subset(ID = 4903252)
+
+# calculate mean surface temperature using argodata
+temp_calc &lt;- index %&gt;% 
+  argo_prof_levels() %&gt;% 
+  filter(pres &lt; 10) %&gt;% 
+  group_by(file) %&gt;%
+  summarise(
+    near_surface_temp = mean(temp, na.rm = TRUE)
+  ) %&gt;%
+  mutate(
+    near_surface_temp_bin = cut_width(near_surface_temp, width = 2)
+  ) %&gt;% 
+  left_join(argo_global_prof(), by = &quot;file&quot;)
+
+# use plot method for argoFloats index and add temperatures
+par(mar = c(3, 3, 1, 2))
+plot(index, which = &quot;map&quot;, type = &quot;l&quot;)
+
+# plot temperatures
+palette(cmocean::cmocean(&quot;thermal&quot;)(5))
+points(
+  temp_calc$longitude, temp_calc$latitude,
+  bg = temp_calc$near_surface_temp_bin, pch = 21, cex = 1
+)
+
+legend(
+  &quot;topleft&quot;,
+  levels(temp_calc$near_surface_temp_bin), pt.bg = palette(), pch = 21,
+  title = &quot;Near-surface temperature [°C]&quot;, ncol = 3
+)</code>
+  <p><inline-graphic mimetype="image" mime-subtype="png" xlink:href="fig-argofloats-1.png" /></p>
+</sec>
+<sec id="conclusion">
+  <title>Conclusion</title>
+  <p>The <monospace>argodata</monospace> package helps scientists
+  analyze data from the International Argo Program using a minimal
+  table-based interface. We hope that <monospace>argodata</monospace>
+  will expand the audience of Argo data to users already familiar with
+  data frame manipulation tools such as those provided by the
+  <monospace>tidyverse</monospace> family of packages.</p>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>We acknowledge useful discussions with Chris Gordon, especially
+  regarding the extraction of quality control information from Argo data
+  files. We thank the editors and reviewers for their thoughtful and
+  careful review of this manuscript. Support for this work came from the
+  Natural Sciences and Engineering Research Council of Canada and G7
+  Charlevoix Blueprint for Healthy Oceans, Seas and Resilient Coastal
+  Communities. The data used in this paper were collected and made
+  freely available by the International Argo Program and the national
+  programs that contribute to it
+  (<ext-link ext-link-type="uri" xlink:href="https://argo.ucsd.edu">https://argo.ucsd.edu</ext-link>,
+  <ext-link ext-link-type="uri" xlink:href="https://www.ocean-ops.org">https://www.ocean-ops.org</ext-link>).
+  The Argo Program
+  (<xref alt="Argo, 2021" rid="ref-argo" ref-type="bibr">Argo,
+  2021</xref>) is part of the Global Ocean Observing System.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <ref-list>
+    <ref id="ref-argo">
+      <element-citation publication-type="article-journal">
+        <person-group person-group-type="author">
+          <name><surname>Argo</surname></name>
+        </person-group>
+        <article-title>Argo float data and metadata from Global Data Assembly Centre (Argo GDAC)</article-title>
+        <source>SEANOE</source>
+        <year iso-8601-date="2021">2021</year>
+        <pub-id pub-id-type="doi">10.17882/42182</pub-id>
+      </element-citation>
+    </ref>
+    <ref id="ref-maze_argopy_2020">
+      <element-citation publication-type="article-journal">
+        <person-group person-group-type="author">
+          <name><surname>Maze</surname><given-names>Guillaume</given-names></name>
+          <name><surname>Balem</surname><given-names>Kevin</given-names></name>
+        </person-group>
+        <article-title>Argopy: A Python library for Argo ocean data analysis</article-title>
+        <source>Journal of Open Source Software</source>
+        <year iso-8601-date="2020-09">2020</year><month>09</month>
+        <date-in-citation content-type="access-date"><year iso-8601-date="2021-01-22">2021</year><month>01</month><day>22</day></date-in-citation>
+        <volume>5</volume>
+        <issue>53</issue>
+        <issn>2475-9066</issn>
+        <uri>https://joss.theoj.org/papers/10.21105/joss.02425</uri>
+        <pub-id pub-id-type="doi">10.21105/joss.02425</pub-id>
+      </element-citation>
+    </ref>
+    <ref id="ref-oceanops_oceanops_2021">
+      <element-citation>
+        <article-title>OceanOPS</article-title>
+        <year iso-8601-date="2021-01">2021</year><month>01</month>
+        <date-in-citation content-type="access-date"><year iso-8601-date="2021-01-22">2021</year><month>01</month><day>22</day></date-in-citation>
+        <uri>https://www.ocean-ops.org/board?t=argo</uri>
+      </element-citation>
+    </ref>
+    <ref id="ref-tucker_argovis_2020">
+      <element-citation publication-type="article-journal">
+        <person-group person-group-type="author">
+          <name><surname>Tucker</surname><given-names>Tyler</given-names></name>
+          <name><surname>Giglio</surname><given-names>Donata</given-names></name>
+          <name><surname>Scanderbeg</surname><given-names>Megan</given-names></name>
+          <name><surname>Shen</surname><given-names>Samuel S. P.</given-names></name>
+        </person-group>
+        <article-title>Argovis: A Web Application for Fast Delivery, Visualization, and Analysis of Argo Data</article-title>
+        <source>Journal of Atmospheric and Oceanic Technology</source>
+        <year iso-8601-date="2020-01">2020</year><month>01</month>
+        <date-in-citation content-type="access-date"><year iso-8601-date="2020-03-27">2020</year><month>03</month><day>27</day></date-in-citation>
+        <volume>37</volume>
+        <issue>3</issue>
+        <issn>0739-0572</issn>
+        <uri>https://journals.ametsoc.org/doi/full/10.1175/JTECH-D-19-0041.1</uri>
+        <pub-id pub-id-type="doi">10.1175/JTECH-D-19-0041.1</pub-id>
+      </element-citation>
+    </ref>
+    <ref id="ref-kelley_argofloats_2021">
+      <element-citation publication-type="article-journal">
+        <person-group person-group-type="author">
+          <name><surname>Kelley</surname><given-names>Dan E</given-names></name>
+          <name><surname>Harbin</surname><given-names>Jaimie</given-names></name>
+          <name><surname>Richards</surname><given-names>Clark</given-names></name>
+        </person-group>
+        <article-title>argoFloats: An R package for analyzing Argo data</article-title>
+        <source>Frontiers in Marine Science</source>
+        <year iso-8601-date="2021">2021</year>
+        <issue>8</issue>
+        <pub-id pub-id-type="doi">10.3389/fmars.2021.635922</pub-id>
+      </element-citation>
+    </ref>
+    <ref id="ref-kelley_oceanographic_2018">
+      <element-citation publication-type="book">
+        <person-group person-group-type="author">
+          <name><surname>Kelley</surname><given-names>Dan E</given-names></name>
+        </person-group>
+        <source>Oceanographic Analysis with R</source>
+        <publisher-name>Springer-Verlag</publisher-name>
+        <publisher-loc>New York</publisher-loc>
+        <year iso-8601-date="2018">2018</year>
+        <isbn>978-1-4939-8842-6</isbn>
+      </element-citation>
+    </ref>
+    <ref id="ref-roemmich_argo_2009-2">
+      <element-citation publication-type="article-journal">
+        <person-group person-group-type="author">
+          <name><surname>Roemmich</surname><given-names>Dean</given-names></name>
+          <name><surname>Johnson</surname><given-names>Gregory C.</given-names></name>
+          <name><surname>Riser</surname><given-names>Stephen</given-names></name>
+          <name><surname>Davis</surname><given-names>Russ</given-names></name>
+          <name><surname>Gilson</surname><given-names>John</given-names></name>
+          <name><surname>Owens</surname><given-names>W. Brechner</given-names></name>
+          <name><surname>Garzoli</surname><given-names>Silvia L.</given-names></name>
+          <name><surname>Schmid</surname><given-names>Claudia</given-names></name>
+          <name><surname>Ignaszewski</surname><given-names>Mark</given-names></name>
+        </person-group>
+        <article-title>The Argo Program: Observing the global ocean with profiling floats.</article-title>
+        <source>Oceanography</source>
+        <year iso-8601-date="2009">2009</year>
+        <volume>22</volume>
+        <issue>2</issue>
+        <uri>https://doi.org/10.5670/oceanog.2009.36</uri>
+      </element-citation>
+    </ref>
+    <ref id="ref-roemmich_argo_2001">
+      <element-citation publication-type="chapter">
+        <person-group person-group-type="author">
+          <name><surname>Roemmich</surname><given-names>Dean</given-names></name>
+          <name><surname>Boebel</surname><given-names>Olaf</given-names></name>
+          <name><surname>Desaubies</surname><given-names>Yves</given-names></name>
+          <name><surname>Freeland</surname><given-names>Howard</given-names></name>
+          <name><surname>Kim</surname><given-names>Kuh</given-names></name>
+          <name><surname>King</surname><given-names>Brian</given-names></name>
+          <name><surname>Le Traon</surname><given-names>Pierre-Yves</given-names></name>
+          <name><surname>Molinari</surname><given-names>Robert</given-names></name>
+          <name><surname>Owens</surname><given-names>Brechner W.</given-names></name>
+          <name><surname>Riser</surname><given-names>Stephen</given-names></name>
+          <name><surname>Send</surname><given-names>Uwe</given-names></name>
+          <name><surname>Takeuchi</surname><given-names>Kensuke</given-names></name>
+          <name><surname>Wijffels</surname><given-names>Susan</given-names></name>
+        </person-group>
+        <article-title>Argo: The Global Array of Profiling Floats</article-title>
+        <publisher-name>C.J. Koblinsky; N.R. Smith</publisher-name>
+        <year iso-8601-date="2001">2001</year>
+        <uri>https://archimer.ifremer.fr/doc/00090/20097/</uri>
+      </element-citation>
+    </ref>
+    <ref id="ref-wickham_grolemund17">
+      <element-citation publication-type="book">
+        <person-group person-group-type="author">
+          <name><surname>Wickham</surname><given-names>Hadley</given-names></name>
+          <name><surname>Grolemund</surname><given-names>Garrett</given-names></name>
+        </person-group>
+        <source>R for Data Science: Import, Tidy, Transform, Visualize, and Model Data</source>
+        <publisher-name>O’Reilly Media</publisher-name>
+        <publisher-loc>Sebastopol</publisher-loc>
+        <year iso-8601-date="2017-01">2017</year><month>01</month>
+        <uri>https://r4ds.had.co.nz</uri>
+      </element-citation>
+    </ref>
+    <ref id="ref-wickham14">
+      <element-citation publication-type="article-journal">
+        <person-group person-group-type="author">
+          <name><surname>Wickham</surname><given-names>Hadley</given-names></name>
+        </person-group>
+        <article-title>Tidy Data</article-title>
+        <source>Journal of Statistical Software</source>
+        <year iso-8601-date="2014-09-12">2014</year><month>09</month><day>12</day>
+        <date-in-citation content-type="access-date"><year iso-8601-date="2021-05-17">2021</year><month>05</month><day>17</day></date-in-citation>
+        <volume>59</volume>
+        <issue>1</issue>
+        <issn>1548-7660</issn>
+        <uri>https://www.jstatsoft.org/index.php/jss/article/view/v059i10</uri>
+        <pub-id pub-id-type="doi">10.18637/jss.v059.i10</pub-id>
+      </element-citation>
+    </ref>
+    <ref id="ref-wickham11">
+      <element-citation publication-type="article-journal">
+        <person-group person-group-type="author">
+          <name><surname>Wickham</surname><given-names>Hadley</given-names></name>
+        </person-group>
+        <article-title>The Split-Apply-Combine Strategy for Data Analysis</article-title>
+        <source>Journal of Statistical Software</source>
+        <year iso-8601-date="2011-04-07">2011</year><month>04</month><day>07</day>
+        <date-in-citation content-type="access-date"><year iso-8601-date="2021-05-17">2021</year><month>05</month><day>17</day></date-in-citation>
+        <volume>40</volume>
+        <issue>1, 1</issue>
+        <issn>1548-7660</issn>
+        <uri>https://www.jstatsoft.org/index.php/jss/article/view/v040i01</uri>
+        <pub-id pub-id-type="doi">10.18637/jss.v040.i01</pub-id>
+      </element-citation>
+    </ref>
+    <ref id="ref-argo-user-manual">
+      <element-citation publication-type="report">
+        <person-group person-group-type="author">
+          <name><surname>Team</surname><given-names>Argo Data Management</given-names></name>
+        </person-group>
+        <article-title>Argo user’s manual V3.41</article-title>
+        <year iso-8601-date="2021">2021</year>
+        <pub-id pub-id-type="doi">10.13155/29825</pub-id>
+      </element-citation>
+    </ref>
+    <ref id="ref-r-rnoaa">
+      <element-citation publication-type="book">
+        <person-group person-group-type="author">
+          <name><surname>Chamberlain</surname><given-names>Scott</given-names></name>
+        </person-group>
+        <source>Rnoaa: ’NOAA’ weather data from R</source>
+        <year iso-8601-date="2021">2021</year>
+        <uri>https://CRAN.R-project.org/package=rnoaa</uri>
+      </element-citation>
+    </ref>
+    <ref id="ref-r-oce">
+      <element-citation publication-type="book">
+        <person-group person-group-type="author">
+          <name><surname>Kelley</surname><given-names>Dan E</given-names></name>
+          <name><surname>Richards</surname><given-names>Clark</given-names></name>
+        </person-group>
+        <source>Oce: Analysis of oceanographic data</source>
+        <year iso-8601-date="2021">2021</year>
+        <uri>https://CRAN.R-project.org/package=oce</uri>
+      </element-citation>
+    </ref>
+    <ref id="ref-r-bowerbird">
+      <element-citation publication-type="book">
+        <person-group person-group-type="author">
+          <name><surname>Raymond</surname><given-names>Ben</given-names></name>
+          <name><surname>Sumner</surname><given-names>Michael</given-names></name>
+        </person-group>
+        <source>Bowerbird: Keep a collection of sparkly data resources</source>
+        <year iso-8601-date="2021">2021</year>
+        <uri>https://docs.ropensci.org/bowerbird</uri>
+      </element-citation>
+    </ref>
+    <ref id="ref-r-tidyverse">
+      <element-citation publication-type="article-journal">
+        <person-group person-group-type="author">
+          <name><surname>Wickham</surname><given-names>Hadley</given-names></name>
+          <name><surname>Averick</surname><given-names>Mara</given-names></name>
+          <name><surname>Bryan</surname><given-names>Jennifer</given-names></name>
+          <name><surname>Chang</surname><given-names>Winston</given-names></name>
+          <name><surname>McGowan</surname><given-names>Lucy D’Agostino</given-names></name>
+          <name><surname>François</surname><given-names>Romain</given-names></name>
+          <name><surname>Grolemund</surname><given-names>Garrett</given-names></name>
+          <name><surname>Hayes</surname><given-names>Alex</given-names></name>
+          <name><surname>Henry</surname><given-names>Lionel</given-names></name>
+          <name><surname>Hester</surname><given-names>Jim</given-names></name>
+          <name><surname>Kuhn</surname><given-names>Max</given-names></name>
+          <name><surname>Pedersen</surname><given-names>Thomas Lin</given-names></name>
+          <name><surname>Miller</surname><given-names>Evan</given-names></name>
+          <name><surname>Bache</surname><given-names>Stephan Milton</given-names></name>
+          <name><surname>Müller</surname><given-names>Kirill</given-names></name>
+          <name><surname>Ooms</surname><given-names>Jeroen</given-names></name>
+          <name><surname>Robinson</surname><given-names>David</given-names></name>
+          <name><surname>Seidel</surname><given-names>Dana Paige</given-names></name>
+          <name><surname>Spinu</surname><given-names>Vitalie</given-names></name>
+          <name><surname>Takahashi</surname><given-names>Kohske</given-names></name>
+          <name><surname>Vaughan</surname><given-names>Davis</given-names></name>
+          <name><surname>Wilke</surname><given-names>Claus</given-names></name>
+          <name><surname>Woo</surname><given-names>Kara</given-names></name>
+          <name><surname>Yutani</surname><given-names>Hiroaki</given-names></name>
+        </person-group>
+        <article-title>Welcome to the Tidyverse</article-title>
+        <source>Journal of Open Source Software</source>
+        <year iso-8601-date="2019-11-21">2019</year><month>11</month><day>21</day>
+        <date-in-citation content-type="access-date"><year iso-8601-date="2021-05-17">2021</year><month>05</month><day>17</day></date-in-citation>
+        <volume>4</volume>
+        <issue>43</issue>
+        <issn>2475-9066</issn>
+        <uri>https://joss.theoj.org/papers/10.21105/joss.01686</uri>
+        <pub-id pub-id-type="doi">10.21105/joss.01686</pub-id>
+      </element-citation>
+    </ref>
+    <ref id="ref-r-tidync">
+      <element-citation publication-type="book">
+        <person-group person-group-type="author">
+          <name><surname>Sumner</surname><given-names>Michael</given-names></name>
+        </person-group>
+        <source>Tidync: A tidy approach to ’NetCDF’ data exploration and extraction</source>
+        <year iso-8601-date="2020">2020</year>
+        <uri>https://CRAN.R-project.org/package=tidync</uri>
+      </element-citation>
+    </ref>
+    <ref id="ref-r-ncmeta">
+      <element-citation publication-type="book">
+        <person-group person-group-type="author">
+          <name><surname>Sumner</surname><given-names>Michael</given-names></name>
+        </person-group>
+        <source>Ncmeta: Straightforward ’NetCDF’ metadata</source>
+        <year iso-8601-date="2020">2020</year>
+        <uri>https://CRAN.R-project.org/package=ncmeta</uri>
+      </element-citation>
+    </ref>
+    <ref id="ref-r-ggplot2">
+      <element-citation publication-type="book">
+        <person-group person-group-type="author">
+          <name><surname>Wickham</surname><given-names>Hadley</given-names></name>
+        </person-group>
+        <source>ggplot2: Elegant graphics for data analysis</source>
+        <publisher-name>Springer-Verlag New York</publisher-name>
+        <year iso-8601-date="2016">2016</year>
+        <isbn>978-3-319-24277-4</isbn>
+        <uri>https://ggplot2.tidyverse.org</uri>
+      </element-citation>
+    </ref>
+    <ref id="ref-r-dplyr">
+      <element-citation publication-type="book">
+        <person-group person-group-type="author">
+          <name><surname>Wickham</surname><given-names>Hadley</given-names></name>
+          <name><surname>François</surname><given-names>Romain</given-names></name>
+          <name><surname>Henry</surname><given-names>Lionel</given-names></name>
+          <name><surname>Müller</surname><given-names>Kirill</given-names></name>
+        </person-group>
+        <source>Dplyr: A grammar of data manipulation</source>
+        <year iso-8601-date="2021">2021</year>
+        <uri>https://CRAN.R-project.org/package=dplyr</uri>
+      </element-citation>
+    </ref>
+    <ref id="ref-r-cmocean">
+      <element-citation publication-type="article-journal">
+        <person-group person-group-type="author">
+          <name><surname>Thyng</surname><given-names>Kristen M.</given-names></name>
+          <name><surname>Greene</surname><given-names>Chad A.</given-names></name>
+          <name><surname>Hetland</surname><given-names>Robert D.</given-names></name>
+          <name><surname>Zimmerle</surname><given-names>Heather M.</given-names></name>
+          <name><surname>DiMarco</surname><given-names>Steven F.</given-names></name>
+        </person-group>
+        <article-title>True colors of oceanography: Guidelines for effective and accurate colormap selection</article-title>
+        <source>Oceanography</source>
+        <year iso-8601-date="2016">2016</year>
+        <volume>29</volume>
+        <issue>3</issue>
+        <pub-id pub-id-type="doi">10.5670/oceanog.2016.66</pub-id>
+      </element-citation>
+    </ref>
+  </ref-list>
+</ref-list>
+</back>
+</article>
