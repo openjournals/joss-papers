@@ -1,0 +1,71 @@
+name: Recommend acceptance
+on:
+  workflow_dispatch:
+    inputs:
+      repository_url:
+        description: 'URL of the repository containing the paper file'
+        required: true
+      branch:
+        description: 'Git branch where the paper Markdown file is'
+        required: false
+      issue_id:
+        description: 'The issue number of the submission'
+        required: true
+jobs:
+  preparing-for-acceptance:
+    name: ${{ format('Prepare paper acceptance in issue {0}', github.event.inputs.issue_id) }}
+    runs-on: ubuntu-latest
+    env:
+      GH_ACCESS_TOKEN: ${{ secrets.BOT_TOKEN }}
+    steps:
+      - name: Compile Paper
+        id: generate-files
+        uses: xuanxu/paper-action@main
+        with:
+          repository_url: ${{ github.event.inputs.repository_url }}
+          branch: ${{ github.event.inputs.branch }}
+          issue_id: ${{ github.event.inputs.issue_id }}
+          journal: joss
+      - name: Upload files to papers repo
+        id: upload-files
+        uses: xuanxu/upload-files-action@main
+        with:
+          papers_repo: openjournals/joss-papers
+          branch_prefix: joss
+          issue_id: ${{ github.event.inputs.issue_id }}
+          pdf_path: ${{ steps.generate-files.outputs.pdf_path}}
+          jats_path: ${{ steps.generate-files.outputs.jats_path}}
+          crossref_path: ${{ steps.generate-files.outputs.crossref_path}}
+      - name: Open Pull Request
+        id: open-pr
+        uses: xuanxu/deposit-pull-request-action@main
+        with:
+          papers_repo: openjournals/joss-papers
+          papers_repo_main_branch: master
+          branch_prefix: joss
+          issue_id: ${{ github.event.inputs.issue_id }}
+          mode: dry-run
+      - name: Validate metadata files
+        id: validate-xml
+        uses: xuanxu/validate-xml-files-action@main
+        with:
+          jats_path: ${{ steps.generate-files.outputs.jats_path}}
+          crossref_path: ${{ steps.generate-files.outputs.crossref_path}}
+      - name: Reply message
+        if: ${{ success() }}
+        run: |
+          gh issue comment ${{ github.event.inputs.issue_id }} --body ":wave: @openjournals/joss-eics, this paper is ready to be accepted and published.
+
+          Check final proof :point_right: ${{ steps.open-pr.outputs.pr_url}}
+
+          If the paper PDF and the deposit XML files look good in ${{ steps.open-pr.outputs.pr_url}}, then you can now move forward with accepting the submission by compiling again with the command \`@editorialbot accept\`"
+        env:
+          GITHUB_TOKEN: ${{ secrets.BOT_TOKEN }}
+          GH_REPO: openjournals/joss-reviews
+      - name: Error message
+        if: ${{ failure() }}
+        run: |
+          gh issue comment ${{ github.event.inputs.issue_id }} --body ":warning: [Error prepararing acceptance](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}?check_suite_focus=true). ${{ env.CUSTOM_ERROR }}"
+        env:
+          GITHUB_TOKEN: ${{ secrets.BOT_TOKEN }}
+          GH_REPO: openjournals/joss-reviews
