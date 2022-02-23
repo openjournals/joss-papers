@@ -1,0 +1,105 @@
+name: Accept paper
+on:
+  workflow_dispatch:
+    inputs:
+      repository_url:
+        description: 'URL of the repository containing the paper file'
+        required: true
+      branch:
+        description: 'Git branch where the paper Markdown file is'
+        required: false
+      issue_id:
+        description: 'The issue number of the submission'
+        required: true
+jobs:
+  acceptance-and-publishing:
+    name: ${{ format('Accepting paper in issue {0}', github.event.inputs.issue_id) }}
+    runs-on: ubuntu-latest
+    env:
+      GH_ACCESS_TOKEN: ${{ secrets.BOT_TOKEN }}
+    steps:
+      - name: Compile Paper
+        id: generate-files
+        uses: xuanxu/paper-action@main
+        with:
+          repository_url: ${{ github.event.inputs.repository_url }}
+          branch: ${{ github.event.inputs.branch }}
+          issue_id: ${{ github.event.inputs.issue_id }}
+          journal: joss
+          compile_mode: accepted
+      - name: Upload files to papers repo
+        id: upload-files
+        uses: xuanxu/upload-files-action@main
+        with:
+          papers_repo: openjournals/joss-papers
+          branch_prefix: joss
+          issue_id: ${{ github.event.inputs.issue_id }}
+          pdf_path: ${{ steps.generate-files.outputs.pdf_path}}
+          jats_path: ${{ steps.generate-files.outputs.jats_path}}
+          crossref_path: ${{ steps.generate-files.outputs.crossref_path}}
+      - name: Validate metadata files
+        id: validate-xml
+        uses: xuanxu/validate-xml-files-action@main
+        with:
+          jats_path: ${{ steps.generate-files.outputs.jats_path}}
+          crossref_path: ${{ steps.generate-files.outputs.crossref_path}}
+      - name: Create and Merge Pull Request
+        id: pull-request
+        uses: xuanxu/deposit-pull-request-action@main
+        with:
+          papers_repo: openjournals/joss-papers
+          papers_repo_main_branch: master
+          branch_prefix: joss
+          issue_id: ${{ github.event.inputs.issue_id }}
+          bot_token: ${{ secrets.BOT_TOKEN }}
+          mode: deposit
+      - name: Deposit with Crossref
+        uses: xuanxu/deposit-with-crossref-action@main
+        with:
+          crossref_filepath: ${{ steps.generate-files.outputs.crossref_path}}
+          crossref_username: ${{ secrets.CROSSREF_USERNAME }}
+          crossref_password: ${{ secrets.CROSSREF_PASSWORD }}
+      - name: Deposit with JOSS
+        id: oj-deposit
+        uses: xuanxu/deposit-with-openjournals-action@main
+        with:
+          journal_alias: joss
+          journal_secret: ${{ secrets.JOSS_SECRET }}
+          issue_id: ${{ github.event.inputs.issue_id }}
+          paper_path: ${{ steps.generate-files.outputs.paper_file_path}}
+      - name: Tweet
+        uses: xuanxu/acceptance-tweet-action@main
+        with:
+          journal_name: "JOSS"
+          paper_title: ${{ steps.generate-files.outputs.paper_title}}
+          paper_doi: ${{steps.oj-deposit.outputs.paper_doi}}
+          twitter_consumer_key: ${{ secrets.TWITTER_CONSUMER_KEY }}
+          twitter_consumer_secret: ${{ secrets.TWITTER_CONSUMER_SECRET }}
+          twitter_access_token: ${{ secrets.TWITTER_ACCESS_TOKEN }}
+          twitter_access_token_secret: ${{ secrets.TWITTER_ACCESS_TOKEN_SECRET }}
+          reviews_repo: openjournals/joss-reviews
+          issue_id: ${{ github.event.inputs.issue_id }}
+          gh_token: ${{ secrets.BOT_TOKEN }}
+      - name: Reply message
+        if: ${{ success() }}
+        run: |
+          gh issue comment ${{ github.event.inputs.issue_id }} --body "🚨🚨🚨 **THIS IS NOT A DRILL, YOU HAVE JUST ACCEPTED A PAPER INTO JOSS!** 🚨🚨🚨
+
+          Here's what you must now do:
+
+          0. Check final PDF and Crossref metadata that was deposited :point_right: ${{steps.pull-request.outputs.pr_url}}
+          1. Wait a couple of minutes, then verify that the paper DOI resolves [https://doi.org/${{steps.oj-deposit.outputs.paper_doi}}](https://doi.org/${{steps.oj-deposit.outputs.paper_doi}})
+          2. If everything looks good, then close this review issue.
+          3. Party like you just published a paper! 🎉🌈🦄💃👻🤘
+
+          Any issues? Notify your editorial technical team..."
+        env:
+          GITHUB_TOKEN: ${{ secrets.BOT_TOKEN }}
+          GH_REPO: openjournals/joss-reviews
+      - name: Error message
+        if: ${{ failure() }}
+        run: |
+          gh issue comment ${{ github.event.inputs.issue_id }} --body ":warning: Couldn't acccept/publish paper. [An error happened](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}?check_suite_focus=true). ${{ env.CUSTOM_ERROR }}"
+        env:
+          GITHUB_TOKEN: ${{ secrets.BOT_TOKEN }}
+          GH_REPO: openjournals/joss-reviews

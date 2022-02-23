@@ -1,0 +1,50 @@
+name: Draft paper
+on:
+  workflow_dispatch:
+    inputs:
+      repository_url:
+        description: 'URL of the repository containing the paper file'
+        required: true
+      branch:
+        description: 'Git branch where the paper Markdown file is'
+        required: false
+      issue_id:
+        description: 'The issue number of the submission in the JOSS reviews repo'
+        required: true
+jobs:
+  pdf-generation:
+    name: ${{ format('PDF draft for issue {0}', github.event.inputs.issue_id) }}
+    runs-on: ubuntu-latest
+    env:
+      GH_ACCESS_TOKEN: ${{ secrets.BOT_TOKEN }}
+    steps:
+      - name: Compile Paper
+        id: generate-files
+        uses: xuanxu/paper-action@main
+        with:
+          repository_url: ${{ github.event.inputs.repository_url }}
+          branch: ${{ github.event.inputs.branch }}
+          issue_id: ${{ github.event.inputs.issue_id }}
+          journal: joss
+      - name: Upload PDF file to papers repo
+        id: upload-pdf
+        uses: xuanxu/upload-files-action@main
+        with:
+          papers_repo: openjournals/joss-papers
+          branch_prefix: joss
+          issue_id: ${{ github.event.inputs.issue_id }}
+          pdf_path: ${{ steps.generate-files.outputs.pdf_path}}
+      - name: Reply message
+        if: ${{ success() }}
+        run: |
+          gh issue comment ${{ github.event.inputs.issue_id }} --body ":point_right::page_facing_up: [Download article proof](${{ steps.upload-pdf.outputs.pdf_download_url}}) :page_facing_up: [View article proof on GitHub](${{ steps.upload-pdf.outputs.pdf_html_url}}) :page_facing_up: :point_left:"
+        env:
+          GITHUB_TOKEN: ${{ secrets.BOT_TOKEN }}
+          GH_REPO: openjournals/joss-reviews
+      - name: Error message
+        if: ${{ failure() }}
+        run: |
+          gh issue comment ${{ github.event.inputs.issue_id }} --body ":warning: [An error happened when generating the pdf](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}?check_suite_focus=true). ${{ env.CUSTOM_ERROR }}"
+        env:
+          GITHUB_TOKEN: ${{ secrets.BOT_TOKEN }}
+          GH_REPO: openjournals/joss-reviews
