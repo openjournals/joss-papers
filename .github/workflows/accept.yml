@@ -21,6 +21,10 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GH_ACCESS_TOKEN: ${{ secrets.BOT_TOKEN }}
+      GITHUB_TOKEN: ${{ secrets.BOT_TOKEN }}
+      GH_REPO: openjournals/joss-reviews
+      ISSUE_ID: ${{ github.event.inputs.issue_id }}
+      DEFAULT_ERROR: ":warning: Couldn't acccept/publish paper. [An error happened](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}?check_suite_focus=true)."
     steps:
       - name: Compile Paper
         id: generate-files
@@ -98,19 +102,10 @@ jobs:
           3. Party like you just published a paper! 🎉🌈🦄💃👻🤘
 
           Any issues? Notify your editorial technical team..."
-        env:
-          GITHUB_TOKEN: ${{ secrets.BOT_TOKEN }}
-          GH_REPO: openjournals/joss-reviews
       - name: Labeling
         if: ${{ success() && github.event.inputs.add_labels != '' }}
         run: gh issue edit ${{ github.event.inputs.issue_id }} --add-label ${{ github.event.inputs.add_labels }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.BOT_TOKEN }}
-          GH_REPO: openjournals/joss-reviews
       - name: Error message
-        if: ${{ failure() }}
+        if: ${{ failure() && env.CUSTOM_ERROR_STATUS != 'sent' }}
         run: |
-          gh issue comment ${{ github.event.inputs.issue_id }} --body ":warning: Couldn't acccept/publish paper. [An error happened](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}?check_suite_focus=true). ${{ env.CUSTOM_ERROR }}"
-        env:
-          GITHUB_TOKEN: ${{ secrets.BOT_TOKEN }}
-          GH_REPO: openjournals/joss-reviews
+          gh issue comment ${{ github.event.inputs.issue_id }} --body "${{ env.DEFAULT_ERROR }} ${{ env.CUSTOM_ERROR }}"
