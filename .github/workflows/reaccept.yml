@@ -1,0 +1,84 @@
+name: Update accepted paper
+on:
+  workflow_dispatch:
+    inputs:
+      repository_url:
+        description: 'URL of the repository containing the paper file'
+        required: true
+      branch:
+        description: 'Git branch where the paper Markdown file is'
+        required: false
+      issue_id:
+        description: 'The issue number of the submission'
+        required: true
+jobs:
+  acceptance-and-publishing:
+    name: ${{ format('Updating accepted paper from issue {0}', github.event.inputs.issue_id) }}
+    runs-on: ubuntu-latest
+    env:
+      GH_ACCESS_TOKEN: ${{ secrets.BOT_TOKEN }}
+      GITHUB_TOKEN: ${{ secrets.BOT_TOKEN }}
+      GH_REPO: openjournals/joss-reviews
+      ISSUE_ID: ${{ github.event.inputs.issue_id }}
+      DEFAULT_ERROR: ":warning: Couldn't update published paper. [An error happened](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}?check_suite_focus=true)."
+    steps:
+      - name: Compile Paper
+        id: generate-files
+        uses: xuanxu/paper-action@main
+        with:
+          repository_url: ${{ github.event.inputs.repository_url }}
+          branch: ${{ github.event.inputs.branch }}
+          issue_id: ${{ github.event.inputs.issue_id }}
+          journal: joss
+          compile_mode: accepted
+      - name: Update paper files
+        id: update-files
+        uses: xuanxu/update-files-action@main
+        with:
+          papers_repo: openjournals/joss-papers
+          branch_prefix: joss
+          issue_id: ${{ github.event.inputs.issue_id }}
+          pdf_path: ${{ steps.generate-files.outputs.pdf_path}}
+          jats_path: ${{ steps.generate-files.outputs.jats_path}}
+          crossref_path: ${{ steps.generate-files.outputs.crossref_path}}
+      - name: Validate metadata files
+        id: validate-xml
+        uses: xuanxu/validate-xml-files-action@main
+        with:
+          jats_path: ${{ steps.generate-files.outputs.jats_path}}
+          crossref_path: ${{ steps.generate-files.outputs.crossref_path}}
+          validation_mode: strict
+      - name: Create and Merge Pull Request
+        id: pull-request
+        uses: xuanxu/deposit-pull-request-action@main
+        with:
+          papers_repo: openjournals/joss-papers
+          papers_repo_main_branch: master
+          branch_prefix: joss
+          issue_id: ${{ github.event.inputs.issue_id }}
+          bot_token: ${{ secrets.BOT_TOKEN }}
+          mode: deposit
+      - name: Deposit with Crossref
+        uses: xuanxu/deposit-with-crossref-action@main
+        with:
+          crossref_filepath: ${{ steps.generate-files.outputs.crossref_path}}
+          crossref_username: ${{ secrets.CROSSREF_USERNAME }}
+          crossref_password: ${{ secrets.CROSSREF_PASSWORD }}
+      - name: Deposit with JOSS
+        id: oj-deposit
+        uses: xuanxu/deposit-with-openjournals-action@main
+        with:
+          journal_alias: joss
+          journal_secret: ${{ secrets.JOSS_SECRET }}
+          issue_id: ${{ github.event.inputs.issue_id }}
+          paper_path: ${{ steps.generate-files.outputs.paper_file_path}}
+      - name: Reply message
+        if: ${{ success() }}
+        run: |
+          gh issue comment ${{ github.event.inputs.issue_id }} --body "🌈 Paper updated!
+
+          New PDF and metadata files :point_right: ${{steps.pull-request.outputs.pr_url}}"
+      - name: Error message
+        if: ${{ failure() && env.CUSTOM_ERROR_STATUS != 'sent' }}
+        run: |
+          gh issue comment ${{ github.event.inputs.issue_id }} --body "${{ env.DEFAULT_ERROR }} ${{ env.CUSTOM_ERROR }}"
