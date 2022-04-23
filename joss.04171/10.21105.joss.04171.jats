@@ -1,0 +1,846 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">4171</article-id>
+<article-id pub-id-type="doi">10.21105/joss.04171</article-id>
+<title-group>
+<article-title><monospace>hessQuik</monospace>: Fast Hessian computation
+of composite functions</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">0000-0002-6309-7706</contrib-id>
+<name>
+<surname>Newman</surname>
+<given-names>Elizabeth</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">0000-0003-0803-3299</contrib-id>
+<name>
+<surname>Ruthotto</surname>
+<given-names>Lars</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Emory University, Department of Mathematics</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2022-02-04">
+<day>4</day>
+<month>2</month>
+<year>2022</year>
+</pub-date>
+<volume>7</volume>
+<issue>72</issue>
+<fpage>4171</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2022</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>python</kwd>
+<kwd>pytorch</kwd>
+<kwd>deep neural networks</kwd>
+<kwd>input convex neural networks</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p><monospace>hessQuik</monospace> is a lightweight software library
+  for fast computation of second-order derivatives (Hessians) of
+  composite functions (that is, functions formed via compositions) with
+  respect to their inputs. The core of <monospace>hessQuik</monospace>
+  is the efficient computation of analytical Hessians with GPU
+  acceleration. <monospace>hessQuik</monospace> is a PyTorch
+  (<xref alt="Paszke et al., 2019" rid="ref-pytorch" ref-type="bibr">Paszke
+  et al., 2019</xref>) package that is user-friendly and easily
+  extendable. The repository includes a variety of popular functions and
+  layers, including residual layers and input convex layers, from which
+  users can build complex models through composition.
+  <monospace>hessQuik</monospace> layers are designed for ease of
+  composition - users only need to select the layers and the package
+  provides a convenient wrapper to compose the functions properly. Each
+  layer provides two modes for derivative computation and the mode is
+  automatically selected to maximize computational efficiency.
+  <monospace>hessQuik</monospace> includes easy-access,
+  <ext-link ext-link-type="uri" xlink:href="https://colab.research.google.com/github/elizabethnewman/hessQuik/blob/main/hessQuik/examples/hessQuikPeaksHermiteInterpolation.ipynb">illustrative
+  tutorials</ext-link> on Google Colaboratory
+  (<xref alt="Bisong, 2019" rid="ref-googleColab" ref-type="bibr">Bisong,
+  2019</xref>),
+  <ext-link ext-link-type="uri" xlink:href="https://colab.research.google.com/github/elizabethnewman/hessQuik/blob/main/hessQuik/examples/hessQuikTimingTest.ipynb">reproducible
+  experiments</ext-link>, and unit tests to verify implementations.
+  <monospace>hessQuik</monospace> enables users to obtain valuable
+  second-order information for their models simply and efficiently.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p>Deep neural networks (DNNs) and other composition-based models have
+  become a staple of data science, garnering state-of-the-art results
+  in, e.g., image classification and speech recognition
+  (<xref alt="Goodfellow et al., 2016" rid="ref-Goodfellow-et-al-2016" ref-type="bibr">Goodfellow
+  et al., 2016</xref>), and gaining widespread use in the scientific
+  community, particularly as surrogate models to replace expensive
+  computations
+  (<xref alt="Anirudh et al., 2020" rid="ref-Anirudh9741" ref-type="bibr">Anirudh
+  et al., 2020</xref>). The unrivaled universality and success of DNNs
+  is due, in part, to the convenience of automatic differentiation (AD)
+  which enables users to compute derivatives of complex functions
+  without an explicit formula. Despite being a powerful tool to compute
+  first-order derivatives (gradients), AD encounters computational
+  obstacles when computing second-order derivatives.</p>
+  <p>Knowledge of second-order derivatives is paramount in many growing
+  fields, such as physics-informed neural networks (PINNs)
+  (<xref alt="Raissi et al., 2019" rid="ref-RaissiU003A2019hv" ref-type="bibr">Raissi
+  et al., 2019</xref>), mean-field games
+  (<xref alt="Ruthotto et al., 2020" rid="ref-Ruthotto9183" ref-type="bibr">Ruthotto
+  et al., 2020</xref>), generative modeling
+  (<xref alt="Ruthotto &amp; Haber, 2021" rid="ref-ruthotto2021introduction" ref-type="bibr">Ruthotto
+  &amp; Haber, 2021</xref>), and adversarial learning
+  (<xref alt="Papernot et al., 2016" rid="ref-papernot2016limitations" ref-type="bibr">Papernot
+  et al., 2016</xref>). In addition, second-order derivatives can
+  provide insight into the optimization problem solved to build a good
+  model
+  (<xref alt="O’Leary-Roseberry &amp; Ghattas, 2020" rid="ref-olearyroseberry2020illposedness" ref-type="bibr">O’Leary-Roseberry
+  &amp; Ghattas, 2020</xref>). Hessians are notoriously challenging to
+  compute efficiently with AD and cumbersome to derive and debug
+  analytically. Hence, many algorithms approximate Hessian information,
+  resulting in sub-optimal performance. To address these challenges,
+  <monospace>hessQuik</monospace> computes Hessians analytically and
+  efficiently with an implementation that is accelerated on GPUs.</p>
+</sec>
+<sec id="hessquik-building-blocks">
+  <title><monospace>hessQuik</monospace> Building Blocks</title>
+  <p><monospace>hessQuik</monospace> builds complex functions
+  constructed through composition of simpler functions, which we call .
+  The package uses the chain rule to compute Hessians of composite
+  functions, assuming the derivatives of the layers are implemented
+  analytically. We describe the process mathematically.</p>
+  <p>Let <inline-formula><alternatives>
+  <tex-math><![CDATA[f:\mathbb{R}^{n_0} \to \mathbb{R}^{n_\ell}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>f</mml:mi><mml:mo>:</mml:mo><mml:msup><mml:mstyle mathvariant="double-struck"><mml:mi>ℝ</mml:mi></mml:mstyle><mml:msub><mml:mi>n</mml:mi><mml:mn>0</mml:mn></mml:msub></mml:msup><mml:mo>→</mml:mo><mml:msup><mml:mstyle mathvariant="double-struck"><mml:mi>ℝ</mml:mi></mml:mstyle><mml:msub><mml:mi>n</mml:mi><mml:mo>ℓ</mml:mo></mml:msub></mml:msup></mml:mrow></mml:math></alternatives></inline-formula>
+  be a twice continuously-differentiable function defined as
+  <disp-formula><alternatives>
+  <tex-math><![CDATA[\begin{aligned}
+      f = g_{\ell} \circ g_{\ell - 1} \circ \cdots \circ g_1, \quad\text{where} \quad g_i: \mathbb{R}^{n_{i-1}} \to \mathbb{R}^{n_i} \quad \text{for }i=1,\dots, \ell.
+      \end{aligned}]]></tex-math>
+  <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mtable><mml:mtr><mml:mtd columnalign="right"><mml:mi>f</mml:mi><mml:mo>=</mml:mo><mml:msub><mml:mi>g</mml:mi><mml:mo>ℓ</mml:mo></mml:msub><mml:mo>∘</mml:mo><mml:msub><mml:mi>g</mml:mi><mml:mrow><mml:mo>ℓ</mml:mo><mml:mo>−</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:msub><mml:mo>∘</mml:mo><mml:mi>⋯</mml:mi><mml:mo>∘</mml:mo><mml:msub><mml:mi>g</mml:mi><mml:mn>1</mml:mn></mml:msub><mml:mo>,</mml:mo><mml:mspace width="1.0em"></mml:mspace><mml:mtext mathvariant="normal">where</mml:mtext><mml:mspace width="1.0em"></mml:mspace><mml:msub><mml:mi>g</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mo>:</mml:mo><mml:msup><mml:mstyle mathvariant="double-struck"><mml:mi>ℝ</mml:mi></mml:mstyle><mml:msub><mml:mi>n</mml:mi><mml:mrow><mml:mi>i</mml:mi><mml:mo>−</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:msub></mml:msup><mml:mo>→</mml:mo><mml:msup><mml:mstyle mathvariant="double-struck"><mml:mi>ℝ</mml:mi></mml:mstyle><mml:msub><mml:mi>n</mml:mi><mml:mi>i</mml:mi></mml:msub></mml:msup><mml:mspace width="1.0em"></mml:mspace><mml:mrow><mml:mtext mathvariant="normal">for </mml:mtext><mml:mspace width="0.333em"></mml:mspace></mml:mrow><mml:mi>i</mml:mi><mml:mo>=</mml:mo><mml:mn>1</mml:mn><mml:mo>,</mml:mo><mml:mi>…</mml:mi><mml:mo>,</mml:mo><mml:mo>ℓ</mml:mo><mml:mi>.</mml:mi></mml:mtd></mml:mtr></mml:mtable></mml:math></alternatives></disp-formula>
+  Here, <inline-formula><alternatives>
+  <tex-math><![CDATA[g_i]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>g</mml:mi><mml:mi>i</mml:mi></mml:msub></mml:math></alternatives></inline-formula>
+  represents the <inline-formula><alternatives>
+  <tex-math><![CDATA[i]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>i</mml:mi></mml:math></alternatives></inline-formula>-th
+  layer and <inline-formula><alternatives>
+  <tex-math><![CDATA[n_i]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>n</mml:mi><mml:mi>i</mml:mi></mml:msub></mml:math></alternatives></inline-formula>
+  is the number of hidden features on the <inline-formula><alternatives>
+  <tex-math><![CDATA[i]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>i</mml:mi></mml:math></alternatives></inline-formula>-th
+  layer. We call <inline-formula><alternatives>
+  <tex-math><![CDATA[n_0]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>n</mml:mi><mml:mn>0</mml:mn></mml:msub></mml:math></alternatives></inline-formula>
+  the number of input features and <inline-formula><alternatives>
+  <tex-math><![CDATA[n_{\ell}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>n</mml:mi><mml:mo>ℓ</mml:mo></mml:msub></mml:math></alternatives></inline-formula>
+  the number of output features. We note that each layer can be
+  parameterized by weights which we can tune by solving an optimization
+  problem. Because <monospace>hessQuik</monospace> computes derivatives
+  for the network inputs, we omit the weights from our notation.</p>
+  <sec id="implemented-hessquik-layers">
+    <title>Implemented <monospace>hessQuik</monospace> Layers</title>
+    <p><monospace>hessQuik</monospace> includes a variety of popular
+    layers and their derivatives. These layers can be composed to form
+    complex models. Each layer incorporates a non-linear activation
+    function, <inline-formula><alternatives>
+    <tex-math><![CDATA[\sigma: \mathbb{R}\to \mathbb{R}]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>σ</mml:mi><mml:mo>:</mml:mo><mml:mstyle mathvariant="double-struck"><mml:mi>ℝ</mml:mi></mml:mstyle><mml:mo>→</mml:mo><mml:mstyle mathvariant="double-struck"><mml:mi>ℝ</mml:mi></mml:mstyle></mml:mrow></mml:math></alternatives></inline-formula>,
+    that is applied entry-wise. The <monospace>hessQuik</monospace>
+    package provides several activation functions, including Sigmoid,
+    Hyperbolic Tangent, and Softplus. Currently supported layers include
+    the following:</p>
+    <list list-type="bullet">
+      <list-item>
+        <p><monospace>singleLayer</monospace>: This layer consists of an
+        affine transformation followed by pointwise non-linearity
+        <disp-formula><alternatives>
+        <tex-math><![CDATA[\begin{aligned}
+           g_{\text{single}}(\mathbf{u}) = \sigma(\mathbf{K}\mathbf{u}+ \mathbf{b})
+          \end{aligned}]]></tex-math>
+        <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mtable><mml:mtr><mml:mtd columnalign="right"><mml:msub><mml:mi>g</mml:mi><mml:mtext mathvariant="normal">single</mml:mtext></mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mstyle mathvariant="bold"><mml:mi>𝐮</mml:mi></mml:mstyle><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>=</mml:mo><mml:mi>σ</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mstyle mathvariant="bold"><mml:mi>𝐊</mml:mi></mml:mstyle><mml:mstyle mathvariant="bold"><mml:mi>𝐮</mml:mi></mml:mstyle><mml:mo>+</mml:mo><mml:mstyle mathvariant="bold"><mml:mi>𝐛</mml:mi></mml:mstyle><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mtd></mml:mtr></mml:mtable></mml:math></alternatives></disp-formula>
+        where <inline-formula><alternatives>
+        <tex-math><![CDATA[\mathbf{K}]]></tex-math>
+        <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mstyle mathvariant="bold"><mml:mi>𝐊</mml:mi></mml:mstyle></mml:math></alternatives></inline-formula>
+        and <inline-formula><alternatives>
+        <tex-math><![CDATA[\mathbf{b}]]></tex-math>
+        <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mstyle mathvariant="bold"><mml:mi>𝐛</mml:mi></mml:mstyle></mml:math></alternatives></inline-formula>
+        are a weight matrix and bias vector, respectively, that can be
+        tuned through optimization methods. Multilayer perceptron neural
+        networks are built upon these layers.</p>
+      </list-item>
+      <list-item>
+        <p><monospace>residualLayer</monospace>: This layer differs from
+        a single layer by including a skip connection
+        <disp-formula><alternatives>
+        <tex-math><![CDATA[\begin{aligned}
+          g_{\text{residual}}(\mathbf{u}) = \mathbf{u}+ h\sigma(\mathbf{K}\mathbf{u}+ \mathbf{b})
+          \end{aligned}]]></tex-math>
+        <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mtable><mml:mtr><mml:mtd columnalign="right"><mml:msub><mml:mi>g</mml:mi><mml:mtext mathvariant="normal">residual</mml:mtext></mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mstyle mathvariant="bold"><mml:mi>𝐮</mml:mi></mml:mstyle><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>=</mml:mo><mml:mstyle mathvariant="bold"><mml:mi>𝐮</mml:mi></mml:mstyle><mml:mo>+</mml:mo><mml:mi>h</mml:mi><mml:mi>σ</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mstyle mathvariant="bold"><mml:mi>𝐊</mml:mi></mml:mstyle><mml:mstyle mathvariant="bold"><mml:mi>𝐮</mml:mi></mml:mstyle><mml:mo>+</mml:mo><mml:mstyle mathvariant="bold"><mml:mi>𝐛</mml:mi></mml:mstyle><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mtd></mml:mtr></mml:mtable></mml:math></alternatives></disp-formula>
+        where <inline-formula><alternatives>
+        <tex-math><![CDATA[h > 0]]></tex-math>
+        <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>h</mml:mi><mml:mo>&gt;</mml:mo><mml:mn>0</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>
+        is a step size. Residual layers are the building blocks of
+        residual neural networks (ResNets)
+        (<xref alt="He et al., 2016" rid="ref-He2016U003Adeep" ref-type="bibr">He
+        et al., 2016</xref>). ResNets can be interpreted as
+        discretizations of differential equations or dynamical systems
+        (<xref alt="E, 2017" rid="ref-E2017" ref-type="bibr">E,
+        2017</xref>;
+        <xref alt="Haber &amp; Ruthotto, 2017" rid="ref-HaberRuthotto2017" ref-type="bibr">Haber
+        &amp; Ruthotto, 2017</xref>).</p>
+      </list-item>
+      <list-item>
+        <p><monospace>ICNNLayer</monospace>: The input convex neural
+        network layer preserves convexity of the composite function with
+        respect to the input features. Our layer follows the
+        construction of
+        (<xref alt="Amos et al., 2017" rid="ref-amos2017input" ref-type="bibr">Amos
+        et al., 2017</xref>).</p>
+      </list-item>
+    </list>
+    <list list-type="bullet">
+      <list-item>
+        <p><monospace>quadraticLayer</monospace>,
+        <monospace>quadraticICNNLayer</monospace>: These are layers that
+        output scalar values and are typically reserved for the final
+        layer of a model.</p>
+      </list-item>
+    </list>
+    <p>The variety of implemented layers and activation functions makes
+    the task of designing a wide range of
+    <monospace>hessQuik</monospace> models easy.</p>
+  </sec>
+</sec>
+<sec id="computing-derivatives-with-hessquik">
+  <title>Computing Derivatives with
+  <monospace>hessQuik</monospace></title>
+  <p>In <monospace>hessQuik</monospace>, we offer two modes, forward and
+  backward, to compute the gradient <inline-formula><alternatives>
+  <tex-math><![CDATA[\nabla_{\mathbf{u}_0} f]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>∇</mml:mi><mml:msub><mml:mstyle mathvariant="bold"><mml:mi>𝐮</mml:mi></mml:mstyle><mml:mn>0</mml:mn></mml:msub></mml:msub><mml:mi>f</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>
+  and the Hessian <inline-formula><alternatives>
+  <tex-math><![CDATA[\nabla_{\mathbf{u}_0}^2 f]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msubsup><mml:mi>∇</mml:mi><mml:msub><mml:mstyle mathvariant="bold"><mml:mi>𝐮</mml:mi></mml:mstyle><mml:mn>0</mml:mn></mml:msub><mml:mn>2</mml:mn></mml:msubsup><mml:mi>f</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>
+  of the function with respect to the input features. The cost of
+  computing derivatives in each mode differs and depends on the number
+  of input and output features. <monospace>hessQuik</monospace>
+  automatically selects the least costly method by which to compute
+  derivatives. We briefly describe the derivative calculations using the
+  two methods.</p>
+  <p>First, it is useful to express the evaluation of
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[f]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>f</mml:mi></mml:math></alternatives></inline-formula>
+  as an iterative process. Let <inline-formula><alternatives>
+  <tex-math><![CDATA[\mathbf{u}_0\in \mathbb{R}^{n_0}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mstyle mathvariant="bold"><mml:mi>𝐮</mml:mi></mml:mstyle><mml:mn>0</mml:mn></mml:msub><mml:mo>∈</mml:mo><mml:msup><mml:mstyle mathvariant="double-struck"><mml:mi>ℝ</mml:mi></mml:mstyle><mml:msub><mml:mi>n</mml:mi><mml:mn>0</mml:mn></mml:msub></mml:msup></mml:mrow></mml:math></alternatives></inline-formula>
+  be a vector of input features. Then, the function evaluated at
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[\mathbf{u}_0]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mstyle mathvariant="bold"><mml:mi>𝐮</mml:mi></mml:mstyle><mml:mn>0</mml:mn></mml:msub></mml:math></alternatives></inline-formula>
+  is <disp-formula><alternatives>
+  <tex-math><![CDATA[\begin{aligned}
+              \mathbf{u}_1      &= g_1(\mathbf{u}_0)  &&\in \mathbb{R}^{n_1}\\
+              \mathbf{u}_2      &= g_2(\mathbf{u}_1)  &&\in \mathbb{R}^{n_2}\\
+                          &\vdots \nonumber\\
+      f(\mathbf{u}_0) \equiv \mathbf{u}_{\ell}        &= g_\ell(\mathbf{u}_{\ell-1}) &&\in \mathbb{R}^{n_\ell}
+      \end{aligned}]]></tex-math>
+  <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mtable><mml:mtr><mml:mtd columnalign="right"><mml:msub><mml:mstyle mathvariant="bold"><mml:mi>𝐮</mml:mi></mml:mstyle><mml:mn>1</mml:mn></mml:msub></mml:mtd><mml:mtd columnalign="left"><mml:mo>=</mml:mo><mml:msub><mml:mi>g</mml:mi><mml:mn>1</mml:mn></mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mstyle mathvariant="bold"><mml:mi>𝐮</mml:mi></mml:mstyle><mml:mn>0</mml:mn></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mtd><mml:mtd columnalign="right"></mml:mtd><mml:mtd columnalign="left"><mml:mo>∈</mml:mo><mml:msup><mml:mstyle mathvariant="double-struck"><mml:mi>ℝ</mml:mi></mml:mstyle><mml:msub><mml:mi>n</mml:mi><mml:mn>1</mml:mn></mml:msub></mml:msup></mml:mtd></mml:mtr><mml:mtr><mml:mtd columnalign="right"><mml:msub><mml:mstyle mathvariant="bold"><mml:mi>𝐮</mml:mi></mml:mstyle><mml:mn>2</mml:mn></mml:msub></mml:mtd><mml:mtd columnalign="left"><mml:mo>=</mml:mo><mml:msub><mml:mi>g</mml:mi><mml:mn>2</mml:mn></mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mstyle mathvariant="bold"><mml:mi>𝐮</mml:mi></mml:mstyle><mml:mn>1</mml:mn></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mtd><mml:mtd columnalign="right"></mml:mtd><mml:mtd columnalign="left"><mml:mo>∈</mml:mo><mml:msup><mml:mstyle mathvariant="double-struck"><mml:mi>ℝ</mml:mi></mml:mstyle><mml:msub><mml:mi>n</mml:mi><mml:mn>2</mml:mn></mml:msub></mml:msup></mml:mtd></mml:mtr><mml:mtr><mml:mtd columnalign="right"></mml:mtd><mml:mtd columnalign="left"><mml:mi>⋮</mml:mi></mml:mtd></mml:mtr><mml:mtr><mml:mtd columnalign="right"><mml:mi>f</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mstyle mathvariant="bold"><mml:mi>𝐮</mml:mi></mml:mstyle><mml:mn>0</mml:mn></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>≡</mml:mo><mml:msub><mml:mstyle mathvariant="bold"><mml:mi>𝐮</mml:mi></mml:mstyle><mml:mo>ℓ</mml:mo></mml:msub></mml:mtd><mml:mtd columnalign="left"><mml:mo>=</mml:mo><mml:msub><mml:mi>g</mml:mi><mml:mo>ℓ</mml:mo></mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mstyle mathvariant="bold"><mml:mi>𝐮</mml:mi></mml:mstyle><mml:mrow><mml:mo>ℓ</mml:mo><mml:mo>−</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mtd><mml:mtd columnalign="right"></mml:mtd><mml:mtd columnalign="left"><mml:mo>∈</mml:mo><mml:msup><mml:mstyle mathvariant="double-struck"><mml:mi>ℝ</mml:mi></mml:mstyle><mml:msub><mml:mi>n</mml:mi><mml:mo>ℓ</mml:mo></mml:msub></mml:msup></mml:mtd></mml:mtr></mml:mtable></mml:math></alternatives></disp-formula>
+  where <inline-formula><alternatives>
+  <tex-math><![CDATA[\mathbf{u}_i]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mstyle mathvariant="bold"><mml:mi>𝐮</mml:mi></mml:mstyle><mml:mi>i</mml:mi></mml:msub></mml:math></alternatives></inline-formula>
+  are the hidden features on layer <inline-formula><alternatives>
+  <tex-math><![CDATA[i]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>i</mml:mi></mml:math></alternatives></inline-formula>
+  for <inline-formula><alternatives>
+  <tex-math><![CDATA[i=1,\dots,\ell-1]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>i</mml:mi><mml:mo>=</mml:mo><mml:mn>1</mml:mn><mml:mo>,</mml:mo><mml:mi>…</mml:mi><mml:mo>,</mml:mo><mml:mo>ℓ</mml:mo><mml:mo>−</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>
+  and <inline-formula><alternatives>
+  <tex-math><![CDATA[\mathbf{u}_{\ell}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mstyle mathvariant="bold"><mml:mi>𝐮</mml:mi></mml:mstyle><mml:mo>ℓ</mml:mo></mml:msub></mml:math></alternatives></inline-formula>
+  are the output features.</p>
+  <sec id="forward-mode">
+    <title>Forward Mode</title>
+    <p>Computing derivatives in forward mode means building the gradient
+    and Hessian ; that is, when we form <inline-formula><alternatives>
+    <tex-math><![CDATA[\mathbf{u}_i]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mstyle mathvariant="bold"><mml:mi>𝐮</mml:mi></mml:mstyle><mml:mi>i</mml:mi></mml:msub></mml:math></alternatives></inline-formula>,
+    we simultaneously form the corresponding gradient and Hessian
+    information. We start by computing the gradient and Hessian of the
+    first layer with respect to the inputs; that is,
+    <disp-formula><alternatives>
+    <tex-math><![CDATA[\begin{aligned}
+            \nabla_{\mathbf{u}_0}\mathbf{u}_1 &=\nabla_{\mathbf{u}_0} g_1(\mathbf{u}_0) && \in \mathbb{R}^{n_0\times n_1}\\
+            \nabla_{\mathbf{u}_0}^2 \mathbf{u}_1 &= \nabla_{\mathbf{u}_0}^2 g_1(\mathbf{u}_0) && \in \mathbb{R}^{n_0\times n_0\times n_1}
+        \end{aligned}]]></tex-math>
+    <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mtable><mml:mtr><mml:mtd columnalign="right"><mml:msub><mml:mi>∇</mml:mi><mml:msub><mml:mstyle mathvariant="bold"><mml:mi>𝐮</mml:mi></mml:mstyle><mml:mn>0</mml:mn></mml:msub></mml:msub><mml:msub><mml:mstyle mathvariant="bold"><mml:mi>𝐮</mml:mi></mml:mstyle><mml:mn>1</mml:mn></mml:msub></mml:mtd><mml:mtd columnalign="left"><mml:mo>=</mml:mo><mml:msub><mml:mi>∇</mml:mi><mml:msub><mml:mstyle mathvariant="bold"><mml:mi>𝐮</mml:mi></mml:mstyle><mml:mn>0</mml:mn></mml:msub></mml:msub><mml:msub><mml:mi>g</mml:mi><mml:mn>1</mml:mn></mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mstyle mathvariant="bold"><mml:mi>𝐮</mml:mi></mml:mstyle><mml:mn>0</mml:mn></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mtd><mml:mtd columnalign="right"></mml:mtd><mml:mtd columnalign="left"><mml:mo>∈</mml:mo><mml:msup><mml:mstyle mathvariant="double-struck"><mml:mi>ℝ</mml:mi></mml:mstyle><mml:mrow><mml:msub><mml:mi>n</mml:mi><mml:mn>0</mml:mn></mml:msub><mml:mo>×</mml:mo><mml:msub><mml:mi>n</mml:mi><mml:mn>1</mml:mn></mml:msub></mml:mrow></mml:msup></mml:mtd></mml:mtr><mml:mtr><mml:mtd columnalign="right"><mml:msubsup><mml:mi>∇</mml:mi><mml:msub><mml:mstyle mathvariant="bold"><mml:mi>𝐮</mml:mi></mml:mstyle><mml:mn>0</mml:mn></mml:msub><mml:mn>2</mml:mn></mml:msubsup><mml:msub><mml:mstyle mathvariant="bold"><mml:mi>𝐮</mml:mi></mml:mstyle><mml:mn>1</mml:mn></mml:msub></mml:mtd><mml:mtd columnalign="left"><mml:mo>=</mml:mo><mml:msubsup><mml:mi>∇</mml:mi><mml:msub><mml:mstyle mathvariant="bold"><mml:mi>𝐮</mml:mi></mml:mstyle><mml:mn>0</mml:mn></mml:msub><mml:mn>2</mml:mn></mml:msubsup><mml:msub><mml:mi>g</mml:mi><mml:mn>1</mml:mn></mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mstyle mathvariant="bold"><mml:mi>𝐮</mml:mi></mml:mstyle><mml:mn>0</mml:mn></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mtd><mml:mtd columnalign="right"></mml:mtd><mml:mtd columnalign="left"><mml:mo>∈</mml:mo><mml:msup><mml:mstyle mathvariant="double-struck"><mml:mi>ℝ</mml:mi></mml:mstyle><mml:mrow><mml:msub><mml:mi>n</mml:mi><mml:mn>0</mml:mn></mml:msub><mml:mo>×</mml:mo><mml:msub><mml:mi>n</mml:mi><mml:mn>0</mml:mn></mml:msub><mml:mo>×</mml:mo><mml:msub><mml:mi>n</mml:mi><mml:mn>1</mml:mn></mml:msub></mml:mrow></mml:msup></mml:mtd></mml:mtr></mml:mtable></mml:math></alternatives></disp-formula>
+    We compute the derivatives of subsequent layers using the following
+    mappings for <inline-formula><alternatives>
+    <tex-math><![CDATA[i=1, \dots, \ell-1]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>i</mml:mi><mml:mo>=</mml:mo><mml:mn>1</mml:mn><mml:mo>,</mml:mo><mml:mi>…</mml:mi><mml:mo>,</mml:mo><mml:mo>ℓ</mml:mo><mml:mo>−</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>
+    <named-content id="eqU003AHessian_ui" content-type="equation"><disp-formula><alternatives>
+    <tex-math><![CDATA[\begin{aligned}
+            \nabla_{\mathbf{u}_0}\mathbf{u}_{i+1} &= \nabla_{\mathbf{u}_0} \mathbf{u}_i \nabla_{\mathbf{u}_i}g_{i+1}(\mathbf{u}_i) && \in \mathbb{R}^{n_0\times n_{i+1}}\\
+            \nabla_{\mathbf{u}_0}^2\mathbf{u}_{i+1} &= \nabla_{\mathbf{u}_i}^2g_{i+1}(\mathbf{u}_i) \times_1 \nabla_{\mathbf{u}_0}\mathbf{u}_{i} \times_2 \nabla_{\mathbf{u}_0}\mathbf{u}_{i}^\top \nonumber\\
+        &\qquad + \nabla_{\mathbf{u}_0}^2\mathbf{u}_i \times_3 \nabla_{\mathbf{u}_i}g_{i+1}(\mathbf{u}_i) &&\in \mathbb{R}^{n_0\times n_0 \times n_{i+1}}\label{eq:Hessian_ui}
+        \end{aligned}]]></tex-math>
+    <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mtable><mml:mtr><mml:mtd columnalign="right"><mml:msub><mml:mi>∇</mml:mi><mml:msub><mml:mstyle mathvariant="bold"><mml:mi>𝐮</mml:mi></mml:mstyle><mml:mn>0</mml:mn></mml:msub></mml:msub><mml:msub><mml:mstyle mathvariant="bold"><mml:mi>𝐮</mml:mi></mml:mstyle><mml:mrow><mml:mi>i</mml:mi><mml:mo>+</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:msub></mml:mtd><mml:mtd columnalign="left"><mml:mo>=</mml:mo><mml:msub><mml:mi>∇</mml:mi><mml:msub><mml:mstyle mathvariant="bold"><mml:mi>𝐮</mml:mi></mml:mstyle><mml:mn>0</mml:mn></mml:msub></mml:msub><mml:msub><mml:mstyle mathvariant="bold"><mml:mi>𝐮</mml:mi></mml:mstyle><mml:mi>i</mml:mi></mml:msub><mml:msub><mml:mi>∇</mml:mi><mml:msub><mml:mstyle mathvariant="bold"><mml:mi>𝐮</mml:mi></mml:mstyle><mml:mi>i</mml:mi></mml:msub></mml:msub><mml:msub><mml:mi>g</mml:mi><mml:mrow><mml:mi>i</mml:mi><mml:mo>+</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mstyle mathvariant="bold"><mml:mi>𝐮</mml:mi></mml:mstyle><mml:mi>i</mml:mi></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mtd><mml:mtd columnalign="right"></mml:mtd><mml:mtd columnalign="left"><mml:mo>∈</mml:mo><mml:msup><mml:mstyle mathvariant="double-struck"><mml:mi>ℝ</mml:mi></mml:mstyle><mml:mrow><mml:msub><mml:mi>n</mml:mi><mml:mn>0</mml:mn></mml:msub><mml:mo>×</mml:mo><mml:msub><mml:mi>n</mml:mi><mml:mrow><mml:mi>i</mml:mi><mml:mo>+</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:msub></mml:mrow></mml:msup></mml:mtd></mml:mtr><mml:mtr><mml:mtd columnalign="right"><mml:msubsup><mml:mi>∇</mml:mi><mml:msub><mml:mstyle mathvariant="bold"><mml:mi>𝐮</mml:mi></mml:mstyle><mml:mn>0</mml:mn></mml:msub><mml:mn>2</mml:mn></mml:msubsup><mml:msub><mml:mstyle mathvariant="bold"><mml:mi>𝐮</mml:mi></mml:mstyle><mml:mrow><mml:mi>i</mml:mi><mml:mo>+</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:msub></mml:mtd><mml:mtd columnalign="left"><mml:mo>=</mml:mo><mml:msubsup><mml:mi>∇</mml:mi><mml:msub><mml:mstyle mathvariant="bold"><mml:mi>𝐮</mml:mi></mml:mstyle><mml:mi>i</mml:mi></mml:msub><mml:mn>2</mml:mn></mml:msubsup><mml:msub><mml:mi>g</mml:mi><mml:mrow><mml:mi>i</mml:mi><mml:mo>+</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mstyle mathvariant="bold"><mml:mi>𝐮</mml:mi></mml:mstyle><mml:mi>i</mml:mi></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:munder><mml:mo>×</mml:mo><mml:mn>1</mml:mn></mml:munder><mml:msub><mml:mi>∇</mml:mi><mml:msub><mml:mstyle mathvariant="bold"><mml:mi>𝐮</mml:mi></mml:mstyle><mml:mn>0</mml:mn></mml:msub></mml:msub><mml:msub><mml:mstyle mathvariant="bold"><mml:mi>𝐮</mml:mi></mml:mstyle><mml:mi>i</mml:mi></mml:msub><mml:munder><mml:mo>×</mml:mo><mml:mn>2</mml:mn></mml:munder><mml:msub><mml:mi>∇</mml:mi><mml:msub><mml:mstyle mathvariant="bold"><mml:mi>𝐮</mml:mi></mml:mstyle><mml:mn>0</mml:mn></mml:msub></mml:msub><mml:msubsup><mml:mstyle mathvariant="bold"><mml:mi>𝐮</mml:mi></mml:mstyle><mml:mi>i</mml:mi><mml:mi>⊤</mml:mi></mml:msubsup></mml:mtd></mml:mtr><mml:mtr><mml:mtd columnalign="right"></mml:mtd><mml:mtd columnalign="left"><mml:mspace width="2.0em"></mml:mspace><mml:mo>+</mml:mo><mml:msubsup><mml:mi>∇</mml:mi><mml:msub><mml:mstyle mathvariant="bold"><mml:mi>𝐮</mml:mi></mml:mstyle><mml:mn>0</mml:mn></mml:msub><mml:mn>2</mml:mn></mml:msubsup><mml:msub><mml:mstyle mathvariant="bold"><mml:mi>𝐮</mml:mi></mml:mstyle><mml:mi>i</mml:mi></mml:msub><mml:munder><mml:mo>×</mml:mo><mml:mn>3</mml:mn></mml:munder><mml:msub><mml:mi>∇</mml:mi><mml:msub><mml:mstyle mathvariant="bold"><mml:mi>𝐮</mml:mi></mml:mstyle><mml:mi>i</mml:mi></mml:msub></mml:msub><mml:msub><mml:mi>g</mml:mi><mml:mrow><mml:mi>i</mml:mi><mml:mo>+</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mstyle mathvariant="bold"><mml:mi>𝐮</mml:mi></mml:mstyle><mml:mi>i</mml:mi></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mtd><mml:mtd columnalign="right"></mml:mtd><mml:mtd columnalign="left"><mml:mo>∈</mml:mo><mml:msup><mml:mstyle mathvariant="double-struck"><mml:mi>ℝ</mml:mi></mml:mstyle><mml:mrow><mml:msub><mml:mi>n</mml:mi><mml:mn>0</mml:mn></mml:msub><mml:mo>×</mml:mo><mml:msub><mml:mi>n</mml:mi><mml:mn>0</mml:mn></mml:msub><mml:mo>×</mml:mo><mml:msub><mml:mi>n</mml:mi><mml:mrow><mml:mi>i</mml:mi><mml:mo>+</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:msub></mml:mrow></mml:msup></mml:mtd></mml:mtr></mml:mtable></mml:math></alternatives></disp-formula></named-content>
+    where <inline-formula><alternatives>
+    <tex-math><![CDATA[\times_k]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mo>×</mml:mo><mml:mi>k</mml:mi></mml:msub></mml:math></alternatives></inline-formula>
+    is the mode-<inline-formula><alternatives>
+    <tex-math><![CDATA[k]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>k</mml:mi></mml:math></alternatives></inline-formula>
+    product
+    (<xref alt="Kolda &amp; Bader, 2009" rid="ref-KoldaBader09" ref-type="bibr">Kolda
+    &amp; Bader, 2009</xref>) and <inline-formula><alternatives>
+    <tex-math><![CDATA[\nabla_{\mathbf{u}_0} \mathbf{u}_\ell \equiv \nabla_{\mathbf{u}_0} f(\mathbf{u}_0)]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>∇</mml:mi><mml:msub><mml:mstyle mathvariant="bold"><mml:mi>𝐮</mml:mi></mml:mstyle><mml:mn>0</mml:mn></mml:msub></mml:msub><mml:msub><mml:mstyle mathvariant="bold"><mml:mi>𝐮</mml:mi></mml:mstyle><mml:mo>ℓ</mml:mo></mml:msub><mml:mo>≡</mml:mo><mml:msub><mml:mi>∇</mml:mi><mml:msub><mml:mstyle mathvariant="bold"><mml:mi>𝐮</mml:mi></mml:mstyle><mml:mn>0</mml:mn></mml:msub></mml:msub><mml:mi>f</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mstyle mathvariant="bold"><mml:mi>𝐮</mml:mi></mml:mstyle><mml:mn>0</mml:mn></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>
+    is the Hessian we want to compute. The Hessian mapping in
+    <xref alt="Equation 1" rid="eqU003AHessian_ui">Equation 1</xref> is
+    illustrated in
+    <xref alt="Figure 1" rid="figU003AhessianIllustration">Figure 1</xref>.
+    For efficiency, we store <inline-formula><alternatives>
+    <tex-math><![CDATA[\nabla_{\mathbf{u}_{i}} g_{i+1}(\mathbf{u}_{i})]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>∇</mml:mi><mml:msub><mml:mstyle mathvariant="bold"><mml:mi>𝐮</mml:mi></mml:mstyle><mml:mi>i</mml:mi></mml:msub></mml:msub><mml:msub><mml:mi>g</mml:mi><mml:mrow><mml:mi>i</mml:mi><mml:mo>+</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mstyle mathvariant="bold"><mml:mi>𝐮</mml:mi></mml:mstyle><mml:mi>i</mml:mi></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>
+    when we compute the gradient and re-use this matrix to form the
+    Hessian. Notice that the sizes of the derivatives always depend on
+    the number of input features, <inline-formula><alternatives>
+    <tex-math><![CDATA[n_{0}]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>n</mml:mi><mml:mn>0</mml:mn></mml:msub></mml:math></alternatives></inline-formula>.</p>
+    <fig>
+      <caption><p>Illustration of Hessian computation of
+      <inline-formula><alternatives>
+      <tex-math><![CDATA[\nabla_{\mathbf{u}_0}^ 2\mathbf{u}_{i+1}]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msubsup><mml:mi>∇</mml:mi><mml:msub><mml:mstyle mathvariant="bold"><mml:mi>𝐮</mml:mi></mml:mstyle><mml:mn>0</mml:mn></mml:msub><mml:mn>2</mml:mn></mml:msubsup><mml:msub><mml:mstyle mathvariant="bold"><mml:mi>𝐮</mml:mi></mml:mstyle><mml:mrow><mml:mi>i</mml:mi><mml:mo>+</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:msub></mml:mrow></mml:math></alternatives></inline-formula>
+      in forward mode. Note that for the first term, the gray
+      three-dimensional array <inline-formula><alternatives>
+      <tex-math><![CDATA[\nabla_{\mathbf{u}_i} g_{i+1}(\mathbf{u}_i)]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>∇</mml:mi><mml:msub><mml:mstyle mathvariant="bold"><mml:mi>𝐮</mml:mi></mml:mstyle><mml:mi>i</mml:mi></mml:msub></mml:msub><mml:msub><mml:mi>g</mml:mi><mml:mrow><mml:mi>i</mml:mi><mml:mo>+</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mstyle mathvariant="bold"><mml:mi>𝐮</mml:mi></mml:mstyle><mml:mi>i</mml:mi></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>
+      is treated as a stack of matrices. Then, the same Jacobian matrix
+      <inline-formula><alternatives>
+      <tex-math><![CDATA[\nabla_{\mathbf{u}_0}\mathbf{u}_i]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>∇</mml:mi><mml:msub><mml:mstyle mathvariant="bold"><mml:mi>𝐮</mml:mi></mml:mstyle><mml:mn>0</mml:mn></mml:msub></mml:msub><mml:msub><mml:mstyle mathvariant="bold"><mml:mi>𝐮</mml:mi></mml:mstyle><mml:mi>i</mml:mi></mml:msub></mml:mrow></mml:math></alternatives></inline-formula>
+      is broadcast to each matrix in the stack, illustrated by the
+      repeated cyan matrices. In the second term, the green matrix
+      <inline-formula><alternatives>
+      <tex-math><![CDATA[\nabla_{\mathbf{u}_i}g_{i+1}(\mathbf{u}_i)]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>∇</mml:mi><mml:msub><mml:mstyle mathvariant="bold"><mml:mi>𝐮</mml:mi></mml:mstyle><mml:mi>i</mml:mi></mml:msub></mml:msub><mml:msub><mml:mi>g</mml:mi><mml:mrow><mml:mi>i</mml:mi><mml:mo>+</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mstyle mathvariant="bold"><mml:mi>𝐮</mml:mi></mml:mstyle><mml:mi>i</mml:mi></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>
+      is applied along the third dimension of the magenta
+      three-dimensional array, <inline-formula><alternatives>
+      <tex-math><![CDATA[\nabla_{\mathbf{u}_0}\mathbf{u}_i]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>∇</mml:mi><mml:msub><mml:mstyle mathvariant="bold"><mml:mi>𝐮</mml:mi></mml:mstyle><mml:mn>0</mml:mn></mml:msub></mml:msub><mml:msub><mml:mstyle mathvariant="bold"><mml:mi>𝐮</mml:mi></mml:mstyle><mml:mi>i</mml:mi></mml:msub></mml:mrow></mml:math></alternatives></inline-formula>.
+      Both of these operations can be parallelized and accelerated GPUs.
+      <styled-content id="figU003AhessianIllustration"></styled-content></p></caption>
+      <graphic mimetype="image" mime-subtype="png" xlink:href="img/HessianIllustration.png" xlink:title="" />
+    </fig>
+  </sec>
+  <sec id="backward-mode">
+    <title>Backward Mode</title>
+    <p>Computing derivatives in backward mode is also known as and is
+    the method by which automatic differentiation computes derivatives.
+    The process works as follows: We first forward propagate through the
+    network . After we forward propagate, we build the gradient and
+    Hessian starting from the output layer and working backwards to the
+    input layer. We start by computing derivatives of the final layer
+    with respect to the previous features; that is,
+    <disp-formula><alternatives>
+    <tex-math><![CDATA[\begin{aligned}
+            \nabla_{\mathbf{u}_{\ell-1}} \mathbf{u}_\ell &= \nabla_{\mathbf{u}_{\ell-1}} g_{\ell}(\mathbf{u}_{\ell-1}) && \in \mathbb{R}^{n_{\ell-1}\times n_\ell}\\
+             \nabla_{\mathbf{u}_{\ell-1}}^2 \mathbf{u}_\ell &= \nabla_{\mathbf{u}_{\ell-1}}^2 g_{\ell}(\mathbf{u}_{\ell-1}) && \in \mathbb{R}^{n_{\ell-1}\times n_{\ell-1}\times n_\ell}.
+        \end{aligned}]]></tex-math>
+    <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mtable><mml:mtr><mml:mtd columnalign="right"><mml:msub><mml:mi>∇</mml:mi><mml:msub><mml:mstyle mathvariant="bold"><mml:mi>𝐮</mml:mi></mml:mstyle><mml:mrow><mml:mo>ℓ</mml:mo><mml:mo>−</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:msub></mml:msub><mml:msub><mml:mstyle mathvariant="bold"><mml:mi>𝐮</mml:mi></mml:mstyle><mml:mo>ℓ</mml:mo></mml:msub></mml:mtd><mml:mtd columnalign="left"><mml:mo>=</mml:mo><mml:msub><mml:mi>∇</mml:mi><mml:msub><mml:mstyle mathvariant="bold"><mml:mi>𝐮</mml:mi></mml:mstyle><mml:mrow><mml:mo>ℓ</mml:mo><mml:mo>−</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:msub></mml:msub><mml:msub><mml:mi>g</mml:mi><mml:mo>ℓ</mml:mo></mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mstyle mathvariant="bold"><mml:mi>𝐮</mml:mi></mml:mstyle><mml:mrow><mml:mo>ℓ</mml:mo><mml:mo>−</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mtd><mml:mtd columnalign="right"></mml:mtd><mml:mtd columnalign="left"><mml:mo>∈</mml:mo><mml:msup><mml:mstyle mathvariant="double-struck"><mml:mi>ℝ</mml:mi></mml:mstyle><mml:mrow><mml:msub><mml:mi>n</mml:mi><mml:mrow><mml:mo>ℓ</mml:mo><mml:mo>−</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:msub><mml:mo>×</mml:mo><mml:msub><mml:mi>n</mml:mi><mml:mo>ℓ</mml:mo></mml:msub></mml:mrow></mml:msup></mml:mtd></mml:mtr><mml:mtr><mml:mtd columnalign="right"><mml:msubsup><mml:mi>∇</mml:mi><mml:msub><mml:mstyle mathvariant="bold"><mml:mi>𝐮</mml:mi></mml:mstyle><mml:mrow><mml:mo>ℓ</mml:mo><mml:mo>−</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:msub><mml:mn>2</mml:mn></mml:msubsup><mml:msub><mml:mstyle mathvariant="bold"><mml:mi>𝐮</mml:mi></mml:mstyle><mml:mo>ℓ</mml:mo></mml:msub></mml:mtd><mml:mtd columnalign="left"><mml:mo>=</mml:mo><mml:msubsup><mml:mi>∇</mml:mi><mml:msub><mml:mstyle mathvariant="bold"><mml:mi>𝐮</mml:mi></mml:mstyle><mml:mrow><mml:mo>ℓ</mml:mo><mml:mo>−</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:msub><mml:mn>2</mml:mn></mml:msubsup><mml:msub><mml:mi>g</mml:mi><mml:mo>ℓ</mml:mo></mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mstyle mathvariant="bold"><mml:mi>𝐮</mml:mi></mml:mstyle><mml:mrow><mml:mo>ℓ</mml:mo><mml:mo>−</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mtd><mml:mtd columnalign="right"></mml:mtd><mml:mtd columnalign="left"><mml:mo>∈</mml:mo><mml:msup><mml:mstyle mathvariant="double-struck"><mml:mi>ℝ</mml:mi></mml:mstyle><mml:mrow><mml:msub><mml:mi>n</mml:mi><mml:mrow><mml:mo>ℓ</mml:mo><mml:mo>−</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:msub><mml:mo>×</mml:mo><mml:msub><mml:mi>n</mml:mi><mml:mrow><mml:mo>ℓ</mml:mo><mml:mo>−</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:msub><mml:mo>×</mml:mo><mml:msub><mml:mi>n</mml:mi><mml:mo>ℓ</mml:mo></mml:msub></mml:mrow></mml:msup><mml:mi>.</mml:mi></mml:mtd></mml:mtr></mml:mtable></mml:math></alternatives></disp-formula>
+    We compute derivatives of previous layers using the following
+    mappings for <inline-formula><alternatives>
+    <tex-math><![CDATA[i=\ell-1,\dots, 1]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>i</mml:mi><mml:mo>=</mml:mo><mml:mo>ℓ</mml:mo><mml:mo>−</mml:mo><mml:mn>1</mml:mn><mml:mo>,</mml:mo><mml:mi>…</mml:mi><mml:mo>,</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>:
+    <disp-formula><alternatives>
+    <tex-math><![CDATA[\begin{aligned}
+            \nabla_{\mathbf{u}_{i-1}} \mathbf{u}_{\ell} &= \nabla_{\mathbf{u}_{i-1}}  g_{i}(\mathbf{u}_{i-1})\nabla_{\mathbf{u}_{i}}  \mathbf{u}_{\ell} 
+                \qquad &&\in \mathbb{R}^{n_{i-1} \times n_{\ell}}\\
+            %   
+            \nabla_{\mathbf{u}_{i-1}}^2 \mathbf{u}_{\ell} &= \nabla_{\mathbf{u}_i}^2 \mathbf{u}_{\ell}  \times_1 \nabla_{\mathbf{u}_{i-1}} g_i(\mathbf{u}_{i-1}) \times_2 \nabla_{\mathbf{u}_{i-1}} g_i(\mathbf{u}_{i-1})^\top \nonumber \\
+            &\qquad + \nabla_{\mathbf{u}_{i-1}}^2 g_i(\mathbf{u}_{i-1}) \times_3 \nabla_{\mathbf{u}_i} \mathbf{u}_{\ell} 
+                 \qquad &&\in \mathbb{R}^{n_{i-1} \times n_{i-1} \times n_{\ell}}.
+        \end{aligned}]]></tex-math>
+    <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mtable><mml:mtr><mml:mtd columnalign="right"><mml:msub><mml:mi>∇</mml:mi><mml:msub><mml:mstyle mathvariant="bold"><mml:mi>𝐮</mml:mi></mml:mstyle><mml:mrow><mml:mi>i</mml:mi><mml:mo>−</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:msub></mml:msub><mml:msub><mml:mstyle mathvariant="bold"><mml:mi>𝐮</mml:mi></mml:mstyle><mml:mo>ℓ</mml:mo></mml:msub></mml:mtd><mml:mtd columnalign="left"><mml:mo>=</mml:mo><mml:msub><mml:mi>∇</mml:mi><mml:msub><mml:mstyle mathvariant="bold"><mml:mi>𝐮</mml:mi></mml:mstyle><mml:mrow><mml:mi>i</mml:mi><mml:mo>−</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:msub></mml:msub><mml:msub><mml:mi>g</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mstyle mathvariant="bold"><mml:mi>𝐮</mml:mi></mml:mstyle><mml:mrow><mml:mi>i</mml:mi><mml:mo>−</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:msub><mml:mi>∇</mml:mi><mml:msub><mml:mstyle mathvariant="bold"><mml:mi>𝐮</mml:mi></mml:mstyle><mml:mi>i</mml:mi></mml:msub></mml:msub><mml:msub><mml:mstyle mathvariant="bold"><mml:mi>𝐮</mml:mi></mml:mstyle><mml:mo>ℓ</mml:mo></mml:msub><mml:mspace width="2.0em"></mml:mspace></mml:mtd><mml:mtd columnalign="right"></mml:mtd><mml:mtd columnalign="left"><mml:mo>∈</mml:mo><mml:msup><mml:mstyle mathvariant="double-struck"><mml:mi>ℝ</mml:mi></mml:mstyle><mml:mrow><mml:msub><mml:mi>n</mml:mi><mml:mrow><mml:mi>i</mml:mi><mml:mo>−</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:msub><mml:mo>×</mml:mo><mml:msub><mml:mi>n</mml:mi><mml:mo>ℓ</mml:mo></mml:msub></mml:mrow></mml:msup></mml:mtd></mml:mtr><mml:mtr><mml:mtd columnalign="right"><mml:msubsup><mml:mi>∇</mml:mi><mml:msub><mml:mstyle mathvariant="bold"><mml:mi>𝐮</mml:mi></mml:mstyle><mml:mrow><mml:mi>i</mml:mi><mml:mo>−</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:msub><mml:mn>2</mml:mn></mml:msubsup><mml:msub><mml:mstyle mathvariant="bold"><mml:mi>𝐮</mml:mi></mml:mstyle><mml:mo>ℓ</mml:mo></mml:msub></mml:mtd><mml:mtd columnalign="left"><mml:mo>=</mml:mo><mml:msubsup><mml:mi>∇</mml:mi><mml:msub><mml:mstyle mathvariant="bold"><mml:mi>𝐮</mml:mi></mml:mstyle><mml:mi>i</mml:mi></mml:msub><mml:mn>2</mml:mn></mml:msubsup><mml:msub><mml:mstyle mathvariant="bold"><mml:mi>𝐮</mml:mi></mml:mstyle><mml:mo>ℓ</mml:mo></mml:msub><mml:munder><mml:mo>×</mml:mo><mml:mn>1</mml:mn></mml:munder><mml:msub><mml:mi>∇</mml:mi><mml:msub><mml:mstyle mathvariant="bold"><mml:mi>𝐮</mml:mi></mml:mstyle><mml:mrow><mml:mi>i</mml:mi><mml:mo>−</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:msub></mml:msub><mml:msub><mml:mi>g</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mstyle mathvariant="bold"><mml:mi>𝐮</mml:mi></mml:mstyle><mml:mrow><mml:mi>i</mml:mi><mml:mo>−</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:munder><mml:mo>×</mml:mo><mml:mn>2</mml:mn></mml:munder><mml:msub><mml:mi>∇</mml:mi><mml:msub><mml:mstyle mathvariant="bold"><mml:mi>𝐮</mml:mi></mml:mstyle><mml:mrow><mml:mi>i</mml:mi><mml:mo>−</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:msub></mml:msub><mml:msub><mml:mi>g</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:msup><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mstyle mathvariant="bold"><mml:mi>𝐮</mml:mi></mml:mstyle><mml:mrow><mml:mi>i</mml:mi><mml:mo>−</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mi>⊤</mml:mi></mml:msup></mml:mtd></mml:mtr><mml:mtr><mml:mtd columnalign="right"></mml:mtd><mml:mtd columnalign="left"><mml:mspace width="2.0em"></mml:mspace><mml:mo>+</mml:mo><mml:msubsup><mml:mi>∇</mml:mi><mml:msub><mml:mstyle mathvariant="bold"><mml:mi>𝐮</mml:mi></mml:mstyle><mml:mrow><mml:mi>i</mml:mi><mml:mo>−</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:msub><mml:mn>2</mml:mn></mml:msubsup><mml:msub><mml:mi>g</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mstyle mathvariant="bold"><mml:mi>𝐮</mml:mi></mml:mstyle><mml:mrow><mml:mi>i</mml:mi><mml:mo>−</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:munder><mml:mo>×</mml:mo><mml:mn>3</mml:mn></mml:munder><mml:msub><mml:mi>∇</mml:mi><mml:msub><mml:mstyle mathvariant="bold"><mml:mi>𝐮</mml:mi></mml:mstyle><mml:mi>i</mml:mi></mml:msub></mml:msub><mml:msub><mml:mstyle mathvariant="bold"><mml:mi>𝐮</mml:mi></mml:mstyle><mml:mo>ℓ</mml:mo></mml:msub><mml:mspace width="2.0em"></mml:mspace></mml:mtd><mml:mtd columnalign="right"></mml:mtd><mml:mtd columnalign="left"><mml:mo>∈</mml:mo><mml:msup><mml:mstyle mathvariant="double-struck"><mml:mi>ℝ</mml:mi></mml:mstyle><mml:mrow><mml:msub><mml:mi>n</mml:mi><mml:mrow><mml:mi>i</mml:mi><mml:mo>−</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:msub><mml:mo>×</mml:mo><mml:msub><mml:mi>n</mml:mi><mml:mrow><mml:mi>i</mml:mi><mml:mo>−</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:msub><mml:mo>×</mml:mo><mml:msub><mml:mi>n</mml:mi><mml:mo>ℓ</mml:mo></mml:msub></mml:mrow></mml:msup><mml:mi>.</mml:mi></mml:mtd></mml:mtr></mml:mtable></mml:math></alternatives></disp-formula>
+    For efficiency, we re-use <inline-formula><alternatives>
+    <tex-math><![CDATA[\nabla_{\mathbf{u}_{i-1}} g_{i}(\mathbf{u}_{i-1})]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>∇</mml:mi><mml:msub><mml:mstyle mathvariant="bold"><mml:mi>𝐮</mml:mi></mml:mstyle><mml:mrow><mml:mi>i</mml:mi><mml:mo>−</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:msub></mml:msub><mml:msub><mml:mi>g</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mstyle mathvariant="bold"><mml:mi>𝐮</mml:mi></mml:mstyle><mml:mrow><mml:mi>i</mml:mi><mml:mo>−</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>
+    from the gradient computation to compute the Hessian. Notice that
+    the sizes of the derivatives always depend on the number of output
+    features, <inline-formula><alternatives>
+    <tex-math><![CDATA[n_{\ell}]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>n</mml:mi><mml:mo>ℓ</mml:mo></mml:msub></mml:math></alternatives></inline-formula>.</p>
+  </sec>
+  <sec id="forward-mode-vs.-backward-mode">
+    <title>Forward Mode vs. Backward Mode</title>
+    <p>The computational efficiency of computing derivatives is
+    proportional to the number of input features
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[n_0]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>n</mml:mi><mml:mn>0</mml:mn></mml:msub></mml:math></alternatives></inline-formula>
+    and the number of output features <inline-formula><alternatives>
+    <tex-math><![CDATA[n_{\ell}]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>n</mml:mi><mml:mo>ℓ</mml:mo></mml:msub></mml:math></alternatives></inline-formula>.
+    The heuristic we use is if <inline-formula><alternatives>
+    <tex-math><![CDATA[n_0 < n_\ell]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>n</mml:mi><mml:mn>0</mml:mn></mml:msub><mml:mo>&lt;</mml:mo><mml:msub><mml:mi>n</mml:mi><mml:mo>ℓ</mml:mo></mml:msub></mml:mrow></mml:math></alternatives></inline-formula>,
+    we compute derivatives in forward mode, otherwise we compute
+    derivatives in backward mode. Our implementation automatically
+    selects the mode of derivative computation based on this heuristic.
+    Users have the option to select their preferred mode of derivative
+    computation if desired.</p>
+  </sec>
+  <sec id="testing-derivative-implementations">
+    <title>Testing Derivative Implementations</title>
+    <p>The <monospace>hessQuik</monospace> package includes methods to
+    test derivative implementations and corresponding unit tests. The
+    main test employs Taylor approximations; for details, see
+    (<xref alt="Haber, 2014" rid="ref-haberDerivative" ref-type="bibr">Haber,
+    2014</xref>).</p>
+  </sec>
+</sec>
+<sec id="efficiency-of-hessquik">
+  <title>Efficiency of <monospace>hessQuik</monospace></title>
+  <p>We compare the time to compute the Hessian of a neural network with
+  respect to the input features of three approaches:
+  <monospace>hessQuik</monospace> (our AD-free method),
+  <monospace>PytorchAD</monospace> which uses automatic differentiation
+  following the implementation in
+  (<xref alt="Huang et al., 2021" rid="ref-huang2021convex" ref-type="bibr">Huang
+  et al., 2021</xref>), and <monospace>PytorchHessian</monospace> which
+  uses the built-in Pytorch
+  <ext-link ext-link-type="uri" xlink:href="https://pytorch.org/docs/stable/generated/torch.autograd.functional.hessian.html">Hessian
+  function</ext-link>.</p>
+  <p>We compare the time to compute the gradient and Hessian of a
+  network with an input dimension <inline-formula><alternatives>
+  <tex-math><![CDATA[d = 2^k]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>d</mml:mi><mml:mo>=</mml:mo><mml:msup><mml:mn>2</mml:mn><mml:mi>k</mml:mi></mml:msup></mml:mrow></mml:math></alternatives></inline-formula>
+  where <inline-formula><alternatives>
+  <tex-math><![CDATA[k=0,1,\dots,10]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>k</mml:mi><mml:mo>=</mml:mo><mml:mn>0</mml:mn><mml:mo>,</mml:mo><mml:mn>1</mml:mn><mml:mo>,</mml:mo><mml:mi>…</mml:mi><mml:mo>,</mml:mo><mml:mn>10</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>.
+  We implement a residual neural network
+  (<xref alt="He et al., 2016" rid="ref-He2016U003Adeep" ref-type="bibr">He
+  et al., 2016</xref>) with the width is <inline-formula><alternatives>
+  <tex-math><![CDATA[w=16]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>w</mml:mi><mml:mo>=</mml:mo><mml:mn>16</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>,
+  the depth is <inline-formula><alternatives>
+  <tex-math><![CDATA[d=4]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>d</mml:mi><mml:mo>=</mml:mo><mml:mn>4</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>,
+  and various numbers of output features, <inline-formula><alternatives>
+  <tex-math><![CDATA[n_\ell]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>n</mml:mi><mml:mo>ℓ</mml:mo></mml:msub></mml:math></alternatives></inline-formula>.
+  For simplicity, the same network architecture is used for every timing
+  test.</p>
+  <p>For reproducibility, we compare the time to compute the Hessian
+  using Google Colaboratory (Colab) Pro and provide the
+  <ext-link ext-link-type="uri" xlink:href="https://colab.research.google.com/github/elizabethnewman/hessQuik/blob/main/hessQuik/examples/hessQuikTimingTest.ipynb">notebook</ext-link>
+  in the repository. For CPU runtimes, Colab Pro uses an Intel(R)
+  Xeon(R) CPU with 2.20GHz processor base speed. For GPU runtimes, Colab
+  Pro uses a Tesla P100 with 16 GB of memory. We note that Colab
+  allocates resources based on availability, and hence exact
+  quantitative reproducibility is not guaranteed. However, we expect
+  users to get qualitatively similar results when running on their own
+  Colab instance or locally.</p>
+  <p>In <xref alt="Figure 2" rid="figU003Ascalar">Figure 2</xref> and
+  <xref alt="Figure 3" rid="figU003Avector">Figure 3</xref>, we compare
+  the performance of three approaches to compute Hessians of a neural
+  network. In our experiments, we see faster Hessian computations using
+  <monospace>hessQuik</monospace> and noticeable acceleration on the
+  GPU, especially for networks with larger input and output dimensions.
+  Specifically,
+  <xref alt="Figure 2" rid="figU003Ascalar">Figure 2</xref> shows that
+  for a model with a scalar output, the timing using the
+  <monospace>hessQuik</monospace> implementation scales better with the
+  number of input features than either of the AD-based methods.
+  Additionally,
+  <xref alt="Figure 3" rid="figU003Avector">Figure 3</xref> demonstrates
+  that the <monospace>hessQuik</monospace> timings remain relatively
+  constant as the number of output features changes whereas the
+  <monospace>PytorchAD</monospace> timings significantly increase as the
+  number of output features increases. Note that we only compare to
+  <monospace>PytorchAD</monospace> for vector-valued outputs because
+  <monospace>PytorchHessian</monospace> was noticeably slower for the
+  scalar case.</p>
+  <fig>
+    <caption><p>Average time over <inline-formula><alternatives>
+    <tex-math><![CDATA[10]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mn>10</mml:mn></mml:math></alternatives></inline-formula>
+    trials to evaluate and compute the Hessian with respect to the input
+    features for one output feature (<inline-formula><alternatives>
+    <tex-math><![CDATA[n_{\ell}=1]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>n</mml:mi><mml:mo>ℓ</mml:mo></mml:msub><mml:mo>=</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>).
+    Solid lines represent timings on the CPU and dashed lines are
+    timings on the GPU. The circle markers are the timings obtained
+    using <monospace>hessQuik</monospace>.
+    <styled-content id="figU003Ascalar"></styled-content></p></caption>
+    <graphic mimetype="image" mime-subtype="png" xlink:href="img/hessQuik_timing_scalar.png" xlink:title="" />
+  </fig>
+  <fig>
+    <caption><p>Average time over <inline-formula><alternatives>
+    <tex-math><![CDATA[10]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mn>10</mml:mn></mml:math></alternatives></inline-formula>
+    trials to compute the Hessian with respect to the input features
+    with variable number of input and output features. Each row
+    corresponds to a number of input features,
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[n_0]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>n</mml:mi><mml:mn>0</mml:mn></mml:msub></mml:math></alternatives></inline-formula>,
+    each column corresponds to a number of output features,
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[n_{\ell}]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>n</mml:mi><mml:mo>ℓ</mml:mo></mml:msub></mml:math></alternatives></inline-formula>,
+    and color represents the amount of time to compute (in seconds).
+    <styled-content id="figU003Avector"></styled-content></p></caption>
+    <graphic mimetype="image" mime-subtype="png" xlink:href="img/hessQuik_timing_vector.png" xlink:title="" />
+  </fig>
+</sec>
+<sec id="conclusions">
+  <title>Conclusions</title>
+  <p><monospace>hessQuik</monospace> is a simple, user-friendly software
+  library for computing second-order derivatives of composite functions
+  with respect to their inputs. This PyTorch package includes many
+  popular built-in layers, tutorial repositories, reproducible
+  experiments, and unit testing for ease of use. The implementation
+  scales well in time with various input and output feature dimensions
+  and performance is accelerated on GPUs, notably faster than
+  automatic-differentiation-based second-order derivative computations.
+  We hope the accessibility and efficiency of this package will
+  encourage researchers to use and contribute to
+  <monospace>hessQuik</monospace> in the future.</p>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>The development of <monospace>hessQuik</monospace> was supported in
+  part by the US National Science Foundation under Grant Number 1751636,
+  the Air Force Office of Scientific Research Award FA9550-20-1-0372,
+  and the US DOE Office of Advanced Scientific Computing Research Field
+  Work Proposal 20-023231. Any opinions, findings, and conclusions or
+  recommendations expressed in this material are those of the authors
+  and do not necessarily reflect the views of the funding agencies.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <ref id="ref-amos2017input">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Amos</surname><given-names>Brandon</given-names></name>
+        <name><surname>Xu</surname><given-names>Lei</given-names></name>
+        <name><surname>Kolter</surname><given-names>J. Zico</given-names></name>
+      </person-group>
+      <article-title>Input convex neural networks</article-title>
+      <year iso-8601-date="2017">2017</year>
+      <uri>https://arxiv.org/abs/1609.07152</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-ruthotto2021introduction">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Ruthotto</surname><given-names>Lars</given-names></name>
+        <name><surname>Haber</surname><given-names>Eldad</given-names></name>
+      </person-group>
+      <article-title>An introduction to deep generative modeling</article-title>
+      <year iso-8601-date="2021">2021</year>
+      <uri>https://arxiv.org/abs/2103.05180</uri>
+      <pub-id pub-id-type="doi">10.1002/gamm.202100008</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-RaissiU003A2019hv">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Raissi</surname><given-names>M</given-names></name>
+        <name><surname>Perdikaris</surname><given-names>P</given-names></name>
+        <name><surname>Karniadakis</surname><given-names>GE</given-names></name>
+      </person-group>
+      <article-title>Physics-informed neural networks: A deep learning framework for solving forward and inverse problems involving nonlinear partial differential equations</article-title>
+      <source>Journal of Computational Physics, Elsevier</source>
+      <year iso-8601-date="2019-02">2019</year><month>02</month>
+      <volume>378</volume>
+      <pub-id pub-id-type="doi">10.1016/j.jcp.2018.10.045</pub-id>
+      <fpage>686</fpage>
+      <lpage>707</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-huang2021convex">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Huang</surname><given-names>Chin-Wei</given-names></name>
+        <name><surname>Chen</surname><given-names>Ricky T. Q.</given-names></name>
+        <name><surname>Tsirigotis</surname><given-names>Christos</given-names></name>
+        <name><surname>Courville</surname><given-names>Aaron</given-names></name>
+      </person-group>
+      <article-title>Convex potential flows: Universal probability distributions with optimal transport and convex optimization</article-title>
+      <source>International conference on learning representations</source>
+      <year iso-8601-date="2021">2021</year>
+      <uri>https://openreview.net/forum?id=te7PVH1sPxJ</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-He2016U003Adeep">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>He</surname><given-names>Kaiming</given-names></name>
+        <name><surname>Zhang</surname><given-names>Xiangyu</given-names></name>
+        <name><surname>Ren</surname><given-names>Shaoqing</given-names></name>
+        <name><surname>Sun</surname><given-names>Jian</given-names></name>
+      </person-group>
+      <article-title>Deep residual learning for image recognition</article-title>
+      <source>2016 IEEE conference on computer vision and pattern recognition (CVPR)</source>
+      <year iso-8601-date="2016">2016</year>
+      <volume></volume>
+      <pub-id pub-id-type="doi">10.1109/CVPR.2016.90</pub-id>
+      <fpage>770</fpage>
+      <lpage>778</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-papernot2016limitations">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Papernot</surname><given-names>Nicolas</given-names></name>
+        <name><surname>McDaniel</surname><given-names>Patrick</given-names></name>
+        <name><surname>Jha</surname><given-names>Somesh</given-names></name>
+        <name><surname>Fredrikson</surname><given-names>Matt</given-names></name>
+        <name><surname>Celik</surname><given-names>Z. Berkay</given-names></name>
+        <name><surname>Swami</surname><given-names>Ananthram</given-names></name>
+      </person-group>
+      <article-title>The limitations of deep learning in adversarial settings</article-title>
+      <source>2016 IEEE european symposium on security and privacy (EuroS p)</source>
+      <year iso-8601-date="2016">2016</year>
+      <volume></volume>
+      <pub-id pub-id-type="doi">10.1109/EuroSP.2016.36</pub-id>
+      <fpage>372</fpage>
+      <lpage>387</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-googleColab">
+    <element-citation publication-type="chapter">
+      <person-group person-group-type="author">
+        <name><surname>Bisong</surname><given-names>Ekaba</given-names></name>
+      </person-group>
+      <article-title>Google Colaboratory</article-title>
+      <source>Building machine learning and deep learning models on Google Cloud Platform: A comprehensive guide for beginners</source>
+      <publisher-name>Apress</publisher-name>
+      <publisher-loc>Berkeley, CA</publisher-loc>
+      <year iso-8601-date="2019">2019</year>
+      <isbn>978-1-4842-4470-8</isbn>
+      <uri>https://doi.org/10.1007/978-1-4842-4470-8_7</uri>
+      <pub-id pub-id-type="doi">10.1007/978-1-4842-4470-8_7</pub-id>
+      <fpage>59</fpage>
+      <lpage>64</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-pytorch">
+    <element-citation publication-type="chapter">
+      <person-group person-group-type="author">
+        <name><surname>Paszke</surname><given-names>Adam</given-names></name>
+        <name><surname>Gross</surname><given-names>Sam</given-names></name>
+        <name><surname>Massa</surname><given-names>Francisco</given-names></name>
+        <name><surname>Lerer</surname><given-names>Adam</given-names></name>
+        <name><surname>Bradbury</surname><given-names>James</given-names></name>
+        <name><surname>Chanan</surname><given-names>Gregory</given-names></name>
+        <name><surname>Killeen</surname><given-names>Trevor</given-names></name>
+        <name><surname>Lin</surname><given-names>Zeming</given-names></name>
+        <name><surname>Gimelshein</surname><given-names>Natalia</given-names></name>
+        <name><surname>Antiga</surname><given-names>Luca</given-names></name>
+        <name><surname>Desmaison</surname><given-names>Alban</given-names></name>
+        <name><surname>Kopf</surname><given-names>Andreas</given-names></name>
+        <name><surname>Yang</surname><given-names>Edward</given-names></name>
+        <name><surname>DeVito</surname><given-names>Zachary</given-names></name>
+        <name><surname>Raison</surname><given-names>Martin</given-names></name>
+        <name><surname>Tejani</surname><given-names>Alykhan</given-names></name>
+        <name><surname>Chilamkurthy</surname><given-names>Sasank</given-names></name>
+        <name><surname>Steiner</surname><given-names>Benoit</given-names></name>
+        <name><surname>Fang</surname><given-names>Lu</given-names></name>
+        <name><surname>Bai</surname><given-names>Junjie</given-names></name>
+        <name><surname>Chintala</surname><given-names>Soumith</given-names></name>
+      </person-group>
+      <article-title>PyTorch: An imperative style, high-performance deep learning library</article-title>
+      <source>Advances in neural information processing systems 32</source>
+      <person-group person-group-type="editor">
+        <name><surname>Wallach</surname><given-names>H.</given-names></name>
+        <name><surname>Larochelle</surname><given-names>H.</given-names></name>
+        <name><surname>Beygelzimer</surname><given-names>A.</given-names></name>
+        <name><surname>dAlché-Buc</surname><given-names>F.</given-names></name>
+        <name><surname>Fox</surname><given-names>E.</given-names></name>
+        <name><surname>Garnett</surname><given-names>R.</given-names></name>
+      </person-group>
+      <publisher-name>Curran Associates, Inc.</publisher-name>
+      <year iso-8601-date="2019">2019</year>
+      <uri>http://papers.neurips.cc/paper/9015-pytorch-an-imperative-style-high-performance-deep-learning-library.pdf</uri>
+      <fpage>8024</fpage>
+      <lpage>8035</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-olearyroseberry2020illposedness">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>O’Leary-Roseberry</surname><given-names>Thomas</given-names></name>
+        <name><surname>Ghattas</surname><given-names>Omar</given-names></name>
+      </person-group>
+      <article-title>Ill-posedness and optimization geometry for nonlinear neural network training</article-title>
+      <year iso-8601-date="2020">2020</year>
+      <uri>https://arxiv.org/abs/2002.02882</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-haberDerivative">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Haber</surname><given-names>Eldad</given-names></name>
+      </person-group>
+      <source>Computational methods in geophysical electromagnetics</source>
+      <publisher-name>Society for Industrial; Applied Mathematics</publisher-name>
+      <publisher-loc>Philadelphia, PA</publisher-loc>
+      <year iso-8601-date="2014">2014</year>
+      <edition></edition>
+      <uri>https://epubs.siam.org/doi/abs/10.1137/1.9781611973808</uri>
+      <pub-id pub-id-type="doi">10.1137/1.9781611973808</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-Ruthotto9183">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Ruthotto</surname><given-names>Lars</given-names></name>
+        <name><surname>Osher</surname><given-names>Stanley J.</given-names></name>
+        <name><surname>Li</surname><given-names>Wuchen</given-names></name>
+        <name><surname>Nurbekyan</surname><given-names>Levon</given-names></name>
+        <name><surname>Fung</surname><given-names>Samy Wu</given-names></name>
+      </person-group>
+      <article-title>A machine learning framework for solving high-dimensional mean field game and mean field control problems</article-title>
+      <source>Proceedings of the National Academy of Sciences</source>
+      <publisher-name>National Academy of Sciences</publisher-name>
+      <year iso-8601-date="2020">2020</year>
+      <volume>117</volume>
+      <issue>17</issue>
+      <issn>0027-8424</issn>
+      <uri>https://www.pnas.org/content/117/17/9183</uri>
+      <pub-id pub-id-type="doi">10.1073/pnas.1922204117</pub-id>
+      <fpage>9183</fpage>
+      <lpage>9193</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-KoldaBader09">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Kolda</surname><given-names>Tamara G.</given-names></name>
+        <name><surname>Bader</surname><given-names>Brett W.</given-names></name>
+      </person-group>
+      <article-title>Tensor decompositions and applications</article-title>
+      <source>SIAM Review</source>
+      <year iso-8601-date="2009">2009</year>
+      <volume>51</volume>
+      <issue>3</issue>
+      <pub-id pub-id-type="doi">10.1137/07070111X</pub-id>
+      <fpage>455</fpage>
+      <lpage>500</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-E2017">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>E</surname><given-names>Weinan</given-names></name>
+      </person-group>
+      <article-title>A proposal on machine learning via dynamical systems</article-title>
+      <source>Communications in Mathematics and Statistics</source>
+      <year iso-8601-date="2017">2017</year>
+      <volume>5</volume>
+      <issue>1</issue>
+      <isbn>2194-671X</isbn>
+      <uri>https://doi.org/10.1007/s40304-017-0103-z</uri>
+      <pub-id pub-id-type="doi">10.1007/s40304-017-0103-z</pub-id>
+      <fpage>1</fpage>
+      <lpage>11</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-HaberRuthotto2017">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Haber</surname><given-names>Eldad</given-names></name>
+        <name><surname>Ruthotto</surname><given-names>Lars</given-names></name>
+      </person-group>
+      <article-title>Stable architectures for deep neural networks</article-title>
+      <source>Inverse Problems</source>
+      <publisher-name>IOP Publishing</publisher-name>
+      <year iso-8601-date="2017-12">2017</year><month>12</month>
+      <volume>34</volume>
+      <issue>1</issue>
+      <uri>https://doi.org/10.1088/1361-6420/aa9a90</uri>
+      <pub-id pub-id-type="doi">10.1088/1361-6420/aa9a90</pub-id>
+      <fpage>014004</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Goodfellow-et-al-2016">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Goodfellow</surname><given-names>Ian</given-names></name>
+        <name><surname>Bengio</surname><given-names>Yoshua</given-names></name>
+        <name><surname>Courville</surname><given-names>Aaron</given-names></name>
+      </person-group>
+      <source>Deep learning</source>
+      <publisher-name>MIT Press</publisher-name>
+      <year iso-8601-date="2016">2016</year>
+    </element-citation>
+  </ref>
+  <ref id="ref-Anirudh9741">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Anirudh</surname><given-names>Rushil</given-names></name>
+        <name><surname>Thiagarajan</surname><given-names>Jayaraman J.</given-names></name>
+        <name><surname>Bremer</surname><given-names>Peer-Timo</given-names></name>
+        <name><surname>Spears</surname><given-names>Brian K.</given-names></name>
+      </person-group>
+      <article-title>Improved surrogates in inertial confinement fusion with manifold and cycle consistencies</article-title>
+      <source>Proceedings of the National Academy of Sciences</source>
+      <publisher-name>National Academy of Sciences</publisher-name>
+      <year iso-8601-date="2020">2020</year>
+      <volume>117</volume>
+      <issue>18</issue>
+      <issn>0027-8424</issn>
+      <uri>https://www.pnas.org/content/117/18/9741</uri>
+      <pub-id pub-id-type="doi">10.1073/pnas.1916634117</pub-id>
+      <fpage>9741</fpage>
+      <lpage>9746</lpage>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
