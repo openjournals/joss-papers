@@ -1,0 +1,529 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">4296</article-id>
+<article-id pub-id-type="doi">10.21105/joss.04296</article-id>
+<title-group>
+<article-title>Pyrodigal: Python bindings and interface to Prodigal, an
+efficient method for gene prediction in prokaryotes</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">0000-0002-3947-4444</contrib-id>
+<name>
+<surname>Larralde</surname>
+<given-names>Martin</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Structural and Computational Biology Unit, EMBL,
+Heidelberg, Germany</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2022-02-24">
+<day>24</day>
+<month>2</month>
+<year>2022</year>
+</pub-date>
+<volume>7</volume>
+<issue>72</issue>
+<fpage>4296</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2022</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>Python</kwd>
+<kwd>Cython</kwd>
+<kwd>bioinformatics</kwd>
+<kwd>gene prediction</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p>Improvements in sequencing technologies have seen the amount of
+  available genomic data expand considerably over the last twenty years.
+  One of the key steps for analysing is the prediction of protein-coding
+  regions in genomic sequences, known as Open Reading Frames (ORFs),
+  which span between a start and a stop codon. A recent comparison of
+  several ORF prediction methods
+  (<xref alt="Korandla et al., 2019" rid="ref-AssessORFU003A2019" ref-type="bibr">Korandla
+  et al., 2019</xref>) has shown that Prodigal
+  (<xref alt="Hyatt et al., 2010" rid="ref-ProdigalU003A2010" ref-type="bibr">Hyatt
+  et al., 2010</xref>), a prokaryotic gene finder that uses dynamic
+  programming, is one of the highest performing <italic>ab
+  initio</italic> ORF finders. Pyrodigal is a Python package that
+  provides bindings and an interface to Prodigal to make it easier to
+  use in Python applications.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p>Prodigal is used in thousands of applications as the gene calling
+  method for processing genomic sequences. It is implemented in ANSI C,
+  making it extremely efficient and relatively easy to compile on
+  different platforms. However, the only way to use Prodigal is through
+  an executable, making it inconvenient for bioinformaticians who rely
+  on the increasingly popular Python language. In addition to the hassle
+  caused by the invocation of the executable from Python code, the
+  distribution of Python programs relying on Prodigal is also
+  problematic, since they now require an external binary that cannot be
+  installed from the
+  <ext-link ext-link-type="uri" xlink:href="https://pypi.org">Python
+  Package Index</ext-link> (PyPI).</p>
+  <p>To address these issues, we developed Pyrodigal, a Python module
+  implemented in Cython
+  (<xref alt="Behnel et al., 2020" rid="ref-Cython" ref-type="bibr">Behnel
+  et al., 2020</xref>) that binds to the Prodigal internals, resulting
+  in identical predictions and similar performance through a friendly
+  object-oriented interface. The predicted genes are returned as Python
+  objects, with properties for retrieving confidence scores or
+  coordinates, and methods for translating the gene sequence with a
+  default or user-provided translation table. Prodigal is compiled from
+  source and statically linked into a compiled Python extension, which
+  allows it to be installed with a single
+  <monospace>pip install</monospace> command, even on a target machine
+  that requires compilation.</p>
+  <p>Pyrodigal has already been used as the implementation for the
+  initial ORF finding stage in several domains, including biosynthetic
+  gene cluster prediction
+  (<xref alt="Carroll et al., 2021" rid="ref-GECCOU003A2021" ref-type="bibr">Carroll
+  et al., 2021</xref>), prophage identification
+  (<xref alt="Sirén et al., 2021" rid="ref-PhageBoostU003A2021" ref-type="bibr">Sirén
+  et al., 2021</xref>;
+  <xref alt="Turkington et al., 2021" rid="ref-hafeZU003A2021" ref-type="bibr">Turkington
+  et al., 2021</xref>), and pangenome analysis
+  (<xref alt="Hernández et al., 2021" rid="ref-AlphaMineU003A2021" ref-type="bibr">Hernández
+  et al., 2021</xref>).</p>
+</sec>
+<sec id="method">
+  <title>Method</title>
+  <p>Internally, Prodigal identifies start and stop codons throughout a
+  genomic sequence, which are represented as nodes. It then uses a
+  dynamic programming approach to compute scores for every pair of nodes
+  (i.e. putative genes) as shown in
+  <xref alt="Figure 1" rid="figU003Amethod">Figure 1</xref>. Scores
+  assigned to predicted genes are based primarily on the frequency of
+  nucleotide hexamers inside the gene sequence.</p>
+  <fig>
+    <caption><p>Graphical depiction of the Prodigal method for
+    identifying genes in a sequence. First, the sequence is analysed to
+    find start and stop codons in the 6 reading frames (1). Dynamic
+    programming nodes are then created for each codon, each storing the
+    strand (shown with the triangle direction, right for the direct
+    strand, left for the reverse strand) and the type (green for start,
+    red for stop) of the codon they were obtained from. Nodes are then
+    scored on biological criteria (2). Putative genes are identified
+    between all start and stop codons in a given window (a gene cannot
+    span between any pair of nodes; some invalid connections are shown
+    with dashed lines as examples). Then putative genes are scored using
+    a dynamic programming approach (3). Once all connections have been
+    processed, the dynamic programming matrix is traversed to find the
+    highest scoring path, giving the final predictions (4).
+    <styled-content id="figU003Amethod"></styled-content></p></caption>
+    <graphic mimetype="image" mime-subtype="svg+xml" xlink:href="figure1.svg" xlink:title="" />
+  </fig>
+  <p>Pyrodigal adapts the first two steps so that the dynamic
+  programming nodes can be extracted directly from a Python string
+  containing the sequence data, rather than requiring formatting to an
+  external file. In addition, the node storage has been reworked to use
+  reallocating buffers, saving memory on smaller sequences. The node and
+  connection scoring steps use the original Prodigal code.</p>
+</sec>
+<sec id="optimization">
+  <title>Optimization</title>
+  <p>Prodigal was profiled with Valgrind
+  (<xref alt="Nethercote &amp; Seward, 2007" rid="ref-ValgrindU003A2007" ref-type="bibr">Nethercote
+  &amp; Seward, 2007</xref>) to identify critical parts of the original
+  code. Using bacterial genomes from the proGenomes v2.1 database
+  (<xref alt="Mende et al., 2020" rid="ref-proGenomes2U003A2020" ref-type="bibr">Mende
+  et al., 2020</xref>), we found that for long enough sequences, a large
+  fraction of the CPU cycles was spent in the
+  <monospace>score_connection</monospace> function.</p>
+  <p>There are pairs of codons between which a gene can never span, such
+  as two stop codons, or a forward start codon and a reverse stop codon,
+  as shown in <xref alt="Figure 1" rid="figU003Amethod">Figure 1</xref>.
+  Upon inspection, we realized the
+  <monospace>score_connection</monospace> was still called in invalid
+  cases that could be labelled as such beforehand. Identifying these
+  invalid connections is feasible by checking the strand, type and
+  reading frame of a node pair. Considering two nodes
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[i]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>i</mml:mi></mml:math></alternatives></inline-formula>
+  and <inline-formula><alternatives>
+  <tex-math><![CDATA[j]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>j</mml:mi></mml:math></alternatives></inline-formula>,
+  the connection between them is invalid if any of these boolean
+  equations is true:</p>
+  <list list-type="bullet">
+    <list-item>
+      <p><inline-formula><alternatives>
+      <tex-math><![CDATA[(T_i \ne STOP) \land (T_j \ne STOP) \land (S_i = S_j)]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>T</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mo>≠</mml:mo><mml:mi>S</mml:mi><mml:mi>T</mml:mi><mml:mi>O</mml:mi><mml:mi>P</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>∧</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>T</mml:mi><mml:mi>j</mml:mi></mml:msub><mml:mo>≠</mml:mo><mml:mi>S</mml:mi><mml:mi>T</mml:mi><mml:mi>O</mml:mi><mml:mi>P</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>∧</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>S</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mo>=</mml:mo><mml:msub><mml:mi>S</mml:mi><mml:mi>j</mml:mi></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula></p>
+    </list-item>
+    <list-item>
+      <p><inline-formula><alternatives>
+      <tex-math><![CDATA[(S_i = 1) \land (T_i \ne STOP) \land (S_j = -1)]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>S</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mo>=</mml:mo><mml:mn>1</mml:mn><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>∧</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>T</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mo>≠</mml:mo><mml:mi>S</mml:mi><mml:mi>T</mml:mi><mml:mi>O</mml:mi><mml:mi>P</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>∧</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>S</mml:mi><mml:mi>j</mml:mi></mml:msub><mml:mo>=</mml:mo><mml:mo>−</mml:mo><mml:mn>1</mml:mn><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula></p>
+    </list-item>
+    <list-item>
+      <p><inline-formula><alternatives>
+      <tex-math><![CDATA[(S_i = -1) \land (T_i = STOP) \land (S_j = 1)]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>S</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mo>=</mml:mo><mml:mo>−</mml:mo><mml:mn>1</mml:mn><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>∧</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>T</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mo>=</mml:mo><mml:mi>S</mml:mi><mml:mi>T</mml:mi><mml:mi>O</mml:mi><mml:mi>P</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>∧</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>S</mml:mi><mml:mi>j</mml:mi></mml:msub><mml:mo>=</mml:mo><mml:mn>1</mml:mn><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula></p>
+    </list-item>
+    <list-item>
+      <p><inline-formula><alternatives>
+      <tex-math><![CDATA[(S_i = -1) \land (T_i \ne STOP) \land (S_j = 1) \land (T_j = STOP)]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>S</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mo>=</mml:mo><mml:mo>−</mml:mo><mml:mn>1</mml:mn><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>∧</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>T</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mo>≠</mml:mo><mml:mi>S</mml:mi><mml:mi>T</mml:mi><mml:mi>O</mml:mi><mml:mi>P</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>∧</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>S</mml:mi><mml:mi>j</mml:mi></mml:msub><mml:mo>=</mml:mo><mml:mn>1</mml:mn><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>∧</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>T</mml:mi><mml:mi>j</mml:mi></mml:msub><mml:mo>=</mml:mo><mml:mi>S</mml:mi><mml:mi>T</mml:mi><mml:mi>O</mml:mi><mml:mi>P</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula></p>
+    </list-item>
+    <list-item>
+      <p><inline-formula><alternatives>
+      <tex-math><![CDATA[(S_i = S_j) \land (S_i = 1) \land (T_i \ne STOP) \land (T_j = STOP) \land (F_i \ne F_j)]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>S</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mo>=</mml:mo><mml:msub><mml:mi>S</mml:mi><mml:mi>j</mml:mi></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>∧</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>S</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mo>=</mml:mo><mml:mn>1</mml:mn><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>∧</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>T</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mo>≠</mml:mo><mml:mi>S</mml:mi><mml:mi>T</mml:mi><mml:mi>O</mml:mi><mml:mi>P</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>∧</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>T</mml:mi><mml:mi>j</mml:mi></mml:msub><mml:mo>=</mml:mo><mml:mi>S</mml:mi><mml:mi>T</mml:mi><mml:mi>O</mml:mi><mml:mi>P</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>∧</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>F</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mo>≠</mml:mo><mml:msub><mml:mi>F</mml:mi><mml:mi>j</mml:mi></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula></p>
+    </list-item>
+    <list-item>
+      <p><inline-formula><alternatives>
+      <tex-math><![CDATA[(S_i = S_j) \land (S_i = -1) \land (T_i = STOP) \land (T_j \ne STOP) \land (F_i \ne F_j)]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>S</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mo>=</mml:mo><mml:msub><mml:mi>S</mml:mi><mml:mi>j</mml:mi></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>∧</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>S</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mo>=</mml:mo><mml:mo>−</mml:mo><mml:mn>1</mml:mn><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>∧</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>T</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mo>=</mml:mo><mml:mi>S</mml:mi><mml:mi>T</mml:mi><mml:mi>O</mml:mi><mml:mi>P</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>∧</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>T</mml:mi><mml:mi>j</mml:mi></mml:msub><mml:mo>≠</mml:mo><mml:mi>S</mml:mi><mml:mi>T</mml:mi><mml:mi>O</mml:mi><mml:mi>P</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>∧</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>F</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mo>≠</mml:mo><mml:msub><mml:mi>F</mml:mi><mml:mi>j</mml:mi></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula></p>
+    </list-item>
+  </list>
+  <p>where <inline-formula><alternatives>
+  <tex-math><![CDATA[T_i]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>T</mml:mi><mml:mi>i</mml:mi></mml:msub></mml:math></alternatives></inline-formula>,
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[S_i]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>S</mml:mi><mml:mi>i</mml:mi></mml:msub></mml:math></alternatives></inline-formula>
+  and <inline-formula><alternatives>
+  <tex-math><![CDATA[F_i]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>F</mml:mi><mml:mi>i</mml:mi></mml:msub></mml:math></alternatives></inline-formula>
+  are respectively the type, strand, and reading frame of the node
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[i]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>i</mml:mi></mml:math></alternatives></inline-formula>,
+  with forward and reverse strands encoded as
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[+1]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mo>+</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>
+  and <inline-formula><alternatives>
+  <tex-math><![CDATA[-1]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mo>−</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>
+  respectively.</p>
+  <p>We developed a heuristic filter to quickly identify node pairs
+  forming an invalid connection prior to the scoring step using the
+  above formulas. Since all these attributes have a small number of
+  possible values (<inline-formula><alternatives>
+  <tex-math><![CDATA[+1]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mo>+</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>
+  or <inline-formula><alternatives>
+  <tex-math><![CDATA[-1]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mo>−</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>
+  for the forward or reverse strand; <inline-formula><alternatives>
+  <tex-math><![CDATA[ATG]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>A</mml:mi><mml:mi>T</mml:mi><mml:mi>G</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>,
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[GTG]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>G</mml:mi><mml:mi>T</mml:mi><mml:mi>G</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>,
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[TTG]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>T</mml:mi><mml:mi>T</mml:mi><mml:mi>G</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>
+  or <inline-formula><alternatives>
+  <tex-math><![CDATA[STOP]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>S</mml:mi><mml:mi>T</mml:mi><mml:mi>O</mml:mi><mml:mi>P</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>
+  for the codon type; <inline-formula><alternatives>
+  <tex-math><![CDATA[-1]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mo>−</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>,
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[-2]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mo>−</mml:mo><mml:mn>2</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>,
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[-3]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mo>−</mml:mo><mml:mn>3</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>,
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[+1]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mo>+</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>,
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[+2]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mo>+</mml:mo><mml:mn>2</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>,
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[+3]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mo>+</mml:mo><mml:mn>3</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>
+  for the reading frame), they can all be stored in a single byte. Use
+  of the SIMD features of modern CPUs allows several nodes to be
+  processed at once (8 nodes with NEON and SSE2 features, 16 nodes with
+  AVX2). This first pass produces a look-up table used to bypass the
+  scoring of invalid connections.</p>
+  <p>The performance of the connection scoring was evaluated on 50
+  bacterial sequences of various length, as shown in
+  <xref alt="Figure 2" rid="figU003Abenchmark">Figure 2</xref>. It
+  suggests that even with the added cost of the additional pass for each
+  node, enabling the heuristic filter in Pyrodigal saves about half of
+  the time needed to score connections between all the nodes of a
+  sequence.</p>
+  <fig>
+    <caption><p>Evaluation of the connection scoring performance with
+    different heuristic filter SIMD backends (SSE2 or AVX2), with a
+    generic backend (Generic) or without enabling the filter (None).
+    <italic>Each sequence was processed 10 times on a quiet i7-10710U
+    CPU @ 1.10GHz</italic>.
+    <styled-content id="figU003Abenchmark"></styled-content></p></caption>
+    <graphic mimetype="image" mime-subtype="svg+xml" xlink:href="figure2.svg" xlink:title="" />
+  </fig>
+</sec>
+<sec id="availability">
+  <title>Availability</title>
+  <p>Pyrodigal is distributed on PyPI under the
+  <ext-link ext-link-type="uri" xlink:href="https://www.gnu.org/licenses/lgpl-3.0">GNU
+  Lesser General Public License</ext-link>. Pre-compiled distributions
+  are provided for MacOS, Linux and Windows x86-64, as well as Linux
+  Aarch64 machines. A
+  <ext-link ext-link-type="uri" xlink:href="https://conda.io/">Conda</ext-link>
+  package is also available in the Bioconda channel
+  (<xref alt="Grüning et al., 2018" rid="ref-BiocondaU003A2018" ref-type="bibr">Grüning
+  et al., 2018</xref>).</p>
+  <p>The source code is available in a git repository on
+  <ext-link ext-link-type="uri" xlink:href="https://github.com/althonos/pyrodigal">GitHub</ext-link>,
+  and features a Continuous Integration workflow to run integration
+  tests on changes. Documentation is hosted on
+  <ext-link ext-link-type="uri" xlink:href="https://pyrodigal.readthedocs.io">ReadTheDocs</ext-link>
+  and built for each new release.</p>
+</sec>
+<sec id="acknowledgments">
+  <title>Acknowledgments</title>
+  <p>We thank Laura M. Carroll for her input on the redaction of this
+  manuscript, and Georg Zeller for his supervision. This work was funded
+  by the European Molecular Biology Laboratory and the German Research
+  Foundation (Deutsche Forschungsgemeinschaft, DFG, grant no. 395357507
+  –
+  <ext-link ext-link-type="uri" xlink:href="https://www.sfb1371.tum.de/">SFB
+  1371</ext-link>).</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <ref id="ref-BiocondaU003A2018">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Grüning</surname><given-names>Björn</given-names></name>
+        <name><surname>Dale</surname><given-names>Ryan</given-names></name>
+        <name><surname>Sjödin</surname><given-names>Andreas</given-names></name>
+        <name><surname>Chapman</surname><given-names>Brad A.</given-names></name>
+        <name><surname>Rowe</surname><given-names>Jillian</given-names></name>
+        <name><surname>Tomkins-Tinch</surname><given-names>Christopher H.</given-names></name>
+        <name><surname>Valieris</surname><given-names>Renan</given-names></name>
+        <name><surname>Köster</surname><given-names>Johannes</given-names></name>
+      </person-group>
+      <article-title>Bioconda: Sustainable and comprehensive software distribution for the life sciences</article-title>
+      <source>Nature Methods</source>
+      <publisher-name>Nature Publishing Group</publisher-name>
+      <year iso-8601-date="2018-07">2018</year><month>07</month>
+      <volume>15</volume>
+      <issue>7</issue>
+      <issn>1548-7105</issn>
+      <pub-id pub-id-type="doi">10.1038/s41592-018-0046-7</pub-id>
+      <fpage>475</fpage>
+      <lpage>476</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-ValgrindU003A2007">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Nethercote</surname><given-names>Nicholas</given-names></name>
+        <name><surname>Seward</surname><given-names>Julian</given-names></name>
+      </person-group>
+      <article-title>Valgrind: A framework for heavyweight dynamic binary instrumentation</article-title>
+      <source>Proceedings of the 28th ACM SIGPLAN conference on programming language design and implementation</source>
+      <publisher-name>Association for Computing Machinery</publisher-name>
+      <publisher-loc>New York, NY, USA</publisher-loc>
+      <year iso-8601-date="2007">2007</year>
+      <isbn>9781595936332</isbn>
+      <uri>https://doi.org/10.1145/1250734.1250746</uri>
+      <pub-id pub-id-type="doi">10.1145/1250734.1250746</pub-id>
+      <fpage>89</fpage>
+      <lpage>100</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-proGenomes2U003A2020">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Mende</surname><given-names>Daniel R</given-names></name>
+        <name><surname>Letunic</surname><given-names>Ivica</given-names></name>
+        <name><surname>Maistrenko</surname><given-names>Oleksandr M</given-names></name>
+        <name><surname>Schmidt</surname><given-names>Thomas S B</given-names></name>
+        <name><surname>Milanese</surname><given-names>Alessio</given-names></name>
+        <name><surname>Paoli</surname><given-names>Lucas</given-names></name>
+        <name><surname>Hernández-Plaza</surname><given-names>Ana</given-names></name>
+        <name><surname>Orakov</surname><given-names>Askarbek N</given-names></name>
+        <name><surname>Forslund</surname><given-names>Sofia K</given-names></name>
+        <name><surname>Sunagawa</surname><given-names>Shinichi</given-names></name>
+        <name><surname>Zeller</surname><given-names>Georg</given-names></name>
+        <name><surname>Huerta-Cepas</surname><given-names>Jaime</given-names></name>
+        <name><surname>Coelho</surname><given-names>Luis Pedro</given-names></name>
+        <name><surname>Bork</surname><given-names>Peer</given-names></name>
+      </person-group>
+      <article-title>proGenomes2: An improved database for accurate and consistent habitat, taxonomic and functional annotations of prokaryotic genomes</article-title>
+      <source>Nucleic Acids Research</source>
+      <year iso-8601-date="2020-01">2020</year><month>01</month>
+      <volume>48</volume>
+      <issue>D1</issue>
+      <issn>0305-1048</issn>
+      <pub-id pub-id-type="doi">10.1093/nar/gkz1002</pub-id>
+      <fpage>D621</fpage>
+      <lpage>D625</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-ProdigalU003A2010">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Hyatt</surname><given-names>Doug</given-names></name>
+        <name><surname>Chen</surname><given-names>Gwo-Liang</given-names></name>
+        <name><surname>LoCascio</surname><given-names>Philip F</given-names></name>
+        <name><surname>Land</surname><given-names>Miriam L</given-names></name>
+        <name><surname>Larimer</surname><given-names>Frank W</given-names></name>
+        <name><surname>Hauser</surname><given-names>Loren J</given-names></name>
+      </person-group>
+      <article-title>Prodigal: Prokaryotic gene recognition and translation initiation site identification</article-title>
+      <source>BMC Bioinformatics</source>
+      <year iso-8601-date="2010-03">2010</year><month>03</month>
+      <volume>11</volume>
+      <issn>1471-2105</issn>
+      <pub-id pub-id-type="doi">10.1186/1471-2105-11-119</pub-id>
+      <pub-id pub-id-type="pmid">20211023</pub-id>
+      <fpage>119</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-GECCOU003A2021">
+    <element-citation publication-type="report">
+      <person-group person-group-type="author">
+        <name><surname>Carroll</surname><given-names>Laura M.</given-names></name>
+        <name><surname>Larralde</surname><given-names>Martin</given-names></name>
+        <name><surname>Fleck</surname><given-names>Jonas Simon</given-names></name>
+        <name><surname>Ponnudurai</surname><given-names>Ruby</given-names></name>
+        <name><surname>Milanese</surname><given-names>Alessio</given-names></name>
+        <name><surname>Cappio</surname><given-names>Elisa</given-names></name>
+        <name><surname>Zeller</surname><given-names>Georg</given-names></name>
+      </person-group>
+      <article-title>Accurate de novo identification of biosynthetic gene clusters with GECCO</article-title>
+      <publisher-name>bioRxiv</publisher-name>
+      <year iso-8601-date="2021-05">2021</year><month>05</month>
+      <pub-id pub-id-type="doi">10.1101/2021.05.03.442509</pub-id>
+      <fpage>2021.05.03.442509</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-PhageBoostU003A2021">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Sirén</surname><given-names>Kimmo</given-names></name>
+        <name><surname>Millard</surname><given-names>Andrew</given-names></name>
+        <name><surname>Petersen</surname><given-names>Bent</given-names></name>
+        <name><surname>Gilbert</surname><given-names>M Thomas P</given-names></name>
+        <name><surname>Clokie</surname><given-names>Martha R J</given-names></name>
+        <name><surname>Sicheritz-Pontén</surname><given-names>Thomas</given-names></name>
+      </person-group>
+      <article-title>Rapid discovery of novel prophages using biological feature engineering and machine learning</article-title>
+      <source>NAR Genomics and Bioinformatics</source>
+      <year iso-8601-date="2021-03">2021</year><month>03</month>
+      <volume>3</volume>
+      <issue>1</issue>
+      <issn>2631-9268</issn>
+      <pub-id pub-id-type="doi">10.1093/nargab/lqaa109</pub-id>
+      <fpage>lqaa109</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-hafeZU003A2021">
+    <element-citation publication-type="report">
+      <person-group person-group-type="author">
+        <name><surname>Turkington</surname><given-names>Christopher J. R.</given-names></name>
+        <name><surname>Abadi</surname><given-names>Neda Nezam</given-names></name>
+        <name><surname>Edwards</surname><given-names>Robert A.</given-names></name>
+        <name><surname>Grasis</surname><given-names>Juris A.</given-names></name>
+      </person-group>
+      <article-title>hafeZ: Active prophage identification through read mapping</article-title>
+      <publisher-name>Bioinformatics</publisher-name>
+      <year iso-8601-date="2021-07">2021</year><month>07</month>
+      <pub-id pub-id-type="doi">10.1101/2021.07.21.453177</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-AssessORFU003A2019">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Korandla</surname><given-names>Deepank R</given-names></name>
+        <name><surname>Wozniak</surname><given-names>Jacob M</given-names></name>
+        <name><surname>Campeau</surname><given-names>Anaamika</given-names></name>
+        <name><surname>Gonzalez</surname><given-names>David J</given-names></name>
+        <name><surname>Wright</surname><given-names>Erik S</given-names></name>
+      </person-group>
+      <article-title>AssessORF: Combining evolutionary conservation and proteomics to assess prokaryotic gene predictions</article-title>
+      <source>Bioinformatics</source>
+      <year iso-8601-date="2019-09">2019</year><month>09</month>
+      <volume>36</volume>
+      <issue>4</issue>
+      <issn>1367-4803</issn>
+      <pub-id pub-id-type="doi">10.1093/bioinformatics/btz714</pub-id>
+      <pub-id pub-id-type="pmid">31532487</pub-id>
+      <fpage>1022</fpage>
+      <lpage>1029</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Cython">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Behnel</surname><given-names>Stefan.</given-names></name>
+        <name><surname>Bradshaw</surname><given-names>Robert.</given-names></name>
+        <name><surname>Dalcín</surname><given-names>Lisandro.</given-names></name>
+        <name><surname>Florisson</surname><given-names>Mark.</given-names></name>
+        <name><surname>Makarov</surname><given-names>Vitja.</given-names></name>
+        <name><surname>Seljebotn</surname><suffix>Dag Sverre</suffix></name>
+        <name><surname>the Cython contributors.</surname></name>
+      </person-group>
+      <source>Cython: C-Extensions for Python</source>
+      <year iso-8601-date="2020">2020</year>
+      <uri>https://cython.org</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-AlphaMineU003A2021">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Hernández</surname><given-names>Joel R.</given-names></name>
+        <name><surname>Guirado</surname><given-names>Isaac C.</given-names></name>
+        <name><surname>Sánchez</surname><given-names>Marc B.</given-names></name>
+        <name><surname>Verdaguer</surname><given-names>Francesc C.</given-names></name>
+        <name><surname>the iGem 2021 ARIA team.</surname></name>
+      </person-group>
+      <source>AlphaMine: An alignment-free genomic analysis system that can build core, shell, and cloud prokaryotic pangenomes by applying set-theory operations to genome collections.</source>
+      <year iso-8601-date="2021">2021</year>
+      <uri>https://2021.igem.org/Team:UPF_Barcelona/Software_AMine</uri>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
