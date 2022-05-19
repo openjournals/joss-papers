@@ -1,0 +1,1066 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">3982</article-id>
+<article-id pub-id-type="doi">10.21105/joss.03982</article-id>
+<title-group>
+<article-title>Basix: a runtime finite element basis evaluation
+library</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">0000-0002-4658-2443</contrib-id>
+<name>
+<surname>Scroggs</surname>
+<given-names>Matthew W.</given-names>
+</name>
+<xref ref-type="aff" rid="aff-2"/>
+</contrib>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">0000-0003-4298-2973</contrib-id>
+<name>
+<surname>Baratta</surname>
+<given-names>Igor A.</given-names>
+</name>
+<xref ref-type="aff" rid="aff-2"/>
+</contrib>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">0000-0003-3137-1392</contrib-id>
+<name>
+<surname>Richardson</surname>
+<given-names>Chris N.</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">0000-0001-5291-7951</contrib-id>
+<name>
+<surname>Wells</surname>
+<given-names>Garth N.</given-names>
+</name>
+<xref ref-type="aff" rid="aff-2"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>BP Institute, University of Cambridge</institution>
+</institution-wrap>
+</aff>
+<aff id="aff-2">
+<institution-wrap>
+<institution>Department of Engineering, University of
+Cambridge</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2021-10-26">
+<day>26</day>
+<month>10</month>
+<year>2021</year>
+</pub-date>
+<volume>7</volume>
+<issue>73</issue>
+<fpage>3982</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2022</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>Python</kwd>
+<kwd>C++</kwd>
+<kwd>finite element method</kwd>
+<kwd>basis functions</kwd>
+<kwd>numerical analysis</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p>The finite element method (FEM)
+  (<xref alt="Ciarlet, 1978" rid="ref-ciarlet" ref-type="bibr">Ciarlet,
+  1978</xref>) is a widely used numerical method for approximating the
+  solution of partial differential equations (PDEs). Solving a problem
+  using FEM involves discretising the problem and searching for a
+  solution in a finite dimensional space: these finite spaces are
+  created by defining a finite element on each cell of a mesh.</p>
+  <p>Following Ciarlet
+  (<xref alt="1978" rid="ref-ciarlet" ref-type="bibr">1978</xref>), a
+  finite element is commonly defined by a triple
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[(R, \mathcal{V}, \mathcal{L})]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>R</mml:mi><mml:mo>,</mml:mo><mml:mstyle mathvariant="script"><mml:mi>𝒱</mml:mi></mml:mstyle><mml:mo>,</mml:mo><mml:mstyle mathvariant="script"><mml:mi>ℒ</mml:mi></mml:mstyle><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:math></alternatives></inline-formula>,
+  where:</p>
+  <list list-type="bullet">
+    <list-item>
+      <p><inline-formula><alternatives>
+      <tex-math><![CDATA[R]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>R</mml:mi></mml:math></alternatives></inline-formula>
+      is the reference cell, for example a triangle with vertices at
+      (0,0), (1,0) and (0,1);</p>
+    </list-item>
+    <list-item>
+      <p><inline-formula><alternatives>
+      <tex-math><![CDATA[\mathcal{V}]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mstyle mathvariant="script"><mml:mi>𝒱</mml:mi></mml:mstyle></mml:math></alternatives></inline-formula>
+      is a finite dimensional polynomial space, for example
+      <inline-formula><alternatives>
+      <tex-math><![CDATA[\operatorname{span}\{1, x, y, x^2, xy, y^2\}]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mo>span</mml:mo><mml:mo stretchy="false" form="prefix">{</mml:mo><mml:mn>1</mml:mn><mml:mo>,</mml:mo><mml:mi>x</mml:mi><mml:mo>,</mml:mo><mml:mi>y</mml:mi><mml:mo>,</mml:mo><mml:msup><mml:mi>x</mml:mi><mml:mn>2</mml:mn></mml:msup><mml:mo>,</mml:mo><mml:mi>x</mml:mi><mml:mi>y</mml:mi><mml:mo>,</mml:mo><mml:msup><mml:mi>y</mml:mi><mml:mn>2</mml:mn></mml:msup><mml:mo stretchy="false" form="postfix">}</mml:mo></mml:mrow></mml:math></alternatives></inline-formula>;</p>
+    </list-item>
+    <list-item>
+      <p><inline-formula><alternatives>
+      <tex-math><![CDATA[\mathcal{L}]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mstyle mathvariant="script"><mml:mi>ℒ</mml:mi></mml:mstyle></mml:math></alternatives></inline-formula>
+      is a basis of the dual space <inline-formula><alternatives>
+      <tex-math><![CDATA[\left\{f:\mathcal{V}\to\mathbb{R}\,\middle|\,f\text{ is linear}\right\}]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mo stretchy="true" form="prefix">{</mml:mo><mml:mi>f</mml:mi><mml:mo>:</mml:mo><mml:mstyle mathvariant="script"><mml:mi>𝒱</mml:mi></mml:mstyle><mml:mo>→</mml:mo><mml:mstyle mathvariant="double-struck"><mml:mi>ℝ</mml:mi></mml:mstyle><mml:mspace width="0.167em"></mml:mspace><mml:mo stretchy="true" form="infix">|</mml:mo><mml:mspace width="0.167em"></mml:mspace><mml:mi>f</mml:mi><mml:mrow><mml:mspace width="0.333em"></mml:mspace><mml:mtext mathvariant="normal"> is linear</mml:mtext></mml:mrow><mml:mo stretchy="true" form="postfix">}</mml:mo></mml:mrow></mml:math></alternatives></inline-formula>,
+      for example the set of functionals that evaluate a function at the
+      vertices of the triangle and at the midpoints of its edges.</p>
+    </list-item>
+  </list>
+  <p>The basis functions of the finite element are the polynomials in
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[\mathcal{V}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mstyle mathvariant="script"><mml:mi>𝒱</mml:mi></mml:mstyle></mml:math></alternatives></inline-formula>
+  such that one functional in <inline-formula><alternatives>
+  <tex-math><![CDATA[\mathcal{L}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mstyle mathvariant="script"><mml:mi>ℒ</mml:mi></mml:mstyle></mml:math></alternatives></inline-formula>
+  gives the value 1 for that function and all other functionals in
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[\mathcal{L}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mstyle mathvariant="script"><mml:mi>ℒ</mml:mi></mml:mstyle></mml:math></alternatives></inline-formula>
+  give 0. The examples given above define a degree 2 Lagrange space on a
+  triangle; the basis functions of this space are shown in
+  <xref alt="Figure 1" rid="figU003Afe">Figure 1</xref>.</p>
+  <fig>
+    <caption><p>The six basis functions of a degree 2 Lagrange space on
+    a triangle. The upper three functions arise from point evaluations
+    at the vertices. The lower three arise from point evaluations at the
+    midpoints of the edges. These diagrams are taken from DefElement
+    (<xref alt="The DefElement contributors, 2021" rid="ref-defelement" ref-type="bibr">The
+    DefElement contributors,
+    2021</xref>).<styled-content id="figU003Afe"></styled-content></p></caption>
+    <graphic mimetype="image" mime-subtype="png" xlink:href="img/basis-functions.png" xlink:title="" />
+  </fig>
+  <p>The functionals in <inline-formula><alternatives>
+  <tex-math><![CDATA[\mathcal{L}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mstyle mathvariant="script"><mml:mi>ℒ</mml:mi></mml:mstyle></mml:math></alternatives></inline-formula>
+  are each associated with a degree of freedom (DOF) of the finite
+  element space. Each functional (or DOF) is additionally associated
+  with a sub-entity of the reference cell. Ensuring that the same
+  coefficients are assigned to the DOFs of neighbouring cells associated
+  with a shared sub-entity gives the finite element space the desired
+  continuity properties.</p>
+  <p>Basix is a C++ library that creates and tabulates a range of finite
+  elements on triangles, tetrahedra, quadrilaterals, hexahedra,
+  pyramids, and prisms. The majority of Basix’s functionality can be
+  used via its Python interface. A full list of currently supported
+  elements is included below.</p>
+  <p>For many elements, the functionals in
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[\mathcal{L}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mstyle mathvariant="script"><mml:mi>ℒ</mml:mi></mml:mstyle></mml:math></alternatives></inline-formula>
+  are defined to be integrals on a sub-entity of the cell. Basix
+  provides a range of quadrature rules to compute these integrals,
+  including Gauss–Jacobi, Gauss–Lobatto–Legendre, and Xiao–Gimbutas
+  (<xref alt="Xiao &amp; Gimbutas, 2010" rid="ref-xiao-gimbutas" ref-type="bibr">Xiao
+  &amp; Gimbutas, 2010</xref>). Internally, Basix uses xtensor
+  (<xref alt="Mabille et al., 2021" rid="ref-xtensor" ref-type="bibr">Mabille
+  et al., 2021</xref>) for matrix and tensor storage and
+  manipulation.</p>
+  <p>Basix forms part of FEniCSx alongside DOLFINx
+  (<xref alt="Wells, Ballarin, et al., 2021" rid="ref-dolfinx" ref-type="bibr">Wells,
+  Ballarin, et al., 2021</xref>), FFCx
+  (<xref alt="Wells, Baratta, et al., 2021" rid="ref-ffcx" ref-type="bibr">Wells,
+  Baratta, et al., 2021</xref>), and UFL
+  (<xref alt="Alnæs et al., 2014" rid="ref-ufl" ref-type="bibr">Alnæs et
+  al., 2014</xref>). FEniCSx is the latest development version of
+  FEniCS, a popular open source finite element project
+  (<xref alt="Alnæs et al., 2015" rid="ref-fenics" ref-type="bibr">Alnæs
+  et al., 2015</xref>).</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p>Basix allows users to:</p>
+  <list list-type="bullet">
+    <list-item>
+      <p>evaluate finite element basis functions and their derivatives
+      at a set of points;</p>
+    </list-item>
+    <list-item>
+      <p>access geometric and topological information about reference
+      cells;</p>
+    </list-item>
+    <list-item>
+      <p>apply push forward and pull back operations to map data between
+      a reference cell and a physical cell;</p>
+    </list-item>
+    <list-item>
+      <p>permute and transform DOFs to allow higher degree elements to
+      be used on arbitrary meshes; and</p>
+    </list-item>
+    <list-item>
+      <p>interpolate into a finite element space and between finite
+      element spaces.</p>
+    </list-item>
+  </list>
+  <p>A full list of the built-in elements currently supported in Basix
+  is included below. In addition to these element, users can create
+  their own custom elements via either C++ or Python.</p>
+  <p>Basix’s support for permuting and transforming DOFs is one of its
+  key features. In an arbitrary mesh, neighbouring cells will not
+  necessarily agree on the orientation of shared sub-entities. For
+  higher degree elements, this will lead to a mismatch in the
+  positioning and orientation of the DOFs associated with these
+  sub-entities, as shown in
+  <xref alt="Figure 2" rid="figU003Amismatched-orientations">Figure 2</xref>.
+  Our use of permuting and transforming to rectify this issue is
+  described in full detail in Scroggs et al.
+  (<xref alt="2021" rid="ref-dof-transformations" ref-type="bibr">2021</xref>).</p>
+  <fig>
+    <caption><p>Left: In a degree 4 Lagrange space on a triangle, there
+    are three DOFs associated with each edge. If two neighbouring
+    triangles disagree on the orientation of a shared edge, then the
+    positions of the DOFs will not match up. Right: In a degree 1
+    Nédélec first kind element on a tetrahedron, there are two DOFs
+    associated with each triangular face. These DOFs will be associated
+    with a vector tangential to the face of the triangles. If two
+    neighbouring cells do not agree on the orientation of the triangle,
+    then the directions of these vectors will not match.
+    <styled-content id="figU003Amismatched-orientations"></styled-content></p></caption>
+    <graphic mimetype="image" mime-subtype="png" xlink:href="img/mismatched-orientations.png" xlink:title="" />
+  </fig>
+  <p>In order to compute the basis functions of a finite element, each
+  functional in <inline-formula><alternatives>
+  <tex-math><![CDATA[\mathcal{L}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mstyle mathvariant="script"><mml:mi>ℒ</mml:mi></mml:mstyle></mml:math></alternatives></inline-formula>
+  can be applied to the elements of a basis of the polynomial set
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[\mathcal{V}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mstyle mathvariant="script"><mml:mi>𝒱</mml:mi></mml:mstyle></mml:math></alternatives></inline-formula>
+  to compute the <italic>dual matrix</italic>. This dual matrix can then
+  be inverted to obtain the coefficients that define the finite element
+  basis functions in terms of the basis of
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[\mathcal{V}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mstyle mathvariant="script"><mml:mi>𝒱</mml:mi></mml:mstyle></mml:math></alternatives></inline-formula>.
+  In NGSolve
+  (<xref alt="Schöberl, 2014" rid="ref-ngsolve" ref-type="bibr">Schöberl,
+  2014</xref>), the functionals for this approach are implemented in C++
+  using lambda functions. In MFEM
+  (<xref alt="Anderson et al., 2021" rid="ref-mfem" ref-type="bibr">Anderson
+  et al., 2021</xref>), the functionals are described in C++ using a set
+  of points and weights: for point evaluation functionals, there will be
+  one point and the weight will be 1; for integral functionals,
+  quadrature points and weights are used. In FIAT
+  (<xref alt="Kirby, 2004" rid="ref-fiat" ref-type="bibr">Kirby,
+  2004</xref>) and Symfem
+  (<xref alt="Scroggs, 2021" rid="ref-symfem" ref-type="bibr">Scroggs,
+  2021</xref>), the functionals are implemented as Python objects. In
+  Basix, we follow an approach similar to that taken by MFEM, and define
+  the functionals in C++ using a set of points and weights.</p>
+  <p>In many other libraries—including Dune
+  (<xref alt="Sander, 2020" rid="ref-dune" ref-type="bibr">Sander,
+  2020</xref>) and Bempp
+  (<xref alt="Betcke &amp; Scroggs, 2021" rid="ref-bempp-cl" ref-type="bibr">Betcke
+  &amp; Scroggs, 2021</xref>;
+  <xref alt="Śmigaj et al., 2015" rid="ref-bempp" ref-type="bibr">Śmigaj
+  et al., 2015</xref>)—the basis functions of the finite element space
+  are implemented explicitly.</p>
+  <p>In a large number of finite element libraries—including NGSolve and
+  MFEM—the finite element definitions are included in the core of the
+  library. In Dune, the finite element definitions are separated into
+  the <monospace>dune-localfunctions</monospace> module. FIAT and Basix
+  are the finite element definition and tabulations libraries used by
+  legacy FEniCS and FEniCSx (respectively). Symfem is a standalone
+  element definition library that computes basis functions symbolically.
+  By separating the finite element definitions from the core of the
+  code, users are able to tabulate elements and obtain information about
+  them without having to interact with the other components of the
+  library. In FEniCSx for example, this allows users who want to create
+  custom integration kernels to get information about elements from
+  Basix without having to extract information from the core of the full
+  finite element library.</p>
+  <p>An additional advantage of this modular approach is that it allows
+  us to adjust how elements are implemented and add new elements without
+  needing to make changes to the other components of FEniCSx.</p>
+  <p>For some high degree finite elements on tensor product cells
+  (quadrilaterals and hexahedra), elements can be more efficiently
+  tabulated using sum factorisation: the elements can be represented as
+  the product of elements defined on an interval, and so can be
+  tabulated by combining copies of tabulated data on an interval rather
+  than tabulating on the full cell. This tensor product evaluation is
+  implemented in MFEM, FInAT
+  (<xref alt="Homolya et al., 2017" rid="ref-finat" ref-type="bibr">Homolya
+  et al., 2017</xref>) and deal.ii
+  (<xref alt="Bangerth et al., 2007" rid="ref-dealii" ref-type="bibr">Bangerth
+  et al., 2007</xref>). We have experimented with supporting these
+  factorisations in Basix: in particular, details of the factorisations
+  for Lagrange elements are currently provided by the library. We plan
+  to support them more fully and for a wider range of elements in a
+  future release.</p>
+  <p>The Python library FIAT
+  (<xref alt="Kirby, 2004" rid="ref-fiat" ref-type="bibr">Kirby,
+  2004</xref>) (which is part of the legacy FEniCS library alongside
+  UFL, FFC
+  (<xref alt="Logg et al., 2012" rid="ref-ffc" ref-type="bibr">Logg et
+  al., 2012</xref>) and DOLFIN
+  (<xref alt="Logg &amp; Wells, 2010" rid="ref-dolfin" ref-type="bibr">Logg
+  &amp; Wells, 2010</xref>)) serves a similar purpose to Basix and can
+  perform many of the same operations (with the exception of
+  permutations and transformations) on triangles, tetrahedra,
+  quadrilaterals, and hexahedra. As FIAT is written in Python, the FFC
+  library would use the information from FIAT to generate code that
+  could be used by the C++ finite element library DOLFIN.</p>
+  <p>An advantage of using Basix is the ability to call functions from
+  C++ at runtime. This has allowed us to greatly reduce the amount of
+  code generated in FFCx compared to FFC, as well as simplifying much of
+  the implementation, while still allowing FFCx to access the
+  information it needs using Basix’s Python interface.</p>
+</sec>
+<sec id="supported-elements">
+  <title>Supported elements</title>
+  <sec id="interval">
+    <title>Interval</title>
+    <p>In Basix, the sub-entities of the reference interval are numbered
+    as shown in
+    <xref alt="Figure 3" rid="figU003Ainterval">Figure 3</xref>. The
+    following elements are supported on an interval:</p>
+    <list list-type="bullet">
+      <list-item>
+        <p>Lagrange</p>
+      </list-item>
+      <list-item>
+        <p>bubble</p>
+      </list-item>
+      <list-item>
+        <p>serendipity
+        (<xref alt="Arnold &amp; Awanou, 2011" rid="ref-serendipity" ref-type="bibr">Arnold
+        &amp; Awanou, 2011</xref>)</p>
+      </list-item>
+    </list>
+    <fig>
+      <caption><p>The numbering of a reference interval.
+      <styled-content id="figU003Ainterval"></styled-content></p></caption>
+      <graphic mimetype="image" mime-subtype="png" xlink:href="img/interval_numbering.png" xlink:title="" />
+    </fig>
+  </sec>
+  <sec id="triangle">
+    <title>Triangle</title>
+    <p>In Basix, the sub-entities of the reference triangle are numbered
+    as shown in
+    <xref alt="Figure 4" rid="figU003Atriangle">Figure 4</xref>. The
+    following elements are supported on a triangle:</p>
+    <list list-type="bullet">
+      <list-item>
+        <p>Lagrange</p>
+      </list-item>
+      <list-item>
+        <p>Nédélec first kind
+        (<xref alt="Nédélec, 1980" rid="ref-nedelec1" ref-type="bibr">Nédélec,
+        1980</xref>)</p>
+      </list-item>
+      <list-item>
+        <p>Raviart–Thomas
+        (<xref alt="Raviart &amp; Thomas, 1977" rid="ref-rt" ref-type="bibr">Raviart
+        &amp; Thomas, 1977</xref>)</p>
+      </list-item>
+      <list-item>
+        <p>Nédélec second kind
+        (<xref alt="Nédélec, 1986" rid="ref-nedelec2" ref-type="bibr">Nédélec,
+        1986</xref>)</p>
+      </list-item>
+      <list-item>
+        <p>Brezzi–Douglas–Marini
+        (<xref alt="Brezzi et al., 1985" rid="ref-bdm" ref-type="bibr">Brezzi
+        et al., 1985</xref>)</p>
+      </list-item>
+      <list-item>
+        <p>Regge
+        (<xref alt="Christiansen, 2011" rid="ref-regge2" ref-type="bibr">Christiansen,
+        2011</xref>;
+        <xref alt="Regge, 1961" rid="ref-regge" ref-type="bibr">Regge,
+        1961</xref>)</p>
+      </list-item>
+      <list-item>
+        <p>Hellan–Herrmann–Johnson
+        (<xref alt="Arnold &amp; Walker, 2020" rid="ref-hhj" ref-type="bibr">Arnold
+        &amp; Walker, 2020</xref>)</p>
+      </list-item>
+      <list-item>
+        <p>Crouzeix–Raviart
+        (<xref alt="Crouzeix &amp; Raviart, 1973" rid="ref-cr" ref-type="bibr">Crouzeix
+        &amp; Raviart, 1973</xref>)</p>
+      </list-item>
+      <list-item>
+        <p>bubble</p>
+      </list-item>
+    </list>
+    <fig>
+      <caption><p>The numbering of a reference triangle.
+      <styled-content id="figU003Atriangle"></styled-content></p></caption>
+      <graphic mimetype="image" mime-subtype="png" xlink:href="img/triangle_numbering.png" xlink:title="" />
+    </fig>
+  </sec>
+  <sec id="quadrilateral">
+    <title>Quadrilateral</title>
+    <p>In Basix, the sub-entities of the reference quadrilateral are
+    numbered as shown in
+    <xref alt="Figure 5" rid="figU003Aquad">Figure 5</xref>. The
+    following elements are supported on a quadrilateral:</p>
+    <list list-type="bullet">
+      <list-item>
+        <p>Lagrange</p>
+      </list-item>
+      <list-item>
+        <p>Nédélec first kind</p>
+      </list-item>
+      <list-item>
+        <p>Raviart–Thomas</p>
+      </list-item>
+      <list-item>
+        <p>Nédélec second kind
+        (<xref alt="Arnold &amp; Awanou, 2014" rid="ref-sdivcurl" ref-type="bibr">Arnold
+        &amp; Awanou, 2014</xref>)</p>
+      </list-item>
+      <list-item>
+        <p>Brezzi–Douglas–Marini
+        (<xref alt="Arnold &amp; Awanou, 2014" rid="ref-sdivcurl" ref-type="bibr">Arnold
+        &amp; Awanou, 2014</xref>)</p>
+      </list-item>
+      <list-item>
+        <p>bubble</p>
+      </list-item>
+      <list-item>
+        <p>DPC</p>
+      </list-item>
+      <list-item>
+        <p>serendipity</p>
+      </list-item>
+    </list>
+    <fig>
+      <caption><p>The numbering of a reference quadrilateral.
+      <styled-content id="figU003Aquad"></styled-content></p></caption>
+      <graphic mimetype="image" mime-subtype="png" xlink:href="img/quadrilateral_numbering.png" xlink:title="" />
+    </fig>
+  </sec>
+  <sec id="tetrahedron">
+    <title>Tetrahedron</title>
+    <p>In Basix, the sub-entities of the reference tetrahedron are
+    numbered as shown in
+    <xref alt="Figure 6" rid="figU003Atet">Figure 6</xref>. The
+    following elements are supported on a tetrahedron:</p>
+    <list list-type="bullet">
+      <list-item>
+        <p>Lagrange</p>
+      </list-item>
+      <list-item>
+        <p>Nédélec first kind</p>
+      </list-item>
+      <list-item>
+        <p>Raviart–Thomas</p>
+      </list-item>
+      <list-item>
+        <p>Nédélec second kind</p>
+      </list-item>
+      <list-item>
+        <p>Brezzi–Douglas–Marini</p>
+      </list-item>
+      <list-item>
+        <p>Regge</p>
+      </list-item>
+      <list-item>
+        <p>Crouzeix–Raviart</p>
+      </list-item>
+      <list-item>
+        <p>bubble</p>
+      </list-item>
+    </list>
+    <fig>
+      <caption><p>The numbering of a reference tetrahedron.
+      <styled-content id="figU003Atet"></styled-content></p></caption>
+      <graphic mimetype="image" mime-subtype="png" xlink:href="img/tetrahedron_numbering.png" xlink:title="" />
+    </fig>
+  </sec>
+  <sec id="hexahedron">
+    <title>Hexahedron</title>
+    <p>In Basix, the sub-entities of the reference hexahedron are
+    numbered as shown in
+    <xref alt="Figure 7" rid="figU003Ahex">Figure 7</xref>. The
+    following elements are supported on a hexahedron:</p>
+    <list list-type="bullet">
+      <list-item>
+        <p>Lagrange</p>
+      </list-item>
+      <list-item>
+        <p>Nédélec first kind</p>
+      </list-item>
+      <list-item>
+        <p>Raviart–Thomas</p>
+      </list-item>
+      <list-item>
+        <p>Nédélec second kind</p>
+      </list-item>
+      <list-item>
+        <p>Brezzi–Douglas–Marini</p>
+      </list-item>
+      <list-item>
+        <p>bubble</p>
+      </list-item>
+      <list-item>
+        <p>DPC</p>
+      </list-item>
+      <list-item>
+        <p>serendipity</p>
+      </list-item>
+    </list>
+    <fig>
+      <caption><p>The numbering of a reference hexahedron.
+      <styled-content id="figU003Ahex"></styled-content></p></caption>
+      <graphic mimetype="image" mime-subtype="png" xlink:href="img/hexahedron_numbering.png" xlink:title="" />
+    </fig>
+  </sec>
+  <sec id="prism">
+    <title>Prism</title>
+    <p>In Basix, the sub-entities of the reference prism are numbered as
+    shown in <xref alt="Figure 8" rid="figU003Aprism">Figure 8</xref>.
+    The following elements are supported on a prism:</p>
+    <list list-type="bullet">
+      <list-item>
+        <p>Lagrange</p>
+      </list-item>
+    </list>
+    <fig>
+      <caption><p>The numbering of a reference prism.
+      <styled-content id="figU003Aprism"></styled-content></p></caption>
+      <graphic mimetype="image" mime-subtype="png" xlink:href="img/prism_numbering.png" xlink:title="" />
+    </fig>
+  </sec>
+  <sec id="pyramid">
+    <title>Pyramid</title>
+    <p>In Basix, the sub-entities of the reference pyramid are numbered
+    as shown in
+    <xref alt="Figure 9" rid="figU003Apyramid">Figure 9</xref>. The
+    following elements are supported on a pyramid:</p>
+    <list list-type="bullet">
+      <list-item>
+        <p>Lagrange</p>
+      </list-item>
+    </list>
+    <fig>
+      <caption><p>The numbering of a reference pyramid.
+      <styled-content id="figU003Apyramid"></styled-content></p></caption>
+      <graphic mimetype="image" mime-subtype="png" xlink:href="img/pyramid_numbering.png" xlink:title="" />
+    </fig>
+  </sec>
+</sec>
+</body>
+<back>
+<ref-list>
+  <ref id="ref-fiat">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Kirby</surname><given-names>Robert C.</given-names></name>
+      </person-group>
+      <article-title>Algorithm 839: FIAT, a new paradigm for computing finite element basis functions</article-title>
+      <source>ACM Transactions on Mathematical Software</source>
+      <year iso-8601-date="2004">2004</year>
+      <volume>30</volume>
+      <issue>4</issue>
+      <pub-id pub-id-type="doi">10.1145/1039813.1039820</pub-id>
+      <fpage>502</fpage>
+      <lpage>516</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-fenics">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Alnæs</surname><given-names>Martin S.</given-names></name>
+        <name><surname>Blechta</surname><given-names>Jan</given-names></name>
+        <name><surname>Hake</surname><given-names>Johan</given-names></name>
+        <name><surname>Johansson</surname><given-names>August</given-names></name>
+        <name><surname>Kehlet</surname><given-names>Benjamin</given-names></name>
+        <name><surname>Logg</surname><given-names>Anders</given-names></name>
+        <name><surname>Richardson</surname><given-names>Chris N.</given-names></name>
+        <name><surname>Ring</surname><given-names>Johannes</given-names></name>
+        <name><surname>Rognes</surname><given-names>Marie E.</given-names></name>
+        <name><surname>Wells</surname><given-names>Garth N.</given-names></name>
+      </person-group>
+      <article-title>The FEniCS project version 1.5</article-title>
+      <source>Archive of Numerical Software</source>
+      <year iso-8601-date="2015">2015</year>
+      <volume>3</volume>
+      <issue>100</issue>
+      <pub-id pub-id-type="doi">10.11588/ans.2015.100.20553</pub-id>
+      <fpage>9</fpage>
+      <lpage>23</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-dof-transformations">
+    <element-citation publication-type="manuscript">
+      <person-group person-group-type="author">
+        <name><surname>Scroggs</surname><given-names>Matthew W.</given-names></name>
+        <name><surname>Dokken</surname><given-names>Jørgen S.</given-names></name>
+        <name><surname>Richardson</surname><given-names>Chris N.</given-names></name>
+        <name><surname>Wells</surname><given-names>Garth N.</given-names></name>
+      </person-group>
+      <article-title>Construction of arbitrary order finite element degree-of-freedom maps on polygonal and polyhedral cell meshes</article-title>
+      <year iso-8601-date="2021">2021</year>
+      <pub-id pub-id-type="doi">10.1145/3524456</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-ufl">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Alnæs</surname><given-names>Martin S.</given-names></name>
+        <name><surname>Logg</surname><given-names>Anders</given-names></name>
+        <name><surname>Ølgaard</surname><given-names>Kristian B.</given-names></name>
+        <name><surname>Rognes</surname><given-names>Marie E.</given-names></name>
+        <name><surname>Wells</surname><given-names>Garth N.</given-names></name>
+      </person-group>
+      <article-title>Unified Form Language: A domain-specific language for weak formulations of partial differential equations</article-title>
+      <source>ACM Transactions on Mathematical Software</source>
+      <year iso-8601-date="2014">2014</year>
+      <pub-id pub-id-type="doi">10.1145/2566630</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-ciarlet">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Ciarlet</surname><given-names>Philippe G.</given-names></name>
+      </person-group>
+      <source>The finite element method for elliptic problems</source>
+      <publisher-name>North-Holland</publisher-name>
+      <year iso-8601-date="1978">1978</year>
+    </element-citation>
+  </ref>
+  <ref id="ref-nedelec1">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Nédélec</surname><given-names>Jean-Claude</given-names></name>
+      </person-group>
+      <article-title>Mixed finite elements in \mathbb{{R}}^3</article-title>
+      <source>Numerische Mathematik</source>
+      <year iso-8601-date="1980">1980</year>
+      <volume>35</volume>
+      <issue>3</issue>
+      <pub-id pub-id-type="doi">10.1007/BF01396415</pub-id>
+      <fpage>315</fpage>
+      <lpage>341</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-nedelec2">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Nédélec</surname><given-names>Jean-Claude</given-names></name>
+      </person-group>
+      <article-title>A new family of mixed finite elements in \mathbb{{R}}^3</article-title>
+      <source>Numerische Mathematik</source>
+      <year iso-8601-date="1986">1986</year>
+      <volume>50</volume>
+      <issue>1</issue>
+      <pub-id pub-id-type="doi">10.1007/BF01389668</pub-id>
+      <fpage>57</fpage>
+      <lpage>81</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-rt">
+    <element-citation publication-type="chapter">
+      <person-group person-group-type="author">
+        <name><surname>Raviart</surname><given-names>Pierre-Arnau</given-names></name>
+        <name><surname>Thomas</surname><given-names>J.-M.</given-names></name>
+      </person-group>
+      <article-title>A mixed finite element method for 2nd order elliptic problems</article-title>
+      <source>Mathematical aspects of finite element methods</source>
+      <person-group person-group-type="editor">
+        <name><surname>Galligani</surname><given-names>I.</given-names></name>
+        <name><surname>Magenes</surname><given-names>E.</given-names></name>
+      </person-group>
+      <year iso-8601-date="1977">1977</year>
+      <volume>606</volume>
+      <fpage>292</fpage>
+      <lpage>315</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-bdm">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Brezzi</surname><given-names>Franco</given-names></name>
+        <name><surname>Douglas</surname><given-names>Jim</given-names></name>
+        <name><surname>Marini</surname><given-names>L. D.</given-names></name>
+      </person-group>
+      <article-title>Two families of mixed finite elements for second order elliptic problems</article-title>
+      <source>Numerische Mathematik</source>
+      <year iso-8601-date="1985">1985</year>
+      <volume>47</volume>
+      <pub-id pub-id-type="doi">10.1007/BF01389710</pub-id>
+      <fpage>217</fpage>
+      <lpage>235</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-cr">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Crouzeix</surname><given-names>M.</given-names></name>
+        <name><surname>Raviart</surname><given-names>Pierre-Arnau</given-names></name>
+      </person-group>
+      <article-title>Conforming and nonconforming finite element methods for solving the stationary Stokes equations</article-title>
+      <source>Revue Française d’Automatique, Informatique et Recherche Opérationnelle</source>
+      <year iso-8601-date="1973">1973</year>
+      <volume>3</volume>
+      <pub-id pub-id-type="doi">10.1051/m2an/197307R300331</pub-id>
+      <fpage>33</fpage>
+      <lpage>75</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-regge">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Regge</surname><given-names>T.</given-names></name>
+      </person-group>
+      <article-title>General relativity without coordinates</article-title>
+      <source>Il Nuovo Cimento</source>
+      <year iso-8601-date="1961">1961</year>
+      <volume>19</volume>
+      <issue>3</issue>
+      <pub-id pub-id-type="doi">10.1007/BF02733251</pub-id>
+      <fpage>558</fpage>
+      <lpage>571</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-regge2">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Christiansen</surname><given-names>Snorre H.</given-names></name>
+      </person-group>
+      <article-title>On the linearization of Regge calculus</article-title>
+      <source>Numerische Mathematik</source>
+      <year iso-8601-date="2011">2011</year>
+      <volume>119</volume>
+      <issue>4</issue>
+      <pub-id pub-id-type="doi">10.1007/s00211-011-0394-z</pub-id>
+      <fpage>613</fpage>
+      <lpage>640</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-serendipity">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Arnold</surname><given-names>Douglas N.</given-names></name>
+        <name><surname>Awanou</surname><given-names>Gerard</given-names></name>
+      </person-group>
+      <article-title>The serendipity family of finite elements</article-title>
+      <source>Foundations of Computational Mathematics</source>
+      <year iso-8601-date="2011">2011</year>
+      <volume>11</volume>
+      <issue>3</issue>
+      <pub-id pub-id-type="doi">10.1007/s10208-011-9087-3</pub-id>
+      <fpage>337</fpage>
+      <lpage>344</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-sdivcurl">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Arnold</surname><given-names>Douglas N.</given-names></name>
+        <name><surname>Awanou</surname><given-names>Gerard</given-names></name>
+      </person-group>
+      <article-title>Finite element differential forms on cubical meshes</article-title>
+      <source>Mathematics of computation</source>
+      <year iso-8601-date="2014">2014</year>
+      <volume>83</volume>
+      <pub-id pub-id-type="doi">10.1090/S0025-5718-2013-02783-4</pub-id>
+      <fpage>1551</fpage>
+      <lpage>5170</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-ffc">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Logg</surname><given-names>Anders</given-names></name>
+        <name><surname>Ølgaard</surname><given-names>Kristian B.</given-names></name>
+        <name><surname>Rognes</surname><given-names>Marie E.</given-names></name>
+        <name><surname>Wells</surname><given-names>Garth N.</given-names></name>
+      </person-group>
+      <article-title>FFC: The FEniCS Form Compiler</article-title>
+      <person-group person-group-type="editor">
+        <name><surname>Logg</surname><given-names>Anders</given-names></name>
+        <name><surname>Mardal</surname><given-names>Kent-Andre</given-names></name>
+        <name><surname>Wells</surname><given-names>Garth N.</given-names></name>
+      </person-group>
+      <year iso-8601-date="2012">2012</year>
+      <pub-id pub-id-type="doi">10.1007/978-3-642-23099-8_11</pub-id>
+      <fpage>283</fpage>
+      <lpage>302</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-dolfin">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Logg</surname><given-names>Anders</given-names></name>
+        <name><surname>Wells</surname><given-names>Garth N.</given-names></name>
+      </person-group>
+      <article-title>DOLFIN: Automated finite element computing</article-title>
+      <source>ACM Transactions on Mathematical Software</source>
+      <year iso-8601-date="2010">2010</year>
+      <volume>37</volume>
+      <pub-id pub-id-type="doi">10.1145/1731022.1731030</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-defelement">
+    <element-citation>
+      <person-group person-group-type="author">
+        <string-name>The DefElement contributors</string-name>
+      </person-group>
+      <article-title>DefElement: An encyclopedia of finite element definitions</article-title>
+      <publisher-name>https://defelement.com</publisher-name>
+      <year iso-8601-date="2021">2021</year>
+    </element-citation>
+  </ref>
+  <ref id="ref-xiao-gimbutas">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Xiao</surname><given-names>Hong</given-names></name>
+        <name><surname>Gimbutas</surname><given-names>Zydrunas</given-names></name>
+      </person-group>
+      <article-title>A numerical algorithm for the construction of efficient quadrature rules in two and higher dimensions</article-title>
+      <source>Computers &amp; Mathematics with Applications</source>
+      <year iso-8601-date="2010">2010</year>
+      <volume>59</volume>
+      <issue>2</issue>
+      <pub-id pub-id-type="doi">10.1016/j.camwa.2009.10.027</pub-id>
+      <fpage>663</fpage>
+      <lpage>676</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-dolfinx">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Wells</surname><given-names>Garth N.</given-names></name>
+        <name><surname>Ballarin</surname><given-names>Francesco</given-names></name>
+        <name><surname>Baratta</surname><given-names>Igor A.</given-names></name>
+        <name><surname>Dean</surname><given-names>Joseph P.</given-names></name>
+        <name><surname>Dokken</surname><given-names>Jørgen S.</given-names></name>
+        <name><surname>Hale</surname><given-names>Jack S.</given-names></name>
+        <name><surname>Habera</surname><given-names>Michal</given-names></name>
+        <name><surname>Richardson</surname><given-names>Chris N.</given-names></name>
+        <name><surname>Scroggs</surname><given-names>Matthew W.</given-names></name>
+        <name><surname>Sime</surname><given-names>Nathan</given-names></name>
+      </person-group>
+      <article-title>DOLFINx: Next generation FEniCS problem solving environment</article-title>
+      <year iso-8601-date="2021">2021</year>
+      <uri>https://github.com/FEniCS/dolfinx</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-ffcx">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Wells</surname><given-names>Garth N.</given-names></name>
+        <name><surname>Baratta</surname><given-names>Igor A.</given-names></name>
+        <name><surname>Habera</surname><given-names>Michal</given-names></name>
+        <name><surname>Hale</surname><given-names>Jack S.</given-names></name>
+        <name><surname>Richardson</surname><given-names>Chris N.</given-names></name>
+        <name><surname>Scroggs</surname><given-names>Matthew W.</given-names></name>
+      </person-group>
+      <article-title>FFCx: Next generation FEniCS form compiler</article-title>
+      <year iso-8601-date="2021">2021</year>
+      <uri>https://github.com/FEniCS/ffcx</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-xtensor">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Mabille</surname><given-names>Johan</given-names></name>
+        <name><surname>Beier</surname><given-names>Thorsten</given-names></name>
+        <name><surname>Brochart</surname><given-names>David</given-names></name>
+        <name><surname>Corlay</surname><given-names>Sylvain</given-names></name>
+        <name><surname>de Geus</surname><given-names>Tom</given-names></name>
+        <name><surname>Delsalle</surname><given-names>Adrien</given-names></name>
+        <name><surname>Koethe</surname><given-names>Ullrich</given-names></name>
+        <string-name>GitHub user kolibri91</string-name>
+        <name><surname>Prouvost</surname><given-names>Antoine</given-names></name>
+        <name><surname>Renou</surname><given-names>Martin</given-names></name>
+        <string-name>GitHub user SoundDev</string-name>
+        <name><surname>Vollprecht</surname><given-names>Wolf</given-names></name>
+        <name><surname>Zhu</surname><given-names>Jun</given-names></name>
+      </person-group>
+      <article-title>xtensor: C++ tensors with broadcasting and lazy computing</article-title>
+      <year iso-8601-date="2021">2021</year>
+      <uri>https://github.com/xtensor-stack/xtensor</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-hhj">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Arnold</surname><given-names>Douglas N.</given-names></name>
+        <name><surname>Walker</surname><given-names>Shawn W.</given-names></name>
+      </person-group>
+      <article-title>The Hellan–Herrmann–Johnson method with curved elements</article-title>
+      <source>SIAM Journal on Numberical Analysis</source>
+      <year iso-8601-date="2020">2020</year>
+      <volume>58</volume>
+      <issue>5</issue>
+      <pub-id pub-id-type="doi">10.1137/19M1288723</pub-id>
+      <fpage>2829</fpage>
+      <lpage>2855</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-symfem">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Scroggs</surname><given-names>Matthew W.</given-names></name>
+      </person-group>
+      <article-title>Symfem: A symbolic finite element definition library</article-title>
+      <source>Journal of Open Source Software</source>
+      <year iso-8601-date="2021">2021</year>
+      <volume>6</volume>
+      <issue>64, 6</issue>
+      <pub-id pub-id-type="doi">10.21105/joss.03556</pub-id>
+      <fpage>3556</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-ngsolve">
+    <element-citation publication-type="report">
+      <person-group person-group-type="author">
+        <name><surname>Schöberl</surname><given-names>J.</given-names></name>
+      </person-group>
+      <article-title>C++11 implementation of finite elements in NGSolve</article-title>
+      <publisher-name>Institute for Analysis; Scientific Computing, TU Wien</publisher-name>
+      <year iso-8601-date="2014">2014</year>
+      <uri>https://www.asc.tuwien.ac.at/~schoeberl/wiki/publications/ngs-cpp11.pdf</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-dune">
+    <element-citation publication-type="chapter">
+      <person-group person-group-type="author">
+        <name><surname>Sander</surname><given-names>Oliver</given-names></name>
+      </person-group>
+      <article-title>Local finite elements and the dune-localfunctions module</article-title>
+      <source>DUNE — the distributed and unified numerics environment</source>
+      <publisher-name>Springer International Publishing</publisher-name>
+      <year iso-8601-date="2020">2020</year>
+      <pub-id pub-id-type="doi">10.1007/978-3-030-59702-3_8</pub-id>
+      <fpage>301</fpage>
+      <lpage>324</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-dealii">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Bangerth</surname><given-names>W.</given-names></name>
+        <name><surname>Hartmann</surname><given-names>R.</given-names></name>
+        <name><surname>Kanschat</surname><given-names>G.</given-names></name>
+      </person-group>
+      <article-title>Deal.II—a general-purpose object-oriented finite element library</article-title>
+      <source>ACM Transactions on Mathematical Software</source>
+      <year iso-8601-date="2007">2007</year>
+      <volume>33</volume>
+      <issue>4:24</issue>
+      <pub-id pub-id-type="doi">10.1145/1268776.1268779</pub-id>
+      <fpage>1</fpage>
+      <lpage>27</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-mfem">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Anderson</surname><given-names>Robert</given-names></name>
+        <name><surname>Andrej</surname><given-names>Julian</given-names></name>
+        <name><surname>Barker</surname><given-names>Andrew</given-names></name>
+        <name><surname>Bramwell</surname><given-names>Jamie</given-names></name>
+        <name><surname>Camier</surname><given-names>Jean-Sylvain</given-names></name>
+        <name><surname>Cerveny</surname><given-names>Jakub</given-names></name>
+        <name><surname>Dobrev</surname><given-names>Veselin</given-names></name>
+        <name><surname>Dudouit</surname><given-names>Yohann</given-names></name>
+        <name><surname>Fisher</surname><given-names>Aaron</given-names></name>
+        <name><surname>Kolev</surname><given-names>Tzanio</given-names></name>
+        <name><surname>Pazner</surname><given-names>Will</given-names></name>
+        <name><surname>Stowell</surname><given-names>Mark</given-names></name>
+        <name><surname>Tomov</surname><given-names>Vladimir</given-names></name>
+        <name><surname>Akkerman</surname><given-names>Ido</given-names></name>
+        <name><surname>Dahm</surname><given-names>Johann</given-names></name>
+        <name><surname>Medina</surname><given-names>David</given-names></name>
+        <name><surname>Zampini</surname><given-names>Stefano</given-names></name>
+      </person-group>
+      <article-title>MFEM: A modular finite element methods library</article-title>
+      <source>Computers &amp; Mathematics with Applications</source>
+      <year iso-8601-date="2021">2021</year>
+      <volume>81</volume>
+      <pub-id pub-id-type="doi">10.1016/j.camwa.2020.06.009</pub-id>
+      <fpage>42</fpage>
+      <lpage>74</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-finat">
+    <element-citation publication-type="manuscript">
+      <person-group person-group-type="author">
+        <name><surname>Homolya</surname><given-names>Miklós</given-names></name>
+        <name><surname>Kirby</surname><given-names>Robert C.</given-names></name>
+        <name><surname>Ham</surname><given-names>David A.</given-names></name>
+      </person-group>
+      <article-title>Exposing and exploiting structure: Optimal code generation for high-order finite element methods</article-title>
+      <year iso-8601-date="2017">2017</year>
+      <uri>https://arxiv.org/abs/1711.02473</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-bempp-cl">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Betcke</surname><given-names>Timo</given-names></name>
+        <name><surname>Scroggs</surname><given-names>Matthew W.</given-names></name>
+      </person-group>
+      <article-title>Bempp-cl: A fast Python based just-in-time compiling boundary element library</article-title>
+      <source>Journal of Open Source Software</source>
+      <year iso-8601-date="2021">2021</year>
+      <volume>6</volume>
+      <issue>59, 6</issue>
+      <pub-id pub-id-type="doi">10.21105/joss.02879</pub-id>
+      <fpage>2879</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-bempp">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Śmigaj</surname><given-names>Wojciech</given-names></name>
+        <name><surname>Betcke</surname><given-names>Timo</given-names></name>
+        <name><surname>Arridge</surname><given-names>Simon</given-names></name>
+        <name><surname>Phillips</surname><given-names>Joel</given-names></name>
+        <name><surname>Schweiger</surname><given-names>Martin</given-names></name>
+      </person-group>
+      <article-title>Solving boundary integral problems with BEM++</article-title>
+      <source>ACM Transactions on Mathematical Software</source>
+      <year iso-8601-date="2015">2015</year>
+      <volume>41</volume>
+      <issue>2</issue>
+      <pub-id pub-id-type="doi">{10.1145/2590830}</pub-id>
+      <fpage>6:1</fpage>
+      <lpage>6:40</lpage>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
