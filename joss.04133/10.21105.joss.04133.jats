@@ -1,0 +1,690 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">4133</article-id>
+<article-id pub-id-type="doi">10.21105/joss.04133</article-id>
+<title-group>
+<article-title>Imagedata: A Python library to handle medical image data
+in NumPy array subclass Series</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">0000-0001-8268-1206</contrib-id>
+<name>
+<surname>Andersen</surname>
+<given-names>Erling</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+<xref ref-type="aff" rid="aff-2"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Haukeland University Hospital, Dept. of Clinical
+Engineering, N-5021 Bergen, Norway</institution>
+</institution-wrap>
+</aff>
+<aff id="aff-2">
+<institution-wrap>
+<institution>Mohn Medical Imaging and Visualization Centre, Haukeland
+University Hospital, Dept. of Radiology, N-5021 Bergen,
+Norway</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2022-01-14">
+<day>14</day>
+<month>1</month>
+<year>2022</year>
+</pub-date>
+<volume>7</volume>
+<issue>73</issue>
+<fpage>4133</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2022</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>dicom</kwd>
+<kwd>python</kwd>
+<kwd>medical imaging</kwd>
+<kwd>pydicom</kwd>
+<kwd>pynetdicom</kwd>
+<kwd>itk</kwd>
+<kwd>nifti</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p><monospace>Imagedata</monospace> is a python library to read and
+  write medical image data into <monospace>Series</monospace> objects.
+  In particular, imagedata will read, sort and write DICOM 3D and 4D
+  series based on defined attributes. As far as possible, imagedata will
+  handle geometry information between the medical image data formats
+  like DICOM, NIfTI
+  (<xref alt="Cox et al., 2004" rid="ref-nifti1" ref-type="bibr">Cox et
+  al., 2004</xref>) and ITK
+  (<xref alt="Yoo et al., 2002" rid="ref-itk2002" ref-type="bibr">Yoo et
+  al., 2002</xref>).</p>
+  <p>Imagedata provides a Series class inheriting the
+  <monospace>numpy.ndarray</monospace> class
+  (<xref alt="Harris et al., 2020" rid="ref-harris2020array" ref-type="bibr">Harris
+  et al., 2020</xref>), adding DICOM data structures. Plugins provide
+  functions to import and export DICOM and other data formats. The DICOM
+  plugin can read complete series, sorting the data as requested into
+  multidimensional arrays. Input and output data can be accessed on
+  various locations, including local files, DICOM servers and XNAT
+  servers
+  (<xref alt="Marcus et al., 2007" rid="ref-marcus2007" ref-type="bibr">Marcus
+  et al., 2007</xref>). The Series class enables NumPy and derived
+  libraries (like SciPy
+  (<xref alt="Virtanen et al., 2020" rid="ref-2020SciPy-NMeth" ref-type="bibr">Virtanen
+  et al., 2020</xref>)) to work on medical images, simplifying input and
+  output.</p>
+  <p>A feature is the conversion between different image formats.
+  <italic>E.g.</italic>, a pipeline based on a clinical DICOM series can
+  be converted to NIfTI, processed by some NIfTI-based tool
+  (<italic>e.g.</italic> FSL
+  (<xref alt="Smith et al., 2004" rid="ref-FSL2004" ref-type="bibr">Smith
+  et al., 2004</xref>)). Finally, the result can be converted back to
+  DICOM and stored as a new series in PACS (Picture Archive and
+  Communication system).</p>
+  <p>A viewer is included, allowing the display of a stack of images,
+  including modifying window width and centre, and scrolling through 3D
+  and 4D image stacks. A region of interest (ROI) can be drawn,
+  resulting in a mask as a NumPy ndarray, or as an outline.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p>DICOM is the standard image format and protocol when working with
+  clinical medical images in a hospital. In tomographic imaging, the
+  legacy DICOM formats like computed tomography (CT) and magnetic
+  resonance (MR) information object definitions (IOD), are in common
+  use. These formats store slices file by file, leaving the sorting of
+  the files to the user. The more recent enhanced formats which can
+  accommodate a complete 3D or 4D acquisition in one file, are only
+  slowly adopted by manufacturers of medical equipment.</p>
+  <p>Working with legacy DICOM medical images in python can be
+  accomplished using libraries like <monospace>pydicom</monospace>
+  (<xref alt="Mason et al., 2021" rid="ref-darcy_mason_2021_5543955" ref-type="bibr">Mason
+  et al., 2021</xref>), <monospace>GDCM</monospace>
+  (<xref alt="Malaterre, 2008" rid="ref-GDCMReferenceManual" ref-type="bibr">Malaterre,
+  2008</xref>), <monospace>NiBabel</monospace>
+  (<xref alt="Brett et al., 2020" rid="ref-nibabel2020" ref-type="bibr">Brett
+  et al., 2020</xref>) or <monospace>ITK</monospace>. Pydicom and GDCM
+  are native DICOM libraries. As such, they do not provide access to
+  medical images stored in other formats. NiBabel and ITK are mostly
+  focused on NIfTI and ITK MetaIO image formats, respectively. These
+  formats are popular in research tools. However, DICOM support is
+  rudimentary. All these libraries typically leave the sorting of legacy
+  DICOM image files to the user.</p>
+  <p><monospace>Highdicom</monospace>
+  (<xref alt="Bridge et al., 2021" rid="ref-bridge2021highdicom" ref-type="bibr">Bridge
+  et al., 2021</xref>) focus on parametric maps, annotations and
+  segmentations, using enhanced DICOM images. Highdicom does an
+  excellent job of promoting the enhanced DICOM standards, including
+  storage of <monospace>boolean</monospace> and floating-point data. The
+  handling of legacy DICOM objects are left to pydicom.</p>
+  <p>NumPy ndarrays is the data object of choice for numerical
+  computations in Python. Imagedata extends NumPy arrays with DICOM
+  information and functionality. Additionally, importing and exporting
+  images to other image formats is available through the plugin
+  architecture.</p>
+  <p>When setting up pipelines to process clinical data, patient
+  information should be maintained throughout to ensure patient safety.
+  If the process involves DICOM data only, this requirement is easily
+  fulfilled. However, some popular image processing systems require
+  formats that do not maintain patient information. The ability to
+  attach DICOM metadata to these other formats let the user exploit a
+  wider set of image processing software.</p>
+  <p><monospace>Imagedata</monospace> builds on several of these
+  libraries, attempting to solve the problem of sorting legacy DICOM
+  images, providing NumPy ndarrays, and accessing medical images in
+  various formats.</p>
+</sec>
+<sec id="architecture">
+  <title>Architecture</title>
+  <p>The <monospace>Series</monospace> class is a
+  <monospace>numpy.ndarray</monospace> subclass. A Series object is
+  instantiated from an image source, either from input files, from a
+  server connection, or from an ndarray. DICOM metadata is handled by a
+  <monospace>Header</monospace> class, which also maintains an
+  <monospace>Axes</monospace> class defining the axes of the array
+  dimensions.</p>
+  <p>Handling specific image data formats are done by
+  <monospace>Formats</monospace> plugins, while
+  <monospace>Archives</monospace> plugins give access to files stored
+  both in the filesystem and in compressed archives. The
+  <monospace>Transports</monospace> plugins let the user access
+  networked resources given by a <italic>URL</italic>. See the plugin
+  architecture and main classes in
+  <xref alt="Figure 1" rid="figU003Aplugins">Figure 1</xref>.
+  <italic>E.g.</italic>, an xnat:// <italic>URL</italic> will employ the
+  <monospace>XnatTransport</monospace> plugin to fetch a compressed zip
+  archive, and the <monospace>ZipfileArchive</monospace> will extract
+  individual files from the archive.</p>
+  <p>Plugins are defined using python’s
+  <monospace>entry_point</monospace>
+  (<xref alt="PyPA, 2022" rid="ref-pythonEntryPoints" ref-type="bibr">PyPA,
+  2022</xref>) mechanism. The naming convention requires any plugin to
+  advertise itself on the <monospace>imagedata_plugins</monospace>
+  list.</p>
+  <fig>
+    <caption><p>Plugin architecture and main classes of the imagedata
+    package. The Series class is subclassed from numpy.ndarray. Handling
+    specific image data formats are done by Formats plugins, while
+    Archives plugins give access to files stored both in the filesystem
+    and in compressed archives. The Transports plugins let the user
+    access networked resources given by a
+    <italic>URL</italic>.<styled-content id="figU003Aplugins"></styled-content></p></caption>
+    <graphic mimetype="image" mime-subtype="png" xlink:href="docs/Plugin_Architecture.png" xlink:title="" />
+  </fig>
+</sec>
+<sec id="examples">
+  <title>Examples</title>
+  <p>In this section, we demonstrate the use of imagedata in the python
+  language. In addition, there is a console application
+  <monospace>image_data</monospace> which comes in handy when the sole
+  purpose is to convert and store an image dataset from one format to
+  another.</p>
+  <sec id="compute-mean-of-two-datasets">
+    <title>Compute mean of two datasets</title>
+    <p>A basic example reading two time series from folders
+    <italic>dirA</italic> and <italic>dirB</italic>, and writing their
+    mean to folder <italic>dirMean</italic>. The format of the input
+    data is automatically detected, and is not specified:</p>
+    <preformat>from imagedata.series import Series
+a = Series('dirA', 'time')
+b = Series('dirB', 'time')
+assert a.shape == b.shape, &quot;Shape of a and b differ&quot;
+
+# Notice how series a and b are treated as NumPy arrays
+c = (a + b) / 2
+c.write('dirMean')</preformat>
+  </sec>
+  <sec id="sorting">
+    <title>Sorting</title>
+    <p>Sorting of DICOM slices is an important feature. Imagedata will
+    sort slices into volumes based on slice location. Volumes may be
+    sorted on various DICOM attributes:</p>
+    <list list-type="bullet">
+      <list-item>
+        <p>‘time’: Dynamic time series, sorted on acquisition time</p>
+      </list-item>
+      <list-item>
+        <p>‘b’: Diffusion weighted series, sorted on diffusion
+        <italic>b</italic> value</p>
+      </list-item>
+      <list-item>
+        <p>‘fa’: Flip angle series, sorted on MR flip angle</p>
+      </list-item>
+      <list-item>
+        <p>‘te’: Sort on MR echo time <italic>TE</italic></p>
+      </list-item>
+    </list>
+    <p>In addition, volumes can be sorted on user-defined
+    attributes.</p>
+    <p>Some non-DICOM formats do not specify the labelling of 4D data.
+    In this case, the sorting can be specified manually.</p>
+  </sec>
+  <sec id="slicing">
+    <title>Slicing</title>
+    <p>Like ndarray, the Series object can be sliced. The imagedata
+    package attempts to maintain the geometry of the sliced data.</p>
+    <preformat>&gt;&gt;&gt; ...
+&gt;&gt;&gt; # Extract slice no. 5
+&gt;&gt;&gt; slice5 = si[5,…]
+&gt;&gt;&gt; slice5.sliceLocations
+array(6.8)
+&gt;&gt;&gt; # Save slice 5 to slice5/ folder
+&gt;&gt;&gt; slice5.write(’slice5/’)</preformat>
+  </sec>
+  <sec id="viewing">
+    <title>Viewing</title>
+    <p>A viewer based on <monospace>matplotlib imshow</monospace>
+    (<xref alt="Hunter, 2007" rid="ref-HunterU003A2007" ref-type="bibr">Hunter,
+    2007</xref>) is included. The viewer lets the user scroll through
+    the image stack, and step through the tags of a 4D dataset. These
+    operations are implemented:</p>
+    <list list-type="bullet">
+      <list-item>
+        <p>Read-out voxel value: Move mouse over.</p>
+      </list-item>
+      <list-item>
+        <p>Window/level adjustment: Move mouse with left key
+        pressed.</p>
+      </list-item>
+      <list-item>
+        <p>Scroll through slices of an image stack: Mouse scroll wheel,
+        or up/down array keys.</p>
+      </list-item>
+      <list-item>
+        <p>Step through tags (time, b-values, etc.): Left/right array
+        keys.</p>
+      </list-item>
+      <list-item>
+        <p>Page through series in a multi-series display:
+        PageUp/PageDown keys.</p>
+      </list-item>
+    </list>
+    <preformat># View a Series instance
+a.show()
+
+# View both a and b Series
+a.show(b)
+
+# View several Series
+a.show([b, c, d])</preformat>
+  </sec>
+  <sec id="draw-a-region-of-interest">
+    <title>Draw a region of interest</title>
+    <p>A region of interest (ROI) can be drawn, producing a mask as a
+    NumPy ndarray. This example will obtain a mask image
+    <monospace>segment</monospace>, convert the original grayscale image
+    into a corresponding RGB image, and mask the green and blue color
+    bands inside the ROI.</p>
+    <preformat>from imagedata.series import Series
+
+T2 = Series('801_Obl T2 TSE HR SENSE/')
+segment = T2.get_roi()
+
+# Convert grayscale image to RGB image
+T2rgb = T2.to_rgb()
+segment_indices = segment == 1
+
+# Clear green and blue components inside segment,
+# leaving the red component
+T2rgb[segment_indices, 1:] = 0
+
+# Display final image where pixels inside the ROI are red
+T2rgb.show()</preformat>
+  </sec>
+  <sec id="converting-data-from-dicom-and-back">
+    <title>Converting data from DICOM and back</title>
+    <p>Some workflows process patient data using a tool that do not
+    accept DICOM data. In order to maintain the coupling to patient
+    data, the data can be converted to <italic>e.g.</italic> NIfTI and
+    back.</p>
+    <sec id="example-using-the-console-application-image_data">
+      <title>Example using the console application image_data</title>
+      <preformat># Original DICOM data in dicomDir/
+image_data --of nifti niftiDir dicomDir
+
+# Now process on Nifti data in niftiDir/,
+# ...
+# leaving the result in niftiResult/.
+
+# Convert the niftiResult back to DICOM,
+# using dicomDir as a template
+image_data --of dicom --template dicomDir dicomResult niftiResult
+
+# The resulting dicomResult will be a new DICOM series
+# that could be added to a PACS
+
+# Set series number and series description before 
+# transmitting to PACS using DICOM transport
+image_data --sernum 1004 --serdes 'Processed data' \
+           dicom://server:104/AETITLE dicomResult</preformat>
+    </sec>
+    <sec id="example-using-python-code">
+      <title>Example using python code</title>
+      <p>This code will store the Series data in a NIfTI format, letting
+      some NIfTI-dependent code produce a result in
+      <italic>niftiResult</italic>. This NIfTI dataset is loaded into a
+      Series object, using the original DICOM data as template to
+      maintain patient and study metadata. Finally, the new dataset is
+      sent to a DICOM server using the DICOM protocol.</p>
+      <preformat>import tempfile
+from imagedata.series import Series
+a = Series('dicomDir')
+
+# Prepare temporary storage for NIfTI data
+with tempfile.TemporaryDirectory() as niftiDir, \
+    tempfile.TemporaryDirectory() as niftiResult:
+    # Explicitly select nifti as output format
+    a.write(niftiDir, formats=['nifti'])
+
+    # Now process on NIfTI data in niftiDir
+    # ...
+    # leaving the result in niftiResult
+
+    # Load the NIfTI data, using original Series `a' as template
+    b = Series(niftiResult, template=a)
+
+# Set series number and series description before
+# transmitting to PACS using DICOM transport
+b.seriesNumber = 1004
+b.seriesDescription = 'Processed data'
+b.write('dicom://server:104/AETITLE')</preformat>
+    </sec>
+  </sec>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>This work is partly funded by a grant from the Regional Health
+  Authority of Western Norway (Helse Vest RHF) (grant no. 911745). The
+  authors want to thank Erlend Hodneland for valuable discussions and
+  feedback.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <ref id="ref-bridge2021highdicom">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Bridge</surname><given-names>Christopher P.</given-names></name>
+        <name><surname>Gorman</surname><given-names>Chris</given-names></name>
+        <name><surname>Pieper</surname><given-names>Steven</given-names></name>
+        <name><surname>Doyle</surname><given-names>Sean W.</given-names></name>
+        <name><surname>Lennerz</surname><given-names>Jochen K.</given-names></name>
+        <name><surname>Kalpathy-Cramer</surname><given-names>Jayashree</given-names></name>
+        <name><surname>Clunie</surname><given-names>David A.</given-names></name>
+        <name><surname>Fedorov</surname><given-names>Andriy Y.</given-names></name>
+        <name><surname>Herrmann</surname><given-names>Markus D.</given-names></name>
+      </person-group>
+      <article-title>Highdicom: A python library for standardized encoding of image annotations and machine learning model outputs in pathology and radiology</article-title>
+      <year iso-8601-date="2021">2021</year>
+      <uri>https://arxiv.org/abs/2106.07806</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-darcy_mason_2021_5543955">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Mason</surname><given-names>Darcy</given-names></name>
+        <name><surname>scaramallion</surname></name>
+        <name><surname>mrbean-bremen</surname></name>
+        <name><surname>rhaxton</surname></name>
+        <name><surname>Suever</surname><given-names>Jonathan</given-names></name>
+        <name><surname>Vanessasaurus</surname></name>
+        <name><surname>Orfanos</surname><given-names>Dimitri Papadopoulos</given-names></name>
+        <name><surname>Lemaitre</surname><given-names>Guillaume</given-names></name>
+        <name><surname>Panchal</surname><given-names>Aditya</given-names></name>
+        <name><surname>Rothberg</surname><given-names>Alex</given-names></name>
+        <name><surname>Herrmann</surname><given-names>Markus D.</given-names></name>
+        <name><surname>Massich</surname><given-names>Joan</given-names></name>
+        <name><surname>Kerns</surname><given-names>James</given-names></name>
+        <name><surname>Golen</surname><given-names>Korijn van</given-names></name>
+        <name><surname>Robitaille</surname><given-names>Thomas</given-names></name>
+        <name><surname>Biggs</surname><given-names>Simon</given-names></name>
+        <name><surname>moloney</surname></name>
+        <name><surname>Bridge</surname><given-names>Chris</given-names></name>
+        <name><surname>Shun-Shin</surname><given-names>Matthew</given-names></name>
+        <name><surname>pawelzajdel</surname></name>
+        <name><surname>Conrad</surname><given-names>Blair</given-names></name>
+        <name><surname>Mattes</surname><given-names>Markus</given-names></name>
+        <name><surname>Lyu</surname><given-names>YoungKi</given-names></name>
+        <name><surname>Morency</surname><given-names>Félix C.</given-names></name>
+        <name><surname>Meine</surname><given-names>Hans</given-names></name>
+        <name><surname>Wortmann</surname><given-names>Joseph</given-names></name>
+        <name><surname>Hahn</surname><given-names>Kevin S.</given-names></name>
+        <name><surname>Wada</surname><given-names>Masahiro</given-names></name>
+        <name><surname>Rachum</surname><given-names>Ram</given-names></name>
+        <name><surname>colonelfazackerley</surname></name>
+      </person-group>
+      <source>Pydicom/pydicom: Pydicom 2.2.2</source>
+      <publisher-name>Zenodo</publisher-name>
+      <year iso-8601-date="2021-10">2021</year><month>10</month>
+      <uri>https://doi.org/10.5281/zenodo.5543955</uri>
+      <pub-id pub-id-type="doi">10.5281/zenodo.5543955</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-itk2002">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Yoo</surname><given-names>TS</given-names></name>
+        <name><surname>Ackerman</surname><given-names>MJ</given-names></name>
+        <name><surname>Lorensen</surname><given-names>WE</given-names></name>
+        <name><surname>Schroeder</surname><given-names>W</given-names></name>
+        <name><surname>Chalana</surname><given-names>V</given-names></name>
+        <name><surname>Aylward</surname><given-names>S</given-names></name>
+        <name><surname>Metaxas</surname><given-names>D</given-names></name>
+        <name><surname>Whitaker</surname><given-names>R</given-names></name>
+      </person-group>
+      <article-title>Engineering and algorithm design for an image processing API: A technical report on ITK – the insight toolkit.</article-title>
+      <source>Stud. Health Technol. Inform.</source>
+      <year iso-8601-date="2002">2002</year>
+      <volume>85</volume>
+      <fpage>586</fpage>
+      <lpage>592</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-harris2020array">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Harris</surname><given-names>Charles R.</given-names></name>
+        <name><surname>Millman</surname><given-names>K. Jarrod</given-names></name>
+        <name><surname>Walt</surname><given-names>Stéfan J. van der</given-names></name>
+        <name><surname>Gommers</surname><given-names>Ralf</given-names></name>
+        <name><surname>Virtanen</surname><given-names>Pauli</given-names></name>
+        <name><surname>Cournapeau</surname><given-names>David</given-names></name>
+        <name><surname>Wieser</surname><given-names>Eric</given-names></name>
+        <name><surname>Taylor</surname><given-names>Julian</given-names></name>
+        <name><surname>Berg</surname><given-names>Sebastian</given-names></name>
+        <name><surname>Smith</surname><given-names>Nathaniel J.</given-names></name>
+        <name><surname>Kern</surname><given-names>Robert</given-names></name>
+        <name><surname>Picus</surname><given-names>Matti</given-names></name>
+        <name><surname>Hoyer</surname><given-names>Stephan</given-names></name>
+        <name><surname>Kerkwijk</surname><given-names>Marten H. van</given-names></name>
+        <name><surname>Brett</surname><given-names>Matthew</given-names></name>
+        <name><surname>Haldane</surname><given-names>Allan</given-names></name>
+        <name><surname>Río</surname><given-names>Jaime Fernández del</given-names></name>
+        <name><surname>Wiebe</surname><given-names>Mark</given-names></name>
+        <name><surname>Peterson</surname><given-names>Pearu</given-names></name>
+        <name><surname>Gérard-Marchant</surname><given-names>Pierre</given-names></name>
+        <name><surname>Sheppard</surname><given-names>Kevin</given-names></name>
+        <name><surname>Reddy</surname><given-names>Tyler</given-names></name>
+        <name><surname>Weckesser</surname><given-names>Warren</given-names></name>
+        <name><surname>Abbasi</surname><given-names>Hameer</given-names></name>
+        <name><surname>Gohlke</surname><given-names>Christoph</given-names></name>
+        <name><surname>Oliphant</surname><given-names>Travis E.</given-names></name>
+      </person-group>
+      <article-title>Array programming with NumPy</article-title>
+      <source>Nature</source>
+      <publisher-name>Springer Science; Business Media LLC</publisher-name>
+      <year iso-8601-date="2020-09">2020</year><month>09</month>
+      <volume>585</volume>
+      <issue>7825</issue>
+      <uri>https://doi.org/10.1038/s41586-020-2649-2</uri>
+      <pub-id pub-id-type="doi">10.1038/s41586-020-2649-2</pub-id>
+      <fpage>357</fpage>
+      <lpage>362</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-nifti1">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Cox</surname><given-names>RW</given-names></name>
+        <name><surname>Ashburner</surname><given-names>J</given-names></name>
+        <name><surname>Breman</surname><given-names>H</given-names></name>
+        <name><surname>Fissell</surname><given-names>K</given-names></name>
+        <name><surname>Haselgrove</surname><given-names>C</given-names></name>
+        <name><surname>Holmes</surname><given-names>CJ</given-names></name>
+        <name><surname>Lancaster</surname><given-names>JL</given-names></name>
+        <name><surname>Rex</surname><given-names>DE</given-names></name>
+        <name><surname>Smith</surname><given-names>SM</given-names></name>
+        <name><surname>Woodward</surname><given-names>JB</given-names></name>
+        <name><surname>Strother</surname><given-names>SC</given-names></name>
+      </person-group>
+      <article-title>A (sort of) new image data format standard: NiFTI-1</article-title>
+      <publisher-name>Presented at the 10th Annual Meeting of the Organization for Human Brain Mapping</publisher-name>
+      <year iso-8601-date="2004">2004</year>
+    </element-citation>
+  </ref>
+  <ref id="ref-pythonEntryPoints">
+    <element-citation>
+      <person-group person-group-type="author">
+        <string-name>PyPA</string-name>
+      </person-group>
+      <article-title>Python packing user guide, creating and discovering plugins</article-title>
+      <publisher-name>https://packaging.python.org/en/latest/guides/creating-and-discovering-plugins/</publisher-name>
+      <year iso-8601-date="2022">2022</year>
+    </element-citation>
+  </ref>
+  <ref id="ref-GDCMReferenceManual">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Malaterre</surname><given-names>Mathieu</given-names></name>
+      </person-group>
+      <source>GDCM Reference Manual</source>
+      <year iso-8601-date="2008">2008</year>
+      <uri>http://gdcm.sourceforge.net/gdcm.pdf </uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-marcus2007">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Marcus</surname><given-names>D S</given-names></name>
+        <name><surname>Olsen</surname><given-names>T R</given-names></name>
+        <name><surname>Ramaratnam</surname><given-names>M</given-names></name>
+        <name><surname>Buckner</surname><given-names>R L</given-names></name>
+      </person-group>
+      <article-title>The Extensible Neuroimaging Archive Toolkit: An informatics platform for managing, exploring, and sharing neuroimaging data</article-title>
+      <source>Neuroinformatics</source>
+      <year iso-8601-date="2007">2007</year>
+      <volume>5(1)</volume>
+      <pub-id pub-id-type="doi">10.1385/ni:5:1:11</pub-id>
+      <fpage>11</fpage>
+      <lpage>34</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-FSL2004">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Smith</surname><given-names>S M</given-names></name>
+        <name><surname>Jenkonson</surname><given-names>M</given-names></name>
+        <name><surname>Woolrich</surname><given-names>M W</given-names></name>
+        <name><surname>Beckmann</surname><given-names>C F</given-names></name>
+        <name><surname>Behrens</surname><given-names>T E J</given-names></name>
+        <name><surname>Johansen-Berg</surname><given-names>H</given-names></name>
+        <name><surname>Bannister</surname><given-names>P R</given-names></name>
+        <name><surname>Luca</surname><given-names>M De</given-names></name>
+        <name><surname>Drobnjak</surname><given-names>I</given-names></name>
+        <name><surname>Flitney</surname><given-names>D E</given-names></name>
+        <name><surname>Niazy</surname><given-names>R</given-names></name>
+        <name><surname>Saunders</surname><given-names>J</given-names></name>
+        <name><surname>Vickers</surname><given-names>J</given-names></name>
+        <name><surname>Zhang</surname><given-names>Y</given-names></name>
+        <name><surname>Stefano</surname><given-names>N De</given-names></name>
+        <name><surname>Brady</surname><given-names>J M</given-names></name>
+        <name><surname>Matthews</surname><given-names>P M</given-names></name>
+      </person-group>
+      <article-title>Advances in functional and structural MR image analysis and implementation as FSL</article-title>
+      <source>NeuroImage</source>
+      <year iso-8601-date="2004">2004</year>
+      <volume>23(S1)</volume>
+      <pub-id pub-id-type="doi">10.1016/j.neuroimage.2004.07.051</pub-id>
+      <fpage>208</fpage>
+      <lpage>219</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-nibabel2020">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Brett</surname><given-names>Matthew</given-names></name>
+        <name><surname>Markiewicz</surname><given-names>Christopher J.</given-names></name>
+        <name><surname>Hanke</surname><given-names>Michael</given-names></name>
+        <name><surname>Côté</surname><given-names>Marc-Alexandre</given-names></name>
+        <name><surname>Cipollini</surname><given-names>Ben</given-names></name>
+        <name><surname>McCarthy</surname><given-names>Paul</given-names></name>
+        <name><surname>Jarecka</surname><given-names>Dorota</given-names></name>
+        <name><surname>Cheng</surname><given-names>Christopher P.</given-names></name>
+        <name><surname>Halchenko</surname><given-names>Yaroslav O.</given-names></name>
+        <name><surname>Cottaar</surname><given-names>Michiel</given-names></name>
+        <name><surname>al.</surname></name>
+      </person-group>
+      <article-title>Nipy/nibabel: 3.2.1</article-title>
+      <publisher-name>Zenodo</publisher-name>
+      <year iso-8601-date="2020-11">2020</year><month>11</month>
+      <pub-id pub-id-type="doi">10.5281/zenodo.4295521</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-HunterU003A2007">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Hunter</surname><given-names>J. D.</given-names></name>
+      </person-group>
+      <article-title>Matplotlib: A 2D graphics environment</article-title>
+      <source>Computing in Science &amp; Engineering</source>
+      <publisher-name>IEEE COMPUTER SOC</publisher-name>
+      <year iso-8601-date="2007">2007</year>
+      <volume>9</volume>
+      <issue>3</issue>
+      <pub-id pub-id-type="doi">10.1109/MCSE.2007.55</pub-id>
+      <fpage>90</fpage>
+      <lpage>95</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-2020SciPy-NMeth">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Virtanen</surname><given-names>Pauli</given-names></name>
+        <name><surname>Gommers</surname><given-names>Ralf</given-names></name>
+        <name><surname>Oliphant</surname><given-names>Travis E.</given-names></name>
+        <name><surname>Haberland</surname><given-names>Matt</given-names></name>
+        <name><surname>Reddy</surname><given-names>Tyler</given-names></name>
+        <name><surname>Cournapeau</surname><given-names>David</given-names></name>
+        <name><surname>Burovski</surname><given-names>Evgeni</given-names></name>
+        <name><surname>Peterson</surname><given-names>Pearu</given-names></name>
+        <name><surname>Weckesser</surname><given-names>Warren</given-names></name>
+        <name><surname>Bright</surname><given-names>Jonathan</given-names></name>
+        <name><surname>van der Walt</surname><given-names>Stéfan J.</given-names></name>
+        <name><surname>Brett</surname><given-names>Matthew</given-names></name>
+        <name><surname>Wilson</surname><given-names>Joshua</given-names></name>
+        <name><surname>Millman</surname><given-names>K. Jarrod</given-names></name>
+        <name><surname>Mayorov</surname><given-names>Nikolay</given-names></name>
+        <name><surname>Nelson</surname><given-names>Andrew R. J.</given-names></name>
+        <name><surname>Jones</surname><given-names>Eric</given-names></name>
+        <name><surname>Kern</surname><given-names>Robert</given-names></name>
+        <name><surname>Larson</surname><given-names>Eric</given-names></name>
+        <name><surname>Carey</surname><given-names>C J</given-names></name>
+        <name><surname>Polat</surname><given-names>İlhan</given-names></name>
+        <name><surname>Feng</surname><given-names>Yu</given-names></name>
+        <name><surname>Moore</surname><given-names>Eric W.</given-names></name>
+        <name><surname>VanderPlas</surname><given-names>Jake</given-names></name>
+        <name><surname>Laxalde</surname><given-names>Denis</given-names></name>
+        <name><surname>Perktold</surname><given-names>Josef</given-names></name>
+        <name><surname>Cimrman</surname><given-names>Robert</given-names></name>
+        <name><surname>Henriksen</surname><given-names>Ian</given-names></name>
+        <name><surname>Quintero</surname><given-names>E. A.</given-names></name>
+        <name><surname>Harris</surname><given-names>Charles R.</given-names></name>
+        <name><surname>Archibald</surname><given-names>Anne M.</given-names></name>
+        <name><surname>Ribeiro</surname><given-names>Antônio H.</given-names></name>
+        <name><surname>Pedregosa</surname><given-names>Fabian</given-names></name>
+        <name><surname>van Mulbregt</surname><given-names>Paul</given-names></name>
+        <string-name>SciPy 1.0 Contributors</string-name>
+      </person-group>
+      <article-title>SciPy 1.0: Fundamental Algorithms for Scientific Computing in Python</article-title>
+      <source>Nature Methods</source>
+      <year iso-8601-date="2020">2020</year>
+      <volume>17</volume>
+      <pub-id pub-id-type="doi">10.1038/s41592-019-0686-2</pub-id>
+      <fpage>261</fpage>
+      <lpage>272</lpage>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
