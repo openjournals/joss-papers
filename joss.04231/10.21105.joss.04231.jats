@@ -1,0 +1,286 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">4231</article-id>
+<article-id pub-id-type="doi">10.21105/joss.04231</article-id>
+<title-group>
+<article-title>lintegrate: A C/Python numerical integration library for
+working in log-space</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">0000-0003-4548-526X</contrib-id>
+<name>
+<surname>Pitkin</surname>
+<given-names>Matthew</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Department of Physics, Lancaster University, Lancaster, UK,
+LA1 4YB</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2022-02-11">
+<day>11</day>
+<month>2</month>
+<year>2022</year>
+</pub-date>
+<volume>7</volume>
+<issue>73</issue>
+<fpage>4231</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2022</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>numerical integration</kwd>
+<kwd>GSL</kwd>
+<kwd>C</kwd>
+<kwd>Python</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p>There are many situations in which the integral of a function must
+  be evaluated numerically between given limits. For C codes, there is a
+  range of numerical integration (sometimes called numerical quadrature)
+  functions provided within the GNU Scientific Library (GSL)
+  (<xref alt="Galassi et al., 2009" rid="ref-GSL" ref-type="bibr">Galassi
+  et al., 2009</xref>). However, in situations where the integrand has
+  an extremely large dynamic range these GSL functions can fail due to
+  numerical instability. One way to get around numerical instability
+  issues is to work with the natural logarithm of the function. The
+  logarithm of the function cannot simply be integrated as this will not
+  produce the logarithm of the integral of the original function.
+  lintegrate provides a range of C integration functions, equivalent to
+  functions in GSL, that allow the integration of a function when only
+  working with the natural logarithm of the function is computationally
+  practical. The result that is returned is the natural logarithm of the
+  integral of the underlying function. lintegrate also provides a Python
+  (<xref alt="vanRossum, 1995" rid="ref-vanrossum1995python" ref-type="bibr">vanRossum,
+  1995</xref>) module for accessing some of these functions in
+  Python.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p>A particular case where the natural logarithm of a function is
+  generally numerically favourable is when evaluating likelihoods in
+  statistical applications. For example, the Gaussian likelihood of a
+  model <inline-formula><alternatives>
+  <tex-math><![CDATA[m(\vec{\theta})]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>m</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mover><mml:mi>θ</mml:mi><mml:mo accent="true">⃗</mml:mo></mml:mover><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>,
+  defined by a set of model parameters <inline-formula><alternatives>
+  <tex-math><![CDATA[\vec{\theta}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mover><mml:mi>θ</mml:mi><mml:mo accent="true">⃗</mml:mo></mml:mover></mml:math></alternatives></inline-formula>
+  and given a data set <inline-formula><alternatives>
+  <tex-math><![CDATA[\mathbf{d}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mstyle mathvariant="bold"><mml:mi>𝐝</mml:mi></mml:mstyle></mml:math></alternatives></inline-formula>
+  consisting <inline-formula><alternatives>
+  <tex-math><![CDATA[N]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>N</mml:mi></mml:math></alternatives></inline-formula>
+  points, is</p>
+  <p><named-content id="eqU003Alikelihood" content-type="equation"><disp-formula><alternatives>
+  <tex-math><![CDATA[\label{eq:likelihood}
+  L(\vec{\theta}) \propto \exp{\left(-\sum_{i=1}^N \frac{(d_i - m_i(\vec{\theta}))^2}{2\sigma_i^2}\right)},]]></tex-math>
+  <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>L</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mover><mml:mi>θ</mml:mi><mml:mo accent="true">⃗</mml:mo></mml:mover><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>∝</mml:mo><mml:mo>exp</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mo>−</mml:mo><mml:munderover><mml:mo>∑</mml:mo><mml:mrow><mml:mi>i</mml:mi><mml:mo>=</mml:mo><mml:mn>1</mml:mn></mml:mrow><mml:mi>N</mml:mi></mml:munderover><mml:mfrac><mml:msup><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>d</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mo>−</mml:mo><mml:msub><mml:mi>m</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mover><mml:mi>θ</mml:mi><mml:mo accent="true">⃗</mml:mo></mml:mover><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mn>2</mml:mn></mml:msup><mml:mrow><mml:mn>2</mml:mn><mml:msubsup><mml:mi>σ</mml:mi><mml:mi>i</mml:mi><mml:mn>2</mml:mn></mml:msubsup></mml:mrow></mml:mfrac><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>,</mml:mo></mml:mrow></mml:math></alternatives></disp-formula></named-content></p>
+  <p>where <inline-formula><alternatives>
+  <tex-math><![CDATA[\sigma_i^2]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msubsup><mml:mi>σ</mml:mi><mml:mi>i</mml:mi><mml:mn>2</mml:mn></mml:msubsup></mml:math></alternatives></inline-formula>
+  is an estimate of the noise variance for point
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[i]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>i</mml:mi></mml:math></alternatives></inline-formula>.
+  Evaluating the exponent for a range of <inline-formula><alternatives>
+  <tex-math><![CDATA[\vec{\theta}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mover><mml:mi>θ</mml:mi><mml:mo accent="true">⃗</mml:mo></mml:mover></mml:math></alternatives></inline-formula>
+  values will often lead to a numbers that breach the limits of values
+  that are storable as double precision floating point numbers and/or
+  have an extremely large dynamic range. In these cases, when performing
+  marginalisation (i.e., integration) over some subset of the parameters
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[\vec{\theta}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mover><mml:mi>θ</mml:mi><mml:mo accent="true">⃗</mml:mo></mml:mover></mml:math></alternatives></inline-formula>,
+  e.g.,</p>
+  <p><named-content id="eqU003AZ" content-type="equation"><disp-formula><tex-math><![CDATA[\label{eq:Z}
+  Z = \int^{\theta_1} L(\vec{\theta}) \pi(\theta_1) {\rm d}\theta_1,]]></tex-math></disp-formula></named-content></p>
+  <p>where <inline-formula><alternatives>
+  <tex-math><![CDATA[\pi(\theta_1)]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>π</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>θ</mml:mi><mml:mn>1</mml:mn></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>
+  is the prior probability distribution for the parameter
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[\theta_1]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>θ</mml:mi><mml:mn>1</mml:mn></mml:msub></mml:math></alternatives></inline-formula>,
+  it is not possible to work directly with
+  <xref alt="Equation 1" rid="eqU003Alikelihood">Equation 1</xref>.
+  Instead, it helps to work with the natural logarithm of the
+  likelihood:</p>
+  <p><named-content id="eqU003Alnlikelihood" content-type="equation"><disp-formula><alternatives>
+  <tex-math><![CDATA[\label{eq:lnlikelihood}
+  \ln{L(\vec{\theta})} = C - \sum_{i=1}^N \frac{(d_i - m_i(\vec{\theta}))^2}{2\sigma_i^2}.]]></tex-math>
+  <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mo>ln</mml:mo><mml:mrow><mml:mi>L</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mover><mml:mi>θ</mml:mi><mml:mo accent="true">⃗</mml:mo></mml:mover><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow><mml:mo>=</mml:mo><mml:mi>C</mml:mi><mml:mo>−</mml:mo><mml:munderover><mml:mo>∑</mml:mo><mml:mrow><mml:mi>i</mml:mi><mml:mo>=</mml:mo><mml:mn>1</mml:mn></mml:mrow><mml:mi>N</mml:mi></mml:munderover><mml:mfrac><mml:msup><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>d</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mo>−</mml:mo><mml:msub><mml:mi>m</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mover><mml:mi>θ</mml:mi><mml:mo accent="true">⃗</mml:mo></mml:mover><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mn>2</mml:mn></mml:msup><mml:mrow><mml:mn>2</mml:mn><mml:msubsup><mml:mi>σ</mml:mi><mml:mi>i</mml:mi><mml:mn>2</mml:mn></mml:msubsup></mml:mrow></mml:mfrac><mml:mi>.</mml:mi></mml:mrow></mml:math></alternatives></disp-formula></named-content></p>
+  <p>lintegrate allows the calculation of the logarithm of
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[Z]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>Z</mml:mi></mml:math></alternatives></inline-formula>
+  in <xref alt="Equation 2" rid="eqU003AZ">Equation 2</xref>, while
+  working with the natural logarthim of integrands such as in
+  <xref alt="Equation 3" rid="eqU003Alnlikelihood">Equation 3</xref>.</p>
+  <p>lintegrate was originally developed to marginalise probability
+  distributions for the hierarchical Bayesian inference of pulsar
+  ellipticity distributions in Pitkin et al.
+  (<xref alt="2018" rid="ref-PitkinU003A2018" ref-type="bibr">2018</xref>).
+  In Nash &amp; Durkan
+  (<xref alt="2019" rid="ref-NashU003A2019" ref-type="bibr">2019</xref>)
+  and Strauss &amp; Oliva
+  (<xref alt="2021" rid="ref-StraussU003A2021" ref-type="bibr">2021</xref>),
+  lintegrate has been used to calculate the “true” value of integrals to
+  compare against values learned or inferred through other methods as a
+  form of validation.</p>
+</sec>
+<sec id="availability-and-development">
+  <title>Availability and development</title>
+  <p>lintegrate is open source code, released under a GPL-3.0 license.
+  The source code is publically hosted on
+  <ext-link ext-link-type="uri" xlink:href="https://github.com/mattpitkin/lintegrate">GitHub</ext-link>,
+  while release versions of the Python library are available through
+  <ext-link ext-link-type="uri" xlink:href="https://pypi.org/project/lintegrate/">PyPI</ext-link>
+  and
+  <ext-link ext-link-type="uri" xlink:href="https://anaconda.org/conda-forge/lintegrate">conda-forge</ext-link>.
+  Documentation of the C library functions and Python interface can be
+  found on
+  <ext-link ext-link-type="uri" xlink:href="https://lintegrate.readthedocs.io/en/latest/">Read
+  the Docs</ext-link>, including the API and example usage.</p>
+  <p>Contributions to the code are welcome via the GitHub
+  <ext-link ext-link-type="uri" xlink:href="https://github.com/mattpitkin/lintegrate/issues">issues
+  tracker</ext-link> or
+  <ext-link ext-link-type="uri" xlink:href="https://github.com/mattpitkin/lintegrate/pulls">Pull
+  Requests</ext-link>. Continuous integration is set up to run a test
+  suite on the code when any changes are made.</p>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>We thank
+  <ext-link ext-link-type="uri" xlink:href="https://github.com/maxbiostat">Luiz
+  Max F. Carvalho</ext-link> for adding an example of accessing the
+  Python module through R. We thank
+  <ext-link ext-link-type="uri" xlink:href="https://github.com/duncanmmacleod">Duncan
+  Macleod</ext-link> for help with packaging the library for
+  distribution via conda.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <ref id="ref-GSL">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Galassi</surname><given-names>M.</given-names></name>
+        <name><surname>Davies</surname><given-names>J.</given-names></name>
+        <name><surname>Theiler</surname><given-names>J.</given-names></name>
+        <name><surname>Gough</surname><given-names>B.</given-names></name>
+        <name><surname>Jungman</surname><given-names>G.</given-names></name>
+        <name><surname>Alken</surname><given-names>P.</given-names></name>
+        <name><surname>Booth</surname><given-names>M.</given-names></name>
+        <name><surname>Rossi</surname><given-names>F.</given-names></name>
+        <name><surname>Ulerich</surname><given-names>R.</given-names></name>
+      </person-group>
+      <source>GNU Scientific Library Reference Manual (3rd Ed.)</source>
+      <person-group person-group-type="editor">
+        <name><surname>Gough</surname><given-names>B.</given-names></name>
+      </person-group>
+      <publisher-name>Network Theory Ltd</publisher-name>
+      <year iso-8601-date="2009">2009</year>
+      <isbn>0954612078</isbn>
+    </element-citation>
+  </ref>
+  <ref id="ref-PitkinU003A2018">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Pitkin</surname><given-names>M.</given-names></name>
+        <name><surname>Messenger</surname><given-names>C.</given-names></name>
+        <name><surname>Fan</surname><given-names>X.</given-names></name>
+      </person-group>
+      <article-title>Hierarchical Bayesian method for detecting continuous gravitational waves from an ensemble of pulsars</article-title>
+      <source>Physical Review D</source>
+      <year iso-8601-date="2018-09">2018</year><month>09</month>
+      <volume>98</volume>
+      <issue>6</issue>
+      <uri>https://arxiv.org/abs/1807.06726</uri>
+      <pub-id pub-id-type="doi">10.1103/PhysRevD.98.063001</pub-id>
+      <fpage>063001</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-NashU003A2019">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Nash</surname><given-names>Charlie</given-names></name>
+        <name><surname>Durkan</surname><given-names>Conor</given-names></name>
+      </person-group>
+      <article-title>Autoregressive energy machines</article-title>
+      <source>Proceedings of the 36th International Conference on Machine Learning</source>
+      <person-group person-group-type="editor">
+        <name><surname>Chaudhuri</surname><given-names>Kamalika</given-names></name>
+        <name><surname>Salakhutdinov</surname><given-names>Ruslan</given-names></name>
+      </person-group>
+      <publisher-name>PMLR</publisher-name>
+      <year iso-8601-date="2019">2019</year>
+      <volume>97</volume>
+      <uri>https://proceedings.mlr.press/v97/durkan19a.html</uri>
+      <fpage>1735</fpage>
+      <lpage>1744</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-StraussU003A2021">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Strauss</surname><given-names>Ryan R.</given-names></name>
+        <name><surname>Oliva</surname><given-names>Junier B.</given-names></name>
+      </person-group>
+      <article-title>Arbitrary conditional distributions with energy</article-title>
+      <source>arXiv:2102.04426</source>
+      <year iso-8601-date="2021">2021</year>
+      <uri>https://arxiv.org/abs/2102.04426</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-vanrossum1995python">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>vanRossum</surname><given-names>Guido</given-names></name>
+      </person-group>
+      <article-title>Python reference manual</article-title>
+      <source>Department of Computer Science [CS]</source>
+      <publisher-name>CWI</publisher-name>
+      <year iso-8601-date="1995">1995</year>
+      <issue>R 9525</issue>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
