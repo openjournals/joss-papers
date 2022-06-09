@@ -1,0 +1,846 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">4157</article-id>
+<article-id pub-id-type="doi">10.21105/joss.04157</article-id>
+<title-group>
+<article-title>GridapDistributed: a massively parallel finite element
+toolbox in Julia</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">0000-0003-2391-4086</contrib-id>
+<name>
+<surname>Badia</surname>
+<given-names>Santiago</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+<xref ref-type="aff" rid="aff-2"/>
+</contrib>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">0000-0001-5751-4561</contrib-id>
+<name>
+<surname>Martín</surname>
+<given-names>Alberto F.</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+<xref ref-type="corresp" rid="cor-1"><sup>*</sup></xref>
+</contrib>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">0000-0003-3667-443X</contrib-id>
+<name>
+<surname>Verdugo</surname>
+<given-names>Francesc</given-names>
+</name>
+<xref ref-type="aff" rid="aff-2"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>School of Mathematics, Monash University, Clayton,
+Victoria, 3800, Australia.</institution>
+</institution-wrap>
+</aff>
+<aff id="aff-2">
+<institution-wrap>
+<institution>Centre Internacional de Mètodes Numèrics en Enginyeria,
+Esteve Terrades 5, E-08860 Castelldefels, Spain.</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<author-notes>
+<corresp id="cor-1">* E-mail: <email></email></corresp>
+</author-notes>
+<volume>7</volume>
+<issue>74</issue>
+<fpage>4157</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2022</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>Julia</kwd>
+<kwd>Partial Differential Equations</kwd>
+<kwd>Finite Elements</kwd>
+<kwd>Distributed memory parallelization</kwd>
+<kwd>High Performance Computing</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary-and-statement-of-need">
+  <title>Summary and statement of need</title>
+  <p>The ever-increasing demand for resolution and accuracy in
+  mathematical models of physical processes governed by systems of
+  Partial Differential Equations (PDEs) can only be addressed using
+  fully-parallel advanced numerical discretization methods and scalable
+  solution methods, thus able to exploit the vast amount of
+  computational resources in state-of-the-art supercomputers. To this
+  end, GridapDistributed is a registered Julia
+  (<xref alt="Bezanson et al., 2017" rid="ref-Bezanson2017" ref-type="bibr">Bezanson
+  et al., 2017</xref>) software package which provides fully-parallel
+  distributed memory data structures and associated methods for the
+  Finite Element (FE) numerical solution of PDEs on parallel computers.
+  Thus, it can be run on multi-core CPU desktop computers at small
+  scales, as well as on HPC clusters and supercomputers at medium/large
+  scales. The data structures in GridapDistributed are designed to
+  mirror as far as possible their counterparts in the Gridap
+  (<xref alt="Badia &amp; Verdugo, 2020" rid="ref-Badia2020" ref-type="bibr">Badia
+  &amp; Verdugo, 2020</xref>) Julia software package, while
+  implementing/leveraging most of their abstract interfaces (see
+  Francesc Verdugo &amp; Badia
+  (<xref alt="2022" rid="ref-VerdugoU003A2021" ref-type="bibr">2022</xref>)
+  for a detailed overview of the software design of Gridap). As a
+  result, sequential Julia scripts written in the high-level Application
+  Programming Interface (API) of Gridap can be used verbatim up to minor
+  adjustments in a parallel distributed memory context using
+  GridapDistributed. This equips end-users with a tool for the
+  development of simulation codes able to solve real-world application
+  problems on massively parallel supercomputers while using a highly
+  expressive, compact syntax that resembles mathematical notation. This
+  is indeed one of the main advantages of GridapDistributed and a major
+  design goal that we pursue.</p>
+  <p>In order to scale FE simulations to large core counts, the mesh
+  used to discretize the computational domain on which the PDE is posed
+  must be partitioned (distributed) among the parallel tasks such that
+  each of these only holds a local portion of the global mesh. The same
+  requirement applies to the rest of data structures in the FE
+  simulation pipeline, i.e., FE space, linear system, solvers, data
+  output, etc. The local portion of each task is composed by a set of
+  cells that it owns, i.e., the <italic>local cells</italic> of the
+  task, and a set of off-processor cells (owned by remote processors)
+  which are in touch with its local cells, i.e., the <italic>ghost
+  cells</italic> of the task
+  (<xref alt="Badia et al., 2020" rid="ref-Badia2020a" ref-type="bibr">Badia
+  et al., 2020</xref>). This overlapped mesh partition is used by
+  GridapDistributed, among others, to exchange data among nearest
+  neighbors, and to glue together global Degrees of Freedom (DoFs) which
+  are sitting on the interface among subdomains. Following this design
+  principle, GridapDistributed provides scalable parallel data
+  structures and associated methods for simple grid handling (in
+  particular, Cartesian-like meshes of arbitrary-dimensional,
+  topologically n-cube domains), FE spaces setup, and distributed linear
+  system assembly. It is in our future plans to provide highly scalable
+  linear and nonlinear solvers tailored for the FE discretization of
+  PDEs (e.g., linear and nonlinear matrix-free geometric multigrid and
+  domain decomposition preconditioners). In the meantime, however,
+  GridapDistributed can be combined with other Julia packages in order
+  to realize the full potential required in real-world applications.
+  These packages and their relation with GridapDistributed are
+  overviewed in the next section.</p>
+  <p>There are a number of high quality open source parallel finite
+  element packages available in the literature. Some examples are
+  deal.II
+  (<xref alt="Arndt et al., 2021" rid="ref-dealII93" ref-type="bibr">Arndt
+  et al., 2021</xref>), libMesh
+  (<xref alt="Kirk et al., 2006" rid="ref-libMeshPaper" ref-type="bibr">Kirk
+  et al., 2006</xref>), MFEM
+  (<xref alt="Anderson et al., 2021" rid="ref-mfem" ref-type="bibr">Anderson
+  et al., 2021</xref>), FEMPAR
+  (<xref alt="Badia et al., 2017" rid="ref-Badia2017" ref-type="bibr">Badia
+  et al., 2017</xref>), FEniCS
+  (<xref alt="Logg et al., 2012" rid="ref-fenics-book" ref-type="bibr">Logg
+  et al., 2012</xref>), or FreeFEM++
+  (<xref alt="Hecht, 2012" rid="ref-freefem" ref-type="bibr">Hecht,
+  2012</xref>), to name a few. All these packages have their own set of
+  features, potentials, and limitations. Among these, FEniCS and
+  FreeFEM++ are perhaps the closest ones in scope and spirit to the
+  packages in the Gridap ecosystem. A hallmark of Gridap ecosystem
+  packages compared to FreeFEM++ and FEniCS is that a very expressive
+  and compact (yet efficient) syntax is transformed into low-level code
+  using the Julia JIT compiler and thus they do not need a sophisticated
+  compiler of variational forms nor a more intricate workflow (e.g., a
+  Python front-end and a C/C++ back-end).</p>
+</sec>
+<sec id="building-blocks-and-composability">
+  <title>Building blocks and composability</title>
+  <p><xref alt="Figure 1" rid="figU003Apackages">Figure 1</xref> depicts
+  the relation among GridapDistributed and other packages in the Julia
+  package ecosystem. The interaction of GridapDistributed and its
+  dependencies is mainly designed with separation of concerns in mind
+  towards high composability and modularity. On the one hand, Gridap
+  provides a rich set of abstract types/interfaces suitable for the FE
+  solution of PDEs (see Francesc Verdugo &amp; Badia
+  (<xref alt="2022" rid="ref-VerdugoU003A2021" ref-type="bibr">2022</xref>)
+  for more details). It also provides realizations (implementations) of
+  these abstractions tailored to serial/multi-threaded computing
+  environments. GridapDistributed <bold>implements</bold> these
+  abstractions for parallel distributed-memory computing environments.
+  To this end, GridapDistributed also leverages (<bold>uses</bold>) the
+  serial realizations in Gridap and associated methods to handle the
+  local portion on each parallel task. (See
+  <xref alt="Figure 1" rid="figU003Apackages">Figure 1</xref> arrow
+  labels.) On the other hand, GridapDistributed relies on
+  PartitionedArrays
+  (<xref alt="F. Verdugo, 2021" rid="ref-parrays" ref-type="bibr">F.
+  Verdugo, 2021</xref>) in order to handle the parallel execution model
+  (e.g., message-passing via the Message Passing Interface (MPI)
+  (<xref alt="Message Passing Interface Forum, 2021" rid="ref-mpi40" ref-type="bibr">Message
+  Passing Interface Forum, 2021</xref>)), global data distribution
+  layout, and communication among tasks. PartitionedArrays also provides
+  a parallel implementation of partitioned global linear systems (i.e.,
+  linear algebra vectors and sparse matrices) as needed in grid-based
+  numerical simulations. While PartitionedArrays is an stand-alone
+  package, segregated from GridapDistributed, it was designed with
+  parallel FE packages such as GridapDistributed in mind. In any case,
+  GridapDistributed is designed so that a different distributed linear
+  algebra library from PartitionedArrays might be used as well, as far
+  as it is able to provide the same functionality.</p>
+  <fig>
+    <caption><p>GridapDistributed and its relation to other packages in
+    the Julia package ecosystem. In this diagram, each rectangle
+    represents a Julia package, while the (directed) arrows represent
+    relations (dependencies) among packages. Both the direction of the
+    arrow and the label attached to the arrows are used to denote the
+    nature of the relation. Thus, e.g., GridapDistributed depends on
+    Gridap and PartitionedArrays, and GridapPETSc depends on Gridap and
+    PartitionedArrays. Note that, in the diagram, the arrow direction is
+    relevant, e.g., GridapP4est depends on GridapDistributed but not
+    conversely.
+    <styled-content id="figU003Apackages"></styled-content></p></caption>
+    <graphic mimetype="image" mime-subtype="png" xlink:href="packages.png" xlink:title="" />
+  </fig>
+  <p>As mentioned earlier, GridapDistributed offers a built-in
+  Cartesian-like mesh generator, and does not provide, by now, built-in
+  highly scalable solvers. To address this, as required by real-world
+  applications, one can combine GridapDistributed with GridapP4est
+  (<xref alt="Martin, 2021" rid="ref-gridap4est" ref-type="bibr">Martin,
+  2021</xref>) and GridapPETSc
+  (<xref alt="F. Verdugo et al., 2021" rid="ref-gridapetsc" ref-type="bibr">F.
+  Verdugo et al., 2021</xref>) (see
+  <xref alt="Figure 1" rid="figU003Apackages">Figure 1</xref>). The
+  former provides a mesh data structure that leverages the p4est library
+  as highly scalable mesh generation engine
+  (<xref alt="Burstedde et al., 2011" rid="ref-Burstedde2011" ref-type="bibr">Burstedde
+  et al., 2011</xref>). This engine can mesh domains that can be
+  expressed as a forest of adaptive octrees. The latter enables the
+  usage of the highly scalable solvers (e.g., algebraic multigrid) in
+  the PETSc library
+  (<xref alt="Balay et al., 2021" rid="ref-petsc-user-ref" ref-type="bibr">Balay
+  et al., 2021</xref>) to be combined with GridapDistributed.</p>
+</sec>
+<sec id="usage-example">
+  <title>Usage example</title>
+  <p>In order to confirm our previous claims on expressiveness,
+  conciseness and productivity (e.g., a very small number of lines of
+  code), the example Julia script below illustrates how one may use
+  GridapDistributed in order to solve, in parallel, a 2D Poisson problem
+  defined on the unit square. (In order to fully understand the code
+  snippet, familiarity with the high level API of Gridap is assumed.)
+  The domain is discretized using the parallel Cartesian-like mesh
+  generator built-in in GridapDistributed. The only minimal burden posed
+  on the programmer versus Gridap is a call to the
+  <monospace>prun</monospace> function of PartitionedArrays right at the
+  beginning of the program. With this function, the programmer sets up
+  the PartitionedArrays communication backend (i.e., MPI communication
+  backend in the example), specifies the number of parts and their
+  layout (i.e., <monospace>(2,2)</monospace> 2D layout in the example),
+  and provides a function (using Julia do-block syntax for function
+  arguments in the example) to be run on each part. This function is
+  equivalent to a sequential Gridap script, except for the
+  <monospace>CartesianDiscreteModel</monospace> call, which, in
+  GridapDistributed, also requires the <monospace>parts</monospace>
+  argument passed back by the <monospace>prun</monospace> function. In a
+  typical cluster environment, this example would be executed on 4 MPI
+  tasks from a terminal as
+  <monospace>mpirun -n 4 julia --project=. example.jl</monospace>.</p>
+  <code language="julia">using Gridap
+using GridapDistributed
+using PartitionedArrays
+partition = (2,2)
+prun(mpi,partition) do parts
+  domain = (0,1,0,1)
+  mesh_partition = (4,4)
+  model = CartesianDiscreteModel(parts,domain,mesh_partition)
+  order = 2
+  u((x,y)) = (x+y)^order
+  f(x) = -Δ(u,x)
+  reffe = ReferenceFE(lagrangian,Float64,order)
+  V = TestFESpace(model,reffe,dirichlet_tags=&quot;boundary&quot;)
+  U = TrialFESpace(u,V)
+  Ω = Triangulation(model)
+  dΩ = Measure(Ω,2*order)
+  a(u,v) = ∫( ∇(v)·∇(u) )dΩ
+  l(v) = ∫( v*f )dΩ
+  op = AffineFEOperator(a,l,U,V)
+  uh = solve(op)
+  writevtk(Ω,&quot;results&quot;,cellfields=[&quot;uh&quot;=&gt;uh,&quot;grad_uh&quot;=&gt;∇(uh)])
+end</code>
+</sec>
+<sec id="parallel-scaling-benchmark">
+  <title>Parallel scaling benchmark</title>
+  <p><xref alt="[fig:scaling]" rid="figU003Ascaling">[fig:scaling]</xref>
+  reports the strong (left) and weak scaling (right) of
+  GridapDistributed when applied to an standard elliptic benchmark PDE
+  problem, namely the 3D Poisson problem. In strong form this problem
+  reads: find <inline-formula><alternatives>
+  <tex-math><![CDATA[u]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>u</mml:mi></mml:math></alternatives></inline-formula>
+  such that <inline-formula><alternatives>
+  <tex-math><![CDATA[-{\boldsymbol{\nabla}} \cdot (\boldsymbol{\kappa} {\boldsymbol{\nabla}} u) = f]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mo>−</mml:mo><mml:mstyle mathvariant="bold"><mml:mi>∇</mml:mi></mml:mstyle><mml:mo>⋅</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mstyle mathvariant="bold"><mml:mi>𝛋</mml:mi></mml:mstyle><mml:mstyle mathvariant="bold"><mml:mi>∇</mml:mi></mml:mstyle><mml:mi>u</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>=</mml:mo><mml:mi>f</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>
+  in <inline-formula><alternatives>
+  <tex-math><![CDATA[\Omega=[0,1]^3]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>Ω</mml:mi><mml:mo>=</mml:mo><mml:msup><mml:mrow><mml:mo stretchy="true" form="prefix">[</mml:mo><mml:mn>0</mml:mn><mml:mo>,</mml:mo><mml:mn>1</mml:mn><mml:mo stretchy="true" form="postfix">]</mml:mo></mml:mrow><mml:mn>3</mml:mn></mml:msup></mml:mrow></mml:math></alternatives></inline-formula>,
+  with
+  <inline-formula><tex-math><![CDATA[u = u_{{\rm D}}]]></tex-math></inline-formula>
+  on
+  <inline-formula><tex-math><![CDATA[{\Gamma_{\rm D}}]]></tex-math></inline-formula>
+  (Dirichlet boundary) and
+  <inline-formula><tex-math><![CDATA[\partial_{\boldsymbol{n}} u = g_{\rm N}]]></tex-math></inline-formula>
+  on
+  <inline-formula><tex-math><![CDATA[{\Gamma_{\rm N}}]]></tex-math></inline-formula>
+  (Neumann Boundary); <inline-formula><alternatives>
+  <tex-math><![CDATA[\boldsymbol{n}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mstyle mathvariant="bold"><mml:mi>𝐧</mml:mi></mml:mstyle></mml:math></alternatives></inline-formula>
+  is the outward unit normal to
+  <inline-formula><tex-math><![CDATA[{\Gamma_{\rm N}}]]></tex-math></inline-formula>.
+  The domain was discretized using the built-in Cartesian-like mesh
+  generator in GridapDistributed. The code was run on the NCI@Gadi
+  Australian supercomputer (3024 nodes, 2x 24-core Intel Xeon Scalable
+  <italic>Cascade Lake</italic> cores and 192 GB of RAM per node) with
+  Julia 1.7 and OpenMPI 4.1.2. For the strong scaling test, we used a
+  fixed <bold>global</bold> problem size resulting from the trilinear FE
+  discretization of the domain using a 300x300x300 hexaedra mesh (26.7
+  MDoFs) and we scaled the number of cores up to 21.9K cores. For the
+  weak scaling test, we used a fixed <bold>local</bold> problem size of
+  32x32x32 hexaedra, and we scaled the number of cores up to 16.5K
+  cores. A global problem size of 0.54 billion DoFs was solved for this
+  number of cores. The reported wall clock time includes: (1) Mesh
+  generation; (2) Generation of global FE space; (3) Assembly of
+  distributed linear system; (4) Interpolation of a manufactured
+  solution; (5) Computation of the residual (includes a matrix-vector
+  product) and its norm. Note that the linear solver time (GAMG built-in
+  solver in PETSc) was not included in the total computation time as it
+  is actually external to GridapDistributed.</p>
+  <p><inline-graphic mimetype="image" mime-subtype="png" xlink:href="strong_scaling.png" />
+  <inline-graphic mimetype="image" mime-subtype="png" xlink:href="weak_scaling.png" /></p>
+  <p><xref alt="[fig:scaling]" rid="figU003Ascaling">[fig:scaling]</xref>
+  shows, on the one hand, an efficient reduction of computation times
+  with increasing number of cores, even far beyond a relatively small
+  load of 25K DoFs per CPU core. On the other hand, an asymptotically
+  constant time-to-solution (i.e., perfect weak scaling) when the number
+  of cores is increased in the same proportion of global problem size
+  with a local problem size of 32x32x32 trilinear FEs.</p>
+</sec>
+<sec id="demo-application">
+  <title>Demo application</title>
+  <p>To highlight the ability of GridapDistributed and associated
+  packages (see
+  <xref alt="Figure 1" rid="figU003Apackages">Figure 1</xref>) to tackle
+  real-world problems, and the potential behind its composable
+  architecture, we consider a demo application with interest in the
+  geophysical fluid dynamics community. This application solves the
+  so-called non-linear rotating shallow water equations on the sphere,
+  i.e., a surface PDE posed on a two-dimensional manifold immersed in
+  three-dimensional space. This complex system of PDEs describes the
+  dynamics of a single incompressible thin layer of constant density
+  fluid with a free surface under rotational effects. It is often used
+  as a test bed for horizontal discretisations with application to
+  numerical weather prediction and ocean modelling. We in particular
+  considered the synthetic benchmark proposed in
+  (<xref alt="Galewsky et al., 2016" rid="ref-Galewsky2016" ref-type="bibr">Galewsky
+  et al., 2016</xref>), which is characterized by its ability to
+  generate a complex and realistic flow.</p>
+  <p>For the geometrical discretization of the sphere, the software uses
+  the so-called cubed sphere mesh
+  (<xref alt="Ronchi et al., 1996" rid="ref-Ronchi1996" ref-type="bibr">Ronchi
+  et al., 1996</xref>), which was implemented using GridapP4est. The
+  spatial discretization of the equations relies on GridapDistributed to
+  build a <bold>compatible</bold> set of FE spaces
+  (<xref alt="Gibson et al., 2019" rid="ref-Gibson2019" ref-type="bibr">Gibson
+  et al., 2019</xref>) for the system unknowns (fluid velocity, fluid
+  depth, potential vorticity and mass flux) grounded on Raviart-Thomas
+  and Lagrangian FEs defined on the manifold
+  (<xref alt="Rognes et al., 2013" rid="ref-Rognes2013" ref-type="bibr">Rognes
+  et al., 2013</xref>). Compatible FEs are advanced discretization
+  techniques that preserve at the discrete level physical properties of
+  the continuous equations. In order to stabilize the spatial
+  discretization we use the most standard stabilization method in the
+  geophysical flows literature, namely the so-called Anticipated
+  Potential Vorticity Method (APVM)
+  (<xref alt="Rognes et al., 2013" rid="ref-Rognes2013" ref-type="bibr">Rognes
+  et al., 2013</xref>). We stress that other stabilisation techniques,
+  e.g., Streamline Upwind Petrov–Galerkin (SUPG)-like methods, have also
+  been implemented with these tools
+  (<xref alt="Lee et al., 2022" rid="ref-Lee2022" ref-type="bibr">Lee et
+  al., 2022</xref>). Time integration is based on a fully-implicit
+  trapezoidal rule, and thus a fully-coupled nonlinear problem has to be
+  solved at each time step. In order to solve this nonlinear problem, we
+  leveraged a Newton-GMRES solver preconditioned with an algebraic
+  preconditioner provided by GridapPETSc (on top of PETSc 3.16). The
+  <italic>exact</italic> Jacobian of the shallow water system was
+  computed/assembled at each nonlinear iteration.</p>
+  <p><xref alt="[fig:galewsky_scaling]" rid="figU003Agalewsky_scaling">[fig:galewsky_scaling]</xref>
+  shows the magnitude of the vorticity field after 6.5 simulation days
+  (left) and the results of a strong scaling study of the model on the
+  Australian Gadi@NCI supercomputer (right). The spurious ringing
+  artifacts in the magnitude of the vorticity field are well-known in
+  the APVM method at coarse resolutions and can be corrected using a
+  more effective stabilization method, such as, e.g., SUPG-like
+  stabilization
+  (<xref alt="Lee et al., 2022" rid="ref-Lee2022" ref-type="bibr">Lee et
+  al., 2022</xref>). The reported times correspond to the
+  <italic>total</italic> wall time of the first 10 time integration
+  steps; these were the only ones (out of 3600 time steps, i.e., 20
+  simulation days with a time step size of 480 secs.) that we could
+  afford running for all points in the plot due to limited computational
+  budget reasons. We considered two different problem sizes,
+  corresponding to 256x256 and 512x512 quadrilaterals/panel cubed sphere
+  meshes, resp. We stress that the time discretization is fully
+  implicit. Thus we can afford larger time step sizes than with explicit
+  methods. Besides, the purpose of the experiment is to evaluate the
+  scalability of the framework, and not necessarily to obtain physically
+  meaningful simulation results. Overall,
+  <xref alt="[fig:galewsky_scaling]" rid="figU003Agalewsky_scaling">[fig:galewsky_scaling]</xref>
+  confirms a remarkable ability of the ecosystem of Julia packages at
+  hand to efficiently reduce computation times with increasing number of
+  CPU cores for a complex, real-world computational model.</p>
+  <p><inline-graphic mimetype="image" mime-subtype="png" xlink:href="galewsky_visualization.png" />
+  <inline-graphic mimetype="image" mime-subtype="png" xlink:href="galewsky_scaling.png" /></p>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>This research was partially funded by the Australian Government
+  through the Australian Research Council (project number DP210103092),
+  the European Commission under the FET-HPC ExaQUte project (Grant
+  agreement ID: 800898) within the Horizon 2020 Framework Program and
+  the project RTI2018-096898-B-I00 from the “FEDER/Ministerio de Ciencia
+  e Innovación (MCIN) – Agencia Estatal de Investigación (AEI)”. F.
+  Verdugo acknowledges support from the “Severo Ochoa Program for
+  Centers of Excellence in R&amp;D (2019-2023)” under the grant
+  CEX2018-000797-S funded by MCIN/AEI/10.13039/501100011033. This work
+  was also supported by computational resources provided by the
+  Australian Government through NCI under the National Computational
+  Merit Allocation Scheme (NCMAS).</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <ref id="ref-petsc-user-ref">
+    <element-citation publication-type="report">
+      <person-group person-group-type="author">
+        <name><surname>Balay</surname><given-names>Satish</given-names></name>
+        <name><surname>Abhyankar</surname><given-names>Shrirang</given-names></name>
+        <name><surname>Adams</surname><given-names>Mark F.</given-names></name>
+        <name><surname>Benson</surname><given-names>Steven</given-names></name>
+        <name><surname>Brown</surname><given-names>Jed</given-names></name>
+        <name><surname>Brune</surname><given-names>Peter</given-names></name>
+        <name><surname>Buschelman</surname><given-names>Kris</given-names></name>
+        <name><surname>Constantinescu</surname><given-names>Emil</given-names></name>
+        <name><surname>Dalcin</surname><given-names>Lisandro</given-names></name>
+        <name><surname>Dener</surname><given-names>Alp</given-names></name>
+        <name><surname>Eijkhout</surname><given-names>Victor</given-names></name>
+        <name><surname>Gropp</surname><given-names>William D.</given-names></name>
+        <name><surname>Hapla</surname><given-names>Václav</given-names></name>
+        <name><surname>Isaac</surname><given-names>Tobin</given-names></name>
+        <name><surname>Jolivet</surname><given-names>Pierre</given-names></name>
+        <name><surname>Karpeev</surname><given-names>Dmitry</given-names></name>
+        <name><surname>Kaushik</surname><given-names>Dinesh</given-names></name>
+        <name><surname>Knepley</surname><given-names>Matthew G.</given-names></name>
+        <name><surname>Kong</surname><given-names>Fande</given-names></name>
+        <name><surname>Kruger</surname><given-names>Scott</given-names></name>
+        <name><surname>May</surname><given-names>Dave A.</given-names></name>
+        <name><surname>McInnes</surname><given-names>Lois Curfman</given-names></name>
+        <name><surname>Mills</surname><given-names>Richard Tran</given-names></name>
+        <name><surname>Mitchell</surname><given-names>Lawrence</given-names></name>
+        <name><surname>Munson</surname><given-names>Todd</given-names></name>
+        <name><surname>Roman</surname><given-names>Jose E.</given-names></name>
+        <name><surname>Rupp</surname><given-names>Karl</given-names></name>
+        <name><surname>Sanan</surname><given-names>Patrick</given-names></name>
+        <name><surname>Sarich</surname><given-names>Jason</given-names></name>
+        <name><surname>Smith</surname><given-names>Barry F.</given-names></name>
+        <name><surname>Zampini</surname><given-names>Stefano</given-names></name>
+        <name><surname>Zhang</surname><given-names>Hong</given-names></name>
+        <name><surname>Zhang</surname><given-names>Hong</given-names></name>
+        <name><surname>Zhang</surname><given-names>Junchao</given-names></name>
+      </person-group>
+      <article-title>PETSc/TAO users manual</article-title>
+      <publisher-name>Argonne National Laboratory</publisher-name>
+      <year iso-8601-date="2021">2021</year>
+    </element-citation>
+  </ref>
+  <ref id="ref-mpi40">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <string-name>Message Passing Interface Forum</string-name>
+      </person-group>
+      <source>MPI: A message-passing interface standard version 4.0</source>
+      <year iso-8601-date="2021-06">2021</year><month>06</month>
+      <uri>https://www.mpi-forum.org/docs/mpi-4.0/mpi40-report.pdf</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-VerdugoU003A2021">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Verdugo</surname><given-names>Francesc</given-names></name>
+        <name><surname>Badia</surname><given-names>Santiago</given-names></name>
+      </person-group>
+      <article-title>The software design of Gridap: A finite element package based on the Julia JIT compiler</article-title>
+      <source>Computer Physics Communications</source>
+      <publisher-name>Elsevier BV</publisher-name>
+      <year iso-8601-date="2022-07">2022</year><month>07</month>
+      <volume>276</volume>
+      <uri>https://doi.org/10.1016/j.cpc.2022.108341</uri>
+      <pub-id pub-id-type="doi">10.1016/j.cpc.2022.108341</pub-id>
+      <fpage>108341</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-gridapetsc">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Verdugo</surname><given-names>F.</given-names></name>
+        <name><surname>Sande</surname><given-names>V.</given-names></name>
+        <name><surname>Martin</surname><given-names>A. F.</given-names></name>
+      </person-group>
+      <article-title>GridapPETSc</article-title>
+      <source>GitHub repository</source>
+      <publisher-name>GitHub</publisher-name>
+      <year iso-8601-date="2021">2021</year>
+      <uri>https://github.com/gridap/GridapPETSc.jl</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-gridap4est">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Martin</surname><given-names>A. F.</given-names></name>
+      </person-group>
+      <article-title>GridapP4est</article-title>
+      <source>GitHub repository</source>
+      <publisher-name>GitHub</publisher-name>
+      <year iso-8601-date="2021">2021</year>
+      <uri>https://github.com/gridap/GridapP4est.jl</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-parrays">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Verdugo</surname><given-names>F.</given-names></name>
+      </person-group>
+      <article-title>PartitionedArrays</article-title>
+      <source>GitHub repository</source>
+      <publisher-name>GitHub</publisher-name>
+      <year iso-8601-date="2021">2021</year>
+      <uri>https://github.com/fverdugo/PartitionedArrays.jl</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-Bezanson2017">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Bezanson</surname><given-names>Jeff</given-names></name>
+        <name><surname>Edelman</surname><given-names>Alan</given-names></name>
+        <name><surname>Karpinski</surname><given-names>Stefan</given-names></name>
+        <name><surname>Shah</surname><given-names>Viral B.</given-names></name>
+      </person-group>
+      <article-title>Julia: a fresh approach to numerical computing</article-title>
+      <source>SIAM Review</source>
+      <publisher-name>Society for Industrial; Applied Mathematics</publisher-name>
+      <year iso-8601-date="2017-02">2017</year><month>02</month>
+      <volume>59</volume>
+      <issue>1</issue>
+      <uri>https://arxiv.org/abs/1411.1607</uri>
+      <pub-id pub-id-type="doi">10.1137/141000671</pub-id>
+      <fpage>65</fpage>
+      <lpage>98</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Badia2020">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Badia</surname><given-names>Santiago</given-names></name>
+        <name><surname>Verdugo</surname><given-names>Francesc</given-names></name>
+      </person-group>
+      <article-title>Gridap: an extensible finite element toolbox in Julia</article-title>
+      <source>Journal of Open Source Software</source>
+      <publisher-name>The Open Journal</publisher-name>
+      <year iso-8601-date="2020-08">2020</year><month>08</month>
+      <volume>5</volume>
+      <issue>52</issue>
+      <issn>2475-9066</issn>
+      <uri>https://joss.theoj.org/papers/10.21105/joss.02520</uri>
+      <pub-id pub-id-type="doi">10.21105/JOSS.02520</pub-id>
+      <fpage>2520</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Badia2020a">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Badia</surname><given-names>Santiago</given-names></name>
+        <name><surname>Martín</surname><given-names>Alberto F.</given-names></name>
+        <name><surname>Neiva</surname><given-names>Eric</given-names></name>
+        <name><surname>Verdugo</surname><given-names>Francesc</given-names></name>
+      </person-group>
+      <article-title>A generic finite element framework on parallel tree-based adaptive meshes</article-title>
+      <source>SIAM Journal on Scientific Computing</source>
+      <publisher-name>Society for Industrial; Applied Mathematics</publisher-name>
+      <year iso-8601-date="2020-12">2020</year><month>12</month>
+      <volume>42</volume>
+      <issue>6</issue>
+      <uri>https://arxiv.org/abs/1907.03709</uri>
+      <pub-id pub-id-type="doi">10.1137/20M1328786</pub-id>
+      <fpage>C436</fpage>
+      <lpage>C468</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Gibson2019">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Gibson</surname><given-names>Thomas H.</given-names></name>
+        <name><surname>McRae</surname><given-names>Andrew T. T.</given-names></name>
+        <name><surname>Cotter</surname><given-names>Colin J.</given-names></name>
+        <name><surname>Mitchell</surname><given-names>Lawrence</given-names></name>
+        <name><surname>Ham</surname><given-names>David A.</given-names></name>
+      </person-group>
+      <source>Compatible finite element methods for geophysical flows</source>
+      <publisher-name>Springer International Publishing</publisher-name>
+      <publisher-loc>Cham</publisher-loc>
+      <year iso-8601-date="2019">2019</year>
+      <isbn>978-3-030-23956-5</isbn>
+      <uri>http://link.springer.com/10.1007/978-3-030-23957-2</uri>
+      <pub-id pub-id-type="doi">10.1007/978-3-030-23957-2</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-Rognes2013">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Rognes</surname><given-names>M. E.</given-names></name>
+        <name><surname>Ham</surname><given-names>D. A.</given-names></name>
+        <name><surname>Cotter</surname><given-names>C. J.</given-names></name>
+        <name><surname>McRae</surname><given-names>A. T. T.</given-names></name>
+      </person-group>
+      <article-title>Automating the solution of PDEs on the sphere and other manifolds in FEniCS 1.2</article-title>
+      <source>Geoscientific Model Development</source>
+      <publisher-name>Copernicus GmbH</publisher-name>
+      <year iso-8601-date="2013-12">2013</year><month>12</month>
+      <volume>6</volume>
+      <issue>6</issue>
+      <pub-id pub-id-type="doi">10.5194/GMD-6-2099-2013</pub-id>
+      <fpage>2099</fpage>
+      <lpage>2119</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Burstedde2011">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Burstedde</surname><given-names>Carsten</given-names></name>
+        <name><surname>Wilcox</surname><given-names>Lucas C.</given-names></name>
+        <name><surname>Ghattas</surname><given-names>Omar</given-names></name>
+      </person-group>
+      <article-title>p4est: scalable algorithms for parallel adaptive mesh refinement on forests of octrees</article-title>
+      <source>SIAM Journal on Scientific Computing</source>
+      <publisher-name>Society for Industrial; Applied Mathematics</publisher-name>
+      <year iso-8601-date="2011-05">2011</year><month>05</month>
+      <volume>33</volume>
+      <issue>3</issue>
+      <pub-id pub-id-type="doi">10.1137/100791634</pub-id>
+      <fpage>1103</fpage>
+      <lpage>1133</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Ronchi1996">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Ronchi</surname><given-names>C.</given-names></name>
+        <name><surname>Iacono</surname><given-names>R.</given-names></name>
+        <name><surname>Paolucci</surname><given-names>P. S.</given-names></name>
+      </person-group>
+      <article-title>The “Cubed Sphere”: a new method for the solution of partial differential equations in spherical geometry</article-title>
+      <source>Journal of Computational Physics</source>
+      <publisher-name>Academic Press</publisher-name>
+      <year iso-8601-date="1996-03">1996</year><month>03</month>
+      <volume>124</volume>
+      <issue>1</issue>
+      <issn>0021-9991</issn>
+      <pub-id pub-id-type="doi">10.1006/JCPH.1996.0047</pub-id>
+      <fpage>93</fpage>
+      <lpage>114</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Galewsky2016">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Galewsky</surname><given-names>Joseph</given-names></name>
+        <name><surname>Scott</surname><given-names>Richard K.</given-names></name>
+        <name><surname>Polvani</surname><given-names>Lorenzo M.</given-names></name>
+      </person-group>
+      <article-title>An initial-value problem for testing numerical models of the global shallow-water equations</article-title>
+      <source>Tellus A: Dynamic Meteorology and Oceanography</source>
+      <publisher-name>Taylor &amp; Francis</publisher-name>
+      <year iso-8601-date="2016-01">2016</year><month>01</month>
+      <volume>56</volume>
+      <issue>5</issue>
+      <uri>https://www.tandfonline.com/doi/abs/10.3402/tellusa.v56i5.14436</uri>
+      <pub-id pub-id-type="doi">10.3402/TELLUSA.V56I5.14436</pub-id>
+      <fpage>429</fpage>
+      <lpage>440</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Lee2022">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Lee</surname><given-names>David</given-names></name>
+        <name><surname>Martín</surname><given-names>Alberto F.</given-names></name>
+        <name><surname>Bladwell</surname><given-names>Christopher</given-names></name>
+        <name><surname>Badia</surname><given-names>Santiago</given-names></name>
+      </person-group>
+      <article-title>A comparison of variational upwinding schemes for geophysical fluids, and their application to potential enstrophy conserving discretisations in space and time</article-title>
+      <publisher-name>arXiv</publisher-name>
+      <year iso-8601-date="2022">2022</year>
+      <uri>https://arxiv.org/abs/2203.04629</uri>
+      <pub-id pub-id-type="doi">10.48550/ARXIV.2203.04629</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-mfem">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Anderson</surname><given-names>R.</given-names></name>
+        <name><surname>Andrej</surname><given-names>J.</given-names></name>
+        <name><surname>Barker</surname><given-names>A.</given-names></name>
+        <name><surname>Bramwell</surname><given-names>J.</given-names></name>
+        <name><surname>Camier</surname><given-names>J.-S.</given-names></name>
+        <name><surname>Dobrev</surname><given-names>J. Cerveny V.</given-names></name>
+        <name><surname>Dudouit</surname><given-names>Y.</given-names></name>
+        <name><surname>Fisher</surname><given-names>A.</given-names></name>
+        <name><surname>Kolev</surname><given-names>Tz.</given-names></name>
+        <name><surname>Pazner</surname><given-names>W.</given-names></name>
+        <name><surname>Stowell</surname><given-names>M.</given-names></name>
+        <name><surname>Tomov</surname><given-names>V.</given-names></name>
+        <name><surname>Akkerman</surname><given-names>I.</given-names></name>
+        <name><surname>Dahm</surname><given-names>J.</given-names></name>
+        <name><surname>Medina</surname><given-names>D.</given-names></name>
+        <name><surname>Zampini</surname><given-names>S.</given-names></name>
+      </person-group>
+      <article-title>MFEM: A modular finite element methods library</article-title>
+      <source>Computers &amp; Mathematics with Applications</source>
+      <year iso-8601-date="2021">2021</year>
+      <volume>81</volume>
+      <pub-id pub-id-type="doi">10.1016/j.camwa.2020.06.009</pub-id>
+      <fpage>42</fpage>
+      <lpage>74</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-freefem">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Hecht</surname><given-names>F.</given-names></name>
+      </person-group>
+      <article-title>New development in FreeFem++</article-title>
+      <source>J. Numer. Math.</source>
+      <year iso-8601-date="2012">2012</year>
+      <volume>20</volume>
+      <issue>3-4</issue>
+      <issn>1570-2820</issn>
+      <pub-id pub-id-type="doi">10.1515/jnum-2012-0013</pub-id>
+      <fpage>251</fpage>
+      <lpage>265</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Badia2017">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Badia</surname><given-names>Santiago</given-names></name>
+        <name><surname>Martı́n</surname><given-names>Alberto F.</given-names></name>
+        <name><surname>Principe</surname><given-names>Javier</given-names></name>
+      </person-group>
+      <article-title>FEMPAR: An object-oriented parallel finite element framework</article-title>
+      <source>Archives of Computational Methods in Engineering</source>
+      <publisher-name>Springer Science; Business Media LLC</publisher-name>
+      <year iso-8601-date="2017-10">2017</year><month>10</month>
+      <volume>25</volume>
+      <issue>2</issue>
+      <uri>https://doi.org/10.1007/s11831-017-9244-1</uri>
+      <pub-id pub-id-type="doi">10.1007/s11831-017-9244-1</pub-id>
+      <fpage>195</fpage>
+      <lpage>271</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-libMeshPaper">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Kirk</surname><given-names>B. S.</given-names></name>
+        <name><surname>Peterson</surname><given-names>J. W.</given-names></name>
+        <name><surname>Stogner</surname><given-names>R. H.</given-names></name>
+        <name><surname>Carey</surname><given-names>G. F.</given-names></name>
+      </person-group>
+      <article-title>libMesh: A C++ library for parallel adaptive mesh refinement/coarsening simulations</article-title>
+      <source>Engineering with Computers</source>
+      <year iso-8601-date="2006">2006</year>
+      <volume>22</volume>
+      <issue>3–4</issue>
+      <pub-id pub-id-type="doi">10.1007/s00366-006-0049-3</pub-id>
+      <fpage>237</fpage>
+      <lpage>254</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-dealII93">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Arndt</surname><given-names>Daniel</given-names></name>
+        <name><surname>Bangerth</surname><given-names>Wolfgang</given-names></name>
+        <name><surname>Blais</surname><given-names>Bruno</given-names></name>
+        <name><surname>Fehling</surname><given-names>Marc</given-names></name>
+        <name><surname>Gassmöller</surname><given-names>Rene</given-names></name>
+        <name><surname>Heister</surname><given-names>Timo</given-names></name>
+        <name><surname>Heltai</surname><given-names>Luca</given-names></name>
+        <name><surname>Köcher</surname><given-names>Uwe</given-names></name>
+        <name><surname>Kronbichler</surname><given-names>Martin</given-names></name>
+        <name><surname>Maier</surname><given-names>Matthias</given-names></name>
+        <name><surname>Munch</surname><given-names>Peter</given-names></name>
+        <name><surname>Pelteret</surname><given-names>Jean-Paul</given-names></name>
+        <name><surname>Proell</surname><given-names>Sebastian</given-names></name>
+        <name><surname>Simon</surname><given-names>Konrad</given-names></name>
+        <name><surname>Turcksin</surname><given-names>Bruno</given-names></name>
+        <name><surname>Wells</surname><given-names>David</given-names></name>
+        <name><surname>Zhang</surname><given-names>Jiaqi</given-names></name>
+      </person-group>
+      <article-title>The deal.II library, version 9.3</article-title>
+      <source>Journal of Numerical Mathematics</source>
+      <year iso-8601-date="2021">2021</year>
+      <volume>29</volume>
+      <issue>3</issue>
+      <uri>https://dealii.org/deal93-preprint.pdf</uri>
+      <pub-id pub-id-type="doi">10.1515/jnma-2021-0081</pub-id>
+      <fpage>171</fpage>
+      <lpage>186</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-fenics-book">
+    <element-citation publication-type="book">
+      <source>Automated solution of differential equations by the finite element method</source>
+      <person-group person-group-type="editor">
+        <name><surname>Logg</surname><given-names>Anders</given-names></name>
+        <name><surname>Mardal</surname><given-names>Kent-Andre</given-names></name>
+        <name><surname>Wells</surname><given-names>Garth</given-names></name>
+      </person-group>
+      <publisher-name>Springer Berlin Heidelberg</publisher-name>
+      <year iso-8601-date="2012">2012</year>
+      <uri>https://doi.org/10.1007/978-3-642-23099-8</uri>
+      <pub-id pub-id-type="doi">10.1007/978-3-642-23099-8</pub-id>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
