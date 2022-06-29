@@ -1,0 +1,742 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">4442</article-id>
+<article-id pub-id-type="doi">10.21105/joss.04442</article-id>
+<title-group>
+<article-title><monospace>SimilaritySearch.jl</monospace>: Autotuned
+nearest neighbor indexes for Julia</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">0000-0001-5804-9868</contrib-id>
+<name>
+<surname>Tellez</surname>
+<given-names>Eric S.</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+<xref ref-type="aff" rid="aff-2"/>
+</contrib>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">0000-0001-7422-7011</contrib-id>
+<name>
+<surname>Ruiz</surname>
+<given-names>Guillermo</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+<xref ref-type="aff" rid="aff-3"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Consejo Nacional de Ciencia y Tecnología,
+México.</institution>
+</institution-wrap>
+</aff>
+<aff id="aff-2">
+<institution-wrap>
+<institution>INFOTEC Centro de Investigación e Innovación en Tecnologías
+de la Información y Comunicación, México.</institution>
+</institution-wrap>
+</aff>
+<aff id="aff-3">
+<institution-wrap>
+<institution>CentroGEO Centro de Investigación en Ciencias de
+Información Geoespacial, México.</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2022-05-20">
+<day>20</day>
+<month>5</month>
+<year>2022</year>
+</pub-date>
+<volume>7</volume>
+<issue>74</issue>
+<fpage>4442</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2022</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>Autotuned similarity search indexes</kwd>
+<kwd>K nearest neighbor search</kwd>
+<kwd>All KNN queries</kwd>
+<kwd>Near duplicates detection</kwd>
+<kwd>Closest pair queries</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p>This manuscript describes the MIT licensed Julia
+  (<xref alt="Bezanson et al., 2017" rid="ref-bezanson2017julia" ref-type="bibr">Bezanson
+  et al., 2017</xref>) package
+  <monospace>SimilaritySearch.jl</monospace> that provides algorithms to
+  efficiently retrieve <inline-formula><alternatives>
+  <tex-math><![CDATA[k]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>k</mml:mi></mml:math></alternatives></inline-formula>
+  nearest neighbors from a metric dataset and other related problems
+  with no knowledge of the underlying algorithms since our main
+  structure, the <monospace>SearchGraph,</monospace> has autotuning
+  capabilities. The package is designed to work in main memory and takes
+  advantage of multithreading systems in most of its primary
+  operations.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p>Similarity search algorithms are fundamental tools for many
+  computer science and data analysis methods. For instance, they are
+  among the underlying machinery behind efficient information retrieval
+  systems
+  (<xref alt="Luan et al., 2021" rid="ref-sparse-dense-text-retrieval" ref-type="bibr">Luan
+  et al., 2021</xref>;
+  <xref alt="Witten et al., 1999" rid="ref-witten1999managing" ref-type="bibr">Witten
+  et al., 1999</xref>); they allow fast clustering analysis on large
+  datasets
+  (<xref alt="Jayaram Subramanya et al., 2019" rid="ref-jayaram2019diskann" ref-type="bibr">Jayaram
+  Subramanya et al., 2019</xref>;
+  <xref alt="Weng et al., 2021" rid="ref-pmlr-v157-weng21a" ref-type="bibr">Weng
+  et al., 2021</xref>;
+  <xref alt="Yu et al., 2020" rid="ref-sisap2020kmeans" ref-type="bibr">Yu
+  et al., 2020</xref>). Another outstanding example is how they can
+  speed up the constructions of all <inline-formula><alternatives>
+  <tex-math><![CDATA[k]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>k</mml:mi></mml:math></alternatives></inline-formula>
+  nearest neighbor graphs, which are the input of non-linear dimensional
+  reduction methods that are popular to visualize complex data
+  (<xref alt="Amid &amp; Warmuth, 2019" rid="ref-trimap2019" ref-type="bibr">Amid
+  &amp; Warmuth, 2019</xref>;
+  <xref alt="Lee &amp; Verleysen, 2007" rid="ref-lee2007nonlinear" ref-type="bibr">Lee
+  &amp; Verleysen, 2007</xref>;
+  <xref alt="McInnes et al., 2018" rid="ref-umap2018" ref-type="bibr">McInnes
+  et al., 2018</xref>;
+  <xref alt="Van der Maaten &amp; Hinton, 2008" rid="ref-van2008visualizing" ref-type="bibr">Van
+  der Maaten &amp; Hinton, 2008</xref>). The number of potential
+  applications is also increasing as the number of problems solved by
+  deep learning methods proliferates, i.e., many deep learning internal
+  representations are direct input for similarity search.</p>
+  <sec id="the-k-nearest-neighbor-problem">
+    <title>The <inline-formula><alternatives>
+    <tex-math><![CDATA[k]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>k</mml:mi></mml:math></alternatives></inline-formula>
+    nearest neighbor problem</title>
+    <p>Given a metric dataset, <inline-formula><alternatives>
+    <tex-math><![CDATA[S \subseteq U]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>S</mml:mi><mml:mo>⊆</mml:mo><mml:mi>U</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>
+    and a metric distance function <inline-formula><alternatives>
+    <tex-math><![CDATA[d]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>d</mml:mi></mml:math></alternatives></inline-formula>,
+    defined for any pair of elements in <inline-formula><alternatives>
+    <tex-math><![CDATA[U]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>U</mml:mi></mml:math></alternatives></inline-formula>,
+    the <inline-formula><alternatives>
+    <tex-math><![CDATA[k]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>k</mml:mi></mml:math></alternatives></inline-formula>
+    nearest neighbor search of <inline-formula><alternatives>
+    <tex-math><![CDATA[q]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>q</mml:mi></mml:math></alternatives></inline-formula>
+    consists on finding the subset <inline-formula><alternatives>
+    <tex-math><![CDATA[R]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>R</mml:mi></mml:math></alternatives></inline-formula>
+    that minimize <inline-formula><alternatives>
+    <tex-math><![CDATA[\sum_{u \in R} d(q, u)]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mo>∑</mml:mo><mml:mrow><mml:mi>u</mml:mi><mml:mo>∈</mml:mo><mml:mi>R</mml:mi></mml:mrow></mml:msub><mml:mi>d</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>q</mml:mi><mml:mo>,</mml:mo><mml:mi>u</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>
+    for all possible subsets of size <inline-formula><alternatives>
+    <tex-math><![CDATA[k]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>k</mml:mi></mml:math></alternatives></inline-formula>,
+    i.e., <inline-formula><alternatives>
+    <tex-math><![CDATA[R \subset S]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>R</mml:mi><mml:mo>⊂</mml:mo><mml:mi>S</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>
+    and <inline-formula><alternatives>
+    <tex-math><![CDATA[|R| = k]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mrow><mml:mo stretchy="true" form="prefix">|</mml:mo><mml:mi>R</mml:mi><mml:mo stretchy="true" form="postfix">|</mml:mo></mml:mrow><mml:mo>=</mml:mo><mml:mi>k</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>.
+    The problem can be solved easily with an exhaustive evaluation, but
+    this solution is impractical when the number of expected queries is
+    large or for high-dimensional datasets. When the dataset can be
+    preprocessed, it is possible to overcome these difficulties by
+    creating an , i.e., a data structure to solve similarity queries
+    efficiently. Depending on the dimensionality and size of the
+    dataset, it could be necessary to trade speed for
+    quality,<xref ref-type="fn" rid="fn1">1</xref> traditional methods
+    left this optimization to the user. Our approach has automated
+    functions that simplify this task.</p>
+    <p>Our <monospace>SearchGraph</monospace> is based on the Navigable
+    Small World (NSW) graph index
+    (<xref alt="Y. A. Malkov &amp; Yashunin, 2018" rid="ref-malkov2018efficient" ref-type="bibr">Y.
+    A. Malkov &amp; Yashunin, 2018</xref>) using a different search
+    algorithm based on the well-known beam search meta-heuristic,
+    smaller node degrees based on Spatial Access Trees
+    (<xref alt="Navarro, 2002" rid="ref-navarro2002searching" ref-type="bibr">Navarro,
+    2002</xref>), and autotuned capabilities. The details are studied in
+    (<xref alt="Ruiz et al., 2015" rid="ref-ruiz2015finding" ref-type="bibr">Ruiz
+    et al., 2015</xref>;
+    <xref alt="Tellez et al., 2021" rid="ref-tellez2021scalable" ref-type="bibr">Tellez
+    et al., 2021</xref>;
+    <xref alt="Tellez &amp; Ruiz, 2022" rid="ref-simsearch2022" ref-type="bibr">Tellez
+    &amp; Ruiz, 2022</xref>).</p>
+  </sec>
+  <sec id="alternatives">
+    <title>Alternatives</title>
+    <p>Y. Malkov et al.
+    (<xref alt="2014" rid="ref-malkov2014approximate" ref-type="bibr">2014</xref>)
+    add a hierarchical structure to the NSW to create the Hierarchical
+    NSW (HNSW) search structure. This index is a central component of
+    the
+    <ext-link ext-link-type="uri" xlink:href="https://github.com/nmslib/hnswlib"><monospace>hnswlib</monospace></ext-link>
+    and the
+    <ext-link ext-link-type="uri" xlink:href="https://github.com/nmslib/nmslib"><monospace>nmslib</monospace></ext-link>
+    libraries. Along with the HNSW, the
+    <ext-link ext-link-type="uri" xlink:href="https://github.com/facebookresearch/faiss"><monospace>faiss</monospace></ext-link>
+    library also provides a broad set of efficient implementations of
+    metric, hashing, and product quantization indexes. Dong et al.
+    (<xref alt="2011" rid="ref-nndescent11" ref-type="bibr">2011</xref>)
+    introduce the NN Descent method, which uses the graph of neighbors
+    as index structure; it is the machinery behind
+    <ext-link ext-link-type="uri" xlink:href="https://github.com/lmcinnes/pynndescent"><monospace>PyNNDescent</monospace></ext-link>,
+    which is behind the fast computation of UMAP non-linear low
+    dimensional projection.<xref ref-type="fn" rid="fn2">2</xref> Guo et
+    al.
+    (<xref alt="2020" rid="ref-scann2020" ref-type="bibr">2020</xref>)
+    introduce the <italic>SCANN</italic> index for inner product-based
+    metrics and Euclidean distance, available at the
+    <ext-link ext-link-type="uri" xlink:href="https://github.com/google-research/google-research/tree/master/scann">SCANN
+    repository</ext-link> based on hashing.</p>
+    <p>Currently, there are some packages dedicated to nearest neighbor
+    search, for instance we have
+    <ext-link ext-link-type="uri" xlink:href="https://github.com/KristofferC/NearestNeighbors.jl"><monospace>NearestNeighbors.jl</monospace></ext-link>,
+    <ext-link ext-link-type="uri" xlink:href="https://github.com/una-dinosauria/Rayuela.jl"><monospace>Rayuela.jl</monospace></ext-link>,
+    <ext-link ext-link-type="uri" xlink:href="https://github.com/JuliaNeighbors/HNSW.jl"><monospace>HNSW.jl</monospace></ext-link>,
+    and a wrapper for the FAISS library,
+    <ext-link ext-link-type="uri" xlink:href="https://github.com/zsz00/Faiss.jl"><monospace>Faiss.jl</monospace></ext-link>,
+    among other efforts.</p>
+  </sec>
+</sec>
+<sec id="main-features-of-similaritysearch">
+  <title>Main features of
+  <monospace>SimilaritySearch</monospace></title>
+  <p>The <monospace>SearchGraph</monospace> struct is an approximate
+  method designed to trade effectively between speed and quality. It has
+  an integrated autotuning feature that almost free the users of any
+  setup and manual model selection. In a single pass, the incremental
+  construction adjusts the index parameters to achieve the desired
+  performance, optimizing both search speed and quality or a minimum
+  quality. This search structure is described in
+  (<xref alt="Tellez &amp; Ruiz, 2022" rid="ref-simsearch2022" ref-type="bibr">Tellez
+  &amp; Ruiz, 2022</xref>), which uses the
+  <monospace>SimilaritySearch.jl</monospace> package as implementation
+  (0.9 version series). Previous versions of the package are benchmarked
+  in
+  (<xref alt="Tellez et al., 2021" rid="ref-tellez2021scalable" ref-type="bibr">Tellez
+  et al., 2021</xref>).</p>
+  <p>The main set of functions are:</p>
+  <list list-type="bullet">
+    <list-item>
+      <p><monospace>search</monospace>: Solves a single query.</p>
+    </list-item>
+    <list-item>
+      <p><monospace>searchbatch</monospace>: Solves a set of
+      queries.</p>
+    </list-item>
+    <list-item>
+      <p><monospace>allknn</monospace>: Computes the
+      <inline-formula><alternatives>
+      <tex-math><![CDATA[k]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>k</mml:mi></mml:math></alternatives></inline-formula>
+      nearest neighbors for all elements in an index.</p>
+    </list-item>
+    <list-item>
+      <p><monospace>closestpair</monospace>: Computes the closest pair
+      in a metric dataset.</p>
+    </list-item>
+    <list-item>
+      <p><monospace>neardup</monospace>: Removes near-duplicates from a
+      metric dataset.</p>
+    </list-item>
+  </list>
+  <p>Note that our implementations produce complete results with
+  <italic>exact</italic> indexes and will produce approximate results
+  when <italic>approximate</italic> indexes are used.</p>
+  <p><monospace>SimilaritySearch.jl</monospace> can be used with any
+  semi-metric, as defined in the package
+  <ext-link ext-link-type="uri" xlink:href="https://github.com/JuliaStats/Distances.jl"><monospace>Distances.jl</monospace></ext-link>.
+  Note that a number of distance functions for vectors, strings, and
+  sets are also available in our package.</p>
+  <p>The complete set of functions and structures are detailed in the
+  documentation.<xref ref-type="fn" rid="fn3">3</xref></p>
+</sec>
+<sec id="installation">
+  <title>Installation</title>
+  <p>The package is available in the Julia’s integrated package
+  manager:</p>
+  <code language="julia">using Pkg
+Pkg.add(&quot;SimilaritySearch&quot;)</code>
+</sec>
+<sec id="a-brief-example-and-a-comparison-with-alternatives">
+  <title>A brief example and a comparison with alternatives</title>
+  <p>For instance, we used the set of 70k hand-written digits MNIST
+  dataset
+  (<xref alt="LeCun et al., 1998" rid="ref-lecun1998gradient" ref-type="bibr">LeCun
+  et al., 1998</xref>) (using the traditional partition scheme of 60k
+  objects for indexing and 10k as queries). We use the
+  <ext-link ext-link-type="uri" xlink:href="https://github.com/JuliaML/MLDatasets.jl"><monospace>MLDatasets.jl</monospace></ext-link>
+  package for this matter (v0.6); each 28x28 image is loaded as a
+  784-dimensional vector using 32-bit floating-point numbers. We select
+  the squared Euclidean distance as the metric.</p>
+  <code id="example" language="julia">using SimilaritySearch, MLDatasets 
+
+function load_data()
+  train, test = MNIST(split = :train), MNIST(split = :test)
+  (w, h, n), m = size(train.features), size(test.features, 3)
+  db = MatrixDatabase(reshape(train.features, w * h, n))
+  queries = MatrixDatabase(reshape(test.features, w * h, m))
+  db, queries
+end
+
+function example(k, dist = SqL2Distance())
+  db, queries = load_data()
+  G = SearchGraph(; dist, db)
+  index!(G; parallel_block = 512)
+  id, dist = searchbatch(G, queries, k)
+  point1, point2, mindist = closestpair(G)
+  idAll, distAll = allknn(G, k)
+end
+
+example(32)</code>
+  <p>The function <monospace>example</monospace> loads the data (line
+  12), creates the index (line 14), and then finds all
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[k]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>k</mml:mi></mml:math></alternatives></inline-formula>
+  nearest neighbors of the test in the indexed partition as a batch of
+  queries (line 15). The same index is used to compute the closest pair
+  of points in the train partition (line 16) and compute all
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[k]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>k</mml:mi></mml:math></alternatives></inline-formula>
+  nearest neighbors on the train partition (line 17) for
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[k=32]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>k</mml:mi><mml:mo>=</mml:mo><mml:mn>32</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>.</p>
+  <p>For this matter, we used an Intel(R) Xeon(R) Silver 4216 CPU @
+  2.10GHz workstation with 256GiB RAM using GNU/Linux CentOS 8. Our
+  system has 32 cores (64 threads), we use all threads in all tested
+  systems. For instance, we used
+  <monospace>SimilaritySearch.jl</monospace> v0.9.3 and
+  <monospace>Julia</monospace> 1.7.2. Table
+  <xref alt="[tab/performance]" rid="tabU002Fperformance">[tab/performance]</xref>
+  compares the running times of <monospace>SearchGraph</monospace> (SG).
+  We consider different autotuned versions calling
+  <monospace>optimize!(G, MinRecall(r))</monospace> after the
+  <monospace>index!</monospace> function call, for different expected
+  recall scores, it defaults to <monospace>ParetoRecall</monospace>. We
+  also compare with a parallel brute-force algorithm (replacing lines
+  13-14 with <monospace>ExhaustiveSearch(; dist, db)</monospace>).</p>
+  <sec id="comparison-with-alternatives">
+    <title>Comparison with alternatives</title>
+    <p>We also indexed and searched for all
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[k]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>k</mml:mi></mml:math></alternatives></inline-formula>
+    nearest neighbors using the default values for the HNSW,
+    PyNNDescent, and SCANN nearest neighbor search indexes. All these
+    operations were computed using all available threads. Note that high
+    recall scores indicate that the default parameters can be adjusted
+    to improve search times; nonetheless, optimizing parameters also
+    imply using a model selection procedure that requires more
+    computational resources and knowledge about the packages and
+    methods. Our <monospace>SearchGraph</monospace> (SG) method performs
+    this procedure in a single pass and without extra effort by the
+    user. Note that we run several optimizations that use the same index
+    and spend a small amount of time effectively trading between quality
+    and speed; this also works for larger and high-dimensional datasets
+    as benchmarked in Tellez &amp; Ruiz
+    (<xref alt="2022" rid="ref-simsearch2022" ref-type="bibr">2022</xref>).
+    Finally, short-living tasks like computing all
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[k]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>k</mml:mi></mml:math></alternatives></inline-formula>
+    nearest neighbors for non-linear dimensional reductions (e.g., data
+    visualization) also require low build costs; therefore, a complete
+    model selection is prohibitive, especially for large datasets.</p>
+  </sec>
+</sec>
+<sec id="final-notes">
+  <title>Final notes</title>
+  <p><monospace>SimilaritySearch.jl</monospace> provides a metric
+  agnostic alternative for similarity search in high-dimensional
+  datasets; additionally, our autotuning feature is a milestone in the
+  nearest neighbor community since the technology becomes more
+  accessible for users without a profound knowledge in the field. More
+  examples and notebooks (Pluto and Jupyter) are available in the sister
+  repository
+  <ext-link ext-link-type="uri" xlink:href="https://github.com/sadit/SimilaritySearchDemos">https://github.com/sadit/SimilaritySearchDemos</ext-link>.</p>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>The authors would like to thank the reviewers and the editor for
+  their valuable time; their suggestions improved the quality of this
+  manuscript. This research used the computing infrastructure of the
+  <italic>Laboratorio de GeoInteligencia Territorial</italic> at
+  <italic>CentroGEO Centro de Investigación en Ciencias de Información
+  Geoespacial</italic>, Aguascalientes, México.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <ref id="ref-bezanson2017julia">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Bezanson</surname><given-names>Jeff</given-names></name>
+        <name><surname>Edelman</surname><given-names>Alan</given-names></name>
+        <name><surname>Karpinski</surname><given-names>Stefan</given-names></name>
+        <name><surname>Shah</surname><given-names>Viral B</given-names></name>
+      </person-group>
+      <article-title>Julia: A fresh approach to numerical computing</article-title>
+      <source>SIAM review</source>
+      <publisher-name>SIAM</publisher-name>
+      <year iso-8601-date="2017">2017</year>
+      <volume>59</volume>
+      <issue>1</issue>
+      <uri>https://doi.org/10.1137/141000671</uri>
+      <pub-id pub-id-type="doi">10.1137/141000671</pub-id>
+      <fpage>65</fpage>
+      <lpage>98</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-simsearch2022">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Tellez</surname><given-names>Eric S.</given-names></name>
+        <name><surname>Ruiz</surname><given-names>Guillermo</given-names></name>
+      </person-group>
+      <article-title>Similarity search on neighbor’s graphs with automatic pareto optimal performance and minimum expected quality setups based on hyperparameter optimization</article-title>
+      <publisher-name>arXiv</publisher-name>
+      <year iso-8601-date="2022">2022</year>
+      <uri>https://arxiv.org/abs/2201.07917</uri>
+      <pub-id pub-id-type="doi">10.48550/ARXIV.2201.07917</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-witten1999managing">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Witten</surname><given-names>Ian H</given-names></name>
+        <name><surname>Witten</surname><given-names>Ian H</given-names></name>
+        <name><surname>Moffat</surname><given-names>Alistair</given-names></name>
+        <name><surname>Bell</surname><given-names>Timothy C</given-names></name>
+        <name><surname>Bell</surname><given-names>Timothy C</given-names></name>
+        <name><surname>Fox</surname><given-names>Ed</given-names></name>
+        <name><surname>Bell</surname><given-names>Timothy C</given-names></name>
+      </person-group>
+      <source>Managing gigabytes: Compressing and indexing documents and images</source>
+      <publisher-name>Morgan Kaufmann</publisher-name>
+      <year iso-8601-date="1999">1999</year>
+    </element-citation>
+  </ref>
+  <ref id="ref-lecun1998gradient">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>LeCun</surname><given-names>Yann</given-names></name>
+        <name><surname>Bottou</surname><given-names>Léon</given-names></name>
+        <name><surname>Bengio</surname><given-names>Yoshua</given-names></name>
+        <name><surname>Haffner</surname><given-names>Patrick</given-names></name>
+      </person-group>
+      <article-title>Gradient-based learning applied to document recognition</article-title>
+      <source>Proceedings of the IEEE</source>
+      <publisher-name>Ieee</publisher-name>
+      <year iso-8601-date="1998">1998</year>
+      <volume>86</volume>
+      <issue>11</issue>
+      <pub-id pub-id-type="doi">10.1109/5.726791</pub-id>
+      <fpage>2278</fpage>
+      <lpage>2324</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-nndescent11">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Dong</surname><given-names>Wei</given-names></name>
+        <name><surname>Moses</surname><given-names>Charikar</given-names></name>
+        <name><surname>Li</surname><given-names>Kai</given-names></name>
+      </person-group>
+      <article-title>Efficient k-nearest neighbor graph construction for generic similarity measures</article-title>
+      <source>Proceedings of the 20th international conference on world wide web</source>
+      <publisher-name>Association for Computing Machinery</publisher-name>
+      <publisher-loc>New York, NY, USA</publisher-loc>
+      <year iso-8601-date="2011">2011</year>
+      <isbn>9781450306324</isbn>
+      <pub-id pub-id-type="doi">10.1145/1963405.1963487</pub-id>
+      <fpage>577</fpage>
+      <lpage>586</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-scann2020">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Guo</surname><given-names>Ruiqi</given-names></name>
+        <name><surname>Sun</surname><given-names>Philip</given-names></name>
+        <name><surname>Lindgren</surname><given-names>Erik</given-names></name>
+        <name><surname>Geng</surname><given-names>Quan</given-names></name>
+        <name><surname>Simcha</surname><given-names>David</given-names></name>
+        <name><surname>Chern</surname><given-names>Felix</given-names></name>
+        <name><surname>Kumar</surname><given-names>Sanjiv</given-names></name>
+      </person-group>
+      <article-title>Accelerating large-scale inference with anisotropic vector quantization</article-title>
+      <source>37th international conference on machine learning, ICML 2020</source>
+      <year iso-8601-date="2020">2020</year>
+      <volume>PartF168147-5</volume>
+      <uri>https://www.scopus.com/inward/record.uri?eid=2-s2.0-85105244400&amp;partnerID=40&amp;md5=e3ab797435367141112b5e5843b2cb1e</uri>
+      <fpage>3845</fpage>
+      <lpage>3854</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-sparse-dense-text-retrieval">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Luan</surname><given-names>Yi</given-names></name>
+        <name><surname>Eisenstein</surname><given-names>Jacob</given-names></name>
+        <name><surname>Toutanova</surname><given-names>Kristina</given-names></name>
+        <name><surname>Collins</surname><given-names>Michael</given-names></name>
+      </person-group>
+      <article-title>Sparse, Dense, and Attentional Representations for Text Retrieval</article-title>
+      <source>Transactions of the Association for Computational Linguistics</source>
+      <year iso-8601-date="2021-04">2021</year><month>04</month>
+      <volume>9</volume>
+      <issn>2307-387X</issn>
+      <uri>https://doi.org/10.1162/tacl\_a\_00369</uri>
+      <pub-id pub-id-type="doi">10.1162/tacl_a_00369</pub-id>
+      <fpage>329</fpage>
+      <lpage>345</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-umap2018">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>McInnes</surname><given-names>Leland</given-names></name>
+        <name><surname>Healy</surname><given-names>John</given-names></name>
+        <name><surname>Melville</surname><given-names>James</given-names></name>
+      </person-group>
+      <article-title>UMAP: Uniform manifold approximation and projection for dimension reduction</article-title>
+      <publisher-name>arXiv</publisher-name>
+      <year iso-8601-date="2018">2018</year>
+      <uri>https://arxiv.org/abs/1802.03426</uri>
+      <pub-id pub-id-type="doi">10.48550/ARXIV.1802.03426</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-lee2007nonlinear">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Lee</surname><given-names>John A</given-names></name>
+        <name><surname>Verleysen</surname><given-names>Michel</given-names></name>
+      </person-group>
+      <source>Nonlinear dimensionality reduction</source>
+      <publisher-name>Springer</publisher-name>
+      <year iso-8601-date="2007">2007</year>
+      <volume>1</volume>
+    </element-citation>
+  </ref>
+  <ref id="ref-van2008visualizing">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Van der Maaten</surname><given-names>Laurens</given-names></name>
+        <name><surname>Hinton</surname><given-names>Geoffrey</given-names></name>
+      </person-group>
+      <article-title>Visualizing data using t-SNE.</article-title>
+      <source>Journal of machine learning research</source>
+      <year iso-8601-date="2008">2008</year>
+      <volume>9</volume>
+      <issue>11</issue>
+    </element-citation>
+  </ref>
+  <ref id="ref-trimap2019">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Amid</surname><given-names>Ehsan</given-names></name>
+        <name><surname>Warmuth</surname><given-names>Manfred K.</given-names></name>
+      </person-group>
+      <article-title>TriMap: Large-scale dimensionality reduction using triplets</article-title>
+      <source>CoRR</source>
+      <year iso-8601-date="2019">2019</year>
+      <volume>abs/1910.00204</volume>
+      <uri>http://arxiv.org/abs/1910.00204</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-pmlr-v157-weng21a">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Weng</surname><given-names>Shaoyuan</given-names></name>
+        <name><surname>Gou</surname><given-names>Jin</given-names></name>
+        <name><surname>Fan</surname><given-names>Zongwen</given-names></name>
+      </person-group>
+      <article-title>h-DBSCAN: A simple fast DBSCAN algorithm for big data</article-title>
+      <source>Proceedings of the 13th asian conference on machine learning</source>
+      <person-group person-group-type="editor">
+        <name><surname>Balasubramanian</surname><given-names>Vineeth N.</given-names></name>
+        <name><surname>Tsang</surname><given-names>Ivor</given-names></name>
+      </person-group>
+      <publisher-name>PMLR</publisher-name>
+      <year iso-8601-date="2021">2021</year>
+      <volume>157</volume>
+      <uri>https://proceedings.mlr.press/v157/weng21a.html</uri>
+      <fpage>81</fpage>
+      <lpage>96</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-sisap2020kmeans">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Yu</surname><given-names>Qiao</given-names></name>
+        <name><surname>Chen</surname><given-names>Kuan-Hsun</given-names></name>
+        <name><surname>Chen</surname><given-names>Jian-Jia</given-names></name>
+      </person-group>
+      <article-title>Using a set of triangle inequalities to accelerate k-means clustering</article-title>
+      <source>International conference on similarity search and applications</source>
+      <publisher-name>Springer</publisher-name>
+      <year iso-8601-date="2020">2020</year>
+      <pub-id pub-id-type="doi">10.1007/978-3-030-60936-8_23</pub-id>
+      <fpage>297</fpage>
+      <lpage>311</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-jayaram2019diskann">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Jayaram Subramanya</surname><given-names>Suhas</given-names></name>
+        <name><surname>Devvrit</surname><given-names>Fnu</given-names></name>
+        <name><surname>Simhadri</surname><given-names>Harsha Vardhan</given-names></name>
+        <name><surname>Krishnawamy</surname><given-names>Ravishankar</given-names></name>
+        <name><surname>Kadekodi</surname><given-names>Rohan</given-names></name>
+      </person-group>
+      <article-title>Diskann: Fast accurate billion-point nearest neighbor search on a single node</article-title>
+      <source>Advances in Neural Information Processing Systems</source>
+      <year iso-8601-date="2019">2019</year>
+      <volume>32</volume>
+    </element-citation>
+  </ref>
+  <ref id="ref-tellez2021scalable">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Tellez</surname><given-names>Eric S.</given-names></name>
+        <name><surname>Ruiz</surname><given-names>Guillermo</given-names></name>
+        <name><surname>Chavez</surname><given-names>Edgar</given-names></name>
+        <name><surname>Graff</surname><given-names>Mario</given-names></name>
+      </person-group>
+      <article-title>A scalable solution to the nearest neighbor search problem through local-search methods on neighbor graphs</article-title>
+      <source>Pattern Analysis and Applications</source>
+      <publisher-name>Springer</publisher-name>
+      <year iso-8601-date="2021">2021</year>
+      <volume>24</volume>
+      <issue>2</issue>
+      <pub-id pub-id-type="doi">10.1007/s10044-020-00946-w</pub-id>
+      <fpage>763</fpage>
+      <lpage>777</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-ruiz2015finding">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Ruiz</surname><given-names>Guillermo</given-names></name>
+        <name><surname>Chávez</surname><given-names>Edgar</given-names></name>
+        <name><surname>Graff</surname><given-names>Mario</given-names></name>
+        <name><surname>Téllez</surname><given-names>Eric S</given-names></name>
+      </person-group>
+      <article-title>Finding near neighbors through local search</article-title>
+      <source>International conference on similarity search and applications</source>
+      <publisher-name>Springer</publisher-name>
+      <year iso-8601-date="2015">2015</year>
+      <pub-id pub-id-type="doi">10.1007/978-3-319-25087-8_10</pub-id>
+      <fpage>103</fpage>
+      <lpage>109</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-malkov2018efficient">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Malkov</surname><given-names>Yu A</given-names></name>
+        <name><surname>Yashunin</surname><given-names>Dmitry A</given-names></name>
+      </person-group>
+      <article-title>Efficient and robust approximate nearest neighbor search using hierarchical navigable small world graphs</article-title>
+      <source>IEEE transactions on pattern analysis and machine intelligence</source>
+      <publisher-name>IEEE</publisher-name>
+      <year iso-8601-date="2018">2018</year>
+      <volume>42</volume>
+      <issue>4</issue>
+      <pub-id pub-id-type="doi">10.1109/tpami.2018.2889473</pub-id>
+      <fpage>824</fpage>
+      <lpage>836</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-malkov2014approximate">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Malkov</surname><given-names>Yury</given-names></name>
+        <name><surname>Ponomarenko</surname><given-names>Alexander</given-names></name>
+        <name><surname>Logvinov</surname><given-names>Andrey</given-names></name>
+        <name><surname>Krylov</surname><given-names>Vladimir</given-names></name>
+      </person-group>
+      <article-title>Approximate nearest neighbor algorithm based on navigable small world graphs</article-title>
+      <source>Information Systems</source>
+      <publisher-name>Elsevier</publisher-name>
+      <year iso-8601-date="2014">2014</year>
+      <volume>45</volume>
+      <pub-id pub-id-type="doi">10.1016/j.is.2013.10.006</pub-id>
+      <fpage>61</fpage>
+      <lpage>68</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-navarro2002searching">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Navarro</surname><given-names>Gonzalo</given-names></name>
+      </person-group>
+      <article-title>Searching in metric spaces by spatial approximation</article-title>
+      <source>The VLDB Journal</source>
+      <publisher-name>Springer</publisher-name>
+      <year iso-8601-date="2002">2002</year>
+      <volume>11</volume>
+      <issue>1</issue>
+      <pub-id pub-id-type="doi">10.1007/s007780200060</pub-id>
+      <fpage>28</fpage>
+      <lpage>46</lpage>
+    </element-citation>
+  </ref>
+</ref-list>
+<fn-group>
+  <fn id="fn1">
+    <label>1</label><p>The quality is often measured as the
+    <monospace>recall,</monospace> which is as a proportion of how many
+    relevant results were found in a search; our package contains a
+    function <monospace>macrorecall</monospace> that computes the
+    average of this score for a set of query results.</p>
+  </fn>
+  <fn id="fn2">
+    <label>2</label><p><ext-link ext-link-type="uri" xlink:href="https://github.com/lmcinnes/umap">https://github.com/lmcinnes/umap</ext-link>.</p>
+  </fn>
+  <fn id="fn3">
+    <label>3</label><p><ext-link ext-link-type="uri" xlink:href="https://sadit.github.io/SimilaritySearch.jl/">https://sadit.github.io/SimilaritySearch.jl/</ext-link></p>
+  </fn>
+</fn-group>
+</back>
+</article>
