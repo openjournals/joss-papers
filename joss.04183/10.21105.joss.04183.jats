@@ -1,0 +1,586 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">4183</article-id>
+<article-id pub-id-type="doi">10.21105/joss.04183</article-id>
+<title-group>
+<article-title>Fast k-medoids Clustering in Rust and
+Python</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">0000-0001-9143-4880</contrib-id>
+<name>
+<surname>Schubert</surname>
+<given-names>Erich</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">0000-0003-0037-0418</contrib-id>
+<name>
+<surname>Lenssen</surname>
+<given-names>Lars</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>TU Dortmund University, Informatik VIII, 44221 Dortmund,
+Germany</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2022-01-25">
+<day>25</day>
+<month>1</month>
+<year>2022</year>
+</pub-date>
+<volume>7</volume>
+<issue>75</issue>
+<fpage>4183</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2022</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>k-Medoids</kwd>
+<kwd>Clustering</kwd>
+<kwd>Rust</kwd>
+<kwd>Python</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p>A popular technique to cluster non-Euclidean data using arbitrary
+  distance functions or similarities is k-medoids. The k-medoids problem
+  is NP-hard
+  (<xref alt="Kariv &amp; Hakimi, 1979" rid="ref-KarivU002FHakimiU002F79a" ref-type="bibr">Kariv
+  &amp; Hakimi, 1979</xref>), hence we need an approximate solution. The
+  standard algorithm for this is Partitioning Around Medoids (PAM,
+  <xref alt="Kaufman &amp; Rousseeuw, 1987" rid="ref-KaufmanU002FRousseeuwU002F87a" ref-type="bibr">Kaufman
+  &amp; Rousseeuw, 1987</xref>,
+  <xref alt="1990" rid="ref-KaufmanU002FRousseeuwU002F90b" ref-type="bibr">1990</xref>),
+  consisting of a greedy initialization (BUILD) followed by a local
+  optimization (SWAP). Alternatively, a k-means-style alternating
+  optimization can be employed
+  (<xref alt="Maranzana, 1963" rid="ref-DBLPU003AjournalsU002FibmsjU002FMaranzana63" ref-type="bibr">Maranzana,
+  1963</xref>;
+  <xref alt="Park &amp; Jun, 2009" rid="ref-DBLPU003AjournalsU002FeswaU002FParkJ09" ref-type="bibr">Park
+  &amp; Jun, 2009</xref>), but this tends to produce worse results
+  (<xref alt="Reynolds et al., 2006" rid="ref-DBLPU003AjournalsU002FjmmaU002FReynoldsRIR06" ref-type="bibr">Reynolds
+  et al., 2006</xref>;
+  <xref alt="Rosing et al., 1979" rid="ref-journalsU002FgeoanaU002FRosing79" ref-type="bibr">Rosing
+  et al., 1979</xref>;
+  <xref alt="Teitz &amp; Bart, 1968" rid="ref-DBLPU003AjournalsU002FiorU002FTeitzB68" ref-type="bibr">Teitz
+  &amp; Bart, 1968</xref>).</p>
+  <p>FasterPAM
+  (<xref alt="Schubert &amp; Rousseeuw, 2019" rid="ref-DBLPU003AconfU002FsisapU002FSchubertR19" ref-type="bibr">Schubert
+  &amp; Rousseeuw, 2019</xref>,
+  <xref alt="2021" rid="ref-DBLPU003AjournalsU002FisU002FSchubertR21" ref-type="bibr">2021</xref>)
+  recently introduced a speedup for larger k, by exploiting redundancies
+  when computing swaps for all k existing medoids. Originally FasterPAM
+  was implemented in Java and published within the open-source library
+  ELKI
+  (<xref alt="Schubert &amp; Zimek, 2019" rid="ref-SchubertU002FZimekU002F2019a" ref-type="bibr">Schubert
+  &amp; Zimek, 2019</xref>).</p>
+  <p>Here, we introduce the <monospace>kmedoids</monospace> Rust crate
+  (https://github.com/kno10/rust-kmedoids) along with a Python wrapper
+  package <monospace>kmedoids</monospace>
+  (https://github.com/kno10/python-kmedoids) to make this fast algorithm
+  easier to employ by researchers in various fields. We implemented the
+  FasterPAM approach, the original PAM, and the “Alternating”
+  (k-means-style) approach. The implementation can be used with
+  arbitrary dissimilarities and distances, as it requires a
+  dissimilarity matrix as input.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p>To make the recent algorithmic improvements to k-medoids clustering
+  available to a wider audience, we made an easy to use package
+  available to the Rust and Python communities, to enable researchers to
+  easily explore k-medoids clustering on their data sets, which so far
+  is not available for example in the popular package scikit-learn (we
+  include a compatible API).</p>
+  <p>We chose Rust for the core functionality because of its high
+  reliability, security, and performance, and a Python wrapper for ease
+  of use. Both parts are documented following community best practice
+  and available online at
+  <ext-link ext-link-type="uri" xlink:href="https://docs.rs/kmedoids">https://docs.rs/kmedoids</ext-link>
+  respectively
+  <ext-link ext-link-type="uri" xlink:href="https://python-kmedoids.readthedocs.io">https://python-kmedoids.readthedocs.io</ext-link>.
+  We tried to keep library dependencies to a minimum, and some
+  dependencies (e.g., rayon for optional parallelization) can be
+  disabled via the Rust “feature” functionality. For efficiently sharing
+  data from Python to Rust, we rely on the well-known numpy/ndarray
+  pairing to avoid copying data.</p>
+</sec>
+<sec id="performance">
+  <title>Performance</title>
+  <p>The original FasterPAM prototype was implemented in Java and made
+  available as part of the ELKI open-source toolkit
+  (<xref alt="Schubert &amp; Zimek, 2019" rid="ref-SchubertU002FZimekU002F2019a" ref-type="bibr">Schubert
+  &amp; Zimek, 2019</xref>). Java often is not the best choice for a
+  numerically heavy computation, to a large extent due to memory
+  management; but it usually is still much faster than interpreted
+  ``pure’’ Python or R code (which can shine when used to drive compiled
+  library code written, e.g., in C, Fortran, or Rust). To demonstrate
+  the benefits of this new Rust implementation, we compare it to the
+  original Java version (written by the same authors), and also study
+  the additional speedup that can be obtained by parallelization using
+  multiple threads.</p>
+  <p>We use the first N instances of the well-known MNIST data set. As
+  the run times are expected to be quadratic in the number of instances,
+  we report run times normalized by N² averaged over 25 restarts on an
+  AMD EPYC 7302 processor with up to 16 threads for Rust. Even without
+  parallelization, the FasterPAM in Rust with 4.48 ns per N², is about 4
+  times less than the original Java FasterPAM implementation with 21.04
+  ns per N². We primarily attribute this to being able to use a better
+  memory layout than currently possible in Java (Project Valhalla’s
+  value types may eventually help). Using two threads in Rust, we
+  achieve a 34% faster calculation with 2.95 ns per N², but we see
+  diminishing returns when further increasing the number of threads for
+  this data set size, caused by the overhead and synchronization cost.
+  For small data sets, using a single thread appears beneficial, and the
+  Python wrapper defaults to this for small data sets.</p>
+  <fig>
+    <caption><p>Results normalized by N² on MNIST data with
+    k=10.<styled-content id="figU003Aexample_mnist"></styled-content></p></caption>
+    <graphic mimetype="image" mime-subtype="png" xlink:href="results.png" xlink:title="" />
+  </fig>
+</sec>
+<sec id="comparison-of-algorithms">
+  <title>Comparison of Algorithms</title>
+  <p>Many existing libraries only implement the (worse) alternating
+  algorithm, or the (slower) original PAM algorithm. We want to show
+  that using this package makes it easy to find better solutions in less
+  time. In practice, it is feasible to run multiple random restarts of
+  FasterPAM, because the run time of the optimization is usually smaller
+  than the time needed to compute the (reusable) distance matrix.
+  Nevertheless, computing the distance matrix needs O(N²) time and
+  memory, making the algorithm only a good choice for less than 100,000
+  instances (for large data sets, it likely is reasonable to use
+  subsampling).</p>
+  <p>We compare our implementation with alternative k-medoids
+  implementations and algorithms:
+  <monospace>sklearn_extra.cluster.KMedoids</monospace> (v0.2.0,
+  <xref alt="Mathieu et al., 2020" rid="ref-sklearnextra" ref-type="bibr">Mathieu
+  et al., 2020</xref>), <monospace>PyClustering</monospace> (v0.10.1.2,
+  <xref alt="Novikov, 2019" rid="ref-NovikovU002F2019" ref-type="bibr">Novikov,
+  2019</xref>), <monospace>biopython</monospace> (v1.79,
+  <xref alt="Cock et al., 2009" rid="ref-CockU002F2009" ref-type="bibr">Cock
+  et al., 2009</xref>), and <monospace>BanditPAM</monospace> (v3.0.2,
+  <xref alt="Tiwari et al., 2020" rid="ref-TiwariU002F2020" ref-type="bibr">Tiwari
+  et al., 2020</xref>).</p>
+  <p>Our implementations (via the python wrapper) are the fastest for
+  all algorithms (PAM, Alternating, and FasterPAM). As expected, the
+  “Alternating” algorithm shows a significantly worse loss than PAM and
+  FasterPAM in all implementations; while PAM has a substantially worse
+  run time than FasterPAM and Alternating. FasterPAM achieves a similar
+  loss to PAM (the measured differences are due to random
+  initialization) at the shortest run time.</p>
+  <table-wrap>
+    <caption>
+      <p>Results on first 10000 MNIST instances with k = 10.</p>
+    </caption>
+    <table>
+      <colgroup>
+        <col width="27%" />
+        <col width="21%" />
+        <col width="22%" />
+        <col width="12%" />
+        <col width="19%" />
+      </colgroup>
+      <thead>
+        <tr>
+          <th><bold>implementation</bold></th>
+          <th><bold>algorithm</bold></th>
+          <th><bold>language</bold></th>
+          <th><bold>ns per N²</bold></th>
+          <th><bold>average loss</bold></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><monospace>kmedoids</monospace>  </td>
+          <td>FasterPAM  </td>
+          <td>Python, Rust  </td>
+          <td><bold>5.53</bold></td>
+          <td>18755648</td>
+        </tr>
+        <tr>
+          <td><monospace>ELKI</monospace>  </td>
+          <td>FasterPAM  </td>
+          <td>Java  </td>
+          <td>17.81</td>
+          <td><bold>18744453</bold></td>
+        </tr>
+        <tr>
+          <td><monospace>kmedoids</monospace>  </td>
+          <td>Alternating  </td>
+          <td>Python, Rust  </td>
+          <td><bold>8.91</bold></td>
+          <td>19238742</td>
+        </tr>
+        <tr>
+          <td><monospace>ELKI</monospace>  </td>
+          <td>Alternating  </td>
+          <td>Java  </td>
+          <td>12.80</td>
+          <td>19238868</td>
+        </tr>
+        <tr>
+          <td><monospace>sklearn_extra</monospace>  </td>
+          <td>Alternating  </td>
+          <td>Python  </td>
+          <td>13.44</td>
+          <td>19238742</td>
+        </tr>
+        <tr>
+          <td><monospace>biopython</monospace>  </td>
+          <td>Alternating  </td>
+          <td>Python, C  </td>
+          <td>13.68</td>
+          <td>19702804</td>
+        </tr>
+        <tr>
+          <td><monospace>kmedoids</monospace>  </td>
+          <td>PAM  </td>
+          <td>Python, Rust  </td>
+          <td><bold>212.34</bold></td>
+          <td>18780639</td>
+        </tr>
+        <tr>
+          <td><monospace>ELKI</monospace>  </td>
+          <td>PAM  </td>
+          <td>Java  </td>
+          <td>787.55</td>
+          <td>18764896</td>
+        </tr>
+        <tr>
+          <td><monospace>sklearn_extra</monospace>  </td>
+          <td>PAM  </td>
+          <td>Python  </td>
+          <td>1506.52</td>
+          <td>18755237</td>
+        </tr>
+        <tr>
+          <td><monospace>PyClustering</monospace>  </td>
+          <td>PAM  </td>
+          <td>Python, C++  </td>
+          <td>76957.64</td>
+          <td>18753892</td>
+        </tr>
+      </tbody>
+    </table>
+  </table-wrap>
+  <p>Because BanditPAM cannot handle precomputed distance matrices, we
+  evaluate BanditPAM separately, including the run time for the distance
+  computations. On average, for MNIST 5000, 10000, 15000, and 20000
+  samples, BanditPAM was 55 times slower than FasterPAM in Rust. While
+  BanditPAM claims “almost linear run time”
+  (<xref alt="Tiwari et al., 2020" rid="ref-TiwariU002F2020" ref-type="bibr">Tiwari
+  et al., 2020</xref>), whereas FasterPAM has quadratic run time,
+  BanditPAM appears to have substantial
+  overhead,<xref ref-type="fn" rid="fn1">1</xref> and a break-even point
+  likely is beyond 500000 samples for MNIST (a size where the memory
+  consumption of the distance matrix makes a stored-distances approach
+  prohibitive to use).</p>
+</sec>
+<sec id="conclusions">
+  <title>Conclusions</title>
+  <p>We provide a fast Rust implementation of the FasterPAM algorithm,
+  with optional parallelization, and an easy-to-use Python wrapper.
+  K-medoids clustering is a useful clustering algorithm in many domains
+  where the input data is not continuous, and where Euclidean distance
+  is not suitable, and with these packages, we hope to make this
+  algorithm easier accessible to data scientists in various fields,
+  while the source code helps researchers in data mining to further
+  improve clustering algorithms.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <ref id="ref-KaufmanU002FRousseeuwU002F90b">
+    <element-citation publication-type="chapter">
+      <person-group person-group-type="author">
+        <name><surname>Kaufman</surname><given-names>L.</given-names></name>
+        <name><surname>Rousseeuw</surname><given-names>P. J.</given-names></name>
+      </person-group>
+      <article-title>Partitioning around medoids (program PAM)</article-title>
+      <source>Finding groups in data</source>
+      <publisher-name>John Wiley&amp;Sons</publisher-name>
+      <year iso-8601-date="1990">1990</year>
+      <isbn>9780471878766</isbn>
+      <pub-id pub-id-type="doi">10.1002/9780470316801.ch2</pub-id>
+      <fpage>68</fpage>
+      <lpage>125</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-KaufmanU002FRousseeuwU002F87a">
+    <element-citation publication-type="chapter">
+      <person-group person-group-type="author">
+        <name><surname>Kaufman</surname><given-names>L.</given-names></name>
+        <name><surname>Rousseeuw</surname><given-names>P. J.</given-names></name>
+      </person-group>
+      <article-title>Clustering by means of medoids</article-title>
+      <source>Statistical data analysis based on the l_1 norm and related methods</source>
+      <person-group person-group-type="editor">
+        <name><surname>Dodge</surname><given-names>Y.</given-names></name>
+      </person-group>
+      <publisher-name>North-Holland</publisher-name>
+      <year iso-8601-date="1987">1987</year>
+      <isbn>0444702733</isbn>
+      <fpage>405</fpage>
+      <lpage>416</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-KarivU002FHakimiU002F79a">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Kariv</surname><given-names>O.</given-names></name>
+        <name><surname>Hakimi</surname><given-names>S.</given-names></name>
+      </person-group>
+      <article-title>An algorithmic approach to network location problems. II: The p-medians</article-title>
+      <source>SIAM Journal on Applied Mathematics</source>
+      <year iso-8601-date="1979">1979</year>
+      <volume>37</volume>
+      <issue>3</issue>
+      <pub-id pub-id-type="doi">10.1137/0137041</pub-id>
+      <fpage>539</fpage>
+      <lpage>560</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-DBLPU003AconfU002FsisapU002FSchubertR19">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Schubert</surname><given-names>Erich</given-names></name>
+        <name><surname>Rousseeuw</surname><given-names>Peter J.</given-names></name>
+      </person-group>
+      <article-title>Faster k-medoids clustering: Improving the PAM, CLARA, and CLARANS algorithms</article-title>
+      <source>Proc. Int. Conf on similarity search and applications (SISAP)</source>
+      <publisher-name>Springer</publisher-name>
+      <year iso-8601-date="2019">2019</year>
+      <volume>11807</volume>
+      <pub-id pub-id-type="doi">10.1007/978-3-030-32047-8_16</pub-id>
+      <fpage>171</fpage>
+      <lpage>187</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-DBLPU003AjournalsU002FisU002FSchubertR21">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Schubert</surname><given-names>Erich</given-names></name>
+        <name><surname>Rousseeuw</surname><given-names>Peter J.</given-names></name>
+      </person-group>
+      <article-title>Fast and eager k-medoids clustering: O(k) runtime improvement of the PAM, CLARA, and CLARANS algorithms</article-title>
+      <source>Inf. Syst.</source>
+      <year iso-8601-date="2021">2021</year>
+      <volume>101</volume>
+      <pub-id pub-id-type="doi">10.1016/j.is.2021.101804</pub-id>
+      <fpage>101804</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-SchubertU002FZimekU002F2019a">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Schubert</surname><given-names>Erich</given-names></name>
+        <name><surname>Zimek</surname><given-names>Arthur</given-names></name>
+      </person-group>
+      <article-title>ELKI: A large open-source library for data analysis - ELKI release 0.7.5 &quot;Heidelberg&quot;</article-title>
+      <source>CoRR</source>
+      <year iso-8601-date="2019">2019</year>
+      <volume>abs/1902.03616</volume>
+      <uri>http://arxiv.org/abs/1902.03616</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-TiwariU002F2020">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Tiwari</surname><given-names>Mo</given-names></name>
+        <name><surname>Zhang</surname><given-names>Martin J</given-names></name>
+        <name><surname>Mayclin</surname><given-names>James</given-names></name>
+        <name><surname>Thrun</surname><given-names>Sebastian</given-names></name>
+        <name><surname>Piech</surname><given-names>Chris</given-names></name>
+        <name><surname>Shomorony</surname><given-names>Ilan</given-names></name>
+      </person-group>
+      <article-title>BanditPAM: Almost linear time k-medoids clustering via multi-armed bandits</article-title>
+      <source>Neural information processing systems (NeuRIPS)</source>
+      <year iso-8601-date="2020">2020</year>
+      <fpage>368</fpage>
+      <lpage>374</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-NovikovU002F2019">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Novikov</surname><given-names>Andrei</given-names></name>
+      </person-group>
+      <article-title>PyClustering: Data mining library</article-title>
+      <source>Journal of Open Source Software</source>
+      <publisher-name>The Open Journal</publisher-name>
+      <year iso-8601-date="2019-04">2019</year><month>04</month>
+      <volume>4</volume>
+      <issue>36</issue>
+      <pub-id pub-id-type="doi">10.21105/joss.01230</pub-id>
+      <fpage>1230</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-DBLPU003AjournalsU002FiorU002FTeitzB68">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Teitz</surname><given-names>Michael B.</given-names></name>
+        <name><surname>Bart</surname><given-names>Polly</given-names></name>
+      </person-group>
+      <article-title>Heuristic methods for estimating the generalized vertex median of a weighted graph</article-title>
+      <source>Operations Research</source>
+      <year iso-8601-date="1968">1968</year>
+      <volume>16</volume>
+      <issue>5</issue>
+      <pub-id pub-id-type="doi">10.1287/opre.16.5.955</pub-id>
+      <fpage>955</fpage>
+      <lpage>961</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-journalsU002FgeoanaU002FRosing79">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Rosing</surname><given-names>Kenneth E.</given-names></name>
+        <name><surname>Hillsman</surname><given-names>Edward L.</given-names></name>
+        <name><surname>Rosing-Vogelaar</surname><given-names>Hester</given-names></name>
+      </person-group>
+      <article-title>A note comparing optimal and heuristic solutions to the p-median problem</article-title>
+      <source>Geographical Analysis</source>
+      <year iso-8601-date="1979">1979</year>
+      <volume>11</volume>
+      <issue>1</issue>
+      <pub-id pub-id-type="doi">10.1111/j.1538-4632.1979.tb00674.x</pub-id>
+      <fpage>86</fpage>
+      <lpage>89</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-DBLPU003AjournalsU002FjmmaU002FReynoldsRIR06">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Reynolds</surname><given-names>Alan P.</given-names></name>
+        <name><surname>Richards</surname><given-names>Graeme</given-names></name>
+        <name><surname>Iglesia</surname><given-names>Beatriz de la</given-names></name>
+        <name><surname>Rayward-Smith</surname><given-names>Victor J.</given-names></name>
+      </person-group>
+      <article-title>Clustering rules: A comparison of partitioning and hierarchical clustering algorithms</article-title>
+      <source>J. Math. Model. Algorithms</source>
+      <year iso-8601-date="2006">2006</year>
+      <volume>5</volume>
+      <issue>4</issue>
+      <pub-id pub-id-type="doi">10.1007/s10852-005-9022-1</pub-id>
+      <fpage>475</fpage>
+      <lpage>504</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-DBLPU003AjournalsU002FibmsjU002FMaranzana63">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Maranzana</surname><given-names>Francesco E.</given-names></name>
+      </person-group>
+      <article-title>On the location of supply points to minimize transportation costs</article-title>
+      <source>IBM Systems Journal</source>
+      <year iso-8601-date="1963">1963</year>
+      <volume>2</volume>
+      <issue>2</issue>
+      <pub-id pub-id-type="doi">10.1147/sj.22.0129</pub-id>
+      <fpage>129</fpage>
+      <lpage>135</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-DBLPU003AjournalsU002FeswaU002FParkJ09">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Park</surname><given-names>Hae-Sang</given-names></name>
+        <name><surname>Jun</surname><given-names>Chi-Hyuck</given-names></name>
+      </person-group>
+      <article-title>A simple and fast algorithm for k-medoids clustering</article-title>
+      <source>Expert Syst. Appl.</source>
+      <year iso-8601-date="2009">2009</year>
+      <volume>36</volume>
+      <issue>2</issue>
+      <pub-id pub-id-type="doi">10.1016/j.eswa.2008.01.039</pub-id>
+      <fpage>3336</fpage>
+      <lpage>3341</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-CockU002F2009">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Cock</surname><given-names>Peter J. A.</given-names></name>
+        <name><surname>Antao</surname><given-names>Tiago</given-names></name>
+        <name><surname>Chang</surname><given-names>Jeffrey T.</given-names></name>
+        <name><surname>Chapman</surname><given-names>Brad A.</given-names></name>
+        <name><surname>Cox</surname><given-names>Cymon J.</given-names></name>
+        <name><surname>Dalke</surname><given-names>Andrew</given-names></name>
+        <name><surname>Friedberg</surname><given-names>Iddo</given-names></name>
+        <name><surname>Hamelryck</surname><given-names>Thomas</given-names></name>
+        <name><surname>Kauff</surname><given-names>Frank</given-names></name>
+        <name><surname>Wilczynski</surname><given-names>Bartek</given-names></name>
+        <name><surname>Hoon</surname><given-names>Michiel J. L. de</given-names></name>
+      </person-group>
+      <article-title>Biopython: freely available Python tools for computational molecular biology and bioinformatics</article-title>
+      <source>Bioinformatics</source>
+      <year iso-8601-date="2009-03">2009</year><month>03</month>
+      <volume>25</volume>
+      <issue>11</issue>
+      <issn>1367-4803</issn>
+      <pub-id pub-id-type="doi">10.1093/bioinformatics/btp163</pub-id>
+      <fpage>1422</fpage>
+      <lpage>1423</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-sklearnextra">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Mathieu</surname><given-names>Timothée</given-names></name>
+        <name><surname>Yurchak</surname><given-names>Roman</given-names></name>
+        <name><surname>Birodkar</surname><given-names>Vighnesh</given-names></name>
+        <name><surname>Contributors</surname></name>
+      </person-group>
+      <article-title>Scikit-learn-extra – a set of useful tools compatible with scikit-learn</article-title>
+      <source>GitHub repository</source>
+      <publisher-name>GitHub</publisher-name>
+      <year iso-8601-date="2020">2020</year>
+      <uri>https://github.com/scikit-learn-contrib/scikit-learn-extra</uri>
+    </element-citation>
+  </ref>
+</ref-list>
+<fn-group>
+  <fn id="fn1">
+    <label>1</label><p>c.f. bug report
+    https://github.com/ThrunGroup/BanditPAM/issues/175</p>
+  </fn>
+</fn-group>
+</back>
+</article>
