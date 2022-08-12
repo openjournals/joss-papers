@@ -1,0 +1,749 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">4415</article-id>
+<article-id pub-id-type="doi">10.21105/joss.04415</article-id>
+<title-group>
+<article-title>Generative DAGs as an Interface Into Probabilistic
+Programming with the R Package causact</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">0000-0003-2871-4788</contrib-id>
+<name>
+<surname>Fleischhacker</surname>
+<given-names>Adam J.</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<contrib contrib-type="author">
+<name>
+<surname>Nguyen</surname>
+<given-names>Thi Hong Nhung</given-names>
+</name>
+<xref ref-type="aff" rid="aff-2"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Adam Fleischhacker, JP Morgan Chase Faculty Fellow,
+University of Delaware, Newark, DE 19716</institution>
+</institution-wrap>
+</aff>
+<aff id="aff-2">
+<institution-wrap>
+<institution>Institute for Financial Services Analytics, University of
+Delaware, Newark, DE 19716</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2022-07-26">
+<day>26</day>
+<month>7</month>
+<year>2022</year>
+</pub-date>
+<volume>7</volume>
+<issue>76</issue>
+<fpage>4415</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2022</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>R</kwd>
+<kwd>Bayesian inference</kwd>
+<kwd>probabilistic programming</kwd>
+<kwd>graphical models</kwd>
+<kwd>directed acyclic graphs</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p>The <monospace>causact</monospace> package provides
+  <monospace>R</monospace> functions for visualizing and running
+  inference on generative directed acyclic graphs (DAGs). Once a
+  generative DAG is created, the package automates Bayesian inference
+  via the <monospace>greta</monospace> package
+  (<xref alt="Golding, 2019" rid="ref-golding2019greta" ref-type="bibr">Golding,
+  2019</xref>) and <monospace>TensorFlow</monospace>
+  (<xref alt="Dillon et al., 2017" rid="ref-dillon2017tensorflow" ref-type="bibr">Dillon
+  et al., 2017</xref>). The package eliminates the need for three
+  separate versions of a model: 1) the narrative describing the problem,
+  2) the statistical model representing the problem, and 3) the code
+  enabling inference written in a probabilistic programming language.
+  Instead, <monospace>causact</monospace> users create one unified
+  model, a generative DAG, using a visual representation.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of Need</title>
+  <p>Bayesian data analysis mixes data with domain knowledge to quantify
+  uncertainty in unknown outcomes. Its beautifully-simple theoretical
+  underpinnings are deployed in three main steps
+  (<xref alt="Gelman et al., 2013" rid="ref-gelman2013bayesian" ref-type="bibr">Gelman
+  et al., 2013</xref>):</p>
+  <list list-type="bullet">
+    <list-item>
+      <p><bold>Modelling:</bold> Joint probability distributions are
+      specified to encode domain knowledge about potential data
+      generating processes.</p>
+    </list-item>
+    <list-item>
+      <p><bold>Conditioning:</bold> Bayes rule is used to reallocate
+      plausibility among the potential data generating processes to be
+      consistent with both the encoded domain knowledge and the observed
+      data. The conditioned model is known as the posterior
+      distribution.</p>
+    </list-item>
+    <list-item>
+      <p><bold>Validation:</bold> Evidence is collected to see whether
+      the specified model as well as the computational implementation of
+      the model and conditioning process are to be trusted or not.</p>
+    </list-item>
+  </list>
+  <p>Algorithmic advances in the <italic>conditioning</italic> step of
+  Bayesian data analysis have given rise to a new class of programming
+  languages called probabilistic programming languages (PPLs). Practical
+  and complex statistical models which are analytically intractable can
+  now be solved computationally using inference algorithms. In
+  particular, Markov Chain Monte Carlo (MCMC) algorithms
+  (<xref alt="Congdon, 2010" rid="ref-congdon2010applied" ref-type="bibr">Congdon,
+  2010</xref>;
+  <xref alt="Gelfand &amp; Smith, 1990" rid="ref-gelfand1990sampling" ref-type="bibr">Gelfand
+  &amp; Smith, 1990</xref>;
+  <xref alt="Gilks &amp; Roberts, 1996" rid="ref-gilks1996strategies" ref-type="bibr">Gilks
+  &amp; Roberts, 1996</xref>) handle arbitrarily large and complex
+  models via highly effective sampling processes that quickly detect
+  high-probability areas of the underlying distribution Kruschke
+  (<xref alt="2014" rid="ref-kruschke2014doing" ref-type="bibr">2014</xref>).</p>
+  <p>The <monospace>causact</monospace> package, presented in this
+  paper, focuses on solving a three-language problem that occurs during
+  Bayesian data analysis. First, there is the language of the domain
+  expert which we refer to as the <italic>narrative</italic> of how data
+  is generated. Second, there is the language of <italic>math</italic>
+  where a statistical model, amenable to inference, is written. Lastly,
+  there is the language of <italic>code</italic>, where a PPL language
+  supports computational inference from a well-defined statistical
+  model. The existence of these three languages creates friction as
+  diverse stakeholders collaborate to yield insight from data; often
+  mistakes get made in both communicating and translating between the
+  three languages. Prior to <monospace>causact</monospace>, any agreed
+  upon narrative of a data-generating process must ultimately be
+  modelled in code using an error-prone process where model
+  misspecification, variable indexing errors, prior distribution
+  omissions, and other mismatches between desired model and coded model
+  go easily unnoticed.</p>
+  <p>To unify inference-problem narratives, the statistical models
+  representing those narratives, and the code implementing the
+  statistical models, <monospace>causact</monospace> introduces a
+  modified visualization of <italic>directed acyclic graphs</italic>
+  (DAGs), called the <italic>generative DAG</italic>, to serve as a more
+  intuitive and collaborative interface into probabilistic programming
+  languages and to ensure faithful abstractions of real-world data
+  generating processes.</p>
+</sec>
+<sec id="modelling-with-generative-dags">
+  <title>Modelling with Generative DAGs</title>
+  <p>Generative DAGs pursue two simultaneous goals. One goal is to
+  capture the narrative by building a conceptual understanding of the
+  data generating process that lends itself to statistical modelling.
+  And the second goal is to gather all the mathematical elements needed
+  for specifying a complete Bayesian model of the data generating
+  process. Both of these goals will be satisfied by iteratively
+  assessing the narrative and the narrative’s translation into rigorous
+  mathematics using <monospace>causact</monospace> functions.</p>
+  <p>Capturing the narrative in code uses the core
+  <monospace>causact</monospace> functions
+  <monospace>dag_create()</monospace>,
+  <monospace>dag_node()</monospace>, <monospace>dag_edge()</monospace>,
+  and <monospace>dag_plate()</monospace> which are connected via the
+  chaining operator <monospace>%&gt;%</monospace> to build a DAG.
+  <monospace>dag_render()</monospace> or
+  <monospace>dag_greta()</monospace> are then used to visualize the DAG
+  or run inference on the DAG, respectively. The simplicity with which
+  generative DAGs are constructed belies the complexity of models which
+  can be supported. For example, multi-level or hierarchical models are
+  easily constructed as shown below in code for constructing and
+  visualizing an experiment about chimpanzees
+  (<xref alt="McElreath, 2020b" rid="ref-mcelreath2020statistical" ref-type="bibr">McElreath,
+  2020b</xref>); related data is included in
+  <monospace>causact</monospace>
+  (<monospace>causact::chimpanzeesDF</monospace>). Each chimpanzee
+  “actor” is given a choice to pull one of two levers - right or left.
+  Depending on the lever pulled, the chimpanzee is either acting
+  prosocially, pulling the lever which feeds both himself and a partner,
+  or not prosocially where only the lever-pulling chimpanzee receives
+  food. <xref alt="Figure 1" rid="figU003Achimps">Figure 1</xref>
+  depicts a varying intercepts model where a baseline proclivity to pull
+  the left lever varies with each of the seven chimpanzee actors being
+  observed.</p>
+  <code language="r script">## load packages for example
+library(greta)
+library(causact)
+library(tidyverse)
+## get only the experiments with partner present
+chimpDF = causact::chimpanzeesDF %&gt;% filter(condition == 1)
+## create model
+graph = dag_create() %&gt;% 
+  dag_node(&quot;Pull Left&quot;,&quot;L&quot;,
+           rhs = bernoulli(theta),
+           data = chimpDF$pulled_left) %&gt;% 
+  dag_node(&quot;Prob. Pull Left&quot;,&quot;theta&quot;,
+           rhs = 1 / (1 + exp(-y)),
+           child = &quot;L&quot;) %&gt;% 
+  dag_node(&quot;Linear Predictor&quot;,&quot;y&quot;,
+           rhs = alpha + alpha_i + beta * prosoc_left,
+           child = &quot;theta&quot;) %&gt;% 
+  dag_node(&quot;Global Intercept&quot;,&quot;alpha&quot;,
+          rhs = normal(0,10)) %&gt;%
+  dag_node(&quot;Actor Intercept&quot;,&quot;alpha_i&quot;,
+           rhs = normal(0,sigma_i)) %&gt;% 
+  dag_node(&quot;Prosocial Coefficient&quot;,&quot;beta&quot;,
+           rhs = normal(0,10)) %&gt;% 
+  dag_node(&quot;Left Prosocial Flag&quot;,&quot;prosoc_left&quot;,
+           data = chimpDF$prosoc_left) %&gt;%
+  dag_edge(c(&quot;alpha&quot;,&quot;alpha_i&quot;,&quot;beta&quot;,&quot;prosoc_left&quot;),&quot;y&quot;) %&gt;% 
+  dag_node(&quot;Actor Variability&quot;,&quot;sigma_i&quot;,
+           rhs = cauchy(0,1,trunc = c(0,Inf)),
+           child = &quot;alpha_i&quot;) %&gt;% 
+  dag_plate(&quot;Actor&quot;,&quot;i&quot;,
+            nodeLabels = c(&quot;alpha_i&quot;),
+            data = chimpDF$actor,
+            addDataNode = TRUE) %&gt;%
+  dag_plate(&quot;Observation&quot;,&quot;j&quot;,
+            nodeLabels = c(&quot;prosoc_left&quot;,&quot;i&quot;,&quot;y&quot;,&quot;theta&quot;,&quot;L&quot;))
+graph %&gt;% dag_render()</code>
+  <fig>
+    <caption><p>A generative DAG of modelling chimpanzee
+    behavior.<styled-content id="figU003Achimps"></styled-content></p></caption>
+    <graphic mimetype="image" mime-subtype="png" xlink:href="chimps.png" xlink:title="" />
+  </fig>
+  <p><xref alt="Figure 2" rid="figU003AchimpShort">Figure 2</xref>
+  replicates <xref alt="Figure 1" rid="figU003Achimps">Figure 1</xref>
+  without math for less intimidating discussions with domain experts
+  about the model using the <monospace>shortLabel = TRUE</monospace>
+  argument (shown below). <monospace>causact</monospace> does not
+  require a complete model specification prior to rendering the DAG,
+  hence, <monospace>causact</monospace> facilitates qualitative
+  collaboration on the model design between less technical domain
+  experts and the model builder.</p>
+  <code language="r script">graph %&gt;% dag_render(shortLabel = TRUE)</code>
+  <fig>
+    <caption><p>Hiding mathematical details to facilitate collaborations
+    with domain
+    experts.<styled-content id="figU003AchimpShort"></styled-content></p></caption>
+    <graphic mimetype="image" mime-subtype="png" xlink:href="chimpShort.png" xlink:title="" />
+  </fig>
+  <p>All visualizations, including
+  <xref alt="Figure 1" rid="figU003Achimps">Figure 1</xref> and
+  <xref alt="Figure 2" rid="figU003AchimpShort">Figure 2</xref>, are
+  created via <monospace>causact</monospace>’s calls to the
+  <monospace>DiagrammeR</monospace> package
+  (<xref alt="Iannone, 2020" rid="ref-iannone20" ref-type="bibr">Iannone,
+  2020</xref>). The <monospace>dag_diagrammer()</monospace> function can
+  convert a <monospace>causact_graph</monospace> to a
+  <monospace>dgr_graph</monospace> (the main object when using
+  <monospace>DiagrammeR</monospace>) for further customizing of a
+  visualization using the <monospace>DiagrammeR</monospace> package.</p>
+  <p>Sampling from the posterior of the chimpanzee model
+  (<xref alt="Figure 1" rid="figU003Achimps">Figure 1</xref>) does not
+  require a user to write PPL code, but rather a user will simply pass
+  the generative DAG object to <monospace>dag_greta()</monospace> and
+  then inspect the data frame of posterior draws:</p>
+  <code language="r script">library(greta) ## greta uses TensorFlow to get sample
+drawsDF = graph %&gt;% dag_greta()
+drawsDF</code>
+  <preformat>## # A tibble: 4,000 x 10
+##     alpha alpha_i_1 alpha_i_2 alpha_i_3 alpha_i_4 alpha_i_5 alpha_i_6
+##     &lt;dbl&gt;     &lt;dbl&gt;     &lt;dbl&gt;     &lt;dbl&gt;     &lt;dbl&gt;     &lt;dbl&gt;     &lt;dbl&gt;
+##  1  0.227    -1.01       3.58     -1.40    -1.50     -0.963    0.133 
+##  2  0.227    -1.01       3.58     -1.40    -1.50     -0.963    0.133 
+##  3 -0.204    -0.489      3.84     -1.43    -1.14     -0.253    0.863 
+##  4  0.221    -0.503      3.83     -1.30    -0.835    -0.212    0.0866
+##  5  0.189    -1.54       3.99     -1.27    -1.85     -1.60     0.0299
+##  6  1.14     -1.58       2.20     -3.06    -2.58     -2.00    -1.41  
+##  7 -0.195    -0.405      2.75     -1.53    -0.849    -0.750   -0.481 
+##  8  0.832    -2.04       2.96     -3.12    -2.65     -1.67    -1.71  
+##  9  1.91     -2.78       1.78     -3.98    -3.15     -2.97    -2.46  
+## 10  1.01     -2.52       6.37     -2.74    -3.09     -2.37    -0.957 
+## # ... with 3,990 more rows, and 3 more variables: alpha_i_7 &lt;dbl&gt;,
+##   beta &lt;dbl&gt;, sigma_i &lt;dbl&gt;</preformat>
+  <p>Behind the scenes, <monospace>causact</monospace> creates the
+  model’s code equivalent using the <monospace>greta</monospace> PPL,
+  but this is typically hidden from the user. However, for debugging or
+  further customizing a model, the <monospace>greta</monospace> code can
+  be printed to the screen without executing it by setting the
+  <monospace>mcmc</monospace> argument to
+  <monospace>FALSE</monospace>:</p>
+  <code language="r script">graph %&gt;% dag_greta(mcmc=FALSE)</code>
+  <preformat>## prosoc_left &lt;- as_data(chimpDF$prosoc_left)   #DATA
+## L &lt;- as_data(chimpDF$pulled_left)             #DATA
+## i      &lt;- as.factor(chimpDF$actor)   #DIM
+## i_dim  &lt;- length(unique(i))   #DIM
+## alpha   &lt;- normal(mean = 0, sd = 10)                            #PRIOR
+## beta    &lt;- normal(mean = 0, sd = 10)                            #PRIOR
+## sigma_i &lt;- cauchy(location = 0, scale = 1, trunc = c(0, Inf))   #PRIOR
+## alpha_i &lt;- normal(mean = 0, sd = sigma_i, dim = i_dim)          #PRIOR
+## y      &lt;- alpha + alpha_i[i] + beta * prosoc_left   #OPERATION
+## theta  &lt;- 1 / (1 + exp(-y))                         #OPERATION
+## distribution(L) &lt;- bernoulli(prob = theta)   #LIKELIHOOD
+## gretaModel  &lt;- model(alpha,alpha_i,beta,sigma_i)   #MODEL
+## meaningfulLabels(graph)
+## draws       &lt;- mcmc(gretaModel)              #POSTERIOR
+## drawsDF     &lt;- replaceLabels(draws) %&gt;% as.matrix() %&gt;%
+##                 dplyr::as_tibble()           #POSTERIOR
+## tidyDrawsDF &lt;- drawsDF %&gt;% addPriorGroups()  #POSTERIOR</preformat>
+  <p>The produced <monospace>greta</monospace> code is shown in the
+  above code snippet. The code can be difficult to digest for some and
+  exemplifies the advantages of working visually using
+  <monospace>causact</monospace>. The above code is also challenging to
+  write without error or misinterpretation. Indexing is particularly
+  tricky in PPL’s and <monospace>causact</monospace> abbreviates
+  posterior parameters using indexes as determined by provided data
+  (e.g. <monospace>as.factor(chimpDF$actor)</monospace>) and not by
+  arbitrary numbering of factors in order of appearance.</p>
+  <p>The output of <monospace>dag_greta()</monospace> is in the form of
+  a data frame of draws from the joint posterior. To facilitate a quick
+  look into posterior estimates, the <monospace>dagp_plot()</monospace>
+  function creates a simple visual of 90% credible intervals. It is the
+  only core function that does not take a graph as its first argument.
+  By grouping all parameters that share the same prior distribution and
+  leveraging the meaningful parameter names constructed using
+  <monospace>dag_greta()</monospace>, it allows for quick comparisons of
+  parameter values.</p>
+  <code language="r script">drawsDF %&gt;% dagp_plot()</code>
+  <fig>
+    <caption><p>Visualizing 10% (darker fill) and 90% (lighter fill)
+    credible intervals for latent
+    parameters.<styled-content id="figU003AchimpPlot"></styled-content></p></caption>
+    <graphic mimetype="image" mime-subtype="png" xlink:href="chimpPlot.png" xlink:title="" />
+  </fig>
+  <p>The code above makes the plot in
+  <xref alt="Figure 3" rid="figU003AchimpPlot">Figure 3</xref> showing
+  credible intervals for unobserved latent parameters. For example,
+  <monospace>alpha_i_2</monospace> represents a chimp with strong
+  preference for pulling the left lever; this chimp is affectionately
+  referred to as “Lefty”. For further posterior plotting, users would
+  make their own plots using <monospace>ggplot2</monospace>
+  (<xref alt="Wickham, 2016" rid="ref-wickham2016" ref-type="bibr">Wickham,
+  2016</xref>), <monospace>ggdist</monospace>
+  (<xref alt="Kay, 2020" rid="ref-kay2020" ref-type="bibr">Kay,
+  2020</xref>), or similar. For further model validation, including MCMC
+  diagnostics, the user would use a package like
+  <monospace>bayesplot</monospace>
+  (<xref alt="Gabry et al., 2019" rid="ref-gabry2019visualization" ref-type="bibr">Gabry
+  et al., 2019</xref>) or <monospace>shinystan</monospace>
+  (<xref alt="Gabry, 2018" rid="ref-gabry2018" ref-type="bibr">Gabry,
+  2018</xref>). For users who prefer to work with an
+  <monospace>mcmc</monospace> object, they can extract the
+  <monospace>draws</monospace> object after running the generated
+  <monospace>greta</monospace> code from
+  <monospace>dag_greta(mcmc=FALSE)</monospace> or find the object in the
+  <monospace>cacheEnv</monospace> environment after running
+  <monospace>dag_greta(mcmc=FALSE)</monospace> using
+  <monospace>get(&quot;draws&quot;,envir = causact:::cacheEnv)</monospace>.</p>
+</sec>
+<sec id="comparison-to-other-packages">
+  <title>Comparison to Other Packages</title>
+  <p><styled-content id="secU003Acompare"></styled-content></p>
+  <p>By focusing on generative DAG creation as opposed to PPL code,
+  <monospace>causact</monospace> liberates users from the need to learn
+  complicated probabilistic programming languages. As such, it is
+  similar in spirit to any package whose goal is to make Bayesian
+  inference accessible without learning a PPL. Perhaps the first such
+  software was DoodleBUGS which provided a DAG-based graphical interface
+  into
+  WinBUGS(<xref alt="Lunn et al., 2000" rid="ref-lunn2000" ref-type="bibr">Lunn
+  et al., 2000</xref>). In terms of leveraging more modern PPLs,
+  <monospace>causact</monospace> is similar to
+  <monospace>brms</monospace>
+  (<xref alt="Bürkner, 2017" rid="ref-burkner2017brms" ref-type="bibr">Bürkner,
+  2017</xref>), <monospace>rstanarm</monospace>
+  (<xref alt="Goodrich et al., 2020" rid="ref-goodrich" ref-type="bibr">Goodrich
+  et al., 2020</xref>), and <monospace>rethinking</monospace>
+  (<xref alt="McElreath, 2020a" rid="ref-mc20" ref-type="bibr">McElreath,
+  2020a</xref>) - three <monospace>R</monospace> packages which leverage
+  <monospace>Stan</monospace>
+  (<xref alt="Stan Development Team, 2021" rid="ref-stan_development_team" ref-type="bibr">Stan
+  Development Team, 2021</xref>) for Bayesian statistical inference with
+  MCMC sampling. Like the <monospace>rethinking</monospace> package
+  which is tightly integrated with a textbook
+  (<xref alt="McElreath, 2020b" rid="ref-mcelreath2020statistical" ref-type="bibr">McElreath,
+  2020b</xref>), a large motivation for developing
+  <monospace>causact</monospace> was to make learning Bayesian inference
+  easier. The package serves a central role in a textbook titled
+  <italic>A Business Analyst’s Introduction to Business Analytics: Intro
+  to Bayesian Business Analytics in the R Ecosystem.</italic>
+  (<xref alt="Fleischhacker, 2020" rid="ref-fleischhacker2020business" ref-type="bibr">Fleischhacker,
+  2020</xref>). As a point of contrast, the DAGitty package
+  (<xref alt="Textor et al., 2017" rid="ref-textor2017" ref-type="bibr">Textor
+  et al., 2017</xref>) also focuses on DAG creation/visualization, but
+  DAGitty’s intent is to help ensure consistency between the causal
+  assumptions of a researcher and the dataset to which those assumptions
+  should apply; DAGitty does not create PPL code for automating
+  inference.</p>
+</sec>
+<sec id="conclusion">
+  <title>Conclusion</title>
+  <p>The causact modelling syntax is flexible and encourages modellers
+  to make bespoke models. The long-term plan for the
+  <monospace>causact</monospace> package is to promote a Bayesian
+  workflow that philosophically mimics the Principled Bayesian Workflow
+  outlined by Betancourt
+  (<xref alt="2020" rid="ref-betancourt2020b" ref-type="bibr">2020</xref>).
+  The structure of a generative DAG is sure to be much more transparent
+  and interpretable than most other modern machine learning workflows;
+  this is especially true when models are made accessible to those
+  without statistical or coding expertise. For this reason, generative
+  DAGs can help facilitate effective communication between modelers and
+  domain users both during the designing process of the models and when
+  explaining the results returned by the models.</p>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>The <monospace>Stan</monospace> Development team has been
+  inspirational for this work and has formed a wonderful Bayesian
+  inference community around their powerful language. Additionally, the
+  books of Kruschke
+  (<xref alt="2014" rid="ref-kruschke2014doing" ref-type="bibr">2014</xref>)
+  and McElreath
+  (<xref alt="2020b" rid="ref-mcelreath2020statistical" ref-type="bibr">2020b</xref>)
+  are tremendous resources for learning Bayesian data analysis and their
+  pedagogy is aspirational. This work would not be possible without the
+  <monospace>greta</monospace> dev team and special thanks to Nick
+  Golding and Nick Tierney. Lastly, thanks to the University of Delaware
+  students, MBAs and PhDs, who have contributed time, code, testing, and
+  enthusiasm for this project from its beginning.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <ref id="ref-stan_development_team">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <string-name>Stan Development Team</string-name>
+      </person-group>
+      <source>Stan Modeling Language User’s Guide and Reference Manual, Version 2.26</source>
+      <year iso-8601-date="2021">2021</year>
+      <uri>http://mc-stan.org/</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-burkner2017brms">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Bürkner</surname><given-names>Paul-Christian</given-names></name>
+      </person-group>
+      <article-title>Brms: An r package for Bayesian multilevel models using stan</article-title>
+      <source>Journal of statistical software</source>
+      <year iso-8601-date="2017">2017</year>
+      <volume>80</volume>
+      <issue>1</issue>
+      <uri>https://doi.org/10.18637/jss.v080.i01</uri>
+      <fpage>1</fpage>
+      <lpage>28</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-betancourt2020b">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Betancourt</surname><given-names>Michael</given-names></name>
+      </person-group>
+      <article-title>Towards a principled Bayesian workflow</article-title>
+      <publisher-name>https://betanalpha.github.io/assets/case_studies/principled_bayesian_workflow.html</publisher-name>
+      <year iso-8601-date="2020">2020</year>
+    </element-citation>
+  </ref>
+  <ref id="ref-congdon2010applied">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Congdon</surname><given-names>Peter D</given-names></name>
+      </person-group>
+      <source>Applied Bayesian hierarchical methods</source>
+      <publisher-name>CRC Press</publisher-name>
+      <year iso-8601-date="2010">2010</year>
+      <uri>https://doi.org/10.1201/9781584887218</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-dillon2017tensorflow">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Dillon</surname><given-names>Joshua V</given-names></name>
+        <name><surname>Langmore</surname><given-names>Ian</given-names></name>
+        <name><surname>Tran</surname><given-names>Dustin</given-names></name>
+        <name><surname>Brevdo</surname><given-names>Eugene</given-names></name>
+        <name><surname>Vasudevan</surname><given-names>Srinivas</given-names></name>
+        <name><surname>Moore</surname><given-names>Dave</given-names></name>
+        <name><surname>Patton</surname><given-names>Brian</given-names></name>
+        <name><surname>Alemi</surname><given-names>Alex</given-names></name>
+        <name><surname>Hoffman</surname><given-names>Matt</given-names></name>
+        <name><surname>Saurous</surname><given-names>Rif A</given-names></name>
+      </person-group>
+      <article-title>Tensorflow distributions</article-title>
+      <source>arXiv preprint arXiv:1711.10604</source>
+      <year iso-8601-date="2017">2017</year>
+      <uri>https://arxiv.org/abs/1711.10604</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-fleischhacker2020business">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Fleischhacker</surname><given-names>Adam</given-names></name>
+      </person-group>
+      <source>A business analyst’s introduction to business analytics: Intro to Bayesian business analytics in the r ecosystem</source>
+      <publisher-name>Independently Published</publisher-name>
+      <year iso-8601-date="2020">2020</year>
+      <isbn>9798667128175</isbn>
+    </element-citation>
+  </ref>
+  <ref id="ref-gabry2019visualization">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Gabry</surname><given-names>Jonah</given-names></name>
+        <name><surname>Simpson</surname><given-names>Daniel</given-names></name>
+        <name><surname>Vehtari</surname><given-names>Aki</given-names></name>
+        <name><surname>Betancourt</surname><given-names>Michael</given-names></name>
+        <name><surname>Gelman</surname><given-names>Andrew</given-names></name>
+      </person-group>
+      <article-title>Visualization in Bayesian workflow</article-title>
+      <source>Journal of the Royal Statistical Society: Series A (Statistics in Society)</source>
+      <publisher-name>Wiley Online Library</publisher-name>
+      <year iso-8601-date="2019">2019</year>
+      <volume>182</volume>
+      <issue>2</issue>
+      <uri>https://doi.org/10.1111/rssa.12378</uri>
+      <fpage>389</fpage>
+      <lpage>402</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-gabry2018">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Gabry</surname><given-names>Jonah</given-names></name>
+      </person-group>
+      <source>Shinystan: Interactive visual and numerical diagnostics and posterior analysis for Bayesian models</source>
+      <year iso-8601-date="2018">2018</year>
+      <uri>https://mc-stan.org/users/interfaces/shinystan</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-gelfand1990sampling">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Gelfand</surname><given-names>Alan E</given-names></name>
+        <name><surname>Smith</surname><given-names>Adrian FM</given-names></name>
+      </person-group>
+      <article-title>Sampling-based approaches to calculating marginal densities</article-title>
+      <source>Journal of the American statistical association</source>
+      <publisher-name>Taylor &amp; Francis Group</publisher-name>
+      <year iso-8601-date="1990">1990</year>
+      <volume>85</volume>
+      <issue>410</issue>
+      <uri>https://doi.org/10.2307/2289776</uri>
+      <fpage>398</fpage>
+      <lpage>409</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-gelman2013bayesian">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Gelman</surname><given-names>Andrew</given-names></name>
+        <name><surname>Carlin</surname><given-names>John B</given-names></name>
+        <name><surname>Stern</surname><given-names>Hal S</given-names></name>
+        <name><surname>Dunson</surname><given-names>David B</given-names></name>
+        <name><surname>Vehtari</surname><given-names>Aki</given-names></name>
+        <name><surname>Rubin</surname><given-names>Donald B</given-names></name>
+      </person-group>
+      <source>Bayesian data analysis</source>
+      <publisher-name>CRC press</publisher-name>
+      <year iso-8601-date="2013">2013</year>
+      <uri>http://www.stat.columbia.edu/~gelman/book/</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-gilks1996strategies">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Gilks</surname><given-names>Walter R</given-names></name>
+        <name><surname>Roberts</surname><given-names>Gareth O</given-names></name>
+      </person-group>
+      <article-title>Strategies for improving MCMC</article-title>
+      <source>Markov chain Monte Carlo in practice</source>
+      <year iso-8601-date="1996">1996</year>
+      <volume>6</volume>
+      <fpage>89</fpage>
+      <lpage>114</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-golding2019greta">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Golding</surname><given-names>Nick</given-names></name>
+      </person-group>
+      <article-title>Greta: Simple and scalable statistical modelling in R</article-title>
+      <source>Journal of Open Source Software</source>
+      <year iso-8601-date="2019">2019</year>
+      <volume>4</volume>
+      <issue>40</issue>
+      <uri>https://doi.org/10.21105/joss.01601</uri>
+      <fpage>1601</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-goodrich">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Goodrich</surname><given-names>Ben</given-names></name>
+        <name><surname>Gabry</surname><given-names>Jonah</given-names></name>
+        <name><surname>Ali</surname><given-names>Imad</given-names></name>
+        <name><surname>Brilleman</surname><given-names>Sam</given-names></name>
+      </person-group>
+      <article-title>Rstanarm: Bayesian applied regression modeling via Stan.</article-title>
+      <year iso-8601-date="2020">2020</year>
+      <uri>https://mc-stan.org/rstanarm</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-iannone20">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Iannone</surname><given-names>Richard</given-names></name>
+      </person-group>
+      <source>DiagrammeR: Graph/network visualization</source>
+      <year iso-8601-date="2020">2020</year>
+      <uri>https://github.com/rich-iannone/DiagrammeR</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-kay2020">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Kay</surname><given-names>Matthew</given-names></name>
+      </person-group>
+      <source>ggdist: Visualizations of distributions and uncertainty</source>
+      <year iso-8601-date="2020">2020</year>
+      <uri>http://mjskay.github.io/ggdist/</uri>
+      <pub-id pub-id-type="doi">10.5281/zenodo.3879620</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-kruschke2014doing">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Kruschke</surname><given-names>John</given-names></name>
+      </person-group>
+      <article-title>Doing Bayesian data analysis: A tutorial with r, JAGS, and stan</article-title>
+      <publisher-name>Academic Press</publisher-name>
+      <year iso-8601-date="2014">2014</year>
+      <uri>https://sites.google.com/site/doingbayesiandataanalysis/</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-mcelreath2020statistical">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>McElreath</surname><given-names>Richard</given-names></name>
+      </person-group>
+      <source>Statistical rethinking: A Bayesian course with examples in R and Stan</source>
+      <publisher-name>CRC press</publisher-name>
+      <year iso-8601-date="2020">2020</year>
+      <uri>https://doi.org/10.1201/9780429029608</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-mc20">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>McElreath</surname><given-names>Richard</given-names></name>
+      </person-group>
+      <source>Rethinking: Statistical rethinking book package</source>
+      <year iso-8601-date="2020">2020</year>
+      <uri>https://github.com/rmcelreath/rethinking</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-neal1993probabilistic">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Neal</surname><given-names>Radford M</given-names></name>
+      </person-group>
+      <source>Probabilistic inference using Markov chain Monte Carlo methods</source>
+      <publisher-name>Department of Computer Science, University of Toronto Toronto, Ontario, Canada</publisher-name>
+      <year iso-8601-date="1993">1993</year>
+    </element-citation>
+  </ref>
+  <ref id="ref-pfeffer2016practical">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Pfeffer</surname><given-names>Avi</given-names></name>
+      </person-group>
+      <source>Practical probabilistic programming</source>
+      <publisher-name>Manning Publ.</publisher-name>
+      <year iso-8601-date="2016">2016</year>
+      <isbn>9781617292330</isbn>
+    </element-citation>
+  </ref>
+  <ref id="ref-wickham2016">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Wickham</surname><given-names>Hadley</given-names></name>
+      </person-group>
+      <source>ggplot2: Elegant graphics for data analysis</source>
+      <publisher-name>Springer-Verlag New York</publisher-name>
+      <year iso-8601-date="2016">2016</year>
+      <isbn>978-3-319-24277-4</isbn>
+      <uri>https://ggplot2.tidyverse.org</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-lunn2000">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Lunn</surname><given-names>David J.</given-names></name>
+        <name><surname>Thomas</surname><given-names>Andrew</given-names></name>
+        <name><surname>Best</surname><given-names>Nicky</given-names></name>
+        <name><surname>Spiegelhalter</surname><given-names>David</given-names></name>
+      </person-group>
+      <article-title>WinBUGS - a Bayesian modelling framework: Concepts, structure, and extensibility</article-title>
+      <source>Statistics and Computing</source>
+      <year iso-8601-date="2000">2000</year>
+      <volume>10</volume>
+      <uri>https://doi.org/10.1023/A:1008929526011</uri>
+      <fpage>325</fpage>
+      <lpage>337</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-textor2017">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Textor</surname><given-names>Johannes</given-names></name>
+        <name><surname>Zander</surname><given-names>Benito van der</given-names></name>
+        <name><surname>Gilthorpe</surname><given-names>Mark S</given-names></name>
+        <name><surname>Liśkiewicz</surname><given-names>Maciej</given-names></name>
+        <name><surname>Ellison</surname><given-names>George TH</given-names></name>
+      </person-group>
+      <article-title>Robust causal inference using directed acyclic graphs: the R package ‘dagitty’</article-title>
+      <source>International Journal of Epidemiology</source>
+      <year iso-8601-date="2017-01">2017</year><month>01</month>
+      <volume>45</volume>
+      <issue>6</issue>
+      <uri>https://doi.org/10.1093/ije/dyw341</uri>
+      <fpage>1887</fpage>
+      <lpage>1894</lpage>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
