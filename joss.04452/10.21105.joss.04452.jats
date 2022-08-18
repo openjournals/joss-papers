@@ -1,0 +1,619 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">4452</article-id>
+<article-id pub-id-type="doi">10.21105/joss.04452</article-id>
+<title-group>
+<article-title>UnROOT: an I/O library for the CERN ROOT file format
+written in Julia</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">0000-0001-7821-8673</contrib-id>
+<name>
+<surname>Gál</surname>
+<given-names>Tamás</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+<xref ref-type="aff" rid="aff-2"/>
+</contrib>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">0000-0002-3359-0380</contrib-id>
+<name>
+<surname>Ling</surname>
+<given-names>Jerry</given-names>
+</name>
+<xref ref-type="aff" rid="aff-3"/>
+</contrib>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">0000-0003-2560-0013</contrib-id>
+<name>
+<surname>Amin</surname>
+<given-names>Nick</given-names>
+</name>
+<xref ref-type="aff" rid="aff-4"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Erlangen Centre for Astroparticle Physics</institution>
+</institution-wrap>
+</aff>
+<aff id="aff-2">
+<institution-wrap>
+<institution>Friedrich-Alexander-Universität
+Erlangen-Nürnberg</institution>
+</institution-wrap>
+</aff>
+<aff id="aff-3">
+<institution-wrap>
+<institution>Harvard University</institution>
+</institution-wrap>
+</aff>
+<aff id="aff-4">
+<institution-wrap>
+<institution>University of California, Santa Barbara</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2021-10-08">
+<day>8</day>
+<month>10</month>
+<year>2021</year>
+</pub-date>
+<volume>7</volume>
+<issue>76</issue>
+<fpage>4452</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2022</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>Julia</kwd>
+<kwd>HEP</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p><monospace>UnROOT.jl</monospace> is a pure Julia implementation of
+  CERN’s ROOT
+  (<xref alt="Brun &amp; Rademakers, 1997" rid="ref-BrunU003A1997pa" ref-type="bibr">Brun
+  &amp; Rademakers, 1997</xref>) file I/O (<monospace>.root</monospace>)
+  software, which is fast and memory-efficient, and composes well with
+  Julia’s high-performance iteration, array, and multi-threading
+  interfaces.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of Need</title>
+  <p>The High-Energy Physics (HEP) community, especially in data
+  analysis, has been facing the two-language problem for a long time.
+  Often, physicists would start prototyping with a
+  <monospace>Python</monospace> front-end which glues to a
+  <monospace>C/C++/Fortran</monospace> back-end. Soon they would hit a
+  task that could be challenging to express in columnar (i.e.,
+  “vectorized”) style, a type of problem that is normally tackled with
+  libraries like <monospace>numpy</monospace>
+  (<xref alt="Harris et al., 2020" rid="ref-harris2020array" ref-type="bibr">Harris
+  et al., 2020</xref>) or <monospace>pandas</monospace>
+  (<xref alt="The pandas development team, 2020" rid="ref-reback2020pandas" ref-type="bibr">The
+  pandas development team, 2020</xref>). This usually would lead to them
+  either writing <monospace>C++</monospace> kernels and interfacing them
+  with <monospace>Python</monospace>, or porting the prototype to
+  <monospace>C++</monospace> and starting to maintain two code bases
+  including the wrapper code. Specific to HEP,
+  <monospace>AwkwardArray</monospace>
+  (<xref alt="Pivarski et al., 2018" rid="ref-pivarski_jim_2018_6522027" ref-type="bibr">Pivarski
+  et al., 2018</xref>) can be seen as a compromise between the two
+  solutions, where the user writes in a special columnar style that has
+  some flexibility for addressing the jaggedness of HEP data.</p>
+  <p>All traditional options represent increasing engineering effort for
+  authors and users, often in multiple programming languages. Many steps
+  of this process are critical, such as identifying bottlenecks and
+  creating an architecture that is simultaneously performant and
+  maintainable while still being user-friendly and logically structured.
+  Using a <monospace>Python</monospace> front-end and dancing across
+  language barriers also hinders the ability to parallelize tasks down
+  to event level, as the existing usage often relies on chunk or even
+  file level parallelization. Finally, newer techniques such as
+  automatic differentiation also work more smoothly without language
+  barriers, allowing physicists to develop algorithms. With Julia’s
+  active auto diff community <xref ref-type="fn" rid="fn1">1</xref>, we
+  expect <monospace>UnROOT.jl</monospace> to be one of the cornerstones
+  for physicists.</p>
+  <p><monospace>UnROOT.jl</monospace> attempts to solve all of the above
+  by choosing Julia, a high-performance language with a simple and
+  expressive syntax
+  (<xref alt="Bezanson et al., 2017" rid="ref-Julia" ref-type="bibr">Bezanson
+  et al., 2017</xref>). Julia is designed to solve the two-language
+  problem in general. This has also been studied for HEP specifically
+  (<xref alt="Stanitzki &amp; Strube, 2021" rid="ref-JuliaPerformance" ref-type="bibr">Stanitzki
+  &amp; Strube, 2021</xref>). Analysis software written in Julia can
+  freely escape to a <monospace>for-loop</monospace> whenever
+  vectorized-style processing is not flexible enough, without any
+  performance degradation. At the same time,
+  <monospace>UnROOT.jl</monospace> transparently supports
+  multi-threading and multi-processing by providing data structures that
+  are a subtype of <monospace>AbstractArray</monospace>, the built-in
+  abstract type for array-like objects, which allows easy interfacing
+  with array-routines from other packages, thanks to multiple dispatch,
+  one of the main features of Julia.</p>
+</sec>
+<sec id="features-and-functionality">
+  <title>Features and Functionality</title>
+  <p>The <monospace>ROOT</monospace> data format is flexible and mostly
+  self-descriptive. Users can define their own data structures (C++
+  classes) that derive from <monospace>ROOT</monospace> classes and
+  serialise them into directories, trees, and branches. The information
+  about the deserialisation is written to the output file (therefore,
+  it’s self-descriptive) but there are some basic structures and
+  constants needed to bootstrap the parsing process. One of the biggest
+  advantages of the <monospace>ROOT</monospace> data format is the
+  ability to store jagged structures like nested arrays of structs with
+  different sub-array lengths. In high-energy physics, such structures
+  are preferred to represent, for example, particle interactions and
+  detector responses as signals from different hardware components,
+  combined into a tree of events.</p>
+  <p><monospace>UnROOT.jl</monospace> understands the core structure of
+  <monospace>ROOT</monospace> files, and is able to decompress and
+  deserialize instances of the commonly used <monospace>TH1</monospace>,
+  <monospace>TH2</monospace>, <monospace>TDirectory</monospace>,
+  <monospace>TTree</monospace>, etc. ROOT classes. All basic C++ types
+  for <monospace>TTree</monospace> branches are supported as well,
+  including their nested variants. Additionally,
+  <monospace>UnROOT.jl</monospace> provides a way to hook into the
+  deserialisation process of custom types where the automatic parsing
+  fails. At the time of this article, <monospace>UnROOT</monospace> is
+  already being used successfully in the data analysis of the KM3NeT
+  neutrino telescope. And just like <monospace>RDataFrame</monospace>,
+  it can be directly used on “NTuple” <monospace>TTree</monospace> such
+  as the NANOAOD format used by the CMS collaboration
+  (<xref alt="Ehatäht, 2020" rid="ref-EhatahtU003A2020ebp" ref-type="bibr">Ehatäht,
+  2020</xref>).</p>
+  <p>Opening and loading a <monospace>TTree</monospace> lazily, i.e.,
+  without reading the whole data into memory, is simple:</p>
+  <code language="julia">julia&gt; using UnROOT
+
+julia&gt; f = ROOTFile(&quot;test/samples/NanoAODv5_sample.root&quot;)
+ROOTFile with 2 entries and 21 streamers.
+test/samples/NanoAODv5_sample.root
+   Events
+      &quot;run&quot;
+      &quot;luminosityBlock&quot;
+      &quot;event&quot;
+      &quot;HTXS_Higgs_pt&quot;
+      &quot;HTXS_Higgs_y&quot;
+      ...
+
+julia&gt; mytree = LazyTree(f, &quot;Events&quot;, [&quot;Electron_dxy&quot;, &quot;nMuon&quot;, r&quot;Muon_(pt|eta)$&quot;])
+ Row   Electron_dxy     nMuon   Muon_eta         Muon_pt
+       Vector{Float32}  UInt32  Vector{Float32}  Vector{Float32}
+
+ 1     [0.000371]       0       []               []
+ 2     [-0.00982]       2       [0.53, 0.229]    [19.9, 15.3]
+ 3     []               0       []               []
+ 4     [-0.00157]       0       []               []
+       ...</code>
+  <p>As seen in the above example, the entries in the columns are
+  multi-dimensional and jagged. The <monospace>LazyTree</monospace>
+  object acts as a table that suports sequential or parallel iteration,
+  selections, and filtering based on ranges or masks, and operations on
+  whole columns:</p>
+  <code language="julia">for event in mytree
+    # ... Operate on event
+end
+
+Threads.@threads for event in mytree # multi-threading
+    # ... Operate on event
+end
+
+mytree.Muon_pt # a column as a lazy vector of vectors</code>
+  <p>The <monospace>LazyTree</monospace> is designed as
+  <monospace>&lt;: AbstractArray</monospace>, which makes it compose
+  well with the rest of the Julia ecosystem. For example, syntactic loop
+  fusion <xref ref-type="fn" rid="fn2">2</xref> and Query-style tabular
+  manipulations provided by packages like
+  <monospace>Query.jl</monospace> <xref ref-type="fn" rid="fn3">3</xref>
+  without any additional code support just work out-of-the-box.</p>
+  <p>For example, the following code will only iterate through the tree
+  once to find all events with exactly two muons and two electrons, due
+  to loop fusion:</p>
+  <code language="julia"># t &lt;: LazyTree
+findall(@. t.nMuon==2 &amp; t.nElectron==2)</code>
+  <p>And query-style filtering can be done with no code addition from
+  <monospace>UnROOT.jl</monospace>’s end thanks to Julia’s composability
+  due to multiple dispatch <xref ref-type="fn" rid="fn4">4</xref>:</p>
+  <code language="julia">julia&gt; using Query, DataFrame
+
+julia&gt; @from evt in mytree begin
+         @where length(evt.Jet_pt) &gt; 6
+         @let njets=length(evt.Jet_pt)
+         @let njets40=sum(evt.Jet_pt.&gt;40)
+         @select {njets=njets, njets40, evt.MET_pt}
+         @collect DataFrame
+       end</code>
+</sec>
+<sec id="synthetic-benchmark-against-c-root">
+  <title>Synthetic Benchmark against C++ ROOT</title>
+  <p>Benchmark against various C++ ROOT solution can be found in our
+  benchmark repo<xref ref-type="fn" rid="fn5">5</xref>. Here we
+  summarize the results:</p>
+  <sec id="single-threaded-composite-benchmark">
+    <title>Single-threaded composite benchmark</title>
+    <table-wrap>
+      <table>
+        <colgroup>
+          <col width="31%" />
+          <col width="31%" />
+          <col width="38%" />
+        </colgroup>
+        <thead>
+          <tr>
+            <th>Language</th>
+            <th>Cold Run</th>
+            <th>Warmed Run</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><ext-link ext-link-type="uri" xlink:href="https://nbviewer.jupyter.org/github/Moelf/UnROOT_RDataFrame_MiniBenchmark/blob/master/UnROOT_benchmark.ipynb">Julia</ext-link></td>
+            <td>20.58 s</td>
+            <td>19.81 s</td>
+          </tr>
+          <tr>
+            <td><ext-link ext-link-type="uri" xlink:href="https://nbviewer.jupyter.org/github/Moelf/UnROOT_RDataFrame_MiniBenchmark/blob/master/RDataFrame_benchmark.ipynb">PyROOT
+            RDF</ext-link></td>
+            <td>40.21 s</td>
+            <td>N/A</td>
+          </tr>
+          <tr>
+            <td><ext-link ext-link-type="uri" xlink:href="https://github.com/Moelf/UnROOT_RDataFrame_MiniBenchmark/tree/master/composite_benchmarks#root-rdataframe-g-compiled">Compiled
+            C++ ROOT Loop</ext-link></td>
+            <td>28.16 s</td>
+            <td>N/A</td>
+          </tr>
+          <tr>
+            <td><ext-link ext-link-type="uri" xlink:href="https://github.com/Moelf/UnROOT_RDataFrame_MiniBenchmark/blob/master/composite_benchmarks/RDataFrame_benchmark_compiled_single.cpp">Compiled
+            RDF</ext-link></td>
+            <td>19.82 s</td>
+            <td>N/A</td>
+          </tr>
+        </tbody>
+      </table>
+    </table-wrap>
+  </sec>
+  <sec id="threaded-composite-benchmark">
+    <title>4-threaded composite benchmark</title>
+    <table-wrap>
+      <table>
+        <colgroup>
+          <col width="31%" />
+          <col width="31%" />
+          <col width="38%" />
+        </colgroup>
+        <thead>
+          <tr>
+            <th>Language</th>
+            <th>Cold Run</th>
+            <th>Warmed Run</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><ext-link ext-link-type="uri" xlink:href="https://nbviewer.jupyter.org/github/Moelf/UnROOT_RDataFrame_MiniBenchmark/blob/master/UnROOT_benchmark.ipynb">Julia</ext-link></td>
+            <td>5.46 s</td>
+            <td>5.07 s</td>
+          </tr>
+          <tr>
+            <td>PyROOT RDF</td>
+            <td>N/A</td>
+            <td>N/A</td>
+          </tr>
+          <tr>
+            <td>Compiled C++ ROOT Loop</td>
+            <td>N/A</td>
+            <td>N/A</td>
+          </tr>
+          <tr>
+            <td><ext-link ext-link-type="uri" xlink:href="https://github.com/Moelf/UnROOT_RDataFrame_MiniBenchmark/blob/master/composite_benchmarks/RDataFrame_benchmark_compiled_MT.cpp">Compiled
+            RDF</ext-link></td>
+            <td>5.64 s</td>
+            <td>N/A</td>
+          </tr>
+        </tbody>
+      </table>
+    </table-wrap>
+  </sec>
+</sec>
+<sec id="usage-comparison-with-existing-software">
+  <title>Usage Comparison with Existing Software</title>
+  <p>This section focuses on comparison with other existing ROOT I/O
+  solutions in the Julia universe. However, one honorable mention is
+  <monospace>uproot</monospace>
+  (<xref alt="Pivarski et al., 2021" rid="ref-jim_pivarski_2021_5539722" ref-type="bibr">Pivarski
+  et al., 2021</xref>), which is a purely Python-based ROOT I/O library
+  that played (and still plays) an important role in the development of
+  <monospace>UnROOT.jl</monospace> as it was at the time of this article
+  the most complete and best documented ROOT I/O implementation.</p>
+  <list list-type="bullet">
+    <list-item>
+      <p><monospace>UpROOT.jl</monospace> is a wrapper for the
+      aforementioned <monospace>uproot</monospace> Python package and
+      uses <monospace>PyCall.jl</monospace>
+      <xref ref-type="fn" rid="fn6">6</xref> as a bridge, which means
+      that it relies on <monospace>Python</monospace> as a glue
+      language. In addition to that, <monospace>uproot</monospace>
+      itself utilises the C++ library
+      <monospace>AwkwardArray</monospace>
+      (<xref alt="Pivarski et al., 2018" rid="ref-pivarski_jim_2018_6522027" ref-type="bibr">Pivarski
+      et al., 2018</xref>) to efficiently deal with jagged data in
+      <monospace>ROOT</monospace> files. Most of the features of
+      <monospace>uproot</monospace> are available in the Julia context,
+      but there are intrinsic performance and usability drawbacks due to
+      the three-language architecture.</p>
+    </list-item>
+    <list-item>
+      <p><monospace>ROOT.jl</monospace>
+      <xref ref-type="fn" rid="fn7">7</xref> is one of the oldest Julia
+      <monospace>ROOT</monospace> packages. It uses C++ bindings to
+      directly wrap the <monospace>ROOT</monospace> framework and
+      therefore is not limited ot I/O. Unfortunately, the
+      <monospace>Cxx.jl</monospace>
+      <xref ref-type="fn" rid="fn8">8</xref> package that is used to
+      generate the C++ glue code does not support Julia 1.4 or later.
+      The multi-threaded features are also limited.</p>
+    </list-item>
+  </list>
+</sec>
+<sec id="conclusion">
+  <title>Conclusion</title>
+  <p><monospace>UnROOT.jl</monospace> is an important package in
+  high-energy physics and related scientific fields where the
+  <monospace>ROOT</monospace> dataformat is established, since the
+  ability to read and parse scientific data is certainly the first
+  mandatory step to open the window to a programming language and its
+  package ecosystem. <monospace>UnROOT.jl</monospace> has demonstrated
+  tree processing speeds at the same level as the
+  <monospace>C++</monospace> <monospace>ROOT</monospace> framework in
+  per-event iteration as well as the Python-based
+  <monospace>uproot</monospace> library in chunked iteration.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <ref id="ref-Julia">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Bezanson</surname><given-names>Jeff</given-names></name>
+        <name><surname>Edelman</surname><given-names>Alan</given-names></name>
+        <name><surname>Karpinski</surname><given-names>Stefan</given-names></name>
+        <name><surname>Shah</surname><given-names>Viral B.</given-names></name>
+      </person-group>
+      <article-title>Julia: A fresh approach to numerical computing</article-title>
+      <source>SIAM Review</source>
+      <year iso-8601-date="2017">2017</year>
+      <volume>59</volume>
+      <issue>1</issue>
+      <uri> https://doi.org/10.1137/141000671</uri>
+      <pub-id pub-id-type="doi">10.1137/141000671</pub-id>
+      <fpage>65</fpage>
+      <lpage>98</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-JuliaPerformance">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Stanitzki</surname><given-names>Marcel</given-names></name>
+        <name><surname>Strube</surname><given-names>Jan</given-names></name>
+      </person-group>
+      <article-title>Performance of Julia for high energy physics analyses</article-title>
+      <source>Computing and Software for Big Science</source>
+      <publisher-name>Springer</publisher-name>
+      <year iso-8601-date="2021">2021</year>
+      <volume>5</volume>
+      <issue>1</issue>
+      <pub-id pub-id-type="doi">10.1007/s41781-021-00053-3</pub-id>
+      <fpage>1</fpage>
+      <lpage>11</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-jim_pivarski_2021_5539722">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Pivarski</surname><given-names>Jim</given-names></name>
+        <name><surname>Schreiner</surname><given-names>Henry</given-names></name>
+        <name><surname>Smith</surname><given-names>Nicholas</given-names></name>
+        <name><surname>Burr</surname><given-names>Chris</given-names></name>
+        <name><surname>Kalinkin</surname><given-names>Dmitry</given-names></name>
+        <name><surname>Stark</surname><given-names>Giordon</given-names></name>
+        <name><surname>Hartmann</surname><given-names>Nikolai</given-names></name>
+        <name><surname>Davis</surname><given-names>Doug</given-names></name>
+        <name><surname>O’Neil</surname><given-names>Ryunosuke</given-names></name>
+        <name><surname>Novak</surname><given-names>Andrzej</given-names></name>
+        <name><surname>Greiner</surname><given-names>Ben</given-names></name>
+        <name><surname>Stanislaus</surname><given-names>Beojan</given-names></name>
+        <name><surname>ChristopheRappold</surname></name>
+        <name><surname>Deaconu</surname><given-names>Cosmin</given-names></name>
+        <name><surname>Cervenkov</surname><given-names>Daniel</given-names></name>
+        <name><surname>Rübenach</surname><given-names>Jonas</given-names></name>
+        <name><surname>Bendavid</surname><given-names>Josh</given-names></name>
+        <name><surname>Lieret</surname><given-names>Kilian</given-names></name>
+        <name><surname>Peresano</surname><given-names>Michele</given-names></name>
+        <name><surname>Ehlers</surname><given-names>Raymond</given-names></name>
+        <name><surname>Turra</surname><given-names>Ruggero</given-names></name>
+        <name><surname>Gal</surname><given-names>Tamas</given-names></name>
+        <name><surname>Held</surname><given-names>Alexander</given-names></name>
+      </person-group>
+      <source>Scikit-hep/uproot4: 4.1.3</source>
+      <publisher-name>Zenodo</publisher-name>
+      <year iso-8601-date="2021-09">2021</year><month>09</month>
+      <uri>https://doi.org/10.5281/zenodo.5539722</uri>
+      <pub-id pub-id-type="doi">10.5281/zenodo.5539722</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-pivarski_jim_2018_6522027">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Pivarski</surname><given-names>Jim</given-names></name>
+        <name><surname>Osborne</surname><given-names>Ianna</given-names></name>
+        <name><surname>Ifrim</surname><given-names>Ioana</given-names></name>
+        <name><surname>Schreiner</surname><given-names>Henry</given-names></name>
+        <name><surname>Hollands</surname><given-names>Angus</given-names></name>
+        <name><surname>Biswas</surname><given-names>Anish</given-names></name>
+        <name><surname>Das</surname><given-names>Pratyush</given-names></name>
+        <name><surname>Roy Choudhury</surname><given-names>Santam</given-names></name>
+        <name><surname>Smith</surname><given-names>Nicholas</given-names></name>
+      </person-group>
+      <source>Awkward array</source>
+      <publisher-name>Zenodo</publisher-name>
+      <year iso-8601-date="2018-10">2018</year><month>10</month>
+      <uri>https://doi.org/10.5281/zenodo.6522027</uri>
+      <pub-id pub-id-type="doi">10.5281/zenodo.6522027</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-harris2020array">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Harris</surname><given-names>Charles R.</given-names></name>
+        <name><surname>Millman</surname><given-names>K. Jarrod</given-names></name>
+        <name><surname>Walt</surname><given-names>Stéfan J. van der</given-names></name>
+        <name><surname>Gommers</surname><given-names>Ralf</given-names></name>
+        <name><surname>Virtanen</surname><given-names>Pauli</given-names></name>
+        <name><surname>Cournapeau</surname><given-names>David</given-names></name>
+        <name><surname>Wieser</surname><given-names>Eric</given-names></name>
+        <name><surname>Taylor</surname><given-names>Julian</given-names></name>
+        <name><surname>Berg</surname><given-names>Sebastian</given-names></name>
+        <name><surname>Smith</surname><given-names>Nathaniel J.</given-names></name>
+        <name><surname>Kern</surname><given-names>Robert</given-names></name>
+        <name><surname>Picus</surname><given-names>Matti</given-names></name>
+        <name><surname>Hoyer</surname><given-names>Stephan</given-names></name>
+        <name><surname>Kerkwijk</surname><given-names>Marten H. van</given-names></name>
+        <name><surname>Brett</surname><given-names>Matthew</given-names></name>
+        <name><surname>Haldane</surname><given-names>Allan</given-names></name>
+        <name><surname>Río</surname><given-names>Jaime Fernández del</given-names></name>
+        <name><surname>Wiebe</surname><given-names>Mark</given-names></name>
+        <name><surname>Peterson</surname><given-names>Pearu</given-names></name>
+        <name><surname>Gérard-Marchant</surname><given-names>Pierre</given-names></name>
+        <name><surname>Sheppard</surname><given-names>Kevin</given-names></name>
+        <name><surname>Reddy</surname><given-names>Tyler</given-names></name>
+        <name><surname>Weckesser</surname><given-names>Warren</given-names></name>
+        <name><surname>Abbasi</surname><given-names>Hameer</given-names></name>
+        <name><surname>Gohlke</surname><given-names>Christoph</given-names></name>
+        <name><surname>Oliphant</surname><given-names>Travis E.</given-names></name>
+      </person-group>
+      <article-title>Array programming with NumPy</article-title>
+      <source>Nature</source>
+      <publisher-name>Springer Science; Business Media LLC</publisher-name>
+      <year iso-8601-date="2020-09">2020</year><month>09</month>
+      <volume>585</volume>
+      <issue>7825</issue>
+      <uri>https://doi.org/10.1038/s41586-020-2649-2</uri>
+      <pub-id pub-id-type="doi">10.1038/s41586-020-2649-2</pub-id>
+      <fpage>357</fpage>
+      <lpage>362</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-reback2020pandas">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <string-name>The pandas development team</string-name>
+      </person-group>
+      <source>Pandas</source>
+      <publisher-name>Zenodo</publisher-name>
+      <year iso-8601-date="2020-02">2020</year><month>02</month>
+      <uri>https://doi.org/10.5281/zenodo.3509134</uri>
+      <pub-id pub-id-type="doi">10.5281/zenodo.3509134</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-BrunU003A1997pa">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Brun</surname><given-names>R.</given-names></name>
+        <name><surname>Rademakers</surname><given-names>F.</given-names></name>
+      </person-group>
+      <article-title>ROOT: An object oriented data analysis framework</article-title>
+      <source>Nucl. Instrum. Meth. A</source>
+      <person-group person-group-type="editor">
+        <name><surname>Werlen</surname><given-names>M.</given-names></name>
+        <name><surname>Perret-Gallix</surname><given-names>D.</given-names></name>
+      </person-group>
+      <year iso-8601-date="1997">1997</year>
+      <volume>389</volume>
+      <pub-id pub-id-type="doi">10.1016/S0168-9002(97)00048-X</pub-id>
+      <fpage>81</fpage>
+      <lpage>86</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-EhatahtU003A2020ebp">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Ehatäht</surname><given-names>Karl</given-names></name>
+      </person-group>
+      <article-title>NANOAOD: a new compact event data format in CMS</article-title>
+      <source>EPJ Web Conf.</source>
+      <person-group person-group-type="editor">
+        <name><surname>Doglioni</surname><given-names>C.</given-names></name>
+        <name><surname>Kim</surname><given-names>D.</given-names></name>
+        <name><surname>Stewart</surname><given-names>G. A.</given-names></name>
+        <name><surname>Silvestris</surname><given-names>L.</given-names></name>
+        <name><surname>Jackson</surname><given-names>P.</given-names></name>
+        <name><surname>Kamleh</surname><given-names>W.</given-names></name>
+      </person-group>
+      <year iso-8601-date="2020">2020</year>
+      <volume>245</volume>
+      <pub-id pub-id-type="doi">10.1051/epjconf/202024506002</pub-id>
+      <fpage>06002</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+</ref-list>
+<fn-group>
+  <fn id="fn1">
+    <label>1</label><p>https://juliadiff.org/</p>
+  </fn>
+  <fn id="fn2">
+    <label>2</label><p>https://julialang.org/blog/2017/01/moredots/</p>
+  </fn>
+  <fn id="fn3">
+    <label>3</label><p>https://github.com/queryverse/Query.jl</p>
+  </fn>
+  <fn id="fn4">
+    <label>4</label><p>https://www.youtube.com/watch?v=kc9HwsxE1OY</p>
+  </fn>
+  <fn id="fn5">
+    <label>5</label><p>https://github.com/Moelf/UnROOT_RDataFrame_MiniBenchmark#single-threaded-composite-benchmark</p>
+  </fn>
+  <fn id="fn6">
+    <label>6</label><p>https://github.com/JuliaPy/PyCall.jl</p>
+  </fn>
+  <fn id="fn7">
+    <label>7</label><p>https://github.com/JuliaHEP/ROOT.jl</p>
+  </fn>
+  <fn id="fn8">
+    <label>8</label><p>https://github.com/JuliaInterop/Cxx.jl</p>
+  </fn>
+</fn-group>
+</back>
+</article>
