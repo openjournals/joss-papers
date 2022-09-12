@@ -1,0 +1,618 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">4414</article-id>
+<article-id pub-id-type="doi">10.21105/joss.04414</article-id>
+<title-group>
+<article-title>TimeseriesSurrogates.jl: a Julia package for generating
+surrogate data</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">0000-0001-6880-8725</contrib-id>
+<name>
+<surname>Haaga</surname>
+<given-names>Kristian Agasøster</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+<xref ref-type="aff" rid="aff-2"/>
+<xref ref-type="aff" rid="aff-3"/>
+</contrib>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">0000-0002-6427-2385</contrib-id>
+<name>
+<surname>Datseris</surname>
+<given-names>George</given-names>
+</name>
+<xref ref-type="aff" rid="aff-4"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Department of Earth Science, University of Bergen, Bergen,
+Norway</institution>
+</institution-wrap>
+</aff>
+<aff id="aff-2">
+<institution-wrap>
+<institution>K. G. Jebsen Centre for Deep Sea Research, Bergen,
+Norway</institution>
+</institution-wrap>
+</aff>
+<aff id="aff-3">
+<institution-wrap>
+<institution>Bjerknes Centre for Climate Research, Bergen,
+Norway</institution>
+</institution-wrap>
+</aff>
+<aff id="aff-4">
+<institution-wrap>
+<institution>Max Planck Institute for Meteorology, Hamburg,
+Germany</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2020-03-09">
+<day>9</day>
+<month>3</month>
+<year>2020</year>
+</pub-date>
+<volume>7</volume>
+<issue>77</issue>
+<fpage>4414</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2022</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>Julia</kwd>
+<kwd>surrogate data</kwd>
+<kwd>time series</kwd>
+<kwd>nonlinear time series analysis</kwd>
+<kwd>hypothesis testing</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="introduction">
+  <title>Introduction</title>
+  <p>The method of surrogate data is a way to generate data that
+  preserve one or more statistical or dynamical properties of a given
+  timeseries, but are otherwise randomized. Surrogate time series
+  methods have widespread use in null hypothesis testing in nonlinear
+  dynamics, for null hypothesis testing in causal inference, or for the
+  more general case of producing synthetic data with similar statistical
+  properties as an original signal. Originally introduced by Theiler et
+  al.
+  (<xref alt="1992" rid="ref-TheilerU003A1992" ref-type="bibr">1992</xref>)
+  to test for nonlinearity in time series, numerous surrogate methods
+  aimed preserving different properties of the original signal have
+  since emerged; for a review, see Lancaster et al.
+  (<xref alt="2018" rid="ref-LancasterU003A2018" ref-type="bibr">2018</xref>).</p>
+  <p>A simple example of an application of surrogates would be to
+  distinguish whether a given timeseries <monospace>x</monospace> can be
+  represented via a linear noise process, or not. The latter case can be
+  an indication that the timeseries may represent deterministic
+  nonlinear dynamics with additional noise. A simple way to test for
+  this hypothesis would be to generate new timeseries from
+  <monospace>x</monospace> that conserve the power spectrum of
+  <monospace>x</monospace> (which is a defining feature of linear
+  stochastic processes). Then, a discriminatory statistic, such as the
+  correlation dimension or the auto-mutual-information
+  (<xref alt="Lancaster et al., 2018" rid="ref-LancasterU003A2018" ref-type="bibr">Lancaster
+  et al., 2018</xref>) is computed for <monospace>x</monospace>, but
+  also for thousands of surrogates from <monospace>x</monospace>. The
+  discriminatory statistic of the surrogates provides a distribution of
+  possible values, and if the value for <monospace>x</monospace> is well
+  within the distribution spread, then <monospace>x</monospace>
+  satisfies the null hypothesis (here, that <monospace>x</monospace> can
+  be approximated as a linear stochastic process).</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p>Surrogate data has been used in several thousand publications so
+  far (the citation number of Theiler et al.
+  (<xref alt="1992" rid="ref-TheilerU003A1992" ref-type="bibr">1992</xref>)
+  is more than 4,000) and hence the community is in clear need of such
+  methods. Existing software packages for surrogate generation provide
+  much fewer methods than available in the literature, with less-than
+  optimal performance (see Comparison section below), and without
+  allowing reproducible generation of surrogates.
+  TimeseriesSurrogates.jl provides more than double the amount of
+  methods given by other packages, with runtimes similar to and up to an
+  order of magnitude faster than existing surrogate packages in other
+  languages. Equally importantly, TimeseriesSurrogates.jl provides a
+  framework that is tested via continuous integration, and is easy to
+  extend via open source contributions.</p>
+</sec>
+<sec id="available-surrogate-methods">
+  <title>Available surrogate methods</title>
+  <table-wrap>
+    <table>
+      <colgroup>
+        <col width="33%" />
+        <col width="33%" />
+        <col width="33%" />
+      </colgroup>
+      <thead>
+        <tr>
+          <th>Method</th>
+          <th>Description</th>
+          <th>Reference</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><monospace>AutoRegressive</monospace></td>
+          <td>Autoregressive model based surrogates.</td>
+          <td></td>
+        </tr>
+        <tr>
+          <td><monospace>RandomShuffling</monospace></td>
+          <td>Random shuffling of individual data points.</td>
+          <td>Theiler et al.
+          (<xref alt="1992" rid="ref-TheilerU003A1992" ref-type="bibr">1992</xref>)</td>
+        </tr>
+        <tr>
+          <td><monospace>BlockShuffle</monospace></td>
+          <td>Random shuffling of blocks of data points.</td>
+          <td>Theiler et al.
+          (<xref alt="1992" rid="ref-TheilerU003A1992" ref-type="bibr">1992</xref>)</td>
+        </tr>
+        <tr>
+          <td><monospace>CircShift</monospace></td>
+          <td>Circularly shift the signal.</td>
+          <td></td>
+        </tr>
+        <tr>
+          <td><monospace>RandomFourier</monospace></td>
+          <td>Randomization of phases of Fourier transform of the
+          signal.</td>
+          <td>Theiler et al.
+          (<xref alt="1992" rid="ref-TheilerU003A1992" ref-type="bibr">1992</xref>)</td>
+        </tr>
+        <tr>
+          <td><monospace>PartialRandomization</monospace></td>
+          <td>Fourier randomization, but tuning of the “degree” of
+          randomization.</td>
+          <td>Ortega &amp; Louis
+          (<xref alt="1998" rid="ref-OrtegaU003A1998" ref-type="bibr">1998</xref>)</td>
+        </tr>
+        <tr>
+          <td><monospace>PartialRandomizationAAFT</monospace></td>
+          <td>Partial Fourier randomization, but rescaling back to
+          original values.</td>
+          <td>This paper.</td>
+        </tr>
+        <tr>
+          <td><monospace>CycleShuffle</monospace></td>
+          <td>Randomization of phases of Fourier transform of the
+          signal.</td>
+          <td>Theiler
+          (<xref alt="1994" rid="ref-TheilerU003A1994" ref-type="bibr">1994</xref>)</td>
+        </tr>
+        <tr>
+          <td><monospace>ShuffleDimensions</monospace></td>
+          <td>Circularly shift the signal.</td>
+          <td>This paper.</td>
+        </tr>
+        <tr>
+          <td><monospace>AAFT</monospace></td>
+          <td>Amplitude adjusted
+          <monospace>RandomFourier</monospace>.</td>
+          <td>(<xref alt="Theiler:1991?" rid="ref-TheilerU003A1991" ref-type="bibr"><bold>Theiler:1991?</bold></xref>)</td>
+        </tr>
+        <tr>
+          <td><monospace>IAAFT</monospace></td>
+          <td>Iterative amplitude adjusted
+          <monospace>RandomFourier</monospace>.</td>
+          <td>Schreiber &amp; Schmitz
+          (<xref alt="1996" rid="ref-SchreiberSchmitzU003A1996" ref-type="bibr">1996</xref>)</td>
+        </tr>
+        <tr>
+          <td><monospace>TFTS</monospace></td>
+          <td>Truncated Fourier transform surrogates.</td>
+          <td>Miralles et al.
+          (<xref alt="2015" rid="ref-Miralles2015" ref-type="bibr">2015</xref>)</td>
+        </tr>
+        <tr>
+          <td><monospace>TAAFT</monospace></td>
+          <td>Truncated AAFT surrogates.</td>
+          <td>Nakamura et al.
+          (<xref alt="2006" rid="ref-NakamuraU003A2006" ref-type="bibr">2006</xref>)</td>
+        </tr>
+        <tr>
+          <td><monospace>TFTDRandomFourier</monospace></td>
+          <td>Detrended and retrended truncated Fourier surrogates.</td>
+          <td>Lucio et al.
+          (<xref alt="2012" rid="ref-LucioU003A2012" ref-type="bibr">2012</xref>)</td>
+        </tr>
+        <tr>
+          <td><monospace>TFTDAAFT</monospace></td>
+          <td>Detrended and retrended truncated AAFT surrogates.</td>
+          <td>Lucio et al.
+          (<xref alt="2012" rid="ref-LucioU003A2012" ref-type="bibr">2012</xref>)</td>
+        </tr>
+        <tr>
+          <td><monospace>TFTDIAAFT</monospace></td>
+          <td>Detrended and retrended truncated AAFT surrogates with
+          iterative adjustment.</td>
+          <td>Lucio et al.
+          (<xref alt="2012" rid="ref-LucioU003A2012" ref-type="bibr">2012</xref>)</td>
+        </tr>
+        <tr>
+          <td><monospace>WLS</monospace></td>
+          <td>Flexible wavelet-based methods using maximal overlap
+          discrete wavelet transforms.</td>
+          <td>Keylock
+          (<xref alt="2006" rid="ref-KeylockU003A2006" ref-type="bibr">2006</xref>)</td>
+        </tr>
+        <tr>
+          <td><monospace>RandomCascade</monospace></td>
+          <td>Random cascade multifractal surrogates.</td>
+          <td>Paluš
+          (<xref alt="2008" rid="ref-PalusU003A2008" ref-type="bibr">2008</xref>)</td>
+        </tr>
+        <tr>
+          <td><monospace>WIAAFT</monospace></td>
+          <td>Wavelet-based iterative amplitude adjusted
+          transforms.</td>
+          <td>Keylock
+          (<xref alt="2006" rid="ref-KeylockU003A2006" ref-type="bibr">2006</xref>)</td>
+        </tr>
+        <tr>
+          <td><monospace>PseudoPeriodic</monospace></td>
+          <td>Randomization of phases of Fourier transform of the
+          signal.</td>
+          <td>Small et al.
+          (<xref alt="2001" rid="ref-SmallU003A2001" ref-type="bibr">2001</xref>)</td>
+        </tr>
+        <tr>
+          <td><monospace>PseudoPeriodicTwin</monospace></td>
+          <td>Combination of pseudoperiodic and twin surrogates.</td>
+          <td>Miralles et al.
+          (<xref alt="2015" rid="ref-Miralles2015" ref-type="bibr">2015</xref>)</td>
+        </tr>
+        <tr>
+          <td><monospace>LS</monospace></td>
+          <td>Lomb-Scargle periodogram based surrogates for irregular
+          time grids</td>
+          <td>Schmitz &amp; Schreiber
+          (<xref alt="1999" rid="ref-SchmitzU003A1999" ref-type="bibr">1999</xref>)</td>
+        </tr>
+      </tbody>
+    </table>
+  </table-wrap>
+  <p>Documentation strings for the various methods describe the usage
+  intended by the original authors of the methods. Example applications
+  are showcased in the
+  <ext-link ext-link-type="uri" xlink:href="https://juliadynamics.github.io/TimeseriesSurrogates.jl/dev/">package
+  documentation</ext-link>.</p>
+</sec>
+<sec id="design-of-timeseriessurrogates.jl">
+  <title>Design of TimeseriesSurrogates.jl</title>
+  <p>TimeseriesSurrogates.jl has been designed to be as performant as
+  possible and as simple to extend as possible.</p>
+  <p>At a first level, we offer a function</p>
+  <code language="julia">using TimeseriesSurrogates, Random
+method = RandomShuffle() # can be any valid method
+rng = MersenneTwister(1234) # optional random number generator
+s = surrogate(x, method, rng)</code>
+  <p>which creates a surrogate <monospace>s</monospace> based on the
+  input <monospace>x</monospace> and the given method (any of the
+  methods mentioned in the above table).</p>
+  <p>This interface is easily extendable because it uses Julia’s
+  multiple dispatch on the given <monospace>method</monospace>. Thus,
+  any new contribution of a new method uses the exact same interface,
+  but introduces a new method type, e.g.</p>
+  <code language="julia">m = NewContributedMethod(args...)
+s = surrogate(x, method, rng)</code>
+  <p>The function <monospace>surrogate</monospace> is straight-forward
+  to use, but it does not allow maximum performance. The reason for this
+  is that when trying to make a second surrogate from
+  <monospace>x</monospace> and the same method, there are many
+  structures and computations that could be pre-initialized and/or
+  reused for all surrogates. This is especially relevant for real-world
+  applications where one typically makes thousands of surrogates with a
+  given method. To address this, we provide a second level of interface,
+  the <monospace>surrogenerator</monospace> function. It works as
+  follows: first the user initializes a “surrogate generator”
+  structure:</p>
+  <code language="julia">method = RandomShuffle()
+sg = surrogenerator(x, method, rng)</code>
+  <p>The structure <monospace>sg</monospace> can generate surrogates of
+  <monospace>x</monospace> on demand in the most performant manner
+  possible for the given inputs <monospace>x, method</monospace>. It can
+  be used like so:</p>
+  <code language="julia">for i in 1:100
+    s = sg() # generate a surrogate
+    # code...
+end</code>
+</sec>
+<sec id="comparison">
+  <title>Comparison</title>
+  <p>The average time to generate surrogates in TimeseriesSurrogates.jl
+  is in the best case about an order of magnitude faster than, and in
+  the worst case roughly equivalent to, the MATLAB surrogate code
+  provided by Lancaster et al.
+  (<xref alt="2018" rid="ref-LancasterU003A2018" ref-type="bibr">2018</xref>),
+  though comparisons are not exact, due to differing implementations and
+  tuning options. Moreover, the code of Lancaster et al.
+  (<xref alt="2018" rid="ref-LancasterU003A2018" ref-type="bibr">2018</xref>)
+  is not an actual package, but rather scripts that have been written
+  and circulated. As such, they lack a test suite tested via continuous
+  integration. Timings for commonly used surrogate methods that are
+  common to both libraries are shown in Figure 1. Additionally, because
+  TimeseriesSurrogates.jl provides many more methods not implemented in
+  other packages, a comprehensive comparison of runtimes is not
+  possible, but due to our optimized surrogate generators, we expect
+  good performance relative to future implementations in other
+  languages.</p>
+  <fig>
+    <caption><p>Figure 1: Mean time (in seconds, based on 500 surrogate
+    time series realizations) to generate a 2000-point random
+    permutation (rp), Fourier transform (ft), amplitude-adjusted Fourier
+    transform (aaft), iterated aaft (iaaft) and pseudoperiodic (pps)
+    surrogate using a pre-initialized generators with default
+    parameters, and using a maximum of 100 iterations for the IAAFT
+    algorithm. MATLAB timings are generated using the code provided by
+    Lancaster et al.
+    (<xref alt="2018" rid="ref-LancasterU003A2018" ref-type="bibr">2018</xref>).
+    Note: timings for the pseudoperiodic surrogates in MATLAB include
+    embedding lag and dimension finding, which has been included in the
+    preprocessing step in the Julia version. Scripts to reproduce Julia
+    and MATLAB timings are available in the GitHub repo for this
+    paper.</p></caption>
+    <graphic mimetype="image" mime-subtype="png" xlink:href="media/figs/timings.png" xlink:title="" />
+  </fig>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>KAH acknowledges funding by the Trond Mohn Foundation (previously
+  Bergen Research Foundation) (Bergen, Norway) and a fast-track
+  initative grant from Bjerknes Centre for Climate Research (Bergen,
+  Norway). GD acknowledges continuous support from Bjorn Stevens and the
+  Max Planck Society.</p>
+  <p>We thank Felix Cremer for the initial pull-request for the
+  simulated annealing based (Lomb-Scargle) surrogate method.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <ref id="ref-LancasterU003A2018">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Lancaster</surname><given-names>Gemma</given-names></name>
+        <name><surname>Iatsenko</surname><given-names>Dmytro</given-names></name>
+        <name><surname>Pidde</surname><given-names>Aleksandra</given-names></name>
+        <name><surname>Ticcinelli</surname><given-names>Valentina</given-names></name>
+        <name><surname>Stefanovska</surname><given-names>Aneta</given-names></name>
+      </person-group>
+      <article-title>Surrogate data for hypothesis testing of physical systems</article-title>
+      <source>Physics Reports</source>
+      <publisher-name>Elsevier</publisher-name>
+      <year iso-8601-date="2018">2018</year>
+      <volume>748</volume>
+      <pub-id pub-id-type="doi">10.1016/j.physrep.2018.06.001</pub-id>
+      <fpage>1</fpage>
+      <lpage>60</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-TheilerU003A1992">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Theiler</surname><given-names>James</given-names></name>
+        <name><surname>Eubank</surname><given-names>Stephen</given-names></name>
+        <name><surname>Longtin</surname><given-names>André</given-names></name>
+        <name><surname>Galdrikian</surname><given-names>Bryan</given-names></name>
+        <name><surname>Farmer</surname><given-names>J. Doyne</given-names></name>
+      </person-group>
+      <article-title>Testing for nonlinearity in time series: The method of surrogate data</article-title>
+      <source>Physica D: Nonlinear Phenomena</source>
+      <publisher-name>Elsevier BV</publisher-name>
+      <year iso-8601-date="1992-09">1992</year><month>09</month>
+      <volume>58</volume>
+      <issue>1-4</issue>
+      <uri>https://doi.org/10.1016%2F0167-2789%2892%2990102-s</uri>
+      <pub-id pub-id-type="doi">10.1016/0167-2789(92)90102-s</pub-id>
+      <fpage>77</fpage>
+      <lpage>94</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-TheilerU003A1994">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Theiler</surname><given-names>James</given-names></name>
+      </person-group>
+      <article-title>On the evidence for low-dimensional chaos in an epileptic electroencephalogram</article-title>
+      <source>Physics Letters A</source>
+      <publisher-name>Elsevier</publisher-name>
+      <year iso-8601-date="1994">1994</year>
+      <volume>196</volume>
+      <issue>1-2</issue>
+      <pub-id pub-id-type="doi">10.1016/0375-9601(94)91096-0</pub-id>
+      <fpage>335</fpage>
+      <lpage>341</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-SchreiberSchmitzU003A1996">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Schreiber</surname><given-names>Thomas</given-names></name>
+        <name><surname>Schmitz</surname><given-names>Andreas</given-names></name>
+      </person-group>
+      <article-title>Improved surrogate data for nonlinearity tests</article-title>
+      <source>Physical review letters</source>
+      <publisher-name>APS</publisher-name>
+      <year iso-8601-date="1996">1996</year>
+      <volume>77</volume>
+      <issue>4</issue>
+      <pub-id pub-id-type="doi">10.1103/physrevlett.77.635</pub-id>
+      <fpage>635</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Miralles2015">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Miralles</surname><given-names>R</given-names></name>
+        <name><surname>Carrion</surname><given-names>A</given-names></name>
+        <name><surname>Looney</surname><given-names>D</given-names></name>
+        <name><surname>Lara</surname><given-names>G</given-names></name>
+        <name><surname>Mandic</surname><given-names>D</given-names></name>
+      </person-group>
+      <article-title>Characterization of the complexity in short oscillating time series: An application to seismic airgun detonations</article-title>
+      <source>The Journal of the Acoustical Society of America</source>
+      <publisher-name>Acoustical Society of America</publisher-name>
+      <year iso-8601-date="2015">2015</year>
+      <volume>138</volume>
+      <issue>3</issue>
+      <pub-id pub-id-type="doi">10.1121/1.4929694</pub-id>
+      <fpage>1595</fpage>
+      <lpage>1603</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-NakamuraU003A2006">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Nakamura</surname><given-names>Tomomichi</given-names></name>
+        <name><surname>Small</surname><given-names>Michael</given-names></name>
+        <name><surname>Hirata</surname><given-names>Yoshito</given-names></name>
+      </person-group>
+      <article-title>Testing for nonlinearity in irregular fluctuations with long-term trends</article-title>
+      <source>Physical Review E</source>
+      <publisher-name>APS</publisher-name>
+      <year iso-8601-date="2006">2006</year>
+      <volume>74</volume>
+      <issue>2</issue>
+      <pub-id pub-id-type="doi">10.1103/physreve.74.026205</pub-id>
+      <fpage>026205</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-KeylockU003A2006">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Keylock</surname><given-names>CJ</given-names></name>
+      </person-group>
+      <article-title>Constrained surrogate time series with preservation of the mean and variance structure</article-title>
+      <source>Physical Review E</source>
+      <publisher-name>APS</publisher-name>
+      <year iso-8601-date="2006">2006</year>
+      <volume>73</volume>
+      <issue>3</issue>
+      <pub-id pub-id-type="doi">10.1103/physreve.73.036707</pub-id>
+      <fpage>036707</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-SmallU003A2001">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Small</surname><given-names>Michael</given-names></name>
+        <name><surname>Yu</surname><given-names>Dejin</given-names></name>
+        <name><surname>Harrison</surname><given-names>Robert G</given-names></name>
+      </person-group>
+      <article-title>Surrogate test for pseudoperiodic time series data</article-title>
+      <source>Physical Review Letters</source>
+      <publisher-name>APS</publisher-name>
+      <year iso-8601-date="2001">2001</year>
+      <volume>87</volume>
+      <issue>18</issue>
+      <pub-id pub-id-type="doi">10.1103/physrevlett.87.188101</pub-id>
+      <fpage>188101</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-SchmitzU003A1999">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Schmitz</surname><given-names>Andreas</given-names></name>
+        <name><surname>Schreiber</surname><given-names>Thomas</given-names></name>
+      </person-group>
+      <article-title>Testing for nonlinearity in unevenly sampled time series</article-title>
+      <source>Physical Review E</source>
+      <publisher-name>APS</publisher-name>
+      <year iso-8601-date="1999">1999</year>
+      <volume>59</volume>
+      <issue>4</issue>
+      <pub-id pub-id-type="doi">10.1103/physreve.59.4044</pub-id>
+      <fpage>4044</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-PalusU003A2008">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Paluš</surname><given-names>Milan</given-names></name>
+      </person-group>
+      <article-title>Bootstrapping multifractals: Surrogate data from random cascades on wavelet dyadic trees</article-title>
+      <source>Physical Review Letters</source>
+      <publisher-name>APS</publisher-name>
+      <year iso-8601-date="2008">2008</year>
+      <volume>101</volume>
+      <issue>13</issue>
+      <pub-id pub-id-type="doi">10.1103/physrevlett.101.134101</pub-id>
+      <fpage>134101</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-OrtegaU003A1998">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Ortega</surname><given-names>Guillermo J</given-names></name>
+        <name><surname>Louis</surname><given-names>Enrique</given-names></name>
+      </person-group>
+      <article-title>Smoothness implies determinism in time series: A measure based approach</article-title>
+      <source>Physical review letters</source>
+      <publisher-name>APS</publisher-name>
+      <year iso-8601-date="1998">1998</year>
+      <volume>81</volume>
+      <issue>20</issue>
+      <pub-id pub-id-type="doi">10.1103/physrevlett.81.4345</pub-id>
+      <fpage>4345</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-LucioU003A2012">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Lucio</surname><given-names>JH</given-names></name>
+        <name><surname>Valdés</surname><given-names>R</given-names></name>
+        <name><surname>Rodrı́guez</surname><given-names>LR</given-names></name>
+      </person-group>
+      <article-title>Improvements to surrogate data methods for nonstationary time series</article-title>
+      <source>Physical Review E</source>
+      <publisher-name>APS</publisher-name>
+      <year iso-8601-date="2012">2012</year>
+      <volume>85</volume>
+      <issue>5</issue>
+      <pub-id pub-id-type="doi">10.1103/physreve.85.056202</pub-id>
+      <fpage>056202</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
