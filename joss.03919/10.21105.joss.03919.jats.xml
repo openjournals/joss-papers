@@ -1,0 +1,2163 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">3919</article-id>
+<article-id pub-id-type="doi">10.21105/joss.03919</article-id>
+<title-group>
+<article-title>Unishox: A hybrid encoder for Short Unicode
+Strings</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">0000-0001-6642-447X</contrib-id>
+<name>
+<surname>Ramanathan</surname>
+<given-names>Arundale</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Independent Researcher</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2021-10-16">
+<day>16</day>
+<month>10</month>
+<year>2021</year>
+</pub-date>
+<volume>7</volume>
+<issue>69</issue>
+<fpage>3919</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2022</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>C</kwd>
+<kwd>compression</kwd>
+<kwd>encoding</kwd>
+<kwd>string-compression</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p>Unishox is a hybrid encoding technique with which short unicode
+  strings could be compressed using context aware pre-mapped codes and
+  delta coding resulting in surprisingly good ratios.</p>
+  <p>This article discusses a hybrid encoding method for compressing
+  Short Unicode Strings of arbitrary lengths including Latin/English
+  text and printable special characters. This has not been sufficiently
+  addressed by lossless short text encoding methods so far as they have
+  one or more of the following drawbacks:</p>
+  <list list-type="bullet">
+    <list-item>
+      <p>They apply only to either English text or Unicode strings and
+      not both</p>
+    </list-item>
+    <list-item>
+      <p>They have specific criteria based on which best compression can
+      be achieved</p>
+    </list-item>
+    <list-item>
+      <p>They are not suitable for low RAM devices</p>
+    </list-item>
+  </list>
+  <p>To the extent we know, the existing methods available for short
+  string compression are Smaz
+  (<xref alt="Sanfilippo, 2012" rid="ref-SanfilippoU003A2012" ref-type="bibr">Sanfilippo,
+  2012</xref>), Shoco
+  (<xref alt="Schramm, 2015" rid="ref-SchrammU003A2015" ref-type="bibr">Schramm,
+  2015</xref>), SCSU,
+  (<xref alt="A Standard Compression Scheme for Unicode - UTR #6, 2005" rid="ref-UnicodeU003A2005" ref-type="bibr"><italic>A
+  Standard Compression Scheme for Unicode - UTR #6</italic>,
+  2005</xref>), BOCU
+  (<xref alt="Scherer &amp; Davis, 2002" rid="ref-SchererU003A2002" ref-type="bibr">Scherer
+  &amp; Davis, 2002</xref>), SSE
+  (<xref alt="Juncai Xu et. al, 2017" rid="ref-Xu2017SSELCU003A2017" ref-type="bibr">Juncai
+  Xu et. al, 2017</xref>) and AIMCS
+  (<xref alt="Abedi &amp; Pourkiani, 2020" rid="ref-AIMCSU003A2020" ref-type="bibr">Abedi
+  &amp; Pourkiani, 2020</xref>).</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p>Space occupied by short strings become significant in memory
+  constrained environments such as Arduino Uno and ESP8266. Text
+  exchange in Chat applications and social media posts is another area
+  where cost savings could be seen using such compression. It is also
+  possible to achieve savings in bandwidth and storage cost by storing
+  and retrieving independent strings in Cloud databases.</p>
+</sec>
+<sec id="existing-techniques">
+  <title>Existing Techniques</title>
+  <p>In information theory, <monospace>entropy encoding</monospace> is a
+  lossless data compression scheme that is independent of the specific
+  characteristics of the medium
+  (<xref alt="MacKay, 2003" rid="ref-MacKeyU003A2003" ref-type="bibr">MacKay,
+  2003</xref>).</p>
+  <p>One of the main types of entropy coding is about creating and
+  assigning a unique <monospace>prefix-free code</monospace> to each
+  unique symbol that occurs in the input. These entropy encoders then
+  compress data by replacing each fixed-length input symbol with the
+  corresponding variable-length prefix-free output code word.</p>
+  <p>According to Shannon’s source coding theorem, the optimal code
+  length for a symbol is <inline-formula><alternatives>
+  <tex-math><![CDATA[-log_bP]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mo>−</mml:mo><mml:mi>l</mml:mi><mml:mi>o</mml:mi><mml:msub><mml:mi>g</mml:mi><mml:mi>b</mml:mi></mml:msub><mml:mi>P</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>,
+  where b is the number of symbols used to make output codes and P is
+  the probability of the input symbol
+  (<xref alt="Shannon, 1948" rid="ref-ShannonU003A1948" ref-type="bibr">Shannon,
+  1948</xref>). Therefore, the most common symbols use the shortest
+  codes.</p>
+  <p>The most popular method for forming optimal prefix-free discrete
+  codes is Huffman coding
+  (<xref alt="Huffman, 1952" rid="ref-HuffmanU003A1952" ref-type="bibr">Huffman,
+  1952</xref>).</p>
+  <p>A <monospace>Dictionary coder</monospace>, also sometimes known as
+  a substitution coder, is a class of lossless data compression
+  algorithms which operate by searching for matches between the text to
+  be compressed and a set of strings contained in a data structure
+  (called the <monospace>dictionary</monospace> maintained by the
+  encoder. When the encoder finds such a match, it substitutes a
+  reference to the string’s position in the data structure.</p>
+  <p>The LZ77 family of encoders use the dictionary encoding technique
+  for compressing data
+  (<xref alt="Ziv &amp; Lempel, 1977" rid="ref-LempelZivU003A1977" ref-type="bibr">Ziv
+  &amp; Lempel, 1977</xref>).</p>
+  <p><monospace>Delta coding</monospace> is a technique applied where
+  encoding the difference between the previously encoded symbol or set
+  of symbols is smaller compared to encoding the symbol or the set
+  again. The differnce is determined by using the set minus operator or
+  subtraction of values
+  (<xref alt="Delta Encoding, 2019" rid="ref-Delta_encodingU003A2019" ref-type="bibr"><italic>Delta
+  Encoding</italic>, 2019</xref>).</p>
+  <p>In contrast to these encoding methods, there are various other
+  approaches to lossless coding including Run Length Encoding (RLE) and
+  Burrows-Wheeler coding
+  (<xref alt="Burrows &amp; Wheeler, 1994" rid="ref-BurrowsWheelerU003A1994" ref-type="bibr">Burrows
+  &amp; Wheeler, 1994</xref>).</p>
+  <p>While programs such as GZip, Deflate, Zip, LZMA and BZ2 that use
+  such technologies are available for general purpose compression, they
+  do not provide optimal compression for short strings. Even though
+  these methods compress far more than what is proposed in this article,
+  they often expand the original source for short strings because the
+  symbol-code mapping also needs to be attached to aid
+  decompression.</p>
+  <sec id="short-string-compression-techniques">
+    <title>Short string compression techniques</title>
+    <p>Techniques available For compressing short English / Latin text
+    are Smaz and shoco, but are not developed with Unicode in mind.</p>
+    <p>Smaz is a simple compression library suitable for compressing
+    very short strings
+    (<xref alt="Sanfilippo, 2012" rid="ref-SanfilippoU003A2012" ref-type="bibr">Sanfilippo,
+    2012</xref>). It was developed by Salvatore Sanfilippo and is
+    released under the BSD license.</p>
+    <p>Shoco is a C library to compress short strings
+    (<xref alt="Schramm, 2015" rid="ref-SchrammU003A2015" ref-type="bibr">Schramm,
+    2015</xref>). It was developed by Christian Schramm and is released
+    under the MIT license.</p>
+    <p>While both are lossless encoding methods, Smaz is dictionary
+    based and Shoco classifies as an entropy coder
+    (<xref alt="Schramm, 2015" rid="ref-SchrammU003A2015" ref-type="bibr">Schramm,
+    2015</xref>).</p>
+    <p>In addition to providing a default frequency table as model,
+    shoco provides an option to re-define the frequency table based on
+    training text
+    (<xref alt="Schramm, 2015" rid="ref-SchrammU003A2015" ref-type="bibr">Schramm,
+    2015</xref>).</p>
+    <p>For compressing Unicode sequences, three technologies are
+    available: SCSU
+    (<xref alt="A Standard Compression Scheme for Unicode - UTR #6, 2005" rid="ref-UnicodeU003A2005" ref-type="bibr"><italic>A
+    Standard Compression Scheme for Unicode - UTR #6</italic>,
+    2005</xref>), BOCU
+    (<xref alt="Scherer &amp; Davis, 2002" rid="ref-SchererU003A2002" ref-type="bibr">Scherer
+    &amp; Davis, 2002</xref>), and FAST
+    (<xref alt="Pavel Studený, 2008" rid="ref-StudenýU003A2008" ref-type="bibr">Pavel
+    Studený, 2008</xref>). Ewell
+    (<xref alt="2004" rid="ref-EwellU003A2004" ref-type="bibr">2004</xref>)
+    published a survey of these compression algorithms.</p>
+    <p>The Standard Compression Scheme for Unicode (SCSU) is defined in
+    Unicode Technical Standard #6 and is based on a technique originally
+    developed by Reuters. The basic premise of SCSU is to define
+    dynamically positioned windows into the Unicode code space, so that
+    characters belonging to small scripts (such as the Greek alphabet or
+    Indic abugidas) can be encoded in a single byte, representing an
+    index into the active window. These windows are preset to blocks
+    expected to be in common use (e.g., Cyrillic), so the encoder
+    doesn’t have to define them in these cases. There are also static
+    windows that cannot be adjusted
+    (<xref alt="A Standard Compression Scheme for Unicode - UTR #6, 2005" rid="ref-UnicodeU003A2005" ref-type="bibr"><italic>A
+    Standard Compression Scheme for Unicode - UTR #6</italic>,
+    2005</xref>;
+    <xref alt="Ewell, 2004" rid="ref-EwellU003A2004" ref-type="bibr">Ewell,
+    2004</xref>).</p>
+    <p>The Binary Ordered Compression for Unicode (BOCU) concept was
+    developed in 2001 by Mark Davis and Markus Scherer for the ICU
+    project. The main premise of BOCU-1 is to encode each Unicode
+    character as the difference from the previous character, and to
+    represent small differences in fewer bytes than large differences.
+    By encoding differences, BOCU-1 achieves the same compression for
+    all small alphabetic scripts, regardless of the block in which they
+    reside
+    (<xref alt="Ewell, 2004" rid="ref-EwellU003A2004" ref-type="bibr">Ewell,
+    2004</xref>;
+    <xref alt="Scherer &amp; Davis, 2002" rid="ref-SchererU003A2002" ref-type="bibr">Scherer
+    &amp; Davis, 2002</xref>).</p>
+    <p>It is to be noted that SCSU is a Unicode Technical Standard
+    (UTS#6) and BOCU is published as a Unicode Technical Note (UTN#6),
+    although both have the same number assigned (6).</p>
+    <p>Fast Compression Algorithm For Unicode Text (FAST) is a
+    compression algorithm developed based on the Lempel Ziv algorithm
+    (<xref alt="Ziv &amp; Lempel, 1977" rid="ref-LempelZivU003A1977" ref-type="bibr">Ziv
+    &amp; Lempel, 1977</xref>). Essentially it achieves faster
+    compression by finding repeating unicode sequences instead of
+    repeating bytes. There are other assumptions and variations made to
+    LZ technique in addition to this
+    (<xref alt="Pavel Studený, 2008" rid="ref-StudenýU003A2008" ref-type="bibr">Pavel
+    Studený, 2008</xref>).</p>
+    <p>AIMCS is an Artificial Intelligence based Method for Compression
+    of Short Strings, which is specifically designed for compression of
+    strings with the size of less than 160 characters (tiny strings)
+    (<xref alt="Abedi &amp; Pourkiani, 2020" rid="ref-AIMCSU003A2020" ref-type="bibr">Abedi
+    &amp; Pourkiani, 2020</xref>).</p>
+    <p>SSE is a technique where texts are pre-processed by a method
+    named <monospace>sort and set empty</monospace> and are then
+    compressed through the traditional lossless compression methods
+    (<xref alt="Juncai Xu et. al, 2017" rid="ref-Xu2017SSELCU003A2017" ref-type="bibr">Juncai
+    Xu et. al, 2017</xref>).</p>
+    <p>Further four different methods available for compressing short
+    messages have been discussed in this paper
+    (<xref alt="Gardner-Stephen et. al, 2013" rid="ref-GardnerU003A2013" ref-type="bibr">Gardner-Stephen
+    et. al, 2013</xref>) including Smaz and other closed source
+    techniques.</p>
+  </sec>
+</sec>
+<sec id="this-research">
+  <title>This research</title>
+  <p>A hybrid encoding method is proposed relying on the three encoding
+  techniques <monospace>viz.</monospace> Entropy encoding, Dictionary
+  coding and Delta encoding methods for optimal compression.</p>
+  <p>While existing techniques focus on either Unicode character
+  sequences or only English characters, Unishox uses multiple
+  techhniques to achieve the best compression ratio all round.</p>
+  <p>For Unicode, Delta encoding is proposed because usually the
+  difference between subsequent symbols is quite less while encoding
+  text of a particular language. SCSU is slightly better with switching
+  windows, but overall it was found that plain Delta coding works well
+  considering that usually there is only one language text to be
+  compressed and some languages span a lot of windows.</p>
+  <p>SCSU and BOCU do have special features for Unicode that Unishox
+  does not address such as dynamic windows, binary order maintenance,
+  XML suitability and MIME friendliness. Unishox uses plain delta
+  encoding to achieve the best compression.</p>
+  <p>For English letters, unlike shoco, a fixed frequency table is
+  proposed, generated based on the characterestics of English language
+  letter frequency. The research carried out by Oxford University
+  (<xref alt="What is the frequency of the letters of the alphabet in English?, 2012" rid="ref-OxfordU003A2012" ref-type="bibr"><italic><named-content content-type="nocase">What
+  is the frequency of the letters of the alphabet in
+  English?</named-content></italic>, 2012</xref>) and other sources
+  (<xref alt="Statistical Distributions of English Text, Archived from the Original, 2017" rid="ref-StatisticalDistributionU003A2017" ref-type="bibr"><italic>Statistical
+  Distributions of English Text, Archived from the Original</italic>,
+  2017</xref>) have been used to arrive at a unique method that takes
+  advantage of the conventions of the language.</p>
+  <p>A single fixed model is used because of the advantages it offers
+  over the training models of shoco. The disadvantage with the training
+  model, although it may appear to offer more compression, is that it
+  does not consider the patterns that usually appear during text
+  formation. It can be seen that this performs better than pre-trained
+  model of shoco (See performance section).</p>
+  <p>This model, described in the subsequent section, along with a set
+  of rules for switching between the pre-defined sets of symbols in the
+  model are used for encoding and decoding text.</p>
+</sec>
+<sec id="model">
+  <title>Model</title>
+  <p>In the ASCII chart, we have 95 printable letters starting from 32
+  through 126. For the purpose of arriving at fixed codes for each of
+  these letters, two sets of prefix-free codes are used.</p>
+  <p>The first set consists of 28 codes, which are: 00, 010, 011, 1000,
+  1001, 1010, 1011, 1100, 11010, 11011, 111000, 111001, 111010, 1110110,
+  1110111, 1111000, 1111001, 1111010, 11110110, 11110111, 11111000,
+  11111001, 11111010, 11111011, 11111100, 11111101, 11111110, 11111111.
+  These are called vertical codes (vcodes).</p>
+  <p>The second set consists of 5 codes, which by default will be 00,
+  01, 10, 110, 111. These are called horizontal codes (hcodes). These 5
+  codes can be configured according to the composition of text that
+  needs to be compressed.</p>
+  <p>With these two sets of codes, several sets of letters are formed as
+  shown in the table below and some rules are formed based on how
+  patterns appear in short strings.</p>
+  <table-wrap>
+    <table>
+      <colgroup>
+        <col width="42%" />
+        <col width="11%" />
+        <col width="11%" />
+        <col width="11%" />
+        <col width="13%" />
+        <col width="13%" />
+      </colgroup>
+      <thead>
+        <tr>
+          <th><bold>hcode <inline-formula><alternatives>
+          <tex-math><![CDATA[\rightarrow]]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mo>→</mml:mo></mml:math></alternatives></inline-formula></bold></th>
+          <th><bold>00</bold></th>
+          <th><bold>01</bold></th>
+          <th><bold>10</bold></th>
+          <th><bold>110</bold></th>
+          <th><bold>111</bold></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><bold><inline-formula><alternatives>
+          <tex-math><![CDATA[\downarrow]]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mo>↓</mml:mo></mml:math></alternatives></inline-formula>
+          vcode</bold></td>
+          <td><bold>Set 1</bold></td>
+          <td><bold>Set 2</bold></td>
+          <td><bold>Set 3</bold></td>
+          <td><bold>Set 4</bold></td>
+          <td><bold>Set 5</bold></td>
+        </tr>
+        <tr>
+          <td></td>
+          <td><bold>Alpha</bold></td>
+          <td><bold>Sym</bold></td>
+          <td><bold>Num</bold></td>
+          <td><bold>Dictionary</bold></td>
+          <td><bold>Delta</bold></td>
+        </tr>
+        <tr>
+          <td><bold>00</bold></td>
+          <td>switch</td>
+          <td>”</td>
+          <td>switch</td>
+          <td><inline-formula><alternatives>
+          <tex-math><![CDATA[<]]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mo>&lt;</mml:mo></mml:math></alternatives></inline-formula>length<inline-formula><alternatives>
+          <tex-math><![CDATA[>]]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mo>&gt;</mml:mo></mml:math></alternatives></inline-formula></td>
+          <td><inline-formula><alternatives>
+          <tex-math><![CDATA[<]]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mo>&lt;</mml:mo></mml:math></alternatives></inline-formula>code<inline-formula><alternatives>
+          <tex-math><![CDATA[>]]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mo>&gt;</mml:mo></mml:math></alternatives></inline-formula></td>
+        </tr>
+        <tr>
+          <td><bold>010</bold></td>
+          <td>sp</td>
+          <td>{</td>
+          <td>,</td>
+          <td><inline-formula><alternatives>
+          <tex-math><![CDATA[<]]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mo>&lt;</mml:mo></mml:math></alternatives></inline-formula>distance<inline-formula><alternatives>
+          <tex-math><![CDATA[>]]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mo>&gt;</mml:mo></mml:math></alternatives></inline-formula></td>
+          <td><inline-formula><alternatives>
+          <tex-math><![CDATA[<]]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mo>&lt;</mml:mo></mml:math></alternatives></inline-formula>sign<inline-formula><alternatives>
+          <tex-math><![CDATA[>]]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mo>&gt;</mml:mo></mml:math></alternatives></inline-formula></td>
+        </tr>
+        <tr>
+          <td><bold>011</bold></td>
+          <td>e / E</td>
+          <td>}</td>
+          <td>.</td>
+          <td></td>
+          <td><inline-formula><alternatives>
+          <tex-math><![CDATA[<]]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mo>&lt;</mml:mo></mml:math></alternatives></inline-formula>delta<inline-formula><alternatives>
+          <tex-math><![CDATA[>]]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mo>&gt;</mml:mo></mml:math></alternatives></inline-formula></td>
+        </tr>
+        <tr>
+          <td><bold>1000</bold></td>
+          <td>t / T</td>
+          <td>_</td>
+          <td>0</td>
+          <td></td>
+          <td></td>
+        </tr>
+        <tr>
+          <td><bold>1001</bold></td>
+          <td>a / A</td>
+          <td><inline-formula><alternatives>
+          <tex-math><![CDATA[<]]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mo>&lt;</mml:mo></mml:math></alternatives></inline-formula></td>
+          <td>1</td>
+          <td></td>
+          <td></td>
+        </tr>
+        <tr>
+          <td><bold>1010</bold></td>
+          <td>o / O</td>
+          <td><inline-formula><alternatives>
+          <tex-math><![CDATA[>]]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mo>&gt;</mml:mo></mml:math></alternatives></inline-formula></td>
+          <td>9</td>
+          <td></td>
+          <td></td>
+        </tr>
+        <tr>
+          <td><bold>1011</bold></td>
+          <td>i / I</td>
+          <td>:</td>
+          <td>2</td>
+          <td></td>
+          <td></td>
+        </tr>
+        <tr>
+          <td><bold>1100</bold></td>
+          <td>n / N</td>
+          <td>lf</td>
+          <td>5</td>
+          <td></td>
+          <td></td>
+        </tr>
+        <tr>
+          <td><bold>11010</bold></td>
+          <td>s / S</td>
+          <td>crlf</td>
+          <td>-</td>
+          <td></td>
+          <td></td>
+        </tr>
+        <tr>
+          <td><bold>11011</bold></td>
+          <td>r / R</td>
+          <td>[</td>
+          <td>/</td>
+          <td></td>
+          <td></td>
+        </tr>
+        <tr>
+          <td><bold>111000</bold></td>
+          <td>l / L</td>
+          <td>]</td>
+          <td>3</td>
+          <td></td>
+          <td></td>
+        </tr>
+        <tr>
+          <td><bold>111001</bold></td>
+          <td>c / C</td>
+          <td>\</td>
+          <td>4</td>
+          <td></td>
+          <td></td>
+        </tr>
+        <tr>
+          <td><bold>111010</bold></td>
+          <td>d / D</td>
+          <td>;</td>
+          <td>6</td>
+          <td></td>
+          <td></td>
+        </tr>
+        <tr>
+          <td><bold>1110110</bold></td>
+          <td>h / H</td>
+          <td>’</td>
+          <td>7</td>
+          <td></td>
+          <td></td>
+        </tr>
+        <tr>
+          <td><bold>1110111</bold></td>
+          <td>u / U</td>
+          <td>tab</td>
+          <td>8</td>
+          <td></td>
+          <td></td>
+        </tr>
+        <tr>
+          <td><bold>1111000</bold></td>
+          <td>p / P</td>
+          <td>@</td>
+          <td>(</td>
+          <td></td>
+          <td></td>
+        </tr>
+        <tr>
+          <td><bold>1111001</bold></td>
+          <td>m / M</td>
+          <td>*</td>
+          <td>)</td>
+          <td></td>
+          <td></td>
+        </tr>
+        <tr>
+          <td><bold>1111010</bold></td>
+          <td>b / B</td>
+          <td><inline-formula><alternatives>
+          <tex-math><![CDATA[|]]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mo stretchy="false" form="prefix">|</mml:mo></mml:math></alternatives></inline-formula></td>
+          <td>sp</td>
+          <td></td>
+          <td></td>
+        </tr>
+        <tr>
+          <td><bold>11110110</bold></td>
+          <td>g / G</td>
+          <td>?</td>
+          <td>=</td>
+          <td></td>
+          <td></td>
+        </tr>
+        <tr>
+          <td><bold>11110111</bold></td>
+          <td>w / W</td>
+          <td>!</td>
+          <td>+</td>
+          <td></td>
+          <td></td>
+        </tr>
+        <tr>
+          <td><bold>11111000</bold></td>
+          <td>f / F</td>
+          <td>^</td>
+          <td>$</td>
+          <td></td>
+          <td></td>
+        </tr>
+        <tr>
+          <td><bold>11111001</bold></td>
+          <td>y / Y</td>
+          <td><inline-formula><alternatives>
+          <tex-math><![CDATA[|]]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mo stretchy="false" form="prefix">|</mml:mo></mml:math></alternatives></inline-formula></td>
+          <td>%</td>
+          <td></td>
+          <td></td>
+        </tr>
+        <tr>
+          <td><bold>11111010</bold></td>
+          <td>v / V</td>
+          <td>cr</td>
+          <td>#</td>
+          <td></td>
+          <td></td>
+        </tr>
+        <tr>
+          <td><bold>11111011</bold></td>
+          <td>k / K</td>
+          <td>~</td>
+          <td>seq4</td>
+          <td></td>
+          <td></td>
+        </tr>
+        <tr>
+          <td><bold>11111100</bold></td>
+          <td>q / Q</td>
+          <td>`</td>
+          <td>seq5</td>
+          <td></td>
+          <td></td>
+        </tr>
+        <tr>
+          <td><bold>11111101</bold></td>
+          <td>j / J</td>
+          <td>seq1</td>
+          <td>seq6</td>
+          <td></td>
+          <td></td>
+        </tr>
+        <tr>
+          <td><bold>11111110</bold></td>
+          <td>x / X</td>
+          <td>seq2</td>
+          <td>rpt</td>
+          <td></td>
+          <td></td>
+        </tr>
+        <tr>
+          <td><bold>11111111</bold></td>
+          <td>z / Z</td>
+          <td>seq3</td>
+          <td>term</td>
+          <td></td>
+          <td></td>
+        </tr>
+      </tbody>
+    </table>
+  </table-wrap>
+</sec>
+<sec id="rules">
+  <title>Rules</title>
+  <sec id="basic-rules">
+    <title>Basic rules</title>
+    <list list-type="bullet">
+      <list-item>
+        <p>It can be seen that the more frequent symbols are assigned
+        smaller codes.</p>
+      </list-item>
+      <list-item>
+        <p>Set 1 is always active when beginning compression. So the
+        letter <monospace>e</monospace> has the code 011,
+        <monospace>t</monospace> 1010 and so on.</p>
+      </list-item>
+    </list>
+  </sec>
+  <sec id="upper-case-symbols">
+    <title>Upper case symbols</title>
+    <list list-type="bullet">
+      <list-item>
+        <p>For encoding uppercase letters, the switch symbol is used
+        followed by 00 and the code against the symbol itself. For
+        example, E is encoded as 00 00 011.</p>
+      </list-item>
+      <list-item>
+        <p>If uppercase letters appear continuously, then the encoder
+        may decide to switch to upper case using the prefix 00 00 00 00.
+        After that, the same codes for lower case are used to indicate
+        upper case letters until the code sequence 00 00 is used again
+        to return to lower case.</p>
+      </list-item>
+    </list>
+  </sec>
+  <sec id="numbers-and-related-symbols">
+    <title>Numbers and related symbols</title>
+    <list list-type="bullet">
+      <list-item>
+        <p>Symbols in Set 2 are encoded by first switching to the set by
+        using 00 followed by 01. So the symbol ” is encoded as 00 01
+        00.</p>
+      </list-item>
+      <list-item>
+        <p>Numbers in Set 3 are encoded by first switching to the set by
+        using 00 followed by 10. So the symbol 9 is encoded as 00 10
+        1010.</p>
+      </list-item>
+      <list-item>
+        <p>For Set 3, whenever is switch is made from Set 1 to any
+        number (0 to 9), it makes Set 3 active. So subsequent numbers
+        symbols in Set 3 can be encoded without the switch symbol, as in
+        111000 for 3, 111001 for 4 and so on.</p>
+      </list-item>
+      <list-item>
+        <p>To return to Set 1 in this case, the code 0000 is used.</p>
+      </list-item>
+      <list-item>
+        <p>However, when other symbols in Set 3 are encoded from Set 1,
+        Set 3 is not made active.</p>
+      </list-item>
+    </list>
+  </sec>
+  <sec id="sticky-sets">
+    <title>Sticky sets</title>
+    <list list-type="bullet">
+      <list-item>
+        <p>When switching to Set 3 for encoding numbers (0-9), it
+        becomes active and is said to be sticky till Set 1 is made
+        active using the symbol 0000.</p>
+      </list-item>
+      <list-item>
+        <p>Encoding Upper case symbols become sticky when switching
+        using 0000 0000.</p>
+      </list-item>
+      <list-item>
+        <p>Encoding Unicode symbols become sticky when switching using
+        0000 010, as seen in a subsequent section.</p>
+      </list-item>
+      <list-item>
+        <p>However, no other set is sticky. Set 1 is default. Set 3
+        automatically becomes sticky when any numeral is encoded and
+        Upper case letters can be made sticky by using 00000000.</p>
+      </list-item>
+      <list-item>
+        <p>Symbols in Set 2 are never sticky. Once encoded the previous
+        sticky set becomes active.</p>
+      </list-item>
+    </list>
+  </sec>
+  <sec id="special-symbols">
+    <title>Special symbols</title>
+    <list list-type="bullet">
+      <list-item>
+        <p>term in Set 3 indicates termination of encoding. This is used
+        if length of the encoded string is not available. In case the
+        length of encoded string is available, term symbol need not be
+        encoded and encoding can stop with the last symbol encoded.
+        However, the first part of the term symbol needs to be encoded
+        in the last byte after the bits for the last symbol. Further if
+        Unicode set is sticky and active, first it needs to be exited
+        using the exit sequence 11111 00 and then the term symbol should
+        be encoded.</p>
+      </list-item>
+      <list-item>
+        <p>rpt in Set 3 indicates that the symbol last encoded is to be
+        repeated specified number of times.</p>
+      </list-item>
+      <list-item>
+        <p>CRLF in Set 2 is encoded using a single code. It will be
+        expanded as two bytes CR LF. If only LF is used, such as in Unix
+        like systems, a separate code is used in Set 2. Also, in the
+        rare case that only CR appears, another code is provided in Set
+        2.</p>
+      </list-item>
+    </list>
+  </sec>
+  <sec id="repeating-letters">
+    <title>Repeating letters</title>
+    <list list-type="bullet">
+      <list-item>
+        <p>If any letter repeats more than 3 times, a special code (rpt)
+        is used as shown in Set 3 of the model.</p>
+      </list-item>
+      <list-item>
+        <p>The encoder first codes the letter using the above codes.
+        Then the rpt code is used followed by the number of times the
+        letter repeats.</p>
+      </list-item>
+      <list-item>
+        <p>The number of times the letter repeats is coded using a
+        special bit sequence as explained in section
+        <xref alt="Encoding counts" rid="encoding-counts">Encoding
+        counts</xref> that follows.</p>
+      </list-item>
+    </list>
+  </sec>
+  <sec id="repeating-sections">
+    <title>Repeating sections</title>
+    <list list-type="bullet">
+      <list-item>
+        <p>If a section repeats, the switch code (00) and another
+        horizontal code (110) is used followed by two fields as
+        described next.</p>
+        <list list-type="bullet">
+          <list-item>
+            <p>The first field indicates the length of the section that
+            repeats.</p>
+          </list-item>
+        </list>
+      </list-item>
+      <list-item>
+        <p>The second field indicates the distance of the repeating
+        section. The distance is counted from the current position.</p>
+      </list-item>
+      <list-item>
+        <p>The optional third field is coded only if an array of text is
+        encoded. It is a number indicating the index of the array that
+        the section belongs. If only one text is encoded, then this
+        field is not included.</p>
+      </list-item>
+      <list-item>
+        <p>The first, second and third fields are encoded as explained
+        in the following section
+        <xref alt="Encoding counts" rid="encoding-counts">Encoding
+        counts</xref>.</p>
+      </list-item>
+    </list>
+  </sec>
+  <sec id="encoding-counts">
+    <title>Encoding Counts</title>
+    <list list-type="bullet">
+      <list-item>
+        <p>For encoding counts such as length and distance, five codes
+        are used: 0, 10, 110, 1110, 1111, each code indicating how many
+        bits will follow to indicate count.</p>
+      </list-item>
+      <list-item>
+        <p>If code is 0, 2 bits would follow, that is, count is between
+        0 and 3.</p>
+      </list-item>
+      <list-item>
+        <p>If code is 10, 4 bits would follow, that is, count is between
+        4 and 19.</p>
+      </list-item>
+      <list-item>
+        <p>If code is 110, 7 bits would follow, that is, count is
+        between 20 and 147.</p>
+      </list-item>
+      <list-item>
+        <p>If code is 1110, 11 bits would follow, that is, count is
+        between 148 and 2195.</p>
+      </list-item>
+      <list-item>
+        <p>If code is 1111, 16 bits would follow, that is, count is
+        between 2196 and 67732.</p>
+      </list-item>
+      <list-item>
+        <p>This is shown in tabular form below</p>
+        <p specific-use="wrapper">
+          <table-wrap>
+            <table>
+              <thead>
+                <tr>
+                  <th><bold>Code</bold></th>
+                  <th><bold>Range</bold></th>
+                  <th><bold>Number of bits</bold></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>0</td>
+                  <td>0 to 3</td>
+                  <td>2</td>
+                </tr>
+                <tr>
+                  <td>10</td>
+                  <td>4 to 19</td>
+                  <td>5</td>
+                </tr>
+                <tr>
+                  <td>110</td>
+                  <td>20 to 147</td>
+                  <td>7</td>
+                </tr>
+                <tr>
+                  <td>1110</td>
+                  <td>148 to 2195</td>
+                  <td>11</td>
+                </tr>
+                <tr>
+                  <td>1111</td>
+                  <td>2196 to 67732</td>
+                  <td>16</td>
+                </tr>
+              </tbody>
+            </table>
+          </table-wrap>
+        </p>
+      </list-item>
+    </list>
+  </sec>
+  <sec id="encoding-unicode-characters">
+    <title>Encoding Unicode characters</title>
+    <list list-type="bullet">
+      <list-item>
+        <p>The switch code 00 followed by 111 is used as prefix to
+        indicate that a Unicode character is being encoded.</p>
+      </list-item>
+      <list-item>
+        <p>First, the unicode number is decoded from the input source
+        depending on how it was encoded, such as UTF-8 or UTF-16.</p>
+      </list-item>
+      <list-item>
+        <p>For the first unicode character, the number decoded is
+        re-coded to the output as it is, using 00 111 followed by a code
+        as shown in the table below followed by a sign bit 0 (positive),
+        followed by given number of bits shown in the table, depending
+        on the range that the code belongs.</p>
+        <p specific-use="wrapper">
+          <table-wrap>
+            <table>
+              <thead>
+                <tr>
+                  <th><bold>Code</bold></th>
+                  <th><bold>Range</bold></th>
+                  <th><bold>Number of bits</bold></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>0</td>
+                  <td>0 to 63</td>
+                  <td>6</td>
+                </tr>
+                <tr>
+                  <td>10</td>
+                  <td>64 to 4159</td>
+                  <td>12</td>
+                </tr>
+                <tr>
+                  <td>110</td>
+                  <td>4160 to 20543</td>
+                  <td>14</td>
+                </tr>
+                <tr>
+                  <td>1110</td>
+                  <td>20544 to 86079</td>
+                  <td>16</td>
+                </tr>
+                <tr>
+                  <td>11110</td>
+                  <td>86080 to 2183231</td>
+                  <td>21</td>
+                </tr>
+                <tr>
+                  <td>11111</td>
+                  <td>Special code</td>
+                  <td>-</td>
+                </tr>
+              </tbody>
+            </table>
+          </table-wrap>
+        </p>
+      </list-item>
+      <list-item>
+        <p>The Special code is explained in the next section.</p>
+      </list-item>
+      <list-item>
+        <p>For subsequent unicode characters, only the difference
+        between the previous character is re-coded to the output, using
+        sign bit as 1 if the difference is negative. Thus, here, delta
+        coding is used.</p>
+      </list-item>
+      <list-item>
+        <p>After 00 111, one of the above codes is used, followed by the
+        sign bit. The sign bit is a single bit. 1 indicates that the
+        number following is negative and 0 indicates that the number
+        following is positive.</p>
+      </list-item>
+      <list-item>
+        <p>After the sign bit, the unicode value (or difference) is
+        encoded as a number. The number of bits used depends on the
+        range, as shown in the above table.</p>
+      </list-item>
+      <list-item>
+        <p>After encoding the unicode number, the state returns to Set
+        1, or whichever set was active earlier, unless continuous
+        unicode encoding was started. This is explained in the next
+        section.</p>
+      </list-item>
+    </list>
+  </sec>
+  <sec id="encoding-continuous-unicode-characters">
+    <title>Encoding continuous Unicode characters</title>
+    <list list-type="bullet">
+      <list-item>
+        <p>Since the prefix 00 110 may become an overhead when several
+        Unicode are to be encoded contigously, a continuous unicode
+        encoding code is used (0000 010).</p>
+      </list-item>
+      <list-item>
+        <p>After 0000 010 is encoded, unicode characters are encoded
+        continously using delta encoding, until an English character is
+        encountered. When this happens, state is returned to Set 1 using
+        the Special code 11111 00 in the table shown in previous section
+        is used.</p>
+      </list-item>
+      <list-item>
+        <p>The Special codes are used only when Unicode characters are
+        coded continuously, to indicate special characters and
+        situations occuring in-between. What follows the Special code
+        11111 is indicated using the table below:</p>
+        <p specific-use="wrapper">
+          <table-wrap>
+            <table>
+              <thead>
+                <tr>
+                  <th><bold>Code</bold></th>
+                  <th><bold>Character/Situation</bold></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>0</td>
+                  <td>Space character</td>
+                </tr>
+                <tr>
+                  <td>10</td>
+                  <td>Switch</td>
+                </tr>
+                <tr>
+                  <td>110</td>
+                  <td>Comma (,)</td>
+                </tr>
+                <tr>
+                  <td>1110</td>
+                  <td>Full stop (.)</td>
+                </tr>
+                <tr>
+                  <td>1111</td>
+                  <td>Line feed (LF)</td>
+                </tr>
+              </tbody>
+            </table>
+          </table-wrap>
+        </p>
+      </list-item>
+      <list-item>
+        <p>It is found that the above characters appear frequently in
+        between continous Unicode characters and so Special codes are
+        needed to avoid switching back and forth from Set 2.</p>
+      </list-item>
+      <list-item>
+        <p>Other symbols in Set 2 or Set 3 can also be encoded within
+        continuous Delta encoding mode using the Switch Code in the
+        above table.</p>
+      </list-item>
+    </list>
+  </sec>
+  <sec id="multi-way-access-for-set-2">
+    <title>Multi way access for Set 2</title>
+    <list list-type="bullet">
+      <list-item>
+        <p>Set 2 can be accessed regardless of which set is active, such
+        as Set 1, Set 3, Continuous delta coding or even when continuous
+        Upper case is active. This is because the symbols occur commonly
+        in both Set 1 and 3 and Unicode symbol sequences.</p>
+      </list-item>
+      <list-item>
+        <p>For the same reason, the space symbol appears both in Set 1
+        and Set 3.</p>
+      </list-item>
+    </list>
+  </sec>
+  <sec id="encoding-punctuations">
+    <title>Encoding punctuations</title>
+    <list list-type="bullet">
+      <list-item>
+        <p>Some languages, such as Japanese and Chinese use their own
+        punctuation characters. For example full-stop is indicated using
+        U+3002 which is represented visually as a small circle.</p>
+      </list-item>
+      <list-item>
+        <p>Encoding such special full-stops were supported in the
+        earlier version of Unishox for better compression. However since
+        this was leading to confusion and ambiguity, any special
+        treatment for such punctuations are excluded in the present
+        version of Unishox (2) and this is left to delta coding. It also
+        does not make much difference in compression ratio.</p>
+      </list-item>
+    </list>
+  </sec>
+  <sec id="common-templates">
+    <title>Common templates</title>
+    <list list-type="bullet">
+      <list-item>
+        <p>Some special templates are known to occur frequently and are
+        encoded using 00 10 00 followed the codes mentioned in the table
+        below.</p>
+        <p specific-use="wrapper">
+          <table-wrap>
+            <table>
+              <thead>
+                <tr>
+                  <th><bold>Code</bold></th>
+                  <th><bold>Situation</bold></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>0</td>
+                  <td>Template for date, time and phone numbers</td>
+                </tr>
+                <tr>
+                  <td>10</td>
+                  <td>Hex nibbles lower case</td>
+                </tr>
+                <tr>
+                  <td>110</td>
+                  <td>Hex GUID lower case</td>
+                </tr>
+                <tr>
+                  <td>1110</td>
+                  <td>Hex nibbles upper case</td>
+                </tr>
+                <tr>
+                  <td>11110</td>
+                  <td>Hex GUID upper case</td>
+                </tr>
+                <tr>
+                  <td>11111</td>
+                  <td>Binary (ASCII 0-31, 128-255)</td>
+                </tr>
+              </tbody>
+            </table>
+          </table-wrap>
+        </p>
+      </list-item>
+      <list-item>
+        <p>The code 0 indicates that one of the codes for Date, Time or
+        Phone number follows, which is encoded according to the
+        following table:</p>
+        <p specific-use="wrapper">
+          <table-wrap>
+            <table>
+              <thead>
+                <tr>
+                  <th><bold>Code</bold></th>
+                  <th><bold>Description</bold></th>
+                  <th><bold>Template</bold></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>0</td>
+                  <td>Standard ISO timestamp</td>
+                  <td>tfff-of-tfTtf:rf:rf.fffZ</td>
+                </tr>
+                <tr>
+                  <td>10</td>
+                  <td>Date only</td>
+                  <td>tfff-of-tf</td>
+                </tr>
+                <tr>
+                  <td>110</td>
+                  <td>US Phone number</td>
+                  <td>(fff) fff-ffff</td>
+                </tr>
+                <tr>
+                  <td>1110</td>
+                  <td>Time only</td>
+                  <td>tf:rf:rf</td>
+                </tr>
+                <tr>
+                  <td>1111</td>
+                  <td>Reserved</td>
+                  <td></td>
+                </tr>
+              </tbody>
+            </table>
+          </table-wrap>
+        </p>
+      </list-item>
+      <list-item>
+        <p>Partial matches of the template can also be encoded using
+        this. For example, the string “2021-07-15T20:00:00” can be
+        compressed using above template by specifying how many
+        characters of the template are unused the end. In this case 5
+        characters are unused.</p>
+      </list-item>
+      <list-item>
+        <p>The encoding sequence would be: 00 10 00 0
+        <inline-formula><alternatives>
+        <tex-math><![CDATA[<]]></tex-math>
+        <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mo>&lt;</mml:mo></mml:math></alternatives></inline-formula>template
+        code<inline-formula><alternatives>
+        <tex-math><![CDATA[>]]></tex-math>
+        <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mo>&gt;</mml:mo></mml:math></alternatives></inline-formula>
+        <inline-formula><alternatives>
+        <tex-math><![CDATA[<]]></tex-math>
+        <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mo>&lt;</mml:mo></mml:math></alternatives></inline-formula>number
+        of unused letters<inline-formula><alternatives>
+        <tex-math><![CDATA[>]]></tex-math>
+        <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mo>&gt;</mml:mo></mml:math></alternatives></inline-formula>
+        <inline-formula><alternatives>
+        <tex-math><![CDATA[<]]></tex-math>
+        <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mo>&lt;</mml:mo></mml:math></alternatives></inline-formula>filled
+        template<inline-formula><alternatives>
+        <tex-math><![CDATA[>]]></tex-math>
+        <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mo>&gt;</mml:mo></mml:math></alternatives></inline-formula>.
+        The method described in
+        <xref alt="Encoding counts" rid="encoding-counts">Encoding
+        counts</xref> section is used to encode
+        <inline-formula><alternatives>
+        <tex-math><![CDATA[<]]></tex-math>
+        <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mo>&lt;</mml:mo></mml:math></alternatives></inline-formula>number
+        of unused letters<inline-formula><alternatives>
+        <tex-math><![CDATA[>]]></tex-math>
+        <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mo>&gt;</mml:mo></mml:math></alternatives></inline-formula>.</p>
+      </list-item>
+      <list-item>
+        <p>In the template, following are the codes used and the size
+        occupied in bits. Since fewer bits are sufficient to represent a
+        number, it results in lot of savings.</p>
+        <p specific-use="wrapper">
+          <table-wrap>
+            <table>
+              <thead>
+                <tr>
+                  <th><bold>Letter</bold></th>
+                  <th><bold>Bits</bold></th>
+                  <th><bold>Range</bold></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>o</td>
+                  <td>1</td>
+                  <td>0 to 1</td>
+                </tr>
+                <tr>
+                  <td>t</td>
+                  <td>2</td>
+                  <td>0 to 3</td>
+                </tr>
+                <tr>
+                  <td>r</td>
+                  <td>3</td>
+                  <td>0 to 7</td>
+                </tr>
+                <tr>
+                  <td>f</td>
+                  <td>4</td>
+                  <td>0 to F</td>
+                </tr>
+              </tbody>
+            </table>
+          </table-wrap>
+        </p>
+      </list-item>
+      <list-item>
+        <p>Using this method, the ISO timestamp which is 24 bytes in
+        length compresses to only 9 bytes.</p>
+      </list-item>
+      <list-item>
+        <p>For example, “2021-07-15T16:37:35” would be encoded as 00 10
+        00 0 0 10 0001 10 0000 0010 0001 0 0111 01 0101 01 0110 011 0111
+        011 0101. The codes are explained in the table below:</p>
+        <p specific-use="wrapper">
+          <table-wrap>
+            <table>
+              <thead>
+                <tr>
+                  <th><bold>Code</bold></th>
+                  <th><bold>Description</bold></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>00 10 00</td>
+                  <td>Code for common templates</td>
+                </tr>
+                <tr>
+                  <td>0</td>
+                  <td>Code for string template</td>
+                </tr>
+                <tr>
+                  <td>0</td>
+                  <td>Template used (tfff-of-tfTtf:rf:rf.fffZ)</td>
+                </tr>
+                <tr>
+                  <td>10 0001</td>
+                  <td>Encode count 5 unused at the end</td>
+                </tr>
+                <tr>
+                  <td>10 0000 0010 0001</td>
+                  <td>2021</td>
+                </tr>
+                <tr>
+                  <td>0 0111</td>
+                  <td>07</td>
+                </tr>
+                <tr>
+                  <td>01 0101</td>
+                  <td>15</td>
+                </tr>
+                <tr>
+                  <td>01 0110</td>
+                  <td>16</td>
+                </tr>
+                <tr>
+                  <td>011 0111</td>
+                  <td>37</td>
+                </tr>
+                <tr>
+                  <td>011 0101</td>
+                  <td>35</td>
+                </tr>
+              </tbody>
+            </table>
+          </table-wrap>
+        </p>
+      </list-item>
+      <list-item>
+        <p>The codes 10 and 1110 are used to encode a sequence of lower
+        and upper Hex nibbles respectively. 10 or 1110 is followed by
+        the count of nibbles encoded as explained in the
+        <xref alt="Encoding counts" rid="encoding-counts">Encoding
+        counts</xref> section. After this, each nibble is encoded using
+        4 bits each.</p>
+      </list-item>
+      <list-item>
+        <p>The code 110 and 11110 are used to encode lower and upper
+        GUIDs respectively. 110 or 11110 is followed by each nibble of
+        the GUID excluding the hyphens.</p>
+      </list-item>
+      <list-item>
+        <p>Finally the code 11111 is used for encoding binary symbols
+        ranging from ASCII 0 to 31 and ASCII 128 to 255. The prefix code
+        00 10 00 11111 is used, followed by the number of such binary
+        symbols encoded as explained in
+        <xref alt="Encoding counts" rid="encoding-counts">Encoding
+        counts</xref> section. After this each byte is encoded with 8
+        bits per character.</p>
+      </list-item>
+      <list-item>
+        <p>Encoding binary symbols this way is not efficient and is only
+        available to cover the entire character set.</p>
+      </list-item>
+      <list-item>
+        <p>The implementation actually tries to optimize encoding binary
+        sequences by trying to identify UTF-8 sequences within binary
+        sequences in order to get a better compression ratio.</p>
+      </list-item>
+    </list>
+  </sec>
+  <sec id="compression-of-frequently-occuring-sequences">
+    <title>Compression of frequently occuring sequences</title>
+    <list list-type="bullet">
+      <list-item>
+        <p>Provision for six frequently occuring text sequences is
+        available with Unishox.</p>
+      </list-item>
+      <list-item>
+        <p>Depending on the type of text being encoded following
+        sequences have been identified.</p>
+        <p specific-use="wrapper">
+          <table-wrap>
+            <table>
+              <colgroup>
+                <col width="33%" />
+                <col width="67%" />
+              </colgroup>
+              <thead>
+                <tr>
+                  <th><bold>Type of text</bold></th>
+                  <th><bold>Frequently occuring sequences</bold></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Default (favours all types)</td>
+                  <td>[“:”], [“: ], [<inline-formula><alternatives>
+                  <tex-math><![CDATA[<]]></tex-math>
+                  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mo>&lt;</mml:mo></mml:math></alternatives></inline-formula>/],
+                  [=”], [“:”], [://]</td>
+                </tr>
+                <tr>
+                  <td>English sentences</td>
+                  <td>[ the ], [ and ], [tion], [ with], [ing],
+                  [ment]</td>
+                </tr>
+                <tr>
+                  <td>URL</td>
+                  <td>[https://], [www.], [.com], [http://], [.org],
+                  [.net]</td>
+                </tr>
+                <tr>
+                  <td>JSON</td>
+                  <td>[“:”], [“: ], [“,], [}}}], [“:”], [}}]</td>
+                </tr>
+                <tr>
+                  <td>HTML</td>
+                  <td>[<inline-formula><alternatives>
+                  <tex-math><![CDATA[<]]></tex-math>
+                  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mo>&lt;</mml:mo></mml:math></alternatives></inline-formula>/],
+                  [=”], [div], [href], [class],
+                  [<inline-formula><alternatives>
+                  <tex-math><![CDATA[<]]></tex-math>
+                  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mo>&lt;</mml:mo></mml:math></alternatives></inline-formula>p<inline-formula><alternatives>
+                  <tex-math><![CDATA[>]]></tex-math>
+                  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mo>&gt;</mml:mo></mml:math></alternatives></inline-formula>]</td>
+                </tr>
+                <tr>
+                  <td>XML</td>
+                  <td>[<inline-formula><alternatives>
+                  <tex-math><![CDATA[<]]></tex-math>
+                  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mo>&lt;</mml:mo></mml:math></alternatives></inline-formula>/],
+                  [=”], [“<inline-formula><alternatives>
+                  <tex-math><![CDATA[>]]></tex-math>
+                  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mo>&gt;</mml:mo></mml:math></alternatives></inline-formula>
+                  ], [<inline-formula><alternatives>
+                  <tex-math><![CDATA[<]]></tex-math>
+                  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mo>&lt;</mml:mo></mml:math></alternatives></inline-formula>?xml
+                  version=“1.0”], [xmlns:], [://]</td>
+                </tr>
+              </tbody>
+            </table>
+          </table-wrap>
+        </p>
+      </list-item>
+    </list>
+  </sec>
+  <sec id="redefinition-of-horizontal-codes-and-presets">
+    <title>Redefinition of Horizontal codes and Presets</title>
+    <list list-type="bullet">
+      <list-item>
+        <p>The horizontal codes can be redefined to get better
+        compression ratio, depending on composition of the text to be
+        encoded.</p>
+      </list-item>
+      <list-item>
+        <p>Several “preset” codes have been identified for achieving
+        better compression ratios for different compositions as below
+        (Codes are for Alpha, Sym, Num, Dict, Delta):</p>
+      </list-item>
+      <list-item>
+        <p>For preset 1 (Alpha only) there are no horizontal code
+        required. For encoding upper case symbols, just the switch code
+        followed by the letter code is sufficient. Further, continuous
+        upper case can be accomplished by using two switch codes.
+        Termination of encoding is accomplished by encoding 3 or 4
+        switch codes continuously depending on whether continuous upper
+        case encoding is active or not.</p>
+      </list-item>
+      <list-item>
+        <p>The codes marked x in the table are the sets that are not
+        expected in the text.</p>
+        <p specific-use="wrapper">
+          <table-wrap>
+            <table>
+              <colgroup>
+                <col width="24%" />
+                <col width="22%" />
+                <col width="54%" />
+              </colgroup>
+              <thead>
+                <tr>
+                  <th><bold>Preset</bold></th>
+                  <th><bold>Codes</bold></th>
+                  <th><bold>Frequent Sequences</bold></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>0 Default (favours all types)</td>
+                  <td>00, 01, 10, 110, 111</td>
+                  <td>Default</td>
+                </tr>
+                <tr>
+                  <td>1 Alpha only</td>
+                  <td>None *</td>
+                  <td>English sentences</td>
+                </tr>
+                <tr>
+                  <td>2 Alpha | Numeric only</td>
+                  <td>0, x, 1, x, x</td>
+                  <td>English sentences</td>
+                </tr>
+                <tr>
+                  <td>3 Alpha, Num | Sym only</td>
+                  <td>0, 10, 11, x, x</td>
+                  <td>Default</td>
+                </tr>
+                <tr>
+                  <td>4 Alpha, Num | Sym only (Text)</td>
+                  <td>0, 10, 11, x, x</td>
+                  <td>English sentences</td>
+                </tr>
+                <tr>
+                  <td>5 Favor Alpha</td>
+                  <td>0, 100, 101, 110, 111</td>
+                  <td>English sentences</td>
+                </tr>
+                <tr>
+                  <td>6 Favor Dictionary</td>
+                  <td>00, 01, 110, 10, 111</td>
+                  <td>Default</td>
+                </tr>
+                <tr>
+                  <td>7 Favor Symbols</td>
+                  <td>100, 0, 101, 110, 111</td>
+                  <td>Default</td>
+                </tr>
+                <tr>
+                  <td>8 Favor Umlaut</td>
+                  <td>100, 101, 110, 111, 0</td>
+                  <td>Default</td>
+                </tr>
+                <tr>
+                  <td>9 No Dictionary</td>
+                  <td>00, 01, 10, x, 11</td>
+                  <td>Default</td>
+                </tr>
+                <tr>
+                  <td>10 No Unicode</td>
+                  <td>00, 01, 10, 11, x</td>
+                  <td>Default</td>
+                </tr>
+                <tr>
+                  <td>11 No Unicode (Text)</td>
+                  <td>00, 01, 10, 11, x</td>
+                  <td>English sentences</td>
+                </tr>
+                <tr>
+                  <td>12 Favor URL</td>
+                  <td>00, 01, 10, 110, 111</td>
+                  <td>URL</td>
+                </tr>
+                <tr>
+                  <td>13 Favor JSON</td>
+                  <td>00, 01, 10, 110, 111</td>
+                  <td>JSON</td>
+                </tr>
+                <tr>
+                  <td>14 Favor JSON No Unicode</td>
+                  <td>00, 01, 10, 11, x</td>
+                  <td>JSON</td>
+                </tr>
+                <tr>
+                  <td>15 Favor XML</td>
+                  <td>00, 01, 10, 110, 111</td>
+                  <td>XML</td>
+                </tr>
+                <tr>
+                  <td>16 Favor HTML</td>
+                  <td>00, 01, 10, 110, 111</td>
+                  <td>HTML</td>
+                </tr>
+              </tbody>
+            </table>
+          </table-wrap>
+        </p>
+      </list-item>
+    </list>
+    <p>However, the default horizontal codes work fine for most
+    cases.</p>
+  </sec>
+</sec>
+<sec id="applications">
+  <title>Applications</title>
+  <list list-type="bullet">
+    <list-item>
+      <p>Compression for low memory devices such as Arduino and
+      ESP8266</p>
+    </list-item>
+    <list-item>
+      <p>Sending messages over Websockets</p>
+    </list-item>
+    <list-item>
+      <p>Compression of Chat application text exchange including
+      Emojis</p>
+    </list-item>
+    <list-item>
+      <p>Storing compressed text in databases</p>
+    </list-item>
+    <list-item>
+      <p>Faster retrieval speed when used as join keys</p>
+    </list-item>
+    <list-item>
+      <p>Bandwidth cost saving for messages transferred to and from
+      Cloud infrastructure</p>
+    </list-item>
+    <list-item>
+      <p>Storage cost reduction for Cloud databases</p>
+    </list-item>
+    <list-item>
+      <p>Some people even use it for obfuscation</p>
+    </list-item>
+  </list>
+</sec>
+<sec id="implementation">
+  <title>Implementation</title>
+  <p>According to the above Rules and Frequency table, an implementation
+  has been developed licensed under Apache License 2.0.</p>
+  <p>Unishox has been hosted on Github and used in several open source
+  projects shown below:</p>
+  <list list-type="bullet">
+    <list-item>
+      <p>Unishox</p>
+      <p>https://github.com/siara-cc/Unishox</p>
+    </list-item>
+    <list-item>
+      <p>Unishox for Javascript</p>
+      <p>https://github.com/siara-cc/Unishox_JS</p>
+    </list-item>
+    <list-item>
+      <p>Python bindings for Unishox</p>
+      <p>https://github.com/tweedge/unishox2-py3</p>
+    </list-item>
+    <list-item>
+      <p>Unishox 1 ported to Python for Tasmota</p>
+      <p>https://github.com/arendst/Tasmota/tree/development/tools/unishox</p>
+    </list-item>
+    <list-item>
+      <p>Unishox Compression Library for Arduino Progmem</p>
+      <p>https://github.com/siara-cc/Unishox_Arduino_Progmem_lib</p>
+    </list-item>
+    <list-item>
+      <p>Sqlite3 User Defined Function for Unishox as loadable
+      extension</p>
+      <p>https://github.com/siara-cc/Unishox_Sqlite_UDF</p>
+    </list-item>
+    <list-item>
+      <p>Sqlite3 Library for ESP32</p>
+      <p>https://github.com/siara-cc/esp32_arduino_sqlite3_lib</p>
+    </list-item>
+    <list-item>
+      <p>Sqlite3 Library for ESP8266</p>
+      <p>https://github.com/siara-cc/esp_arduino_sqlite3_lib</p>
+    </list-item>
+    <list-item>
+      <p>Sqlite3 Library for ESP-IDF</p>
+      <p>https://github.com/siara-cc/esp32-idf-sqlite3</p>
+    </list-item>
+  </list>
+</sec>
+<sec id="performance-comparison">
+  <title>Performance Comparison</title>
+  <p>The performance of Unishox was compared with the various
+  implementations already available for short strings and shown in
+  subsequent sections.</p>
+  <sec id="comparison-with-unicode-compression-techniques">
+    <title>Comparison with Unicode compression techniques</title>
+    <table-wrap>
+      <table>
+        <thead>
+          <tr>
+            <th><bold>Language and Text</bold></th>
+            <th><bold>Size</bold></th>
+            <th><bold>Unishox</bold></th>
+            <th><bold>SCSU</bold></th>
+            <th><bold>BOCU</bold></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>English</td>
+            <td>58</td>
+            <td>30</td>
+            <td>58</td>
+            <td>58</td>
+          </tr>
+          <tr>
+            <td>Chinese</td>
+            <td>49</td>
+            <td>36</td>
+            <td>36</td>
+            <td>37</td>
+          </tr>
+          <tr>
+            <td>Spanish</td>
+            <td>69</td>
+            <td>38</td>
+            <td>67</td>
+            <td>71</td>
+          </tr>
+          <tr>
+            <td>Hindi</td>
+            <td>144</td>
+            <td>53</td>
+            <td>55</td>
+            <td>55</td>
+          </tr>
+          <tr>
+            <td>Bengali</td>
+            <td>117</td>
+            <td>41</td>
+            <td>48</td>
+            <td>47</td>
+          </tr>
+          <tr>
+            <td>Portugese</td>
+            <td>60</td>
+            <td>36</td>
+            <td>55</td>
+            <td>63</td>
+          </tr>
+          <tr>
+            <td>Russian</td>
+            <td>82</td>
+            <td>44</td>
+            <td>48</td>
+            <td>53</td>
+          </tr>
+          <tr>
+            <td>Japanese</td>
+            <td>61</td>
+            <td>39</td>
+            <td>37</td>
+            <td>45</td>
+          </tr>
+          <tr>
+            <td>Punjabi</td>
+            <td>141</td>
+            <td>51</td>
+            <td>57</td>
+            <td>59</td>
+          </tr>
+          <tr>
+            <td>Marathi</td>
+            <td>142</td>
+            <td>52</td>
+            <td>55</td>
+            <td>58</td>
+          </tr>
+          <tr>
+            <td>Telugu</td>
+            <td>104</td>
+            <td>39</td>
+            <td>42</td>
+            <td>44</td>
+          </tr>
+          <tr>
+            <td>Turkish</td>
+            <td>72</td>
+            <td>49</td>
+            <td>64</td>
+            <td>78</td>
+          </tr>
+          <tr>
+            <td>Korean</td>
+            <td>82</td>
+            <td>45</td>
+            <td>61</td>
+            <td>60</td>
+          </tr>
+          <tr>
+            <td>French</td>
+            <td>76</td>
+            <td>39</td>
+            <td>73</td>
+            <td>79</td>
+          </tr>
+          <tr>
+            <td>German</td>
+            <td>68</td>
+            <td>36</td>
+            <td>66</td>
+            <td>70</td>
+          </tr>
+          <tr>
+            <td>Vietnamese</td>
+            <td>82</td>
+            <td>59</td>
+            <td>72</td>
+            <td>83</td>
+          </tr>
+          <tr>
+            <td>Tamil</td>
+            <td>128</td>
+            <td>49</td>
+            <td>50</td>
+            <td>52</td>
+          </tr>
+        </tbody>
+      </table>
+    </table-wrap>
+    <list list-type="bullet">
+      <list-item>
+        <p>All sizes are in bytes.</p>
+      </list-item>
+    </list>
+    <p>The above table compares the compression performance between
+    SCSU, BOCU and Unishox for languages that are spoken by over 75
+    million people (according to Wikipedia).</p>
+    <p>The text used is translation of Kahlil Gibran’s quote “Beauty is
+    not in the face. Beauty is a light in the heart.” in the above
+    languages. The actual translated text could not be displayed due to
+    limitation of Markdown format.</p>
+    <p>Disclaimer: Natives may not consider all translations to be
+    accurate as they were translated online, although some attempt was
+    made to check accuracy by reverse translation.</p>
+  </sec>
+  <sec id="comparison-with-non-unicode-compression-techniques">
+    <title>Comparison with non-Unicode compression techniques</title>
+    <table-wrap>
+      <table>
+        <colgroup>
+          <col width="23%" />
+          <col width="15%" />
+          <col width="27%" />
+          <col width="15%" />
+          <col width="19%" />
+        </colgroup>
+        <thead>
+          <tr>
+            <th>String</th>
+            <th>Size</th>
+            <th>Unishox</th>
+            <th>Smaz</th>
+            <th>Shoco</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Beauty is not in the face. Beauty is a light in the
+            heart.</td>
+            <td>58</td>
+            <td>30</td>
+            <td>31</td>
+            <td>46</td>
+          </tr>
+          <tr>
+            <td>The quick brown fox jumps over the lazy dog.</td>
+            <td>44</td>
+            <td>31</td>
+            <td>31</td>
+            <td>38</td>
+          </tr>
+          <tr>
+            <td>WRITING ENTIRELY IN BLOCK CAPITALS IS SHOUTING, and it’s
+            rude</td>
+            <td>63</td>
+            <td>49</td>
+            <td>72</td>
+            <td>63</td>
+          </tr>
+          <tr>
+            <td>Grawlix is a string of typographical symbols (such as
+            %@$|*!) coined in the 1960s</td>
+            <td>82</td>
+            <td>60</td>
+            <td>58</td>
+            <td>63</td>
+          </tr>
+          <tr>
+            <td>Rose is a rose is a rose is a rose.</td>
+            <td>35</td>
+            <td>12</td>
+            <td>20</td>
+            <td>25</td>
+          </tr>
+          <tr>
+            <td>Gravitational Constant (G): 6.67300 x 10^{}-11 m^{}3
+            kg^{}-1 s^{}-2</td>
+            <td>59</td>
+            <td>50</td>
+            <td>65</td>
+            <td>51</td>
+          </tr>
+          <tr>
+            <td>039f7094-83e4-4d7f-aa38-8844c67bd82d</td>
+            <td>36</td>
+            <td>18</td>
+            <td>53</td>
+            <td>36</td>
+          </tr>
+          <tr>
+            <td>2021-07-15T16:37:35.897Z</td>
+            <td>24</td>
+            <td>9</td>
+            <td>32</td>
+            <td>24</td>
+          </tr>
+          <tr>
+            <td>(760) 756-7568</td>
+            <td>14</td>
+            <td>7</td>
+            <td>20</td>
+            <td>14</td>
+          </tr>
+          <tr>
+            <td>This is a loooooooooooooooooooooong string</td>
+            <td>42</td>
+            <td>15</td>
+            <td>32</td>
+            <td>25</td>
+          </tr>
+        </tbody>
+      </table>
+    </table-wrap>
+    <list list-type="bullet">
+      <list-item>
+        <p>All sizes are in bytes.</p>
+      </list-item>
+    </list>
+    <p>The above table compares the compression performance of Smaz,
+    shoco and Unishox for different types of strings.</p>
+  </sec>
+  <sec id="comparison-of-file-compression">
+    <title>Comparison of file compression</title>
+    <p>Further - world95.txt - the text file obtained from
+    <monospace>The Project Gutenberg Etext of the 1995 CIA World Factbook</monospace>
+    was compressed using the three techniques and following are the
+    results:</p>
+    <p>Original size: 2,988,577 bytes</p>
+    <p>After Compression using shoco original model: 2,385,934 bytes</p>
+    <p>After Compression using shoco trained using world95.txt:
+    2,088,141 bytes</p>
+    <p>After Compression using Unishox (1024 block size): 1,689,289
+    bytes</p>
+    <p>After Compression using Unishox (65536 block size): 1,128,302
+    bytes</p>
+  </sec>
+  <sec id="memory-requirements">
+    <title>Memory requirements</title>
+    <p>As for operating memory required, Shoco requires over 2k bytes,
+    smaz requires over 1k. But Unishox requires only around
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[300]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mn>300</mml:mn></mml:math></alternatives></inline-formula>
+    bytes for compressor and decompressor together, ideal for using it
+    with even Arduino Uno.</p>
+  </sec>
+</sec>
+<sec id="speed">
+  <title>Speed</title>
+  <p>Unishox was found to be the slowest of all since employs several to
+  achieve the best compression. However this should not be too much of
+  an issue in most cases when a single string or few strings are handled
+  at a time.</p>
+</sec>
+<sec id="conclusion">
+  <title>Conclusion</title>
+  <p>As can be seen from the performance numbers, Unishox performs
+  better than available techniques. It can also be seen that it provides
+  optimal compression for text, numbers and special characters in
+  different languages all round.</p>
+  <p>It is especially useful in memory constrained environments such as
+  embedded devices and sending text messages over websockets to
+  implement Chat bots and applications.</p>
+</sec>
+<sec id="further-work">
+  <title>Further work</title>
+  <p>It is proposed to achieve better compression by choosing better
+  codes during the course of compression using a self-learning
+  process.</p>
+  <p>It is also proposed to make Unishox available in more languages
+  than just C, Javascript and Python, such as Java and C#.Net. It is
+  also proposed to make it available for more platforms.</p>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>The author is sincerely thankful to the following people who have
+  notably contributed towards the development of Unishox
+  implementation:</p>
+  <list list-type="bullet">
+    <list-item>
+      <p>Thanks to
+      <ext-link ext-link-type="uri" xlink:href="https://github.com/leafgarden">Jonathan
+      Greenblatt</ext-link> for his
+      <ext-link ext-link-type="uri" xlink:href="https://github.com/siara-cc/Unishox/tree/master/Arduino">port
+      of Unishox2 that works on Particle Photon</ext-link></p>
+    </list-item>
+    <list-item>
+      <p>Thanks to
+      <ext-link ext-link-type="uri" xlink:href="https://github.com/tweedge">Chris
+      Partridge</ext-link> for his
+      <ext-link ext-link-type="uri" xlink:href="https://github.com/tweedge/unishox2-py3">port
+      of Unishox2 to CPython</ext-link> and his
+      <ext-link ext-link-type="uri" xlink:href="https://github.com/tweedge/unishox2-py3#integration-tests">comprehensive
+      tests</ext-link> using
+      <ext-link ext-link-type="uri" xlink:href="https://hypothesis.readthedocs.io/en/latest">Hypothesis</ext-link>
+      and
+      <ext-link ext-link-type="uri" xlink:href="https://github.com/tweedge/unishox2-py3#performance">extensive
+      performance tests</ext-link>.</p>
+    </list-item>
+    <list-item>
+      <p>Thanks to
+      <ext-link ext-link-type="uri" xlink:href="https://github.com/s-hadinger">Stephan
+      Hadinger</ext-link> for his
+      <ext-link ext-link-type="uri" xlink:href="https://github.com/arendst/Tasmota/tree/development/tools/unishox">port
+      of Unishox1 to Python for Tasmota</ext-link></p>
+    </list-item>
+    <list-item>
+      <p>Thanks to
+      <ext-link ext-link-type="uri" xlink:href="https://github.com/piponazo">Luis
+      Díaz Más</ext-link> for his PRs to support MSVC and CMake
+      setup</p>
+    </list-item>
+    <list-item>
+      <p>Thanks to
+      <ext-link ext-link-type="uri" xlink:href="https://github.com/gsm55">James
+      Z.M. Gao</ext-link> for his PRs on improving presets, safety
+      checks, terminator codes, unit tests, bug fixes, documentation and
+      more</p>
+    </list-item>
+  </list>
+</sec>
+</body>
+<back>
+<ref-list>
+  <ref id="ref-MacKeyU003A2003">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>MacKay</surname><given-names>David J C</given-names></name>
+      </person-group>
+      <source>Information theory, inference and learning algorithms</source>
+      <publisher-name>Cambridge University Press</publisher-name>
+      <publisher-loc>Cambridge, England</publisher-loc>
+      <year iso-8601-date="2003-09">2003</year><month>09</month>
+      <pub-id pub-id-type="doi">10.1109/tit.2004.834752</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-ShannonU003A1948">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Shannon</surname><given-names>C E</given-names></name>
+      </person-group>
+      <article-title>A mathematical theory of communication</article-title>
+      <source>Bell Syst. tech. j.</source>
+      <publisher-name>Institute of Electrical; Electronics Engineers (IEEE)</publisher-name>
+      <year iso-8601-date="1948-07">1948</year><month>07</month>
+      <volume>27</volume>
+      <issue>3</issue>
+      <pub-id pub-id-type="doi">10.1002/j.1538-7305.1948.tb01338.x</pub-id>
+      <fpage>379</fpage>
+      <lpage>423</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-HuffmanU003A1952">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Huffman</surname><given-names>David</given-names></name>
+      </person-group>
+      <article-title>A method for the construction of minimum-redundancy codes</article-title>
+      <source>Proc. IRE</source>
+      <publisher-name>Institute of Electrical; Electronics Engineers (IEEE)</publisher-name>
+      <year iso-8601-date="1952-09">1952</year><month>09</month>
+      <volume>40</volume>
+      <issue>9</issue>
+      <pub-id pub-id-type="doi">10.1109/JRPROC.1952.273898</pub-id>
+      <fpage>1098</fpage>
+      <lpage>1101</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-LempelZivU003A1977">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Ziv</surname><given-names>J</given-names></name>
+        <name><surname>Lempel</surname><given-names>A</given-names></name>
+      </person-group>
+      <article-title>A universal algorithm for sequential data compression</article-title>
+      <source>IEEE Trans. Inf. Theory</source>
+      <publisher-name>Institute of Electrical; Electronics Engineers (IEEE)</publisher-name>
+      <year iso-8601-date="1977-05">1977</year><month>05</month>
+      <volume>23</volume>
+      <issue>3</issue>
+      <pub-id pub-id-type="doi">10.1109/TIT.1977.1055714</pub-id>
+      <fpage>337</fpage>
+      <lpage>343</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-BurrowsWheelerU003A1994">
+    <element-citation publication-type="report">
+      <person-group person-group-type="author">
+        <name><surname>Burrows</surname><given-names>M.</given-names></name>
+        <name><surname>Wheeler</surname><given-names>D.</given-names></name>
+      </person-group>
+      <article-title>A Block-Sorting Lossless Data Compression Algorithm</article-title>
+      <source>Research Report 124, Digital Equipment Corporation, Palo Alto, CA, USA</source>
+      <year iso-8601-date="1994-05">1994</year><month>05</month>
+      <uri>https://www.hpl.hp.com/techreports/Compaq-DEC/SRC-RR-124.pdf</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-Delta_encodingU003A2019">
+    <element-citation>
+      <article-title>Delta encoding</article-title>
+      <publisher-name>Wikipedia</publisher-name>
+      <year iso-8601-date="2019">2019</year>
+      <uri>https://en.wikipedia.org/wiki/Delta_encoding</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-StatisticalDistributionU003A2017">
+    <element-citation>
+      <article-title>Statistical distributions of english text, archived from the original</article-title>
+      <publisher-name>data-compression.com</publisher-name>
+      <year iso-8601-date="2017">2017</year>
+      <uri>https://web.archive.org/web/20170918020907/http://www.data-compression.com/english.html</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-OxfordU003A2012">
+    <element-citation publication-type="book">
+      <source>What is the frequency of the letters of the alphabet in English?</source>
+      <publisher-name>Oxford University Press, Oxford Dictionary</publisher-name>
+      <year iso-8601-date="2012">2012</year>
+    </element-citation>
+  </ref>
+  <ref id="ref-UnicodeU003A2005">
+    <element-citation>
+      <article-title>A standard compression scheme for unicode - UTR #6</article-title>
+      <publisher-name>Unicode Consortium</publisher-name>
+      <year iso-8601-date="2005-05">2005</year><month>05</month>
+      <uri>https://www.unicode.org/reports/tr6/tr6-4.html</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-SchererU003A2002">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Scherer</surname><given-names>Markus W.</given-names></name>
+        <name><surname>Davis</surname><given-names>Mark.</given-names></name>
+      </person-group>
+      <article-title>BOCU-1: MIME-Compatible Unicode Compression, Unicode Technical Note #6, version 1</article-title>
+      <year iso-8601-date="2002-08">2002</year><month>08</month>
+      <uri>http://www.unicode.org/notes/tn6/</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-StudenýU003A2008">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Pavel Studený</surname><given-names>Opera Software ASA</given-names><suffix>Ondřej Holeček</suffix></name>
+      </person-group>
+      <article-title>Fast Compression Algorithm For Unicode Text, Unicode Technical Note #31, version 2</article-title>
+      <year iso-8601-date="2008">2008</year>
+      <uri>http://www.unicode.org/notes/tn31/</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-EwellU003A2004">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Ewell</surname><given-names>Doug</given-names></name>
+      </person-group>
+      <article-title>A survey of Unicode compression, Unicode Technical Note #14, version 1</article-title>
+      <year iso-8601-date="2004">2004</year>
+      <uri>http://www.unicode.org/notes/tn14/</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-SanfilippoU003A2012">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Sanfilippo</surname><given-names>Salvatore</given-names></name>
+      </person-group>
+      <article-title>SMAZ - compression for very small strings</article-title>
+      <publisher-name>github.com</publisher-name>
+      <year iso-8601-date="2012-02">2012</year><month>02</month>
+      <uri>https://github.com/antirez/smaz</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-SchrammU003A2015">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Schramm</surname><given-names>Christian</given-names></name>
+      </person-group>
+      <article-title>Shoco: A fast compressor for short strings</article-title>
+      <year iso-8601-date="2015-12">2015</year><month>12</month>
+      <uri>https://ed-von-schleck.github.io/shoco</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-GardnerU003A2013">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <string-name>Gardner-Stephen et. al</string-name>
+      </person-group>
+      <article-title>Improving compression of short messages</article-title>
+      <source>International Journal of Communications, Network and System Sciences</source>
+      <year iso-8601-date="2013-12">2013</year><month>12</month>
+      <volume>6</volume>
+      <pub-id pub-id-type="doi">10.4236/ijcns.2013.612053</pub-id>
+      <fpage>497</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Xu2017SSELCU003A2017">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <string-name>Juncai Xu et. al</string-name>
+      </person-group>
+      <article-title>SSE lossless compression method for the text of the insignificance of the lines order</article-title>
+      <source>ArXiv</source>
+      <year iso-8601-date="2017">2017</year>
+      <volume>abs/1709.04035</volume>
+      <uri>https://arxiv.org/pdf/1709.04035</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-AIMCSU003A2020">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Abedi</surname><given-names>Masoud</given-names></name>
+        <name><surname>Pourkiani</surname><given-names>Mohammadreza</given-names></name>
+      </person-group>
+      <article-title>AIMCS: An artificial intelligence based method for compression of short strings</article-title>
+      <source>2020 IEEE 18th world symposium on applied machine intelligence and informatics (SAMI)</source>
+      <year iso-8601-date="2020">2020</year>
+      <pub-id pub-id-type="doi">10.1109/SAMI48414.2020.9108719</pub-id>
+      <fpage>311</fpage>
+      <lpage>318</lpage>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
