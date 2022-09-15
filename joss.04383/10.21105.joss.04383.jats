@@ -18,28 +18,11 @@
 <article-id pub-id-type="publisher-id">4383</article-id>
 <article-id pub-id-type="doi">10.21105/joss.04383</article-id>
 <title-group>
-<article-title><monospace>tukey_hsd</monospace>: An Accurate
-Implementation of the Tukey Honestly Significant Difference Test in
+<article-title>Fast Resampling and Monte Carlo Methods in
 Python</article-title>
 </title-group>
 <contrib-group>
-<contrib contrib-type="author">
-<contrib-id contrib-id-type="orcid">0000-0003-2499-6693</contrib-id>
-<name>
-<surname>Chmiel</surname>
-<given-names>Dominic</given-names>
-</name>
-<xref ref-type="aff" rid="aff-1"/>
-</contrib>
-<contrib contrib-type="author">
-<contrib-id contrib-id-type="orcid">0000-0002-5952-8921</contrib-id>
-<name>
-<surname>Wallan</surname>
-<given-names>Samuel</given-names>
-</name>
-<xref ref-type="aff" rid="aff-1"/>
-</contrib>
-<contrib contrib-type="author">
+<contrib contrib-type="author" corresp="yes">
 <contrib-id contrib-id-type="orcid">0000-0003-4806-3601</contrib-id>
 <name>
 <surname>Haberland</surname>
@@ -58,9 +41,9 @@ USA</institution>
 <author-notes>
 <corresp id="cor-1">* E-mail: <email></email></corresp>
 </author-notes>
-<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2022-02-02">
-<day>2</day>
-<month>2</month>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2022-03-20">
+<day>20</day>
+<month>3</month>
 <year>2022</year>
 </pub-date>
 <volume>7</volume>
@@ -82,170 +65,357 @@ a Creative Commons Attribution 4.0 International License (CC BY
 <kwd>Python</kwd>
 <kwd>SciPy</kwd>
 <kwd>statistics</kwd>
+<kwd>bootstrap</kwd>
+<kwd>confidence intervals</kwd>
+<kwd>permutation tests</kwd>
+<kwd>monte carlo methods</kwd>
 <kwd>hypothesis testing</kwd>
-<kwd>statistical distributions</kwd>
 </kwd-group>
 </article-meta>
 </front>
 <body>
 <sec id="summary">
   <title>Summary</title>
-  <p>In a world awash with data and computers, it is tempting to
-  automate the process of scientific discovery by performing comparisons
-  between many pairs of variables in the hope of finding correlations.
-  When frequentist hypothesis tests are performed at a fixed confidence
-  level, increasing the number of tests increases the probability of
-  observing a “statistically significant” result, even when the null
-  hypothesis is actually true. Carefully-designed tests, such as Tukey’s
-  honestly significant difference (HSD) test
-  (<xref alt="Tukey, 1949" rid="ref-tukey1949comparing" ref-type="bibr">Tukey,
-  1949</xref>), protect against this practice of “p-hacking” by
-  producing p-values and confidence intervals that account for the
-  number of comparisons performed. Several such tests rely on the
-  studentized range distribution
-  (<xref alt="Lund &amp; Lund, 1983" rid="ref-lund1983algorithm" ref-type="bibr">Lund
-  &amp; Lund, 1983</xref>), which models the range (i.e., the difference
-  between maximum and minimum values) of the means of samples from a
-  normally distributed population. Although there are already
-  implementations of these tests available in the scientific Python
-  ecosystem, all of them rely on approximations of the studentized range
-  distribution, which are not accurate outside the range of inputs for
-  which they are designed. Here we present a very accurate and
-  sufficiently fast implementation of the studentized range distribution
-  and a function for performing Tukey’s HSD test. Both of these features
-  are available in SciPy 1.8.0.</p>
-</sec>
-<sec id="performance">
-  <title>Performance</title>
-  <p>The most computationally-challenging part of implementing Tukey’s
-  HSD test is the evaluation of the cumulative distribution function of
-  the studentized range distribution, which is given by</p>
-  <p><disp-formula><alternatives>
-  <tex-math><![CDATA[\begin{aligned}
-  F(q; k, \nu) = \frac{k\nu^{\nu/2}}{\Gamma(\nu/2)2^{\nu/2-1}}
-  \int_{0}^{\infty} \int_{-\infty}^{\infty} s^{\nu-1} e^{-\nu s^2/2} \phi(z)
-  [\Phi(sq + z) - \Phi(z)]^{k-1} \,dz \,ds\end{aligned}]]></tex-math>
-  <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mtable><mml:mtr><mml:mtd columnalign="right"><mml:mi>F</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>q</mml:mi><mml:mo>;</mml:mo><mml:mi>k</mml:mi><mml:mo>,</mml:mo><mml:mi>ν</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>=</mml:mo><mml:mfrac><mml:mrow><mml:mi>k</mml:mi><mml:msup><mml:mi>ν</mml:mi><mml:mrow><mml:mi>ν</mml:mi><mml:mi>/</mml:mi><mml:mn>2</mml:mn></mml:mrow></mml:msup></mml:mrow><mml:mrow><mml:mi>Γ</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>ν</mml:mi><mml:mi>/</mml:mi><mml:mn>2</mml:mn><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:msup><mml:mn>2</mml:mn><mml:mrow><mml:mi>ν</mml:mi><mml:mi>/</mml:mi><mml:mn>2</mml:mn><mml:mo>−</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:msup></mml:mrow></mml:mfrac><mml:msubsup><mml:mo>∫</mml:mo><mml:mn>0</mml:mn><mml:mi>∞</mml:mi></mml:msubsup><mml:msubsup><mml:mo>∫</mml:mo><mml:mrow><mml:mo>−</mml:mo><mml:mi>∞</mml:mi></mml:mrow><mml:mi>∞</mml:mi></mml:msubsup><mml:msup><mml:mi>s</mml:mi><mml:mrow><mml:mi>ν</mml:mi><mml:mo>−</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:msup><mml:msup><mml:mi>e</mml:mi><mml:mrow><mml:mo>−</mml:mo><mml:mi>ν</mml:mi><mml:msup><mml:mi>s</mml:mi><mml:mn>2</mml:mn></mml:msup><mml:mi>/</mml:mi><mml:mn>2</mml:mn></mml:mrow></mml:msup><mml:mi>ϕ</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>z</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:msup><mml:mrow><mml:mo stretchy="true" form="prefix">[</mml:mo><mml:mi>Φ</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>s</mml:mi><mml:mi>q</mml:mi><mml:mo>+</mml:mo><mml:mi>z</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>−</mml:mo><mml:mi>Φ</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>z</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo stretchy="true" form="postfix">]</mml:mo></mml:mrow><mml:mrow><mml:mi>k</mml:mi><mml:mo>−</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:msup><mml:mspace width="0.167em"></mml:mspace><mml:mi>d</mml:mi><mml:mi>z</mml:mi><mml:mspace width="0.167em"></mml:mspace><mml:mi>d</mml:mi><mml:mi>s</mml:mi></mml:mtd></mml:mtr></mml:mtable></mml:math></alternatives></disp-formula></p>
-  <p>where <inline-formula><alternatives>
-  <tex-math><![CDATA[q]]></tex-math>
-  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>q</mml:mi></mml:math></alternatives></inline-formula>
-  is the studentized range, <inline-formula><alternatives>
-  <tex-math><![CDATA[k]]></tex-math>
-  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>k</mml:mi></mml:math></alternatives></inline-formula>
-  is the number of groups, <inline-formula><alternatives>
-  <tex-math><![CDATA[\nu]]></tex-math>
-  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>ν</mml:mi></mml:math></alternatives></inline-formula>
-  is the number of degrees of freedom used to determine the pooled
-  sample variance, and <inline-formula><alternatives>
-  <tex-math><![CDATA[\phi(z)]]></tex-math>
-  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>ϕ</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>z</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>
-  and <inline-formula><alternatives>
-  <tex-math><![CDATA[\Phi(z)]]></tex-math>
-  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>Φ</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>z</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>
-  represent the normal probability density function and normal
-  cumulative distribution function, respectively. There is no
-  closed-form expression for this integral, and numerical integration
-  requires care, as naive evaluation of the integrand results in
-  overflow even for modest values of the parameters. Consequently, other
-  packages in the open-source scientific Python ecosystem, such as
-  statsmodels
-  (<xref alt="Seabold &amp; Perktold, 2010" rid="ref-seabold2010statsmodels" ref-type="bibr">Seabold
-  &amp; Perktold, 2010</xref>) and Pingouin
-  (<xref alt="Vallat, 2018" rid="ref-vallat2018pingouin" ref-type="bibr">Vallat,
-  2018</xref>), have relied on interpolation between tabulated values.
-  To satisfy the need for a more accurate implementation of this
-  integral, we contributed
-  <monospace>scipy.stats.studentized_range</monospace>
-  (<xref alt="Chmiel et al., 2021" rid="ref-PRstudentized_range" ref-type="bibr">Chmiel
-  et al., 2021</xref>), a class that evaluates the cumulative
-  distribution function and many other functions of the
-  distribution.</p>
-  <p>To address numerical difficulties, ratios in the integrand are
-  implemented by exponentiating the difference in the logarithms of the
-  individual terms. Consequently,
-  <monospace>scipy.stats.studentized_range</monospace> works well for
-  <inline-formula><alternatives>
-  <tex-math><![CDATA[\nu]]></tex-math>
-  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>ν</mml:mi></mml:math></alternatives></inline-formula>
-  through at least <inline-formula><alternatives>
-  <tex-math><![CDATA[10^5]]></tex-math>
-  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msup><mml:mn>10</mml:mn><mml:mn>5</mml:mn></mml:msup></mml:math></alternatives></inline-formula>.
-  The integrand is written in Cython and integrated using
-  <monospace>scipy.integrate.nquad</monospace>, resulting in evaluation
-  times on the order of 5 ms on modern computers. Compared to a
-  reference implementation evaluated using arbitrary precision
-  arithmetic, the relative error in the cumulative distribution function
-  is typically on the order of <inline-formula><alternatives>
-  <tex-math><![CDATA[10^-14]]></tex-math>
-  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msup><mml:mn>10</mml:mn><mml:mo>−</mml:mo></mml:msup><mml:mn>14</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>:
-  six orders of magnitude better than a commonly used implementation in
-  R, and ten orders of magnitude better than the approximation provided
-  by statsmodels. A thorough assessment of the methods, accuracy, and
-  speed of the underlying calculations is available in
-  (<xref alt="Wallan et al., 2021a" rid="ref-StudentizedRangeSciPy" ref-type="bibr">Wallan
-  et al., 2021a</xref>), and an extensive test suite included in SciPy
-  guards against regressions.</p>
+  <p>In the 1935 book The Design of Experiments
+  (<xref alt="Fisher, 1949" rid="ref-fisher1949design" ref-type="bibr">Fisher,
+  1949</xref>), Ronald Fisher analyzed the results of an experiment
+  performed by Charles Darwin to determine the effect of
+  cross-fertilization on plant growth
+  (<xref alt="Darwin, 1877" rid="ref-darwin1877effects" ref-type="bibr">Darwin,
+  1877</xref>). In these experiments, Darwin collected seeds from both
+  cross- and self-fertilized flowers of a parent plant and germinated
+  the seeds under identical conditions. When a pair of cross- and
+  self-fertilized seeds happened to germinate at the same time, the two
+  were planted in opposite sides of the same pot and nurtured in the
+  same environment. At the end of the study, the heights of the plants
+  were measured.</p>
+  <p>To infer whether the greater height of the cross-fertilized plants
+  should be attributed to random chance or the change in fertilization
+  method, Fisher computed the difference in height between paired plants
+  and used a paired-sample t-test
+  (<xref alt="Student, 1908" rid="ref-student1908probable" ref-type="bibr">Student,
+  1908</xref>) to estimate the statistical significance of the results.
+  He noted that the t-test relies on assumptions about the population of
+  height differences, and he proposed the following statistical test,
+  which makes no such assumptions.</p>
+  <p>Under the null hypothesis that the fertilization method has no
+  effect on plant height, the heights of the two plants in a pair are
+  sampled from the same population. Therefore, under the null
+  hypothesis, the sign of the difference in heights would be positive or
+  negative with equal probability. To perform the test, Fisher considers
+  the distribution of mean height differences under all possible
+  combinations of signs: the “null distribution”. If the observed mean
+  height difference is greater than almost all elements in the null
+  distribution, it is unlikely to be observed under the null hypothesis,
+  and this is taken as evidence against the null hypothesis in favor of
+  the alternative that cross-fertilized plants tend to be taller.</p>
+  <p>This is an early example of a <italic>permutation test</italic>.
+  Like <italic>Monte Carlo tests</italic>
+  (<xref alt="Robert et al., 1999" rid="ref-robert1999monte" ref-type="bibr">Robert
+  et al., 1999</xref>) and the <italic>bootstrap</italic>
+  (<xref alt="Efron &amp; Tibshirani, 1994" rid="ref-efron1994introduction" ref-type="bibr">Efron
+  &amp; Tibshirani, 1994</xref>), permutation tests replace many
+  assumptions and mathematical approximations with <italic>lots</italic>
+  of computation. Naturally, these methods did not become very popular
+  until the advent of the computer, but even today, some popular
+  programming languages lack efficient implementations of these
+  essential statistical techniques. This paper discusses the addition of
+  functions implementing these techniques to SciPy
+  (<xref alt="Virtanen et al., 2020" rid="ref-virtanen2020scipy" ref-type="bibr">Virtanen
+  et al., 2020</xref>), the de facto standard library for scientific
+  computing in Python.</p>
 </sec>
 <sec id="statement-of-need">
   <title>Statement of need</title>
-  <p>When analysis of variance (ANOVA) indicates that there is a
-  statistically significant difference between at least one pair of
-  groups in an experiment, researchers are often interested in
-  <italic>which</italic> of the differences is statistically
-  significant. Researchers use “post-hoc tests” to study these pairwise
-  differences while controlling the experiment-wise error rate. Until
-  recently, no post-hoc tests were available in SciPy
-  (<xref alt="Virtanen et al., 2020" rid="ref-virtanen2020scipy" ref-type="bibr">Virtanen
-  et al., 2020</xref>), the de-facto standard library of fundamental
-  algorithms for scientific computing in Python. To fill this gap, we
-  contributed <monospace>scipy.stats.tukey_hsd</monospace>
-  (<xref alt="Wallan et al., 2021b" rid="ref-PRtukey_hsd" ref-type="bibr">Wallan
-  et al., 2021b</xref>), a function for performing Tukey’s HSD test.
-  Also, there was no accurate implementation of the underlying
-  studentized range distribution in Python, so we contributed
-  <monospace>scipy.stats.studentized_range</monospace>. Both statsmodels
-  and Pingouin have since adopted this class to perform studentized
-  range distribution calculations.</p>
+  <p>Scientists and engineers frequently analyze data by considering
+  questions of the following forms.</p>
+  <list list-type="order">
+    <list-item>
+      <p>Are the observations sampled from a hypothesized distribution?
+      For instance, in Darwin’s experiment, is the difference in heights
+      between paired plants normally distributed?</p>
+    </list-item>
+    <list-item>
+      <p>Are the samples drawn from the <italic>same</italic>
+      distribution? For example, does the fertilization method have no
+      effect on plant height?</p>
+    </list-item>
+    <list-item>
+      <p>What can be inferred from the samples about the true value of a
+      population statistic? For instance, what is the uncertainty in the
+      true mean difference in heights between paired plants?</p>
+    </list-item>
+  </list>
+  <p>Monte Carlo hypothesis tests, permutation tests, and the bootstrap
+  are general procedures for answering questions of these forms,
+  respectively.</p>
+  <p>Although there are a variety of specialized statistical procedures
+  for answering such questions (e.g. normality tests, t-tests, standard
+  error of the mean), most computer implementations provide answers that
+  are only guaranteed to be accurate when assumptions that simplify the
+  mathematics are met (e.g. the sample size is large, there are no ties
+  in the data). At the expense of additional computation, the
+  <monospace>scipy.stats</monospace> functions
+  <monospace>monte_carlo_test</monospace>,
+  <monospace>permutation_test</monospace>, and
+  <monospace>bootstrap</monospace> provide accurate answers to questions
+  1-3 even when the simplifying assumptions of specialized procedures
+  are not met. Furthermore, these functions can be used to answer
+  questions 1-3 even when specialized procedures have not been
+  <italic>developed</italic>, giving users tremendous flexibility in the
+  analysis that they can perform.</p>
+  <p>Before the release of SciPy 1.9.0, the need for these procedures
+  was partially met in the scientific Python ecosystem by tutorials
+  (e.g. blog posts, medium.com) and niche packages, but the functions in
+  SciPy have several advantages:</p>
+  <list list-type="bullet">
+    <list-item>
+      <p>Prevalence: SciPy is one of the most downloaded scientific
+      Python packages. If a Python user finds the need for these
+      statistical methods, chances are that they already have SciPy,
+      eliminating the need to find and install a new package.</p>
+    </list-item>
+    <list-item>
+      <p>Speed: the functions take advantage of vectorized user code,
+      avoiding slow Python loops.</p>
+    </list-item>
+    <list-item>
+      <p>Easy-of-use: the function API reference and tutorials are
+      thorough, and the interfaces share common features and complement
+      other SciPy functions.</p>
+    </list-item>
+    <list-item>
+      <p>Dependability: as with all SciPy code, these functions were
+      rigorously peer-reviewed, and unit tests are extensive.</p>
+    </list-item>
+  </list>
+</sec>
+<sec id="how-it-works">
+  <title>How it works</title>
+  <p>All three functions accept data and a user-defined statistic
+  function; they differ in how these inputs are used. We conclude by
+  describing how each function works and giving example use cases.</p>
+  <sec id="monte-carlo-tests">
+    <title>Monte Carlo Tests</title>
+    <p><monospace>scipy.stats.monte_carlo_test</monospace> uses the
+    user-defined statistic to compare a single sample against a
+    hypothesized statistical distribution. For example, to test Darwin’s
+    data for normality, the user passes to
+    <monospace>monte_carlo_test</monospace> an array containing the
+    height differences of paired plants and a statistic function
+    sensitive to deviations from normality, such as the Anderson-Darling
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[A^2]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msup><mml:mi>A</mml:mi><mml:mn>2</mml:mn></mml:msup></mml:math></alternatives></inline-formula>
+    statistic
+    (<xref alt="Anderson &amp; Darling, 1952" rid="ref-anderson1952asymptotic" ref-type="bibr">Anderson
+    &amp; Darling, 1952</xref>) returned by
+    <monospace>scipy.stats.anderson</monospace>.
+    <monospace>monte_carlo_test</monospace> calculates the statistic of
+    the observed data and the “Monte Carlo distribution”, that is, the
+    statistic of many random samples from a user-specified normal
+    distribution. If the observed value of the statistic is extreme
+    compared to the Monte Carlo distribution (i.e., greater than most
+    values in the distribution, in this case), this can be taken as
+    evidence against the null hypothesis that the data are normally
+    distributed.</p>
+    <p>Several specialized procedures for similar statistical tests are
+    already available, but <monospace>monte_carlo_test</monospace> is
+    complementary. For example,
+    <monospace>scipy.stats.jarque_bera</monospace> is a normality test
+    that that is exact only in the limit of an infinitely large sample,
+    whereas <monospace>monte_carlo_test</monospace> can use the
+    statistic returned by <monospace>jarque_beta</monospace> to provide
+    an accurate <inline-formula><alternatives>
+    <tex-math><![CDATA[p]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>p</mml:mi></mml:math></alternatives></inline-formula>-value
+    for samples of any size. On the other hand,
+    <monospace>scipy.stats.ks_1samp</monospace> can provide an exact
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[p]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>p</mml:mi></mml:math></alternatives></inline-formula>-value
+    to assess whether a sample of finite size was drawn from a
+    user-specified reference distribution, but only when the reference
+    distribution is continuous; <monospace>monte_carlo_test</monospace>
+    can compute an accurate <inline-formula><alternatives>
+    <tex-math><![CDATA[p]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>p</mml:mi></mml:math></alternatives></inline-formula>-value
+    whether the reference distribution is continuous or discrete.
+    <monospace>monte_carlo_test</monospace> can also be used to perform
+    tests that have not already been implemented in Python, such as a
+    version of the Anderson-Darling test for the Weibull distribution
+    (<xref alt="lesshaste, 2019" rid="ref-gh10829" ref-type="bibr">lesshaste,
+    2019</xref>).</p>
+  </sec>
+  <sec id="permutation-tests">
+    <title>Permutation Tests</title>
+    <p><monospace>scipy.stats.permutation_test</monospace> uses the
+    statistic to compare multiple data samples against one another. For
+    example, to test Darwin’s data against the null hypothesis that the
+    fertilization method has no effect on plant height, the user passes
+    to <monospace>permutation_test</monospace> an array containing the
+    height differences of paired plants and a statistic sensitive to the
+    desired effect, such as the sample mean.
+    <monospace>permutation_test</monospace> calculates the mean of the
+    observed data and the “null distribution” of the mean under each
+    possible combination of sign changes of the observations. If the
+    observed value of the statistic is extreme compared to the null
+    distribution, this can be taken as evidence against the null
+    hypothesis that the observed difference in sample means is due to
+    chance.</p>
+    <p>Note that <monospace>permutation_test</monospace> can also be
+    configured to perform other types of “permutations” (rearrangements
+    of the data). For example, suppose that the observations in the
+    self-fertilized and cross-fertilized samples were not paired. In
+    this case, an appropriate statistic would be the difference between
+    sample means (rather than the mean of paired differences), and the
+    null distribution would be assembled by calculating the statistic
+    for all possible partitions of the observations into two samples of
+    the original sizes rather than permuting signs. Such a test would be
+    akin the <italic>independent</italic> sample t-test. A permutation
+    type appropriate for correlation tests is also available, and all
+    permutation types are generalized to support an arbitrary number of
+    samples.</p>
+    <p>The number of possible permutations grows very quickly with
+    sample size. When this number exceeds a user-defined maximum,
+    <monospace>permutation_test</monospace> performs the maximum number
+    of <italic>random</italic> permutations to approximate the null
+    distribution, using a biased estimate of the
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[p]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>p</mml:mi></mml:math></alternatives></inline-formula>-value
+    to control the type I error rate
+    (<xref alt="Phipson &amp; Smyth, 2010" rid="ref-phipson2010permutation" ref-type="bibr">Phipson
+    &amp; Smyth, 2010</xref>).</p>
+    <p>Several specialized procedures for similar statistical tests are
+    already available, but <monospace>permutation_test</monospace> is
+    complementary. For instance,
+    <monospace>scipy.stats.spearmanr</monospace> is a test of
+    correlation that reports a <inline-formula><alternatives>
+    <tex-math><![CDATA[p]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>p</mml:mi></mml:math></alternatives></inline-formula>-value
+    that is exact only in the limit of infinitely large samples, whereas
+    <monospace>permutation_test</monospace> can use the statistic
+    returned by <monospace>spearmanr</monospace> to provide an accurate
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[p]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>p</mml:mi></mml:math></alternatives></inline-formula>-value
+    for small samples. On the other hand,
+    <monospace>scipy.stats.wilcoxon</monospace> can provide an exact
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[p]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>p</mml:mi></mml:math></alternatives></inline-formula>-value
+    to assess whether paired samples are drawn from the same
+    distribution, but only when there are no ties in the data;
+    <monospace>permutation_test</monospace> has no trouble producing
+    exact <inline-formula><alternatives>
+    <tex-math><![CDATA[p]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>p</mml:mi></mml:math></alternatives></inline-formula>-values
+    in the presence of ties. <monospace>permutation_test</monospace> can
+    also be used to perform tests that have not already been implemented
+    in Python, such as a weighted two-sample Kolmogorov-Smirnov test
+    (<xref alt="Wouter-VDP, 2020" rid="ref-gh12315" ref-type="bibr">Wouter-VDP,
+    2020</xref>).</p>
+  </sec>
+  <sec id="the-bootstrap">
+    <title>The Bootstrap</title>
+    <p><monospace>scipy.stats.bootstrap</monospace> uses the data and
+    sample statistic to make inferences about a corresponding statistic
+    of the population(s) from which the data were drawn. For example, to
+    estimate a confidence interval on the true mean of paired plant
+    height differences, the user passes to
+    <monospace>bootstrap</monospace> an array containing the height
+    differences of paired plants and a function that computes the sample
+    mean of paired plant height differences.
+    <monospace>bootstrap</monospace> calculates the statistic of the
+    observed data and computes a “bootstrap distribution” of the
+    statistic, that is, the statistic value for many artificial samples
+    generated by randomly resampling with replacement from the observed
+    data. The simplest way <monospace>bootstrap</monospace> can
+    approximate a 95% confidence interval is to return the 2.5 and 97.5
+    percentile values from the bootstrap distribution, but a more
+    accurate method that corrects for bias and skewness is also
+    available.</p>
+    <p>Besides the bootstrap, a few specialized procedures for
+    generating confidence intervals and standard errors have been
+    developed, but they often rely on normality approximations and, with
+    few exceptions, they are exact only in the limit of infinitely large
+    samples. <monospace>bootstrap</monospace> computes confidence
+    intervals and standard errors of most user-defined statistics under
+    a comparatively mild assumption that the data are representative of
+    the underlying distribution(s).</p>
+  </sec>
 </sec>
 <sec id="acknowledgements">
   <title>Acknowledgements</title>
   <p>We gratefully acknowledge the support of Chan Zuckerberg Initiative
-  Essential Open Source Software for Science Grant EOSS-0000000432.
-  Thanks also to reviewers Pamphile Roy, Nicholas McKibben, and Warren
-  Weckesser.</p>
+  Essential Open Source Software for Science Grant EOSS-0000000432 and
+  the 2022 Round 1 NumFOCUS Small Development Grant “Introducing Users
+  to Powerful New Features of SciPy”. Thanks to all those who have
+  submitted feature requests, bug reports, and review comments related
+  to these features, and especially to SciPy maintainers Christoph
+  Baumgarten, Robert Lucas, Tirth Patel, Pamphile Roy, and Warren
+  Weckesser who reviewed this work.</p>
 </sec>
 </body>
 <back>
 <ref-list>
-  <ref id="ref-tukey1949comparing">
+  <ref id="ref-fisher1949design">
     <element-citation publication-type="article-journal">
       <person-group person-group-type="author">
-        <name><surname>Tukey</surname><given-names>John W</given-names></name>
+        <name><surname>Fisher</surname><given-names>Ronald A</given-names></name>
       </person-group>
-      <article-title>Comparing individual means in the analysis of variance</article-title>
-      <source>Biometrics</source>
-      <publisher-name>JSTOR</publisher-name>
+      <article-title>The design of experiments</article-title>
+      <publisher-name>Oliver &amp; Boyd</publisher-name>
       <year iso-8601-date="1949">1949</year>
-      <pub-id pub-id-type="doi">10.2307/3001913</pub-id>
-      <fpage>99</fpage>
-      <lpage>114</lpage>
     </element-citation>
   </ref>
-  <ref id="ref-lund1983algorithm">
+  <ref id="ref-darwin1877effects">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Darwin</surname><given-names>Charles</given-names></name>
+      </person-group>
+      <source>The effects of cross and self fertilisation in the vegetable kingdom</source>
+      <publisher-name>D. Appleton; Company</publisher-name>
+      <year iso-8601-date="1877">1877</year>
+    </element-citation>
+  </ref>
+  <ref id="ref-student1908probable">
     <element-citation publication-type="article-journal">
       <person-group person-group-type="author">
-        <name><surname>Lund</surname><given-names>RE</given-names></name>
-        <name><surname>Lund</surname><given-names>JR</given-names></name>
+        <name><surname>Student</surname></name>
       </person-group>
-      <article-title>Algorithm AS 190: Probabilities and upper quantiles for the studentized range</article-title>
-      <source>Journal of the Royal Statistical Society. Series C (Applied Statistics)</source>
+      <article-title>The probable error of a mean</article-title>
+      <source>Biometrika</source>
       <publisher-name>JSTOR</publisher-name>
-      <year iso-8601-date="1983">1983</year>
-      <volume>32</volume>
-      <issue>2</issue>
-      <pub-id pub-id-type="doi">10.2307/2347300</pub-id>
-      <fpage>204</fpage>
-      <lpage>210</lpage>
+      <year iso-8601-date="1908">1908</year>
+      <pub-id pub-id-type="doi">10.2307/2331554</pub-id>
+      <fpage>1</fpage>
+      <lpage>25</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-robert1999monte">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Robert</surname><given-names>Christian P</given-names></name>
+        <name><surname>Casella</surname><given-names>George</given-names></name>
+        <name><surname>Casella</surname><given-names>George</given-names></name>
+      </person-group>
+      <source>Monte carlo statistical methods</source>
+      <publisher-name>Springer</publisher-name>
+      <year iso-8601-date="1999">1999</year>
+      <volume>2</volume>
+    </element-citation>
+  </ref>
+  <ref id="ref-efron1994introduction">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Efron</surname><given-names>Bradley</given-names></name>
+        <name><surname>Tibshirani</surname><given-names>Robert J</given-names></name>
+      </person-group>
+      <source>An introduction to the bootstrap</source>
+      <publisher-name>CRC press</publisher-name>
+      <year iso-8601-date="1994">1994</year>
     </element-citation>
   </ref>
   <ref id="ref-virtanen2020scipy">
@@ -256,9 +426,14 @@ a Creative Commons Attribution 4.0 International License (CC BY
         <name><surname>Oliphant</surname><given-names>Travis E</given-names></name>
         <name><surname>Haberland</surname><given-names>Matt</given-names></name>
         <name><surname>Reddy</surname><given-names>Tyler</given-names></name>
+        <name><surname>Cournapeau</surname><given-names>David</given-names></name>
+        <name><surname>Burovski</surname><given-names>Evgeni</given-names></name>
+        <name><surname>Peterson</surname><given-names>Pearu</given-names></name>
+        <name><surname>Weckesser</surname><given-names>Warren</given-names></name>
+        <name><surname>Bright</surname><given-names>Jonathan</given-names></name>
         <name><surname>others</surname></name>
       </person-group>
-      <article-title>SciPy 1.0: Fundamental algorithms for scientific computing in Python</article-title>
+      <article-title>SciPy 1.0: Fundamental algorithms for scientific computing in python</article-title>
       <source>Nature methods</source>
       <publisher-name>Nature Publishing Group</publisher-name>
       <year iso-8601-date="2020">2020</year>
@@ -269,77 +444,58 @@ a Creative Commons Attribution 4.0 International License (CC BY
       <lpage>272</lpage>
     </element-citation>
   </ref>
-  <ref id="ref-PRtukey_hsd">
-    <element-citation>
-      <person-group person-group-type="author">
-        <name><surname>Wallan</surname><given-names>Samuel</given-names></name>
-        <name><surname>Chmiel</surname><given-names>Dominic</given-names></name>
-        <name><surname>Haberland</surname><given-names>Matt</given-names></name>
-      </person-group>
-      <article-title>ENH: stats: Tukey’s honestly significant difference test</article-title>
-      <source>GitHub Pull Request</source>
-      <publisher-name>GitHub</publisher-name>
-      <year iso-8601-date="2021">2021</year>
-      <uri>https://github.com/scipy/scipy/pull/13002</uri>
-    </element-citation>
-  </ref>
-  <ref id="ref-seabold2010statsmodels">
-    <element-citation publication-type="paper-conference">
-      <person-group person-group-type="author">
-        <name><surname>Seabold</surname><given-names>Skipper</given-names></name>
-        <name><surname>Perktold</surname><given-names>Josef</given-names></name>
-      </person-group>
-      <article-title>Statsmodels: Econometric and statistical modeling with Python</article-title>
-      <source>Proceedings of the 9th python in science conference</source>
-      <publisher-name>Austin, TX</publisher-name>
-      <year iso-8601-date="2010">2010</year>
-      <volume>57</volume>
-      <pub-id pub-id-type="doi">10.25080/majora-92bf1922-011</pub-id>
-      <fpage>61</fpage>
-      <lpage></lpage>
-    </element-citation>
-  </ref>
-  <ref id="ref-vallat2018pingouin">
+  <ref id="ref-anderson1952asymptotic">
     <element-citation publication-type="article-journal">
       <person-group person-group-type="author">
-        <name><surname>Vallat</surname><given-names>Raphael</given-names></name>
+        <name><surname>Anderson</surname><given-names>Theodore W</given-names></name>
+        <name><surname>Darling</surname><given-names>Donald A</given-names></name>
       </person-group>
-      <article-title>Pingouin: Statistics in Python</article-title>
-      <source>Journal of Open Source Software</source>
-      <year iso-8601-date="2018">2018</year>
-      <volume>3</volume>
-      <issue>31</issue>
-      <pub-id pub-id-type="doi">10.21105/joss.01026</pub-id>
-      <fpage>1026</fpage>
-      <lpage></lpage>
+      <article-title>Asymptotic theory of certain &quot;goodness of fit&quot; criteria based on stochastic processes</article-title>
+      <source>The annals of mathematical statistics</source>
+      <publisher-name>JSTOR</publisher-name>
+      <year iso-8601-date="1952">1952</year>
+      <pub-id pub-id-type="doi">10.1214/aoms/1177729437</pub-id>
+      <fpage>193</fpage>
+      <lpage>212</lpage>
     </element-citation>
   </ref>
-  <ref id="ref-PRstudentized_range">
+  <ref id="ref-gh10829">
     <element-citation>
       <person-group person-group-type="author">
-        <name><surname>Chmiel</surname><given-names>Dominic</given-names></name>
-        <name><surname>Wallan</surname><given-names>Samuel</given-names></name>
-        <name><surname>Haberland</surname><given-names>Matt</given-names></name>
+        <name><surname>lesshaste</surname></name>
       </person-group>
-      <article-title>ENH: stats: Studentized range distribution</article-title>
-      <source>GitHub Pull Request</source>
+      <article-title>Extend Anderson Darling to cover Weibull distribution</article-title>
+      <source>GitHub Issue</source>
       <publisher-name>GitHub</publisher-name>
-      <year iso-8601-date="2021">2021</year>
-      <uri>https://github.com/scipy/scipy/pull/13732</uri>
+      <year iso-8601-date="2019">2019</year>
+      <uri>https://github.com/scipy/scipy/issues/10829</uri>
     </element-citation>
   </ref>
-  <ref id="ref-StudentizedRangeSciPy">
-    <element-citation publication-type="paper-conference">
+  <ref id="ref-phipson2010permutation">
+    <element-citation publication-type="article-journal">
       <person-group person-group-type="author">
-        <name><surname>Wallan</surname><given-names>Samuel</given-names></name>
-        <name><surname>Chmiel</surname><given-names>Dominic</given-names></name>
-        <name><surname>Haberland</surname><given-names>Matt</given-names></name>
+        <name><surname>Phipson</surname><given-names>Belinda</given-names></name>
+        <name><surname>Smyth</surname><given-names>Gordon K</given-names></name>
       </person-group>
-      <article-title>An accurate implementation of the studentized range distribution for Python</article-title>
-      <source>Proceedings of the 9th python in science conference</source>
-      <year iso-8601-date="2021">2021</year>
-      <uri>https://doi.org/10.25080/majora-1b6fd038-01e</uri>
-      <pub-id pub-id-type="doi">10.25080/majora-1b6fd038-01e</pub-id>
+      <article-title>Permutation p-values should never be zero: Calculating exact p-values when permutations are randomly drawn</article-title>
+      <source>Statistical applications in genetics and molecular biology</source>
+      <publisher-name>De Gruyter</publisher-name>
+      <year iso-8601-date="2010">2010</year>
+      <volume>9</volume>
+      <issue>1</issue>
+      <pub-id pub-id-type="doi">1544-6115.1585</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-gh12315">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Wouter-VDP</surname></name>
+      </person-group>
+      <article-title>Include the option to add weights in scipy.stats.ks_2samp</article-title>
+      <source>GitHub Issue</source>
+      <publisher-name>GitHub</publisher-name>
+      <year iso-8601-date="2020">2020</year>
+      <uri>https://github.com/scipy/scipy/issues/12315</uri>
     </element-citation>
   </ref>
 </ref-list>
