@@ -1,0 +1,368 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">3839</article-id>
+<article-id pub-id-type="doi">10.21105/joss.03839</article-id>
+<title-group>
+<article-title>‘Sepia, a taxonomy oriented read classifier in
+Rust’</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author" corresp="yes">
+<contrib-id contrib-id-type="orcid">0000-0002-4086-1580</contrib-id>
+<name>
+<surname>den Bakker</surname>
+<given-names>Henk C.</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+<xref ref-type="corresp" rid="cor-1"><sup>*</sup></xref>
+</contrib>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">0000-0002-2533-9161</contrib-id>
+<name>
+<surname>Katz</surname>
+<given-names>Lee S.</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+<xref ref-type="aff" rid="aff-2"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Center for Food Safety, University of Georgia, Griffin, GA,
+USA</institution>
+</institution-wrap>
+</aff>
+<aff id="aff-2">
+<institution-wrap>
+<institution>Enteric Diseases Laboratory Branch (EDLB), Centers for
+Disease Control and Prevention, Atlanta, GA, USA</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<author-notes>
+<corresp id="cor-1">* E-mail: <email></email></corresp>
+</author-notes>
+<volume>6</volume>
+<issue>68</issue>
+<fpage>3839</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2022</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>read classification</kwd>
+<kwd>taxonomy</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p>Here we present Sepia, a fast and accurate read classifier. It is
+  implemented in Rust, has the ability to switch between different
+  taxonomies, can detect inconsistencies in taxonomies, and can estimate
+  similarities between organisms in a query dataset and reference
+  sequences in the index.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p>Bioinformatics tools to infer the taxonomic composition of sets of
+  biological sequences are quintessential for taxonomic profiling and
+  contamination checking. A variety of tools have been developed to
+  accomplish taxonomic profiling and these tools can be roughly
+  classified into two categories: (i) read alignment based tools such as
+  MIDAS
+  (<xref alt="Nayfach et al., 2016" rid="ref-nayfach2016integrated" ref-type="bibr">Nayfach
+  et al., 2016</xref>) and MetaPhlan
+  (<xref alt="Segata et al., 2012" rid="ref-segata2012metagenomic" ref-type="bibr">Segata
+  et al., 2012</xref>) , which map reads against a database of reference
+  sequences or taxon specific marker sequences, and (ii) read
+  classification based tools, such as Kraken
+  (<xref alt="Wood &amp; Salzberg, 2014" rid="ref-wood2014kraken" ref-type="bibr">Wood
+  &amp; Salzberg, 2014</xref>), Kraken2
+  (<xref alt="Wood et al., 2019" rid="ref-wood2019improved" ref-type="bibr">Wood
+  et al., 2019</xref>) and Centrifuge
+  (<xref alt="Kim et al., 2016" rid="ref-kim2016centrifuge" ref-type="bibr">Kim
+  et al., 2016</xref>). Many read classifiers use a least common
+  ancestor (LCA) approach where reads in common among sibling taxa get
+  assigned to the rank and taxonomy in common with those taxa; e.g., a
+  kmer in common with both Escherichia and Salmonella, both members of
+  the family Enterobacteriaceae, would be elevated to be associated in a
+  database with the higher order taxon Enterobacteriaceae instead. While
+  all these tools heavily rely on taxonomies, changing the taxonomies
+  (e.g., correcting wrong placements of accessions or adapting a novel
+  taxonomy) is not easily done. In response, we wrote Sepia, a taxonomic
+  read classifier to address rapidly changing developments in taxonomy
+  (e.g., the genome-based GTDB taxonomy
+  (<xref alt="Parks et al., 2018" rid="ref-parks2018standardized" ref-type="bibr">Parks
+  et al., 2018</xref>)) and algorithm development. There are three areas
+  where Sepia directly addresses issues needing improvement: (i)
+  taxonomy, (ii) classification accuracy, and (iii) the ability to
+  perform fast batch classification for multiple datasets.</p>
+  <sec id="taxonomy">
+    <title>Taxonomy</title>
+    <p>Taxonomic read classifiers that use an LCA approach work on the
+    assumption that biological taxonomies reflect evolutionary
+    relationships, thus making it possible to use taxonomies as a
+    predictive framework in read classification. Inclusion of artificial
+    taxa that are not supported by a genome-based phylogeny (e.g.,
+    garbage bin taxa or taxa with an unknown placement ‘incertae sedis’)
+    or artifactual errors (e.g., a genus placed erroneously in the wrong
+    family in some of but not all of the accessions in the taxonomy)
+    have a deleterious effect on the accuracy LCA based classification
+    algorithms, potentially leading to some taxa not being classified at
+    all or consistently classified as the wrong taxon. To address these
+    issues Sepia uses human-readable taxonomy strings as input. While
+    building the index putative ambiguities or inconsistencies in the
+    taxonomy are flagged and logged to a file for the user to
+    address.</p>
+  </sec>
+  <sec id="sequence-similarity-and-classification-accuracy">
+    <title>Sequence similarity and classification accuracy</title>
+    <p>Read classifiers tend to miss- or overclassify reads, especially
+    in situations where a lot of reads represent a taxon that is not
+    present in the indexed reference dataset. To address this issue
+    Sepia records the per read k-mer ratio, which is the ratio of k-mers
+    supporting the proposed classification versus the total number of
+    k-mers used for the classification. The average k-mer ratio highly
+    correlates to the Average Nucleotide Identity (ANI) between
+    reference strains in an index and strains in a query dataset (Figure
+    1), and low k-mer ratios can be used to remove over- or
+    misclassified reads after classification.</p>
+  </sec>
+  <sec id="batch-classification">
+    <title>Batch classification</title>
+    <p>While the process of taxonomic read classification is usually
+    fast, the time needed to load a large index into RAM (e.g., 47,894
+    accessions for reference sequences of GTDB rs202 requires a minimum
+    of 98 Gb of RAM) can take longer than the actual classification
+    process. When used repeatedly on a batch of sequence datasets, this
+    can make the use of a read classifier time prohibitive. To overcome
+    this time expensive hurdle, a batch classify function is included in
+    Sepia; a user generated file containing sequence datasets for
+    multiple samples is used as input, the index is read only once into
+    RAM and subsequently the sequence data for the individual samples
+    are classified.</p>
+  </sec>
+</sec>
+<sec id="figures">
+  <title>Figures</title>
+  <fig>
+    <caption><p>Correlation of Average Nucleotide Identity (ANI) as
+    inferred by fastANI with minimizer-based estimation of k-mer
+    similarity (p-value: &lt;&lt; 0.001, Multiple R-squared:
+    0.96)</p></caption>
+    <graphic mimetype="image" mime-subtype="png" xlink:href="media/kmer_similarity_vs_fastANI.png" xlink:title="" />
+  </fig>
+</sec>
+<sec id="implementation">
+  <title>Implementation</title>
+  <p>Sepia is written in the Rust programming language. The k-mer or
+  minimizer index is an implementation of the compact hash table
+  described by
+  (<xref alt="Wood et al., 2019" rid="ref-wood2019improved" ref-type="bibr">Wood
+  et al., 2019</xref>). Briefly, this hash table consists of a fixed
+  array of 32 bits hash cells to store key-value pairs with a generic
+  hash function (i.e., murmurHash3
+  (<xref alt="Appleby, 2011" rid="ref-appleby2011murmurhash3" ref-type="bibr">Appleby,
+  2011</xref>) in Kraken 2 and Sepia) and a load factor of 70% for
+  collision resolution, thus needing considerably more space than
+  key-value pairs. Alternatively, the user can choose to use an
+  experimental index with a perfect hash function
+  (<xref alt="Limasset et al., 2017" rid="ref-limasset2017fast" ref-type="bibr">Limasset
+  et al., 2017</xref>) as implemented in Rust
+  (https://github.com/10XGenomics/rust-boomphf). A perfect hash function
+  maps a set of actual key values to the table without any collisions,
+  thereby potentially decreasing the space requirement of the hash table
+  compared to the compact hash table of Kraken 2. Next, taxonomy
+  information is encoded into unsigned 32 values such that higher order
+  taxa always have a lower value than lower order taxa, allowing for
+  rapid set operations to infer LCAs for a set k-mers or minimizers
+  within a single read or read pair. There is no limit to the number of
+  taxonomic levels in a taxonomy string. This allows for the user to
+  combine different taxonomies for different taxonomic domains (e.g.,
+  NCBI viral taxonomy combined with GTDB taxonomy for Archaea and
+  Bacteria). The unsigned 32 encoded taxonomy is compactly stored in a
+  directed acyclic graph, the direction being from child to ancestral
+  node. This allows for a rapid look-up of lineages and generation of
+  sets for LCA inference. Upon completion Sepia produces two files; (i)
+  a file with the per read or read pair classification, and (ii) a
+  summary file, reporting the read count per taxon, the average k-mer
+  ratio and the total length of all reads classified as a specific
+  taxon. Using simulated and real datasets we found Sepia to be very
+  similar in performance to Kraken 2; We found not significant
+  differences in sensitivity and specificity of read classifications,
+  however, we found Kraken 2 to be between 30% and 15% faster for
+  Illumina short read datasets (HiSeq 125bp paired-end and MiSeq 300bp
+  paired-end, respectively), however Sepia and Kraken 2 classified reads
+  at a similar speed for an Oxford Nanopore dataset (NCBI SRA accession
+  SRR15372305).</p>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>Financial support for the development of Sepia was provided by the
+  Center for Food Safety at the University of Georgia, USA. The findings
+  and conclusions in this report are those of the authors and do not
+  necessarily represent the official position of the Centers for Disease
+  Control and Prevention.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <ref id="ref-wood2019improved">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Wood</surname><given-names>Derrick E</given-names></name>
+        <name><surname>Lu</surname><given-names>Jennifer</given-names></name>
+        <name><surname>Langmead</surname><given-names>Ben</given-names></name>
+      </person-group>
+      <article-title>Improved metagenomic analysis with kraken 2</article-title>
+      <source>Genome biology</source>
+      <publisher-name>Springer</publisher-name>
+      <year iso-8601-date="2019">2019</year>
+      <volume>20</volume>
+      <issue>1</issue>
+      <fpage>1</fpage>
+      <lpage>13</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-wood2014kraken">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Wood</surname><given-names>Derrick E</given-names></name>
+        <name><surname>Salzberg</surname><given-names>Steven L</given-names></name>
+      </person-group>
+      <article-title>Kraken: Ultrafast metagenomic sequence classification using exact alignments</article-title>
+      <source>Genome biology</source>
+      <publisher-name>BioMed Central</publisher-name>
+      <year iso-8601-date="2014">2014</year>
+      <volume>15</volume>
+      <issue>3</issue>
+      <fpage>1</fpage>
+      <lpage>12</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-kim2016centrifuge">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Kim</surname><given-names>Daehwan</given-names></name>
+        <name><surname>Song</surname><given-names>Li</given-names></name>
+        <name><surname>Breitwieser</surname><given-names>Florian P</given-names></name>
+        <name><surname>Salzberg</surname><given-names>Steven L</given-names></name>
+      </person-group>
+      <article-title>Centrifuge: Rapid and sensitive classification of metagenomic sequences</article-title>
+      <source>Genome research</source>
+      <publisher-name>Cold Spring Harbor Lab</publisher-name>
+      <year iso-8601-date="2016">2016</year>
+      <volume>26</volume>
+      <issue>12</issue>
+      <fpage>1721</fpage>
+      <lpage>1729</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-limasset2017fast">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Limasset</surname><given-names>Antoine</given-names></name>
+        <name><surname>Rizk</surname><given-names>Guillaume</given-names></name>
+        <name><surname>Chikhi</surname><given-names>Rayan</given-names></name>
+        <name><surname>Peterlongo</surname><given-names>Pierre</given-names></name>
+      </person-group>
+      <article-title>Fast and scalable minimal perfect hashing for massive key sets</article-title>
+      <source>arXiv preprint arXiv:1702.03154</source>
+      <year iso-8601-date="2017">2017</year>
+    </element-citation>
+  </ref>
+  <ref id="ref-parks2018standardized">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Parks</surname><given-names>Donovan H</given-names></name>
+        <name><surname>Chuvochina</surname><given-names>Maria</given-names></name>
+        <name><surname>Waite</surname><given-names>David W</given-names></name>
+        <name><surname>Rinke</surname><given-names>Christian</given-names></name>
+        <name><surname>Skarshewski</surname><given-names>Adam</given-names></name>
+        <name><surname>Chaumeil</surname><given-names>Pierre-Alain</given-names></name>
+        <name><surname>Hugenholtz</surname><given-names>Philip</given-names></name>
+      </person-group>
+      <article-title>A standardized bacterial taxonomy based on genome phylogeny substantially revises the tree of life</article-title>
+      <source>Nature biotechnology</source>
+      <publisher-name>Nature Publishing Group</publisher-name>
+      <year iso-8601-date="2018">2018</year>
+      <volume>36</volume>
+      <issue>10</issue>
+      <fpage>996</fpage>
+      <lpage>1004</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-appleby2011murmurhash3">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Appleby</surname><given-names>A</given-names></name>
+      </person-group>
+      <article-title>MurmurHash3 hash function</article-title>
+      <year iso-8601-date="2011">2011</year>
+    </element-citation>
+  </ref>
+  <ref id="ref-nayfach2016integrated">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Nayfach</surname><given-names>Stephen</given-names></name>
+        <name><surname>Rodriguez-Mueller</surname><given-names>Beltran</given-names></name>
+        <name><surname>Garud</surname><given-names>Nandita</given-names></name>
+        <name><surname>Pollard</surname><given-names>Katherine S</given-names></name>
+      </person-group>
+      <article-title>An integrated metagenomics pipeline for strain profiling reveals novel patterns of bacterial transmission and biogeography</article-title>
+      <source>Genome research</source>
+      <publisher-name>Cold Spring Harbor Lab</publisher-name>
+      <year iso-8601-date="2016">2016</year>
+      <volume>26</volume>
+      <issue>11</issue>
+      <fpage>1612</fpage>
+      <lpage>1625</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-segata2012metagenomic">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Segata</surname><given-names>Nicola</given-names></name>
+        <name><surname>Waldron</surname><given-names>Levi</given-names></name>
+        <name><surname>Ballarini</surname><given-names>Annalisa</given-names></name>
+        <name><surname>Narasimhan</surname><given-names>Vagheesh</given-names></name>
+        <name><surname>Jousson</surname><given-names>Olivier</given-names></name>
+        <name><surname>Huttenhower</surname><given-names>Curtis</given-names></name>
+      </person-group>
+      <article-title>Metagenomic microbial community profiling using unique clade-specific marker genes</article-title>
+      <source>Nature methods</source>
+      <publisher-name>Nature Publishing Group</publisher-name>
+      <year iso-8601-date="2012">2012</year>
+      <volume>9</volume>
+      <issue>8</issue>
+      <fpage>811</fpage>
+      <lpage>814</lpage>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
