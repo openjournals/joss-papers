@@ -1,0 +1,595 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">3675</article-id>
+<article-id pub-id-type="doi">10.21105/joss.03675</article-id>
+<title-group>
+<article-title><monospace>pytreegrav</monospace>: A fast Python gravity
+solver</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">0000-0002-1655-5604</contrib-id>
+<name>
+<surname>Grudić</surname>
+<given-names>Michael Y.</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+<xref ref-type="aff" rid="aff-2"/>
+</contrib>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">0000-0002-6145-3674</contrib-id>
+<name>
+<surname>Gurvich</surname>
+<given-names>Alexander B.</given-names>
+</name>
+<xref ref-type="aff" rid="aff-2"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>NASA Hubble Fellow, Carnegie Observatories</institution>
+</institution-wrap>
+</aff>
+<aff id="aff-2">
+<institution-wrap>
+<institution>Department of Physics &amp; Astronomy and CIERA,
+Northwestern University</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2021-06-09">
+<day>9</day>
+<month>6</month>
+<year>2021</year>
+</pub-date>
+<volume>6</volume>
+<issue>68</issue>
+<fpage>3675</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2022</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>Python</kwd>
+<kwd>physics</kwd>
+<kwd>gravity</kwd>
+<kwd>simulations</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p>Gravity is important in a wide variety of science problems. In
+  particular, questions in astrophysics nearly all involve gravity, and
+  can have large (<inline-formula><alternatives>
+  <tex-math><![CDATA[\gg10^4]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mo>≫</mml:mo><mml:msup><mml:mn>10</mml:mn><mml:mn>4</mml:mn></mml:msup></mml:mrow></mml:math></alternatives></inline-formula>)
+  numbers of gravitating masses, such as the stars in a cluster or
+  galaxy, or the discrete fluid elements in a hydrodynamics simulation.
+  Often the gravitational field of such a large number of masses can be
+  too computationally expensive to compute by directly summing the
+  contribution of every single element at every point of interest.</p>
+  <p><monospace>pytreegrav</monospace> is a multi-method Python package
+  for computing gravitational fields and potentials. It includes an
+  exact direct-summation (“brute force”) solver and a fast, approximate
+  tree-based method that can be orders of magnitude faster than the
+  naïve method. It can compute fields and potentials from arbitrary
+  particle distributions at arbitrary points, with arbitrary
+  softening/smoothing lengths, and is parallelized with OpenMP.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p>The problem addressed by <monospace>pytreegrav</monospace> is the
+  following: given an arbitrary set of “source” masses
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[m_i]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>m</mml:mi><mml:mi>i</mml:mi></mml:msub></mml:math></alternatives></inline-formula>
+  with 3D coordinates <inline-formula><alternatives>
+  <tex-math><![CDATA[\mathbf{x}_i]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mstyle mathvariant="bold"><mml:mi>𝐱</mml:mi></mml:mstyle><mml:mi>i</mml:mi></mml:msub></mml:math></alternatives></inline-formula>,
+  and optionally each having a finite spatial extent
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[h_i]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>h</mml:mi><mml:mi>i</mml:mi></mml:msub></mml:math></alternatives></inline-formula>
+  (the <italic>softening radius</italic>), one would like to compute the
+  gravitational potential <inline-formula><alternatives>
+  <tex-math><![CDATA[\Phi]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>Φ</mml:mi></mml:math></alternatives></inline-formula>
+  and/or the gravitational field <inline-formula><alternatives>
+  <tex-math><![CDATA[\mathbf{g}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mstyle mathvariant="bold"><mml:mi>𝐠</mml:mi></mml:mstyle></mml:math></alternatives></inline-formula>
+  at an arbitrary set of “target” points in space
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[\mathbf{y}_i]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mstyle mathvariant="bold"><mml:mi>𝐲</mml:mi></mml:mstyle><mml:mi>i</mml:mi></mml:msub></mml:math></alternatives></inline-formula>.
+  A common application for this is N-body simulations (wherein
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[\mathbf{y}_i=\mathbf{x}_i]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mstyle mathvariant="bold"><mml:mi>𝐲</mml:mi></mml:mstyle><mml:mi>i</mml:mi></mml:msub><mml:mo>=</mml:mo><mml:msub><mml:mstyle mathvariant="bold"><mml:mi>𝐱</mml:mi></mml:mstyle><mml:mi>i</mml:mi></mml:msub></mml:mrow></mml:math></alternatives></inline-formula>).
+  It is also often useful for <italic>analyzing</italic> simulation
+  results after the fact – <inline-formula><alternatives>
+  <tex-math><![CDATA[\Phi]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>Φ</mml:mi></mml:math></alternatives></inline-formula>
+  and <inline-formula><alternatives>
+  <tex-math><![CDATA[\mathbf{g}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mstyle mathvariant="bold"><mml:mi>𝐠</mml:mi></mml:mstyle></mml:math></alternatives></inline-formula>
+  are sometimes not saved in simulation outputs, and even when they are
+  it is often useful to analyze the gravitational interactions between
+  specific <italic>subsets</italic> of the mass elements in the
+  simulation. Computing <inline-formula><alternatives>
+  <tex-math><![CDATA[\mathbf{g}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mstyle mathvariant="bold"><mml:mi>𝐠</mml:mi></mml:mstyle></mml:math></alternatives></inline-formula>
+  is also important for generating equilibrium <italic>initial
+  conditions</italic> for N-body simulations
+  (<xref alt="Volker Springel &amp; White, 1999" rid="ref-makedisk" ref-type="bibr">Volker
+  Springel &amp; White, 1999</xref>;
+  <xref alt="Yurin &amp; Springel, 2014" rid="ref-galic" ref-type="bibr">Yurin
+  &amp; Springel, 2014</xref>), and for identifying interesting
+  gravitationally-bound structures such as halos, star clusters, and
+  giant molecular clouds
+  (<xref alt="Behroozi et al., 2013" rid="ref-rockstar" ref-type="bibr">Behroozi
+  et al., 2013</xref>;
+  <xref alt="Grudić et al., 2018" rid="ref-grudic2018" ref-type="bibr">Grudić
+  et al., 2018</xref>;
+  <xref alt="Guszejnov et al., 2020" rid="ref-guszejnov2020" ref-type="bibr">Guszejnov
+  et al., 2020</xref>).</p>
+  <p>Many gravity simulation codes (or multi-physics simulation codes
+  <italic>including</italic> gravity) have been written that address the
+  problem of gravity computation in a variety of ways for their own
+  internal purposes
+  (<xref alt="Aarseth, 2003" rid="ref-aarseth_nbody" ref-type="bibr">Aarseth,
+  2003</xref>;
+  <xref alt="Dehnen &amp; Read, 2011" rid="ref-dehnen" ref-type="bibr">Dehnen
+  &amp; Read, 2011</xref>). However, <monospace>pykdgrav</monospace>
+  (the precursor of <monospace>pytreegrav</monospace>) was the first
+  Python package to offer a generic, modular, trivially-installable
+  gravity solver that could be easily integrated into any other Python
+  code, using the fast, approximate tree-based Barnes &amp; Hut
+  (<xref alt="1986" rid="ref-barneshut" ref-type="bibr">1986</xref>)
+  method to be practical for large particle numbers.
+  <monospace>pykdgrav</monospace> used a KD-tree implementation
+  accelerated with <monospace>numba</monospace>
+  (<xref alt="Lam et al., 2015" rid="ref-numba" ref-type="bibr">Lam et
+  al., 2015</xref>) to achieve high performance in the potential/field
+  evaluation, however the prerequisite tree-building step had relatively
+  high overhead and a very large memory footprint, because the entire
+  dataset was redundantly stored at every level in the tree hierarchy.
+  This made it difficult to scale to various practical research
+  problems, such as analyzing high-resolution galaxy simulations
+  (<xref alt="Gurvich et al., 2020" rid="ref-fire_pressurebalance" ref-type="bibr">Gurvich
+  et al., 2020</xref>). <monospace>pytreegrav</monospace> is a full
+  refactor of <monospace>pykdgrav</monospace> that addresses these
+  shortcomings with a new octree implementation, with drastically
+  reduced tree-build time and memory footprint, and a more efficient
+  non-recursive tree traversal for field summation. This makes it
+  suitable for post-processing datasets from state-of-the-art
+  astrophysics simulations, with upwards of
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[10^8]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msup><mml:mn>10</mml:mn><mml:mn>8</mml:mn></mml:msup></mml:math></alternatives></inline-formula>
+  particles in the region of interest.</p>
+</sec>
+<sec id="methods">
+  <title>Methods</title>
+  <p><monospace>pytreegrav</monospace> can compute
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[\Phi]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>Φ</mml:mi></mml:math></alternatives></inline-formula>
+  and <inline-formula><alternatives>
+  <tex-math><![CDATA[\mathbf{g}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mstyle mathvariant="bold"><mml:mi>𝐠</mml:mi></mml:mstyle></mml:math></alternatives></inline-formula>
+  using one of two methods: by “brute force” (explcitly summing the
+  field of every particle, which is exact to machine precision), or
+  using the fast, approximate Barnes &amp; Hut
+  (<xref alt="1986" rid="ref-barneshut" ref-type="bibr">1986</xref>)
+  tree-based method (which is approximate, but much faster for large
+  particle numbers). In <inline-formula><alternatives>
+  <tex-math><![CDATA[N]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>N</mml:mi></mml:math></alternatives></inline-formula>-body
+  problems where the fields at all particle positions must be known, the
+  cost of the brute-force method scales as
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[\propto N^2]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mo>∝</mml:mo><mml:msup><mml:mi>N</mml:mi><mml:mn>2</mml:mn></mml:msup></mml:mrow></mml:math></alternatives></inline-formula>,
+  while the cost of the tree-based method scales less steeply, as
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[\propto N \log N]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mo>∝</mml:mo><mml:mi>N</mml:mi><mml:mo>log</mml:mo><mml:mi>N</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>.</p>
+  <fig>
+    <caption><p>Wall-clock time per particle running
+    <monospace>pytreegrav</monospace> on a sample of
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[N]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>N</mml:mi></mml:math></alternatives></inline-formula>
+    particles from a Plummer
+    (<xref alt="1911" rid="ref-plummer" ref-type="bibr">1911</xref>)
+    distribution for various <inline-formula><alternatives>
+    <tex-math><![CDATA[N]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>N</mml:mi></mml:math></alternatives></inline-formula>.
+    Test was run on an Intel i9 9900K workstation on a single core
+    (<italic>left</italic>) and in parallel on 16 logical cores
+    (<italic>right</italic>).<styled-content id="figU003Acputime"></styled-content></p></caption>
+    <graphic mimetype="image" mime-subtype="png" xlink:href="media/images/CPU_Time_both.png" xlink:title="" />
+  </fig>
+  <p>The brute-force methods are often fastest for small
+  (<inline-formula><alternatives>
+  <tex-math><![CDATA[<10^3]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mo>&lt;</mml:mo><mml:msup><mml:mn>10</mml:mn><mml:mn>3</mml:mn></mml:msup></mml:mrow></mml:math></alternatives></inline-formula>
+  particle) point sets because they lack the overheads of tree
+  construction and traversal, while the tree-based methods will
+  typically be faster for larger datasets because they reduce the number
+  of floating-point operations required. Both methods are optimized with
+  the <monospace>numba</monospace> LLVM JIT compiler
+  (<xref alt="Lam et al., 2015" rid="ref-numba" ref-type="bibr">Lam et
+  al., 2015</xref>), and the basic <monospace>Accel</monospace> and
+  <monospace>Potential</monospace> front-end functions will
+  automatically choose the method is likely to be faster, based on this
+  heuristic crossover point of <inline-formula><alternatives>
+  <tex-math><![CDATA[10^3]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msup><mml:mn>10</mml:mn><mml:mn>3</mml:mn></mml:msup></mml:math></alternatives></inline-formula>
+  particles. Both methods can also optionally be parallelized with
+  OpenMP, via the <monospace>numba</monospace>
+  <monospace>@njit(parallel=True)</monospace> interface.</p>
+  <p>The implementation of the tree build and tree-based field summation
+  largely follows that of <monospace>GADGET-2</monospace>
+  (<xref alt="V. Springel, 2005" rid="ref-gadget2" ref-type="bibr">V.
+  Springel, 2005</xref>). Starting with an initial cube enclosing all
+  particles, particles are inserted into the tree one at a time. Nodes
+  are divided into 8 subnodes until each subnode contains at most one
+  particle. The indices of the 8 subnodes of each node are stored for an
+  initial recursive traversal of the completed tree, but an optimized
+  tree traversal only needs to know the <italic>first</italic> subnode
+  (if the node is to be refined) and the index of the next branch of the
+  tree (if the field due to the node is summed directly), so these
+  indices are recorded in the initial recursive tree traversal, and the
+  8 explicit subnode indices are then deleted, saving memory and
+  removing any empty nodes from consideration. Once these “next branch”
+  and “first subnode” indices are known, the tree field summations can
+  be done in a single <monospace>while</monospace> loop with no
+  recursive function calls, which generally improves performance and
+  memory usage.</p>
+  <p>The field summation itself uses the Barnes &amp; Hut
+  (<xref alt="1986" rid="ref-barneshut" ref-type="bibr">1986</xref>)
+  geometric opening criterion, with improvements suggested by Dubinski
+  (<xref alt="1996" rid="ref-dubinski" ref-type="bibr">1996</xref>): for
+  a node of side length <inline-formula><alternatives>
+  <tex-math><![CDATA[L]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>L</mml:mi></mml:math></alternatives></inline-formula>
+  with centre of mass located at distance <inline-formula><alternatives>
+  <tex-math><![CDATA[r]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>r</mml:mi></mml:math></alternatives></inline-formula>
+  from the target point, its contribution is summed using the monopole
+  approximation (treating the whole node as a point mass) only if
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[r > L/\Theta + \delta]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>r</mml:mi><mml:mo>&gt;</mml:mo><mml:mi>L</mml:mi><mml:mi>/</mml:mi><mml:mi>Θ</mml:mi><mml:mo>+</mml:mo><mml:mi>δ</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>,
+  where <inline-formula><alternatives>
+  <tex-math><![CDATA[\Theta=0.7]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>Θ</mml:mi><mml:mo>=</mml:mo><mml:mn>0.7</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>
+  by default (giving <inline-formula><alternatives>
+  <tex-math><![CDATA[\sim 1\%]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mo>∼</mml:mo><mml:mn>1</mml:mn><mml:mi>%</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>
+  RMS error in <inline-formula><alternatives>
+  <tex-math><![CDATA[\mathbf{g}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mstyle mathvariant="bold"><mml:mi>𝐠</mml:mi></mml:mstyle></mml:math></alternatives></inline-formula>),
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[\delta]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>δ</mml:mi></mml:math></alternatives></inline-formula>
+  is the distance from the node’s geometric center to its center of
+  mass. If the conditions for approximation are not satisfied, the
+  node’s subnodes are considered in turn, until the field contribution
+  of all mass within the node is summed.</p>
+  <p><monospace>pytreegrav</monospace> supports gravitational softening
+  by assuming the mass distribution of each particle takes the form of a
+  standard M4 cubic spline kernel, which is zero beyond the softening
+  radius <inline-formula><alternatives>
+  <tex-math><![CDATA[h]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>h</mml:mi></mml:math></alternatives></inline-formula>
+  (outside which the field reduces to that of a point mass). Explicit
+  expressions for this form of the softened gravitational potential and
+  field are given in Hopkins
+  (<xref alt="2015" rid="ref-gizmo" ref-type="bibr">2015</xref>).
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[h]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>h</mml:mi></mml:math></alternatives></inline-formula>
+  is allowed to vary from particle to particle, and when summing the
+  field the larger of the source or the target softening is used
+  (symmetrizing the force between overlapping particles). When
+  softenings are nonzero, the largest softening
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[h_{\mathrm{max}}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>h</mml:mi><mml:mstyle mathvariant="normal"><mml:mi>m</mml:mi><mml:mi>a</mml:mi><mml:mi>x</mml:mi></mml:mstyle></mml:msub></mml:math></alternatives></inline-formula>
+  of all particles in a node is stored, and a node is always opened in
+  the field summation if <inline-formula><alternatives>
+  <tex-math><![CDATA[r < 0.6L + \max\left(h_{\mathrm{target}}, h_{\mathrm{max}}\right) + \delta]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>r</mml:mi><mml:mo>&lt;</mml:mo><mml:mn>0.6</mml:mn><mml:mi>L</mml:mi><mml:mo>+</mml:mo><mml:mo>max</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>h</mml:mi><mml:mstyle mathvariant="normal"><mml:mi>t</mml:mi><mml:mi>a</mml:mi><mml:mi>r</mml:mi><mml:mi>g</mml:mi><mml:mi>e</mml:mi><mml:mi>t</mml:mi></mml:mstyle></mml:msub><mml:mo>,</mml:mo><mml:msub><mml:mi>h</mml:mi><mml:mstyle mathvariant="normal"><mml:mi>m</mml:mi><mml:mi>a</mml:mi><mml:mi>x</mml:mi></mml:mstyle></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>+</mml:mo><mml:mi>δ</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>,
+  where <inline-formula><alternatives>
+  <tex-math><![CDATA[h_{\mathrm{target}}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>h</mml:mi><mml:mstyle mathvariant="normal"><mml:mi>t</mml:mi><mml:mi>a</mml:mi><mml:mi>r</mml:mi><mml:mi>g</mml:mi><mml:mi>e</mml:mi><mml:mi>t</mml:mi></mml:mstyle></mml:msub></mml:math></alternatives></inline-formula>
+  is the softening of the target particle where the field is being
+  summed. This ensures that any interactions between
+  physically-overlapping particles are summed directly with the
+  softening kernel.</p>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>We acknowledge code contributions from Ben Keller and Martin
+  Beroiz, and helpful feedback from Elisa Bortolas, Thorsten García, and
+  GitHub user <monospace>herkesg</monospace> during the development of
+  <monospace>pykdgrav</monospace>, which were incorporated into
+  <monospace>pytreegrav</monospace>.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <ref id="ref-numba">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Lam</surname><given-names>Siu Kwan</given-names></name>
+        <name><surname>Pitrou</surname><given-names>Antoine</given-names></name>
+        <name><surname>Seibert</surname><given-names>Stanley</given-names></name>
+      </person-group>
+      <article-title>Numba: A LLVM-based python JIT compiler</article-title>
+      <source>Proceedings of the second workshop on the LLVM compiler infrastructure in HPC</source>
+      <publisher-name>Association for Computing Machinery</publisher-name>
+      <publisher-loc>New York, NY, USA</publisher-loc>
+      <year iso-8601-date="2015">2015</year>
+      <isbn>9781450340052</isbn>
+      <uri>https://doi.org/10.1145/2833157.2833162</uri>
+      <pub-id pub-id-type="doi">10.1145/2833157.2833162</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-dubinski">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Dubinski</surname><given-names>John</given-names></name>
+      </person-group>
+      <article-title>A parallel tree code</article-title>
+      <source>New Astronomy</source>
+      <year iso-8601-date="1996-10">1996</year><month>10</month>
+      <volume>1</volume>
+      <issue>2</issue>
+      <uri>https://arxiv.org/abs/astro-ph/9603097</uri>
+      <pub-id pub-id-type="doi">10.1016/S1384-1076(96)00009-7</pub-id>
+      <fpage>133</fpage>
+      <lpage>147</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-fire_pressurebalance">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Gurvich</surname><given-names>Alexander B.</given-names></name>
+        <name><surname>Faucher-Giguère</surname><given-names>Claude-André</given-names></name>
+        <name><surname>Richings</surname><given-names>Alexander J.</given-names></name>
+        <name><surname>Hopkins</surname><given-names>Philip F.</given-names></name>
+        <name><surname>Grudić</surname><given-names>Michael Y.</given-names></name>
+        <name><surname>Hafen</surname><given-names>Zachary</given-names></name>
+        <name><surname>Wellons</surname><given-names>Sarah</given-names></name>
+        <name><surname>Stern</surname><given-names>Jonathan</given-names></name>
+        <name><surname>Quataert</surname><given-names>Eliot</given-names></name>
+        <name><surname>Chan</surname><given-names>T. K.</given-names></name>
+        <name><surname>Orr</surname><given-names>Matthew E.</given-names></name>
+        <name><surname>Kereš</surname><given-names>Dušan</given-names></name>
+        <name><surname>Wetzel</surname><given-names>Andrew</given-names></name>
+        <name><surname>Hayward</surname><given-names>Christopher C.</given-names></name>
+        <name><surname>Loebman</surname><given-names>Sarah R.</given-names></name>
+        <name><surname>Murray</surname><given-names>Norman</given-names></name>
+      </person-group>
+      <article-title>Pressure balance in the multiphase ISM of cosmologically simulated disc galaxies</article-title>
+      <source>Monthly Notices of the Royal Astronomical Society</source>
+      <year iso-8601-date="2020-11">2020</year><month>11</month>
+      <volume>498</volume>
+      <issue>3</issue>
+      <uri>https://arxiv.org/abs/2005.12916</uri>
+      <pub-id pub-id-type="doi">10.1093/mnras/staa2578</pub-id>
+      <fpage>3664</fpage>
+      <lpage>3683</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-plummer">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Plummer</surname><given-names>H. C.</given-names></name>
+      </person-group>
+      <article-title>On the problem of distribution in globular star clusters</article-title>
+      <source>Monthly Notices of the Royal Astronomical Society</source>
+      <year iso-8601-date="1911-03">1911</year><month>03</month>
+      <volume>71</volume>
+      <pub-id pub-id-type="doi">10.1093/mnras/71.5.460</pub-id>
+      <fpage>460</fpage>
+      <lpage>470</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-rockstar">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Behroozi</surname><given-names>Peter S.</given-names></name>
+        <name><surname>Wechsler</surname><given-names>Risa H.</given-names></name>
+        <name><surname>Wu</surname><given-names>Hao-Yi</given-names></name>
+      </person-group>
+      <article-title>The ROCKSTAR Phase-space Temporal Halo Finder and the Velocity Offsets of Cluster Cores</article-title>
+      <source>The Astrophysical Journal</source>
+      <year iso-8601-date="2013-01">2013</year><month>01</month>
+      <volume>762</volume>
+      <issue>2</issue>
+      <uri>https://arxiv.org/abs/1110.4372</uri>
+      <pub-id pub-id-type="doi">10.1088/0004-637X/762/2/109</pub-id>
+      <fpage>109</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-grudic2018">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Grudić</surname><given-names>Michael Y.</given-names></name>
+        <name><surname>Guszejnov</surname><given-names>Dávid</given-names></name>
+        <name><surname>Hopkins</surname><given-names>Philip F.</given-names></name>
+        <name><surname>Lamberts</surname><given-names>Astrid</given-names></name>
+        <name><surname>Boylan-Kolchin</surname><given-names>Michael</given-names></name>
+        <name><surname>Murray</surname><given-names>Norman</given-names></name>
+        <name><surname>Schmitz</surname><given-names>Denise</given-names></name>
+      </person-group>
+      <article-title>From the top down and back up again: star cluster structure from hierarchical star formation</article-title>
+      <source>Monthly Notices of the Royal Astronomical Society</source>
+      <year iso-8601-date="2018-11">2018</year><month>11</month>
+      <volume>481</volume>
+      <issue>1</issue>
+      <uri>https://arxiv.org/abs/1708.09065</uri>
+      <pub-id pub-id-type="doi">10.1093/mnras/sty2303</pub-id>
+      <fpage>688</fpage>
+      <lpage>702</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-guszejnov2020">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Guszejnov</surname><given-names>Dávid</given-names></name>
+        <name><surname>Grudić</surname><given-names>Michael Y.</given-names></name>
+        <name><surname>Offner</surname><given-names>Stella S. R.</given-names></name>
+        <name><surname>Boylan-Kolchin</surname><given-names>Michael</given-names></name>
+        <name><surname>Faucher-Gigère</surname><given-names>Claude-André</given-names></name>
+        <name><surname>Wetzel</surname><given-names>Andrew</given-names></name>
+        <name><surname>Benincasa</surname><given-names>Samantha M.</given-names></name>
+        <name><surname>Loebman</surname><given-names>Sarah</given-names></name>
+      </person-group>
+      <article-title>Evolution of giant molecular clouds across cosmic time</article-title>
+      <source>Monthly Notices of the Royal Astronomical Society</source>
+      <year iso-8601-date="2020-02">2020</year><month>02</month>
+      <volume>492</volume>
+      <issue>1</issue>
+      <uri>https://arxiv.org/abs/1910.01163</uri>
+      <pub-id pub-id-type="doi">10.1093/mnras/stz3527</pub-id>
+      <fpage>488</fpage>
+      <lpage>502</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-makedisk">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Springel</surname><given-names>Volker</given-names></name>
+        <name><surname>White</surname><given-names>Simon D. M.</given-names></name>
+      </person-group>
+      <article-title>Tidal tails in cold dark matter cosmologies</article-title>
+      <source>Monthly Notices of the Royal Astronomical Society</source>
+      <year iso-8601-date="1999-07">1999</year><month>07</month>
+      <volume>307</volume>
+      <issue>1</issue>
+      <uri>https://arxiv.org/abs/astro-ph/9807320</uri>
+      <pub-id pub-id-type="doi">10.1046/j.1365-8711.1999.02613.x</pub-id>
+      <fpage>162</fpage>
+      <lpage>178</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-gizmo">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Hopkins</surname><given-names>P. F.</given-names></name>
+      </person-group>
+      <article-title>A new class of accurate, mesh-free hydrodynamic simulation methods</article-title>
+      <source>Monthly Notices of the Royal Astronomical Society</source>
+      <year iso-8601-date="2015-06">2015</year><month>06</month>
+      <volume>450</volume>
+      <uri>https://arxiv.org/abs/1409.7395</uri>
+      <pub-id pub-id-type="doi">10.1093/mnras/stv195</pub-id>
+      <fpage>53</fpage>
+      <lpage>110</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-gadget2">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Springel</surname><given-names>V.</given-names></name>
+      </person-group>
+      <article-title>The cosmological simulation code GADGET-2</article-title>
+      <source>Monthly Notices of the Royal Astronomical Society</source>
+      <year iso-8601-date="2005-12">2005</year><month>12</month>
+      <volume>364</volume>
+      <pub-id pub-id-type="doi">10.1111/j.1365-2966.2005.09655.x</pub-id>
+      <fpage>1105</fpage>
+      <lpage>1134</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-galic">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Yurin</surname><given-names>Denis</given-names></name>
+        <name><surname>Springel</surname><given-names>Volker</given-names></name>
+      </person-group>
+      <article-title>An iterative method for the construction of N-body galaxy models in collisionless equilibrium</article-title>
+      <source>Monthly Notices of the Royal Astronomical Society</source>
+      <year iso-8601-date="2014-10">2014</year><month>10</month>
+      <volume>444</volume>
+      <issue>1</issue>
+      <uri>https://arxiv.org/abs/1402.1623</uri>
+      <pub-id pub-id-type="doi">10.1093/mnras/stu1421</pub-id>
+      <fpage>62</fpage>
+      <lpage>79</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-dehnen">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Dehnen</surname><given-names>W.</given-names></name>
+        <name><surname>Read</surname><given-names>J. I.</given-names></name>
+      </person-group>
+      <article-title>N-body simulations of gravitational dynamics</article-title>
+      <source>European Physical Journal Plus</source>
+      <year iso-8601-date="2011-05">2011</year><month>05</month>
+      <volume>126</volume>
+      <uri>https://arxiv.org/abs/1105.1082</uri>
+      <pub-id pub-id-type="doi">10.1140/epjp/i2011-11055-3</pub-id>
+      <fpage>55</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-aarseth_nbody">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Aarseth</surname><given-names>Sverre J.</given-names></name>
+      </person-group>
+      <source>Gravitational N-Body Simulations</source>
+      <year iso-8601-date="2003">2003</year>
+    </element-citation>
+  </ref>
+  <ref id="ref-barneshut">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Barnes</surname><given-names>Josh</given-names></name>
+        <name><surname>Hut</surname><given-names>Piet</given-names></name>
+      </person-group>
+      <article-title>A hierarchical O(N log N) force-calculation algorithm</article-title>
+      <source>Nature</source>
+      <year iso-8601-date="1986-12">1986</year><month>12</month>
+      <volume>324</volume>
+      <issue>6096</issue>
+      <pub-id pub-id-type="doi">10.1038/324446a0</pub-id>
+      <fpage>446</fpage>
+      <lpage>449</lpage>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>

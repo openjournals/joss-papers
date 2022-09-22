@@ -1,0 +1,893 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">2991</article-id>
+<article-id pub-id-type="doi">10.21105/joss.02991</article-id>
+<title-group>
+<article-title>Nanoq: ultra-fast quality control for nanopore
+reads</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">0000-0001-5399-5353</contrib-id>
+<name>
+<surname>Steinig</surname>
+<given-names>Eike</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">0000-0002-4300-455X</contrib-id>
+<name>
+<surname>Coin</surname>
+<given-names>Lachlan</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>The Peter Doherty Institute for Infection and Immunity, The
+University of Melbourne, Australia</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<volume>7</volume>
+<issue>69</issue>
+<fpage>2991</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2022</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>ont</kwd>
+<kwd>nanopore</kwd>
+<kwd>reads</kwd>
+<kwd>filter</kwd>
+<kwd>summary</kwd>
+<kwd>statistics</kwd>
+<kwd>length</kwd>
+<kwd>quality</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p>Nanopore sequencing is now routinely used in a variety of genomics
+  applications, including whole genome assembly
+  (<xref alt="Jain et al., 2018" rid="ref-human_genome" ref-type="bibr">Jain
+  et al., 2018</xref>) and real-time infectious disease surveillance
+  (<xref alt="Meredith et al., 2020" rid="ref-covid" ref-type="bibr">Meredith
+  et al., 2020</xref>). One of the first steps in many workflows is to
+  assess the quality of reads, obtain summary statistics, and filter
+  fragmented or low quality reads. With increasing throughput on
+  scalable nanopore platforms like <monospace>GridION</monospace> or
+  <monospace>PromethION</monospace>, fast quality control of sequence
+  reads and the ability to generate summary statistics on-the-fly are
+  required. Benchmarks indicate that <monospace>nanoq</monospace> is as
+  fast as <monospace>seqtk</monospace> for small datasets (100,000
+  reads) and ~1.5x as fast for large datasets (3.5 million reads).
+  Without quality scores, computing summary statistics is around ~2-3x
+  faster than <monospace>rust-bio-tools</monospace> and
+  <monospace>seq-kit stats</monospace>, 44x faster than
+  <monospace>seqtk</monospace>, and up to ~450x faster than
+  <monospace>NanoStats</monospace> (&gt; 1.2 million reads per second).
+  In read filtering applications, <monospace>nanoq</monospace> is
+  considerably faster than other commonly used tools
+  (<monospace>NanoFilt</monospace>, <monospace>Filtlong</monospace>).
+  Memory consumption is consistent and tends to be lower than other
+  applications (~5-10x). <monospace>Nanoq</monospace> offers
+  nanopore-specific quality scores, read filtering options, and output
+  compression. It can be applied to data from the public domain, as part
+  of automated pipelines, in streaming applications, or to rapidly check
+  progress of active sequencing runs.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p><ext-link ext-link-type="uri" xlink:href="https://github.com/wdecoster/nanopack"><monospace>NanoPack</monospace></ext-link>
+  (<monospace>biopython</monospace>)
+  (<xref alt="De Coster et al., 2018" rid="ref-nanopack" ref-type="bibr">De
+  Coster et al., 2018</xref>),
+  <ext-link ext-link-type="uri" xlink:href="https://github.com/rrwick/Filtlong"><monospace>Filtlong</monospace></ext-link>
+  (<ext-link ext-link-type="uri" xlink:href="https://github.com/attractivechaos/klib"><monospace>Klib</monospace></ext-link>)
+  and
+  <ext-link ext-link-type="uri" xlink:href="https://github.com/roblanf/minion_qc/blob/master/README.md"><monospace>MinIONQC</monospace></ext-link>
+  (basecalling summary)
+  (<xref alt="Lanfear et al., 2018" rid="ref-minionqc" ref-type="bibr">Lanfear
+  et al., 2018</xref>) are common tools used to filter and obtain
+  summary statistics from nanopore reads. However, their performance may
+  be bottlenecked at read iteration (<monospace>NanoPack</monospace>,
+  <monospace>Filtlong</monospace>), they may not immediately be
+  applicable due to reliance on basecalling summary files
+  (<monospace>MinIONQC</monospace>), or implement more complex filters
+  and data visualization for research applications
+  (<monospace>NanoFilt</monospace>, <monospace>Filtlong</monospace>). We
+  wrote <monospace>nanoq</monospace> to accelerate quality control and
+  summary statistics for large nanopore data sets.</p>
+</sec>
+<sec id="benchmarks">
+  <title>Benchmarks</title>
+  <p>Benchmarks evaluate processing speed and memory consumption of a
+  basic read length filter and summary statistics on the
+  <ext-link ext-link-type="uri" xlink:href="https://github.com/LomanLab/mockcommunity">Zymo
+  mock community</ext-link>
+  (<xref alt="Nicholls et al., 2019" rid="ref-zymo" ref-type="bibr">Nicholls
+  et al., 2019</xref>) (<monospace>GridION</monospace>) with comparisons
+  to
+  <ext-link ext-link-type="uri" xlink:href="https://github.com/lh3/seqtk"><monospace>seqtk fqchk</monospace></ext-link>,
+  <ext-link ext-link-type="uri" xlink:href="https://github.com/shenwei356/seqkit"><monospace>seqkit stats</monospace></ext-link>
+  (<xref alt="Shen, 2016" rid="ref-seqkit" ref-type="bibr">Shen,
+  2016</xref>),
+  <ext-link ext-link-type="uri" xlink:href="https://github.com/rust-bio/rust-bio-tools"><monospace>rust-bio-tools</monospace></ext-link>(<xref alt="Köster, 2015" rid="ref-rustbio" ref-type="bibr">Köster,
+  2015</xref>),
+  <ext-link ext-link-type="uri" xlink:href="https://github.com/wdecoster/nanofilt"><monospace>NanoFilt</monospace></ext-link>,
+  <ext-link ext-link-type="uri" xlink:href="https://github.com/wdecoster/nanostat"><monospace>NanoStat</monospace></ext-link>
+  (<xref alt="De Coster et al., 2018" rid="ref-nanopack" ref-type="bibr">De
+  Coster et al., 2018</xref>) and
+  <ext-link ext-link-type="uri" xlink:href="https://github.com/rrwick/Filtlong"><monospace>Filtlong</monospace></ext-link>.
+  Time to completion and maximum memory consumption were measured using
+  <monospace>/usr/bin/time -f &quot;%e %M&quot;</monospace>, speedup is
+  relative to the slowest command in the set. We note that summary
+  statistics from <monospace>rust-bio-tools</monospace> and
+  <monospace>seqkit stats</monospace> do not compute read quality scores
+  and are therefore comparable to <monospace>nanoq-fast</monospace>.</p>
+  <p>Tasks:</p>
+  <list list-type="bullet">
+    <list-item>
+      <p><monospace>stats</monospace>: basic read set summaries</p>
+    </list-item>
+    <list-item>
+      <p><monospace>filter</monospace>: minimum read length filter (into
+      <monospace>/dev/null</monospace>)</p>
+    </list-item>
+  </list>
+  <p>Tools:</p>
+  <list list-type="bullet">
+    <list-item>
+      <p><monospace>rust-bio-tools=0.28.0</monospace></p>
+    </list-item>
+    <list-item>
+      <p><monospace>nanostat=1.5.0</monospace></p>
+    </list-item>
+    <list-item>
+      <p><monospace>nanofilt=2.8.0</monospace></p>
+    </list-item>
+    <list-item>
+      <p><monospace>filtlong=0.2.1</monospace></p>
+    </list-item>
+    <list-item>
+      <p><monospace>seqtk=1.3-r126</monospace></p>
+    </list-item>
+    <list-item>
+      <p><monospace>nanoq=0.8.2</monospace></p>
+    </list-item>
+    <list-item>
+      <p><monospace>seqkit=2.0.0</monospace></p>
+    </list-item>
+  </list>
+  <p>Commands used for <monospace>stats</monospace> task:</p>
+  <list list-type="bullet">
+    <list-item>
+      <p><monospace>nanostat</monospace> (fq + fq.gz) –&gt;
+      <monospace>NanoStat --fastq test.fq --threads 1</monospace></p>
+    </list-item>
+    <list-item>
+      <p><monospace>nanostat-t8</monospace> (fq + fq.gz) –&gt;
+      <monospace>NanoStat --fastq test.fq --threads 8</monospace></p>
+    </list-item>
+    <list-item>
+      <p><monospace>seqtk-fqchk</monospace> (fq + fq.gz) –&gt;
+      <monospace>seqtk fqchk</monospace></p>
+    </list-item>
+    <list-item>
+      <p><monospace>seqkit-stats</monospace> (fq + fq.gz) –&gt;
+      <monospace>seqkit stats -j1</monospace></p>
+    </list-item>
+    <list-item>
+      <p><monospace>rust-bio</monospace> (fq) –&gt;
+      <monospace>rbt sequence-stats --fastq &lt; test.fq</monospace></p>
+    </list-item>
+    <list-item>
+      <p><monospace>rust-bio</monospace> (fq.gz) –&gt;
+      <monospace>zcat test.fq.gz | rbt sequence-stats --fastq</monospace></p>
+    </list-item>
+    <list-item>
+      <p><monospace>nanoq</monospace> (fq + fq.gz) –&gt;
+      <monospace>nanoq --input test.fq --stats</monospace></p>
+    </list-item>
+    <list-item>
+      <p><monospace>nanoq-fast</monospace> (fq + fq.gz) –&gt;
+      <monospace>nanoq --input test.fq --stats --fast</monospace></p>
+    </list-item>
+  </list>
+  <p>Commands used for <monospace>filter</monospace> task:</p>
+  <list list-type="bullet">
+    <list-item>
+      <p><monospace>filtlong</monospace> (fq + fq.gz) –&gt;
+      <monospace>filtlong --min_length 5000 test.fq &gt; /dev/null</monospace>
+      </p>
+    </list-item>
+    <list-item>
+      <p><monospace>nanofilt</monospace> (fq) –&gt;
+      <monospace>NanoFilt --fastq test.fq --length 5000 &gt; /dev/null</monospace></p>
+    </list-item>
+    <list-item>
+      <p><monospace>nanofilt</monospace> (fq.gz) –&gt;
+      <monospace>gunzip -c test.fq.gz | NanoFilt --length 5000 &gt; /dev/null</monospace></p>
+    </list-item>
+    <list-item>
+      <p><monospace>nanoq</monospace> (fq + fq.gz) –&gt;
+      <monospace>nanoq --input test.fq --min-len 5000 &gt; /dev/null</monospace></p>
+    </list-item>
+    <list-item>
+      <p><monospace>nanoq-fast</monospace> (fq + fq.gz) –&gt;
+      <monospace>nanoq --input test.fq --min-len 5000 --fast &gt; /dev/null</monospace></p>
+    </list-item>
+  </list>
+  <p>Files:</p>
+  <list list-type="bullet">
+    <list-item>
+      <p><monospace>zymo.fq</monospace>: uncompressed (100,000 reads,
+      ~400 Mbp)</p>
+    </list-item>
+    <list-item>
+      <p><monospace>zymo.fq.gz</monospace>: compressed (100,000 reads,
+      ~400 Mbp)</p>
+    </list-item>
+    <list-item>
+      <p><monospace>zymo.full.fq</monospace>: uncompressed (3,491,078
+      reads, ~14 Gbp)</p>
+    </list-item>
+  </list>
+  <p>Data preparation:</p>
+  <code language="bash">wget &quot;https://nanopore.s3.climb.ac.uk/Zymo-GridION-EVEN-BB-SN.fq.gz&quot;
+zcat Zymo-GridION-EVEN-BB-SN.fq.gz &gt; zymo.full.fq
+head -400000 zymo.full.fq &gt; zymo.fq &amp;&amp; gzip -k zymo.fq</code>
+  <p>Elapsed real time and maximum resident set size:</p>
+  <code language="bash">/usr/bin/time -f &quot;%e %M&quot;</code>
+  <p>Task and command execution:</p>
+  <p>Commands were run in replicates of 10 with a mounted benchmark data
+  volume in the provided <monospace>Docker</monospace> container. An
+  additional cold start iteration for each command was not considered in
+  the final benchmarks.</p>
+  <code language="bash">for i in {1..11}; do
+  for f in /data/*.fq; do 
+    /usr/bin/time -f &quot;%e %M&quot; nanoq -f- s -i $f 2&gt; benchmark
+    tail -1 benchmark &gt;&gt; nanoq_stat_fq
+  done
+done</code>
+  <sec id="benchmark-results">
+    <title>Benchmark results</title>
+    <fig>
+      <caption><p>Nanoq benchmarks on 3.5 million reads of the Zymo mock
+      community (10 replicates)</p></caption>
+      <graphic mimetype="image" mime-subtype="png" xlink:href="media/benchmarks_zymo_full.png" xlink:title="Nanoq benchmarks full" />
+    </fig>
+    <sec id="stats-zymo.full.fq">
+      <title><monospace>stats</monospace> +
+      <monospace>zymo.full.fq</monospace></title>
+      <table-wrap>
+        <table>
+          <colgroup>
+            <col width="16%" />
+            <col width="19%" />
+            <col width="21%" />
+            <col width="18%" />
+            <col width="10%" />
+            <col width="16%" />
+          </colgroup>
+          <thead>
+            <tr>
+              <th>command</th>
+              <th>mem (sd)</th>
+              <th>sec (sd)</th>
+              <th>reads / sec</th>
+              <th>speedup</th>
+              <th>quality scores</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>nanostat</td>
+              <td>741.4 (0.09)</td>
+              <td>1260. (13.9)</td>
+              <td>2,770</td>
+              <td>01.00 x</td>
+              <td>true</td>
+            </tr>
+            <tr>
+              <td>seqtk-fqchk</td>
+              <td>103.8 (0.04)</td>
+              <td>125.9 (0.15)</td>
+              <td>27,729</td>
+              <td>10.01 x</td>
+              <td>true</td>
+            </tr>
+            <tr>
+              <td>seqkit-stats</td>
+              <td><bold>18.68</bold> (3.15)</td>
+              <td>125.3 (0.91)</td>
+              <td>27,861</td>
+              <td>10.05 x</td>
+              <td>false</td>
+            </tr>
+            <tr>
+              <td>nanoq</td>
+              <td>35.83 (0.06)</td>
+              <td>94.51 (0.43)</td>
+              <td>36,938</td>
+              <td>13.34 x</td>
+              <td>true</td>
+            </tr>
+            <tr>
+              <td>rust-bio</td>
+              <td>43.20 (0.08)</td>
+              <td>06.54 (0.05)</td>
+              <td>533,803</td>
+              <td>192.7 x</td>
+              <td>false</td>
+            </tr>
+            <tr>
+              <td>nanoq-fast</td>
+              <td>22.18 (0.07)</td>
+              <td><bold>02.85</bold> (0.02)</td>
+              <td>1,224,939</td>
+              <td>442.1 x</td>
+              <td>false</td>
+            </tr>
+          </tbody>
+        </table>
+      </table-wrap>
+    </sec>
+    <sec id="filter-zymo.full.fq">
+      <title><monospace>filter</monospace> +
+      <monospace>zymo.full.fq</monospace></title>
+      <table-wrap>
+        <table>
+          <colgroup>
+            <col width="20%" />
+            <col width="23%" />
+            <col width="24%" />
+            <col width="21%" />
+            <col width="12%" />
+          </colgroup>
+          <thead>
+            <tr>
+              <th>command</th>
+              <th>mem (sd)</th>
+              <th>sec (sd)</th>
+              <th>reads / sec</th>
+              <th>speedup</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>nanofilt</td>
+              <td>67.47 (0.13)</td>
+              <td>1160. (20.2)</td>
+              <td>3,009</td>
+              <td>01.00 x</td>
+            </tr>
+            <tr>
+              <td>filtlong</td>
+              <td>1516. (5.98)</td>
+              <td>420.6 (4.53)</td>
+              <td>8,360</td>
+              <td>02.78 x</td>
+            </tr>
+            <tr>
+              <td>nanoq</td>
+              <td>11.93 (0.06)</td>
+              <td>94.93 (0.45)</td>
+              <td>36,775</td>
+              <td>12.22 x</td>
+            </tr>
+            <tr>
+              <td>nanoq-fast</td>
+              <td><bold>08.05</bold> (0.05)</td>
+              <td><bold>03.90</bold> (0.30)</td>
+              <td>895,148</td>
+              <td>297.5 x</td>
+            </tr>
+          </tbody>
+        </table>
+      </table-wrap>
+      <fig>
+        <caption><p>Nanoq benchmarks on 100,000 reads of the Zymo mock
+        community (10 replicates)</p></caption>
+        <graphic mimetype="image" mime-subtype="png" xlink:href="media/benchmarks_zymo.png" xlink:title="Nanoq benchmarks subset" />
+      </fig>
+    </sec>
+    <sec id="stats-zymo.fq">
+      <title><monospace>stats</monospace> +
+      <monospace>zymo.fq</monospace></title>
+      <table-wrap>
+        <table>
+          <colgroup>
+            <col width="16%" />
+            <col width="19%" />
+            <col width="21%" />
+            <col width="18%" />
+            <col width="10%" />
+            <col width="16%" />
+          </colgroup>
+          <thead>
+            <tr>
+              <th>command</th>
+              <th>mem (sd)</th>
+              <th>sec (sd)</th>
+              <th>reads / sec</th>
+              <th>speedup</th>
+              <th>quality scores</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>nanostat</td>
+              <td>79.64 (0.14)</td>
+              <td>36.22 (0.27)</td>
+              <td>2,760</td>
+              <td>01.00 x</td>
+              <td>true</td>
+            </tr>
+            <tr>
+              <td>nanoq</td>
+              <td>04.26 (0.09)</td>
+              <td>02.69 (0.02)</td>
+              <td>37,147</td>
+              <td>13.46 x</td>
+              <td>true</td>
+            </tr>
+            <tr>
+              <td>seqtk-fqchk</td>
+              <td>53.01 (0.05)</td>
+              <td>02.28 (0.06)</td>
+              <td>43,859</td>
+              <td>15.89 x</td>
+              <td>true</td>
+            </tr>
+            <tr>
+              <td>seqkit-stats</td>
+              <td>17.07 (3.03)</td>
+              <td>00.13 (0.00)</td>
+              <td>100,000</td>
+              <td>36.23 x</td>
+              <td>false</td>
+            </tr>
+            <tr>
+              <td>rust-bio</td>
+              <td>16.61 (0.08)</td>
+              <td>00.22 (0.00)</td>
+              <td>100,000</td>
+              <td>36.23 x</td>
+              <td>false</td>
+            </tr>
+            <tr>
+              <td>nanoq-fast</td>
+              <td><bold>03.81</bold> (0.05)</td>
+              <td><bold>00.08</bold> (0.00)</td>
+              <td>100,000</td>
+              <td>36.23 x</td>
+              <td>false</td>
+            </tr>
+          </tbody>
+        </table>
+      </table-wrap>
+    </sec>
+    <sec id="stats-zymo.fq.gz">
+      <title><monospace>stats</monospace> +
+      <monospace>zymo.fq.gz</monospace></title>
+      <table-wrap>
+        <table>
+          <colgroup>
+            <col width="16%" />
+            <col width="19%" />
+            <col width="21%" />
+            <col width="18%" />
+            <col width="10%" />
+            <col width="16%" />
+          </colgroup>
+          <thead>
+            <tr>
+              <th>command</th>
+              <th>mem (sd)</th>
+              <th>sec (sd)</th>
+              <th>reads / sec</th>
+              <th>speedup</th>
+              <th>quality scores</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>nanostat</td>
+              <td>79.46 (0.22)</td>
+              <td>40.98 (0.31)</td>
+              <td>2,440</td>
+              <td>01.00 x</td>
+              <td>true</td>
+            </tr>
+            <tr>
+              <td>nanoq</td>
+              <td>04.44 (0.09)</td>
+              <td>05.74 (0.04)</td>
+              <td>17,421</td>
+              <td>07.14 x</td>
+              <td>true</td>
+            </tr>
+            <tr>
+              <td>seqtk-fqchk</td>
+              <td>53.11 (0.05)</td>
+              <td>05.70 (0.08)</td>
+              <td>17,543</td>
+              <td>07.18 x</td>
+              <td>true</td>
+            </tr>
+            <tr>
+              <td>rust-bio</td>
+              <td><bold>01.59</bold> (0.06)</td>
+              <td>05.06 (0.04)</td>
+              <td>19,762</td>
+              <td>08.09 x</td>
+              <td>false</td>
+            </tr>
+            <tr>
+              <td>seqkit-stats</td>
+              <td>20.54 (0.41)</td>
+              <td>04.85 (0.02)</td>
+              <td>20,619</td>
+              <td>08.45 x</td>
+              <td>false</td>
+            </tr>
+            <tr>
+              <td>nanoq-fast</td>
+              <td>03.95 (0.07)</td>
+              <td><bold>03.15</bold> (0.02)</td>
+              <td>31,746</td>
+              <td>13.01 x</td>
+              <td>false</td>
+            </tr>
+          </tbody>
+        </table>
+      </table-wrap>
+    </sec>
+    <sec id="filter-zymo.fq">
+      <title><monospace>filter</monospace> +
+      <monospace>zymo.fq</monospace></title>
+      <table-wrap>
+        <table>
+          <colgroup>
+            <col width="20%" />
+            <col width="23%" />
+            <col width="24%" />
+            <col width="21%" />
+            <col width="12%" />
+          </colgroup>
+          <thead>
+            <tr>
+              <th>command</th>
+              <th>mem (sd)</th>
+              <th>sec (sd)</th>
+              <th>reads / sec</th>
+              <th>speedup</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>nanofilt</td>
+              <td>66.29 (0.15)</td>
+              <td>33.01 (0.24)</td>
+              <td>3,029</td>
+              <td>01.00 x</td>
+            </tr>
+            <tr>
+              <td>filtlong</td>
+              <td>274.5 (0.04)</td>
+              <td>08.49 (0.01)</td>
+              <td>11,778</td>
+              <td>03.89 x</td>
+            </tr>
+            <tr>
+              <td>nanoq</td>
+              <td>03.61 (0.04)</td>
+              <td>02.81 (0.28)</td>
+              <td>35,587</td>
+              <td>11.75 x</td>
+            </tr>
+            <tr>
+              <td>nanoq-fast</td>
+              <td><bold>03.26</bold> (0.06)</td>
+              <td><bold>00.12</bold> (0.01)</td>
+              <td>100,000</td>
+              <td>33.01 x</td>
+            </tr>
+          </tbody>
+        </table>
+      </table-wrap>
+    </sec>
+    <sec id="filter-zymo.fq.gz">
+      <title><monospace>filter</monospace> +
+      <monospace>zymo.fq.gz</monospace></title>
+      <table-wrap>
+        <table>
+          <colgroup>
+            <col width="20%" />
+            <col width="23%" />
+            <col width="24%" />
+            <col width="21%" />
+            <col width="12%" />
+          </colgroup>
+          <thead>
+            <tr>
+              <th>command</th>
+              <th>mem (sd)</th>
+              <th>sec (sd)</th>
+              <th>reads / sec</th>
+              <th>speedup</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>nanofilt</td>
+              <td><bold>01.57</bold> (0.07)</td>
+              <td>33.48 (0.35)</td>
+              <td>2,986</td>
+              <td>01.00 x</td>
+            </tr>
+            <tr>
+              <td>filtlong</td>
+              <td>274.2 (0.04)</td>
+              <td>16.45 (0.09)</td>
+              <td>6,079</td>
+              <td>02.04 x</td>
+            </tr>
+            <tr>
+              <td>nanoq</td>
+              <td>03.68 (0.06)</td>
+              <td>05.77 (0.04)</td>
+              <td>17,331</td>
+              <td>05.80 x</td>
+            </tr>
+            <tr>
+              <td>nanoq-fast</td>
+              <td>03.45 (0.07)</td>
+              <td><bold>03.20</bold> (0.02)</td>
+              <td>31,250</td>
+              <td>10.47 x</td>
+            </tr>
+          </tbody>
+        </table>
+      </table-wrap>
+    </sec>
+  </sec>
+</sec>
+<sec id="availability">
+  <title>Availability</title>
+  <p><monospace>Nanoq</monospace> is open-source on GitHub
+  (https://github.com/esteinig/nanoq) and available through:</p>
+  <list list-type="bullet">
+    <list-item>
+      <p>Cargo: <monospace>cargo install nanoq</monospace></p>
+    </list-item>
+    <list-item>
+      <p>Conda:
+      <monospace>conda install -c bioconda nanoq</monospace></p>
+    </list-item>
+  </list>
+  <p><monospace>Nanoq</monospace> is integrated with
+  <ext-link ext-link-type="uri" xlink:href="https://github.com/np-core">pipelines
+  servicing research projects</ext-link> at
+  <ext-link ext-link-type="uri" xlink:href="https://queenslandgenomics.org/clinical-projects-3/north-queensland/">Queensland
+  Genomics</ext-link> using nanopore sequencing to detect infectious
+  agents in septic patients, reconstruct transmission dynamics of
+  bacterial pathogens, and conduct outbreak sequencing.</p>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>We would like to thank the <monospace>OneCodex</monospace> team for
+  developing
+  <ext-link ext-link-type="uri" xlink:href="htps://github.com/onecodex/needletail"><monospace>needletail</monospace></ext-link>,
+  Luiz Irber and Pierre Marijon for developing
+  <ext-link ext-link-type="uri" xlink:href="https://github.com/luizirber/niffler"><monospace>niffler</monospace></ext-link>,
+  and Michael Hall for code adoption from
+  <ext-link ext-link-type="uri" xlink:href="https://github.com/mbhall88/rasusa">Rasusa</ext-link>.
+  ES was funded by HOT NORTH and the Center for Policy Relevant
+  Infectious Disease Simulation and Mathematical Modelling (NHMRC:
+  #1131932). LC was funded by a NHMRC grant (NHMRC: GNT1195743).</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <ref id="ref-rustbio">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Köster</surname><given-names>Johannes</given-names></name>
+      </person-group>
+      <article-title>Rust-Bio: a fast and safe bioinformatics library</article-title>
+      <source>Bioinformatics</source>
+      <year iso-8601-date="2015-10">2015</year><month>10</month>
+      <volume>32</volume>
+      <issue>3</issue>
+      <pub-id pub-id-type="doi">10.1093/bioinformatics/btv573</pub-id>
+      <fpage>444</fpage>
+      <lpage>446</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-seqkit">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Shen</surname><given-names>Shuai AND Li</given-names><suffix>Wei AND Le</suffix></name>
+      </person-group>
+      <article-title>SeqKit: A cross-platform and ultrafast toolkit for FASTA/q file manipulation</article-title>
+      <source>PLOS ONE</source>
+      <publisher-name>Public Library of Science</publisher-name>
+      <year iso-8601-date="2016-10">2016</year><month>10</month>
+      <volume>11</volume>
+      <issue>10</issue>
+      <uri>https://doi.org/10.1371/journal.pone.0163962</uri>
+      <pub-id pub-id-type="doi">10.1371/journal.pone.0163962</pub-id>
+      <fpage>1</fpage>
+      <lpage>10</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-covid">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Meredith</surname><given-names>Luke W</given-names></name>
+        <name><surname>Hamilton</surname><given-names>William L</given-names></name>
+        <name><surname>Warne</surname><given-names>Ben</given-names></name>
+        <name><surname>Houldcroft</surname><given-names>Charlotte J</given-names></name>
+        <name><surname>Hosmillo</surname><given-names>Myra</given-names></name>
+        <name><surname>Jahun</surname><given-names>Aminu S</given-names></name>
+        <name><surname>Curran</surname><given-names>Martin D</given-names></name>
+        <name><surname>Parmar</surname><given-names>Surendra</given-names></name>
+        <name><surname>Caller</surname><given-names>Laura G</given-names></name>
+        <name><surname>Caddy</surname><given-names>Sarah L</given-names></name>
+        <name><surname>Khokhar</surname><given-names>Fahad A</given-names></name>
+        <name><surname>Yakovleva</surname><given-names>Anna</given-names></name>
+        <name><surname>Hall</surname><given-names>Grant</given-names></name>
+        <name><surname>Feltwell</surname><given-names>Theresa</given-names></name>
+        <name><surname>Forrest</surname><given-names>Sally</given-names></name>
+        <name><surname>Sridhar</surname><given-names>Sushmita</given-names></name>
+        <name><surname>Weekes</surname><given-names>Michael P</given-names></name>
+        <name><surname>Baker</surname><given-names>Stephen</given-names></name>
+        <name><surname>Brown</surname><given-names>Nicholas</given-names></name>
+        <name><surname>Moore</surname><given-names>Elinor</given-names></name>
+        <name><surname>Popay</surname><given-names>Ashley</given-names></name>
+        <name><surname>Roddick</surname><given-names>Iain</given-names></name>
+        <name><surname>Reacher</surname><given-names>Mark</given-names></name>
+        <name><surname>Gouliouris</surname><given-names>Theodore</given-names></name>
+        <name><surname>Peacock</surname><given-names>Sharon J</given-names></name>
+        <name><surname>Dougan</surname><given-names>Gordon</given-names></name>
+        <name><surname>Török</surname><given-names>M Estée</given-names></name>
+        <name><surname>Goodfellow</surname><given-names>Ian</given-names></name>
+      </person-group>
+      <article-title>Rapid implementation of SARS-CoV-2 sequencing to investigate cases of health-care associated COVID-19: A prospective genomic surveillance study</article-title>
+      <source>Lancet Infect. Dis.</source>
+      <publisher-name>Elsevier</publisher-name>
+      <year iso-8601-date="2020-11">2020</year><month>11</month>
+      <volume>20</volume>
+      <issue>11</issue>
+      <pub-id pub-id-type="doi">10.1016/S1473-3099(20)30562-4</pub-id>
+      <fpage>1263</fpage>
+      <lpage>1272</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-nanopack">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>De Coster</surname><given-names>Wouter</given-names></name>
+        <name><surname>D’Hert</surname><given-names>Svenn</given-names></name>
+        <name><surname>Schultz</surname><given-names>Darrin T</given-names></name>
+        <name><surname>Cruts</surname><given-names>Marc</given-names></name>
+        <name><surname>Van Broeckhoven</surname><given-names>Christine</given-names></name>
+      </person-group>
+      <article-title>NanoPack: visualizing and processing long-read sequencing data</article-title>
+      <source>Bioinformatics</source>
+      <year iso-8601-date="2018-03">2018</year><month>03</month>
+      <volume>34</volume>
+      <issue>15</issue>
+      <pub-id pub-id-type="doi">10.1093/bioinformatics/bty149</pub-id>
+      <fpage>2666</fpage>
+      <lpage>2669</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-human_genome">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Jain</surname><given-names>Miten</given-names></name>
+        <name><surname>Koren</surname><given-names>Sergey</given-names></name>
+        <name><surname>Miga</surname><given-names>Karen H</given-names></name>
+        <name><surname>Quick</surname><given-names>Josh</given-names></name>
+        <name><surname>Rand</surname><given-names>Arthur C</given-names></name>
+        <name><surname>Sasani</surname><given-names>Thomas A</given-names></name>
+        <name><surname>Tyson</surname><given-names>John R</given-names></name>
+        <name><surname>Beggs</surname><given-names>Andrew D</given-names></name>
+        <name><surname>Dilthey</surname><given-names>Alexander T</given-names></name>
+        <name><surname>Fiddes</surname><given-names>Ian T</given-names></name>
+        <name><surname>Malla</surname><given-names>Sunir</given-names></name>
+        <name><surname>Marriott</surname><given-names>Hannah</given-names></name>
+        <name><surname>Nieto</surname><given-names>Tom</given-names></name>
+        <name><surname>O’Grady</surname><given-names>Justin</given-names></name>
+        <name><surname>Olsen</surname><given-names>Hugh E</given-names></name>
+        <name><surname>Pedersen</surname><given-names>Brent S</given-names></name>
+        <name><surname>Rhie</surname><given-names>Arang</given-names></name>
+        <name><surname>Richardson</surname><given-names>Hollian</given-names></name>
+        <name><surname>Quinlan</surname><given-names>Aaron R</given-names></name>
+        <name><surname>Snutch</surname><given-names>Terrance P</given-names></name>
+        <name><surname>Tee</surname><given-names>Louise</given-names></name>
+        <name><surname>Paten</surname><given-names>Benedict</given-names></name>
+        <name><surname>Phillippy</surname><given-names>Adam M</given-names></name>
+        <name><surname>Simpson</surname><given-names>Jared T</given-names></name>
+        <name><surname>Loman</surname><given-names>Nicholas J</given-names></name>
+        <name><surname>Loose</surname><given-names>Matthew</given-names></name>
+      </person-group>
+      <article-title>Nanopore sequencing and assembly of a human genome with ultra-long reads</article-title>
+      <source>Nat. Biotechnol.</source>
+      <year iso-8601-date="2018-04">2018</year><month>04</month>
+      <volume>36</volume>
+      <issue>4</issue>
+      <pub-id pub-id-type="doi">10.1038/nbt.4060</pub-id>
+      <fpage>338</fpage>
+      <lpage>345</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-zymo">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Nicholls</surname><given-names>Samuel M</given-names></name>
+        <name><surname>Quick</surname><given-names>Joshua C</given-names></name>
+        <name><surname>Tang</surname><given-names>Shuiquan</given-names></name>
+        <name><surname>Loman</surname><given-names>Nicholas J</given-names></name>
+      </person-group>
+      <article-title>Ultra-deep, long-read nanopore sequencing of mock microbial community standards</article-title>
+      <source>Gigascience</source>
+      <year iso-8601-date="2019-05">2019</year><month>05</month>
+      <volume>8</volume>
+      <issue>5</issue>
+      <pub-id pub-id-type="doi">10.1093/gigascience/giz043</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-minionqc">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Lanfear</surname><given-names>R</given-names></name>
+        <name><surname>Schalamun</surname><given-names>M</given-names></name>
+        <name><surname>Kainer</surname><given-names>D</given-names></name>
+        <name><surname>Wang</surname><given-names>W</given-names></name>
+        <name><surname>Schwessinger</surname><given-names>B</given-names></name>
+      </person-group>
+      <article-title>MinIONQC: fast and simple quality control for MinION sequencing data</article-title>
+      <source>Bioinformatics</source>
+      <year iso-8601-date="2018-07">2018</year><month>07</month>
+      <volume>35</volume>
+      <issue>3</issue>
+      <pub-id pub-id-type="doi">10.1093/bioinformatics/bty654</pub-id>
+      <fpage>523</fpage>
+      <lpage>525</lpage>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
