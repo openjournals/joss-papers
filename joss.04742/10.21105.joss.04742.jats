@@ -1,0 +1,404 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">4742</article-id>
+<article-id pub-id-type="doi">10.21105/joss.04742</article-id>
+<title-group>
+<article-title>basilisk: a Bioconductor package for managing Python
+environments</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">0000-0002-3564-4813</contrib-id>
+<name>
+<surname>Lun</surname>
+<given-names>Aaron T. L.</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Genentech Inc., South San Francisco, USA</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2022-07-19">
+<day>19</day>
+<month>7</month>
+<year>2022</year>
+</pub-date>
+<volume>7</volume>
+<issue>79</issue>
+<fpage>4742</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2022</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>R</kwd>
+<kwd>Python</kwd>
+<kwd>Bioconductor</kwd>
+<kwd>bioinformatics</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p><monospace>basilisk</monospace> is an R/Bioconductor package for
+  managing Python environments within the Bioconductor package
+  ecosystem. Developers of other Bioconductor packages can use
+  <monospace>basilisk</monospace> to automatically provision and load
+  custom Python environments, providing a streamlined experience for
+  their end-users by avoiding the need for any manual system
+  configuration. <monospace>basilisk</monospace> also enables robust
+  execution of Python code via <monospace>reticulate</monospace> in
+  complex analysis workflows involving multiple Python environments.
+  This package aims to provide a standardized mechanism for integration
+  of Python functionality into the Bioconductor code base.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p>The Python package ecosystem provides a large number of algorithms
+  and tools that are relevant to R/Bioconductor users. Interoperability
+  between R and Python is facilitated by several popular tools - this
+  includes the <monospace>reticulate</monospace> package to seamlessly
+  call Python code from an R session
+  (<xref alt="Ushey et al., 2022" rid="ref-reticulate" ref-type="bibr">Ushey
+  et al., 2022</xref>), and the <monospace>conda</monospace> package
+  manager to provision environments with the appropriate Python packages
+  (<xref alt="Anaconda Inc., 2022" rid="ref-conda" ref-type="bibr">Anaconda
+  Inc., 2022</xref>). However, the configuration and management of the
+  Python instances is typically the responsibility of the end user.
+  R/Bioconductor packages with Python functionality often rely on the
+  user to manually ensure that the correct versions of all Python
+  packages are installed. This is burdensome, error-prone, and does not
+  scale to widespread integration of Python code into the Bioconductor
+  ecosystem. Moreover, <monospace>reticulate</monospace> only supports
+  one Python environment for each R session. This compromises
+  interoperability between multiple R/Bioconductor packages that have
+  different (and possibly incompatible) Python dependencies. The
+  <ext-link ext-link-type="uri" xlink:href="https://bioconductor.org/packages/basilisk"><monospace>basilisk</monospace></ext-link>
+  package aims to automate the management of Python environments
+  required by “client” R/Bioconductor packages, simplifying their
+  installation and enabling their integration into complex analysis
+  workflows.</p>
+</sec>
+<sec id="usage">
+  <title>Usage</title>
+  <p>A developer of a client package is expected to define one or more
+  <monospace>BasiliskEnvironment</monospace> objects that describe the
+  Python environments required by the package. I show an small example
+  below from the
+  <ext-link ext-link-type="uri" xlink:href="https://bioconductor.org/packages/snifter"><monospace>snifter</monospace></ext-link>
+  Bioconductor package
+  (<xref alt="O’Callaghan &amp; Lun, 2022" rid="ref-snifter" ref-type="bibr">O’Callaghan
+  &amp; Lun, 2022</xref>):</p>
+  <code language="r script">snifter.env &lt;- BasiliskEnvironment(
+    &quot;fitsne&quot;,
+    pkgname = &quot;snifter&quot;,
+    packages = c(
+      &quot;opentsne=0.4.3&quot;,
+      &quot;scikit-learn=0.23.1&quot;,
+      if (basilisk.utils::isWindows()) &quot;scipy=1.5.0&quot; else &quot;scipy=1.5.1&quot;,
+      &quot;numpy=1.19.0&quot;,
+      &quot;python=3.7&quot;
+    )
+)</code>
+  <p>Once defined, any <monospace>BasiliskEnvironment</monospace> object
+  can be used in the <monospace>basiliskRun()</monospace> function to
+  execute arbitrary R code in the context of the associated Python
+  environment. This is most typically combined with
+  <monospace>reticulate</monospace> to provide an intuitive developer
+  experience when calling Python from R. To demonstrate, I’ll again use
+  an example from <monospace>snifter</monospace>, paraphrased for
+  brevity:</p>
+  <code language="r script">out &lt;- basiliskRun(
+    env = snifter.env,
+    fun = function(x, ...) {
+        openTSNE &lt;- reticulate::import(&quot;openTSNE&quot;, convert = FALSE)
+        obj &lt;- openTSNE$TSNE(...)
+        out &lt;- obj$fit(x)
+        list(
+            x = reticulate::py_to_r(out),
+            affinities = reticulate::py_to_r(out$affinities$P)
+        )
+    },
+    x = input_matrix # for some observation x dimension matrix.
+)</code>
+  <p>Technically, the above call to <monospace>basiliskRun()</monospace>
+  consists of an internal <monospace>basiliskStart()</monospace> step to
+  provision and load the appropriate environment, followed by the
+  execution of the provided <monospace>fun=</monospace>. Advanced users
+  can efficiently re-use the same environment across multiple Python
+  steps by running <monospace>basiliskStart()</monospace> explicitly
+  before any number of <monospace>basiliskRun()</monospace> calls:</p>
+  <code language="r script">proc &lt;- basiliskStart(env = snifter.env)
+# on.exit(basiliskStop(proc)) # for use inside functions
+
+out &lt;- basiliskRun(proc, 
+    fun = function(x, ...) {
+        openTSNE &lt;- reticulate::import(&quot;openTSNE&quot;, convert = FALSE)
+        obj &lt;- openTSNE$TSNE(...)
+        out &lt;- obj$fit(x)
+        list(
+            x = reticulate::py_to_r(out),
+            affinities = reticulate::py_to_r(out$affinities$P)
+        )
+    },
+    x = input_matrix
+)
+
+# Re-using the same basilisk process:
+ver &lt;- basiliskRun(proc, fun = function() { 
+    mod &lt;- reticulate::import(&quot;openTSNE&quot;)
+    mod$`__version__`
+})</code>
+</sec>
+<sec id="managing-python-environments">
+  <title>Managing Python environments</title>
+  <p><monospace>basilisk</monospace> uses <monospace>conda</monospace>
+  to automatically manage the creation of Python environments on the
+  user’s device. On the first use of
+  <monospace>basiliskStart()</monospace> anywhere, a local copy of
+  <monospace>conda</monospace> is installed using an appropriate
+  Miniconda installer for the user’s system. Each
+  <monospace>conda</monospace> environment required by a client package
+  is lazily instantiated on the first call to
+  <monospace>basiliskStart()</monospace> that uses the corresponding
+  <monospace>BasiliskEnvironment</monospace> object. Subsequent uses of
+  that <monospace>BasiliskEnvironment</monospace> via
+  <monospace>basiliskStart()</monospace> will then re-use the cached
+  <monospace>conda</monospace> environment.</p>
+  <p>I used <monospace>conda</monospace> and lazy installation to reduce
+  the burden on the user during installation of client packages. With
+  <monospace>conda</monospace>, the user does not have to perform any
+  system configuration such as installing Python or the relevant Python
+  packages. Client packages can define any number of Python
+  environments, but the use of lazy instantiation means that only the
+  ones that are used will actually be created on the user’s machine.
+  Similarly, if a client package only uses Python for some optional
+  functionality, the cost of installation is only paid when that
+  functionality is requested.</p>
+  <p>Lazy instantiation involves the construction of a user-owned cache
+  of <monospace>conda</monospace> environments. These environments can
+  consume a large amount of disk space, so
+  <monospace>basilisk</monospace> will automatically remove environments
+  that have not been recently used. Some care is also taken to ensure
+  that cache management is thread-safe - if multiple processes attempt
+  to create or delete a particular environment, only one will proceed
+  while the others will wait for its completion. This ensures that
+  multiple <monospace>basilisk</monospace>-dependent tasks can be run
+  concurrently without corrupting the cache.</p>
+  <p>In some scenarios, it is preferable to pay the environment
+  instantiation cost during client package installation. This avoids any
+  delay on first use of <monospace>basiliskStart()</monospace> within
+  the client package, which provides more predictable end-user
+  experiences for R-based applications like Shiny. To do this,
+  administrators of an R installation can set the
+  <monospace>BASILISK_SYSTEM_DIR</monospace> environment variable, which
+  will cause the <monospace>conda</monospace> environments to be created
+  in the client package’s installation directory. This “system-wide”
+  installation is also useful on shared systems where a single
+  environment is provisioned for any number of users, rather than
+  requiring each user to create and cache their own.</p>
+  <p>For developers, the use of <monospace>conda</monospace> provides a
+  consistent cross-platform experience for easier maintenance and
+  debugging. It also allows client packages to easily switch between
+  Python versions in different environments, e.g., to run legacy code
+  that is only compatible with older Python versions. However, some
+  Python packages may not be available from
+  <monospace>conda</monospace>’s repositories, so we provide the
+  <monospace>pip=</monospace> argument in the
+  <monospace>BasiliskEnvironment</monospace> constructor to pull those
+  packages from PyPI instead.</p>
+</sec>
+<sec id="integrating-with-reticulate">
+  <title>Integrating with <monospace>reticulate</monospace></title>
+  <p><monospace>basilisk</monospace> naturally integrates with
+  <monospace>reticulate</monospace> to seamlessly call Python code from
+  R. <monospace>basiliskStart()</monospace> will automatically load the
+  appropriate Python instance before
+  <monospace>basiliskRun()</monospace> evaluates
+  <monospace>fun=</monospace>, ensuring that the correct packages are
+  available. If a different Python instance is already loaded into the
+  current R session, <monospace>basiliskStart()</monospace> will
+  automatically spin up a new R process to run
+  <monospace>fun=</monospace> before transferring the results back to
+  the current session. In this manner, <monospace>basilisk</monospace>
+  supports the use of <monospace>reticulate</monospace> with multiple
+  Python environments in a single analysis, despite the fact that
+  <monospace>reticulate</monospace> is limited to only one Python
+  instance for the lifetime of any given R session
+  (<xref alt="Muenchow et al., 2019" rid="ref-multienvreticulate" ref-type="bibr">Muenchow
+  et al., 2019</xref>).</p>
+  <p>The use of new R processes ensures that a
+  <monospace>basilisk</monospace> client package will always be able to
+  successfully execute its Python-related code via
+  <monospace>reticulate</monospace>. The client package remains
+  functional even if other packages - or indeed, the user themselves -
+  load a different Python instance into the current session. In fact,
+  client packages can be forced to always start a new process in
+  <monospace>basiliskStart()</monospace> by turning off the
+  <monospace>getBasiliskShared()</monospace> option, which avoids
+  interfering with non-<monospace>basilisk</monospace> usage of other
+  Python instances via <monospace>reticulate</monospace> in the current
+  session. However, this robustness comes at the cost of performance due
+  to the need to spin up a new R process (with the associated delay from
+  package loading) as well as the overhead of communication between
+  different R processes. As such, loading of Python into the current
+  session is preferred by default.</p>
+  <p>It is also possible to obtain the path to the environment’s
+  directory for execution of Python code outside of
+  <monospace>reticulate</monospace>. This is more onerous but allows
+  clients to directly call executables that are provided in the
+  environment. For example, the
+  <ext-link ext-link-type="uri" xlink:href="https://bioconductor.org/packages/crisprScore"><monospace>crisprScore</monospace></ext-link>
+  package
+  (<xref alt="Hoberecht et al., 2022" rid="ref-crisprScore" ref-type="bibr">Hoberecht
+  et al., 2022</xref>) relies on Python 2 environments that will no
+  longer be supported by <monospace>reticulate</monospace>
+  (<xref alt="Kalinowski, 2022" rid="ref-python2reticulate" ref-type="bibr">Kalinowski,
+  2022</xref>). By directly acquiring the path to the provisioned
+  environment, <monospace>crisprScore</monospace> can locate the Python
+  2 executable for execution of its legacy code.</p>
+</sec>
+<sec id="further-comments">
+  <title>Further comments</title>
+  <p>The current set of <monospace>basilisk</monospace> clients can be
+  found on
+  <ext-link ext-link-type="uri" xlink:href="https://bioconductor.org/packages/basilisk">its
+  Bioconductor landing page</ext-link>, including
+  <monospace>snifter</monospace>, <monospace>crisprScore</monospace>,
+  <monospace>zellkonverter</monospace>,
+  <monospace>velociraptor</monospace> and
+  <monospace>BiocSklearn</monospace>, to name a few.</p>
+  <p>The name “basilisk” is based on the mythological snake monster
+  (<xref alt="Rowling, 1998" rid="ref-rowling1998chamber" ref-type="bibr">Rowling,
+  1998</xref>). The original purpose of the
+  <monospace>basilisk</monospace> package was to freeze Python package
+  versions, much like how the monster was able to Petrify its
+  victims.</p>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>Thanks to Vince Carey, one of the first developers using
+  <monospace>basilisk</monospace> in his
+  <ext-link ext-link-type="uri" xlink:href="https://bioconductor.org/packages/BiocSklearn"><monospace>BiocSklearn</monospace></ext-link>
+  package; Hervé Pagès, for helping me to get
+  <monospace>basilisk</monospace> through the Bioconductor build system;
+  Jean-Philippe Fortin, a <monospace>basilisk</monospace> power user
+  with his
+  <ext-link ext-link-type="uri" xlink:href="https://bioconductor.org/packages/crisprScore"><monospace>crisprScore</monospace></ext-link>
+  package; and Luke Zappia, Alan O’Callaghan and Kevin Rue-Albrecht, for
+  their feedback as client package developers.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <ref id="ref-rowling1998chamber">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Rowling</surname><given-names>J. K.</given-names></name>
+      </person-group>
+      <source>Harry Potter and the Chamber of Secrets</source>
+      <publisher-name>Bloomsbury</publisher-name>
+      <publisher-loc>United Kingdom</publisher-loc>
+      <year iso-8601-date="1998">1998</year>
+    </element-citation>
+  </ref>
+  <ref id="ref-conda">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <string-name>Anaconda Inc.</string-name>
+      </person-group>
+      <source>Conda</source>
+      <year iso-8601-date="2022">2022</year>
+      <uri>https://conda.io/projects/conda/en/latest</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-reticulate">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Ushey</surname><given-names>Kevin</given-names></name>
+        <name><surname>Allaire</surname><given-names>JJ</given-names></name>
+        <name><surname>Tang</surname><given-names>Yuan</given-names></name>
+      </person-group>
+      <source>Reticulate: Interface to ’Python’</source>
+      <year iso-8601-date="2022">2022</year>
+      <uri>https://rstudio.github.io/reticulate/</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-snifter">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>O’Callaghan</surname><given-names>Alan</given-names></name>
+        <name><surname>Lun</surname><given-names>Aaron</given-names></name>
+      </person-group>
+      <source>Snifter: R wrapper for the python openTSNE library</source>
+      <year iso-8601-date="2022">2022</year>
+      <uri>https://doi.org/10.18129/B9.bioc.snifter</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-crisprScore">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Hoberecht</surname><given-names>Luke</given-names></name>
+        <name><surname>Perampalam</surname><given-names>Pirunthan</given-names></name>
+        <name><surname>Lun</surname><given-names>Aaron</given-names></name>
+        <name><surname>Fortin</surname><given-names>Jean-Philippe</given-names></name>
+      </person-group>
+      <article-title>A comprehensive Bioconductor ecosystem for the design of CRISPR guide RNAs across nucleases and technologies</article-title>
+      <source>bioRxiv</source>
+      <year iso-8601-date="2022">2022</year>
+      <uri>https://www.biorxiv.org/content/early/2022/04/28/2022.04.21.488824</uri>
+      <pub-id pub-id-type="doi">10.1101/2022.04.21.488824</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-python2reticulate">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Kalinowski</surname><given-names>Tomasz</given-names></name>
+      </person-group>
+      <article-title>Restore Python 2 compatibility; deprecate Python 2 compatability</article-title>
+      <year iso-8601-date="2022">2022</year>
+      <uri>https://github.com/rstudio/reticulate/pull/1242</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-multienvreticulate">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Muenchow</surname><given-names>Jannes</given-names></name>
+        <name><surname>Allaire</surname><given-names>JJ</given-names></name>
+        <name><surname>Markov</surname><given-names>Nikolay</given-names></name>
+      </person-group>
+      <article-title>Change path to Python binary</article-title>
+      <year iso-8601-date="2019">2019</year>
+      <uri>https://github.com/rstudio/reticulate/issues/27</uri>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
