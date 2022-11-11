@@ -1,0 +1,1003 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">4716</article-id>
+<article-id pub-id-type="doi">10.21105/joss.04716</article-id>
+<title-group>
+<article-title><bold>geostan</bold>: An R package for Bayesian spatial
+analysis</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">0000-0002-9698-5443</contrib-id>
+<name>
+<surname>Donegan</surname>
+<given-names>Connor</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+<xref ref-type="aff" rid="aff-2"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Geography and Geospatial Information Sciences, The
+University of Texas at Dallas</institution>
+</institution-wrap>
+</aff>
+<aff id="aff-2">
+<institution-wrap>
+<institution>Peter O’Donnell Jr. School of Public Health, University of
+Texas Southwestern Medical Center</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<volume>7</volume>
+<issue>79</issue>
+<fpage>4716</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2022</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>R</kwd>
+<kwd>spatial data</kwd>
+<kwd>survey data</kwd>
+<kwd>Bayesian inference</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p>Analyses of data collected across areal units, such as census
+  tracts and states, are now ubiquitous in the social and health
+  sciences. Data sources include surveys (especially large
+  government-backed surveys like the US Census Bureau’s American
+  Community Survey (ACS)), vital statistics systems, and disease
+  registries (particularly cancer registries). These data sources can
+  provide crucial information about population health and socio-economic
+  outcomes, but many standard (non-spatial) statistical methods and
+  workflows are either not applicable to spatial data or they require
+  adjustment
+  (<xref alt="Cressie, 2015" rid="ref-cressie_2015" ref-type="bibr">Cressie,
+  2015</xref>;
+  <xref alt="Haining &amp; Li, 2020" rid="ref-haining_2020" ref-type="bibr">Haining
+  &amp; Li, 2020</xref>).</p>
+  <p>This paper introduces <bold>geostan</bold>, an R
+  (<xref alt="R Core Team, 2021" rid="ref-rstats" ref-type="bibr">R Core
+  Team, 2021</xref>) package for analyzing spatial data using Bayesian
+  inference. <bold>geostan</bold>’s spatial models were built using
+  Stan, a platform for Markov chain Monte Carlo (MCMC) sampling
+  (<xref alt="Gabry et al., 2020" rid="ref-gabry_2020" ref-type="bibr">Gabry
+  et al., 2020</xref>;
+  <xref alt="Stan Development Team, 2022a" rid="ref-stan_2022" ref-type="bibr">Stan
+  Development Team, 2022a</xref>,
+  <xref alt="2022b" rid="ref-stan_2022b" ref-type="bibr">2022b</xref>).
+  The primary focus of the package is areal data for socio-economic and
+  health research. The package provides tools for a complete workflow
+  for spatial regression and disease mapping, and has unique spatial
+  measurement error (ME) models suitable for researchers using ACS
+  estimates as covariates
+  (<xref alt="Donegan et al., 2021" rid="ref-donegan_2021" ref-type="bibr">Donegan
+  et al., 2021</xref>).</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p>The distinguishing characteristic of spatial data is that maps of
+  the data typically contain moderate to strong spatial patterns, or
+  spatial autocorrelation, which typically reduces effective sample size
+  (ESS) and renders many standard statistical methods inappropriate
+  (<xref alt="Clifford et al., 1989" rid="ref-clifford_1989" ref-type="bibr">Clifford
+  et al., 1989</xref>;
+  <xref alt="“Student” [W.S. Gausset], 1914" rid="ref-student_1914" ref-type="bibr">“Student”
+  [W.S. Gausset], 1914</xref>). In addition, spatial patterns are often
+  of direct interest—for example, disease mapping studies are concerned
+  primarily with understanding how disease or mortality risk vary over
+  space.</p>
+  <p>A major challenge for spatial analysis is data quality,
+  particularly for researchers using survey-based covariates. A single
+  spatial analysis may use dozens, or even thousands, of error-laden
+  survey estimates. Sampling error in ACS estimates is often substantial
+  in magnitude and socially patterned
+  (<xref alt="Donegan et al., 2021" rid="ref-donegan_2021" ref-type="bibr">Donegan
+  et al., 2021</xref>;
+  <xref alt="Folch et al., 2016" rid="ref-folch_2016" ref-type="bibr">Folch
+  et al., 2016</xref>), which can have real consequences on communities
+  and service providers
+  (<xref alt="Bazuin &amp; Fraser, 2013" rid="ref-bazuin_2013" ref-type="bibr">Bazuin
+  &amp; Fraser, 2013</xref>). Spatial ME models are required to avoid ME
+  biases and unwarranted levels of confidence in results.</p>
+  <p>Existing R packages with spatial modeling functions include
+  <bold>spatialreg</bold>
+  (<xref alt="R. Bivand &amp; Piras, 2015" rid="ref-bivand_2015" ref-type="bibr">R.
+  Bivand &amp; Piras, 2015</xref>), <bold>INLA</bold>
+  (<xref alt="Rue et al., 2009" rid="ref-rue_2009" ref-type="bibr">Rue
+  et al., 2009</xref>), <bold>ngspatial</bold>
+  (<xref alt="Hughes &amp; Cui, 2020" rid="ref-hughes_2020" ref-type="bibr">Hughes
+  &amp; Cui, 2020</xref>), <bold>BayesX</bold>
+  (<xref alt="Belitz et al., 2022" rid="ref-belitz_2022" ref-type="bibr">Belitz
+  et al., 2022</xref>;
+  <xref alt="Umlauf et al., 2015" rid="ref-umlauf_2015" ref-type="bibr">Umlauf
+  et al., 2015</xref>), <bold>CARBayes</bold>
+  (<xref alt="Lee, 2013" rid="ref-lee_2013" ref-type="bibr">Lee,
+  2013</xref>), and <bold>nimble</bold>
+  (<xref alt="de Valpine et al., 2017" rid="ref-valpine_2017" ref-type="bibr">de
+  Valpine et al., 2017</xref>). Custom spatial models can be built using
+  <bold>rstan</bold>
+  (<xref alt="Stan Development Team, 2022a" rid="ref-stan_2022" ref-type="bibr">Stan
+  Development Team, 2022a</xref>), <bold>INLA</bold>, and
+  <bold>nimble</bold>, including spatial ME models, but this requires
+  specialized programming and statistical skills.</p>
+  <p><bold>geostan</bold> fills two gaps in this software landscape.
+  First, <bold>geostan</bold> offers spatial ME models that are
+  appropriate for survey-based covariates. Second, <bold>geostan</bold>
+  provides spatial model diagnostic functions that make it easy for
+  users to evaluate model results even if they are unfamiliar with MCMC
+  analysis.</p>
+</sec>
+<sec id="functionality">
+  <title>Functionality</title>
+  <p><bold>geostan</bold> provides tools for spatial data visualization,
+  construction of spatial weights matrices, spatial ME models, models
+  for censored count data, and multiple types of spatial statistical
+  models for continuous and discrete data types. The
+  <monospace>shape2mat</monospace> function creates spatial weights
+  matrices by first calling the <bold>spdep</bold> package
+  (<xref alt="R. S. Bivand et al., 2013" rid="ref-bivand_2013" ref-type="bibr">R.
+  S. Bivand et al., 2013</xref>) to identify the adjacency structure of
+  the spatial data, and results are returned to the user in sparse
+  matrix format using the <bold>Matrix</bold> package
+  (<xref alt="Bates et al., 2022" rid="ref-bates_2022" ref-type="bibr">Bates
+  et al., 2022</xref>).</p>
+  <p><bold>geostan</bold> uses MCMC for inference, which allows users to
+  conduct formal inference on generated quantities of interest. The
+  models are built using the Stan modeling language, a state-of-the-art
+  platform for MCMC sampling
+  (<xref alt="Gabry et al., 2020" rid="ref-gabry_2020" ref-type="bibr">Gabry
+  et al., 2020</xref>;
+  <xref alt="Stan Development Team, 2022a" rid="ref-stan_2022" ref-type="bibr">Stan
+  Development Team, 2022a</xref>,
+  <xref alt="2022b" rid="ref-stan_2022b" ref-type="bibr">2022b</xref>),
+  but users only need to be familiar with the standard R formula
+  interface. Because <bold>geostan</bold> returns
+  <monospace>stanfit</monospace> objects from <bold>rstan</bold>, it is
+  compatible with the <bold>rstan</bold> ecosystem of packages including
+  <bold>shinystan</bold> for visual summaries of model parameters and
+  MCMC diagnostics
+  (<xref alt="Gabry, 2018" rid="ref-gabry_2018" ref-type="bibr">Gabry,
+  2018</xref>), <bold>tidybayes</bold> for working with MCMC samples
+  (<xref alt="Kay, 2022" rid="ref-kay_2022" ref-type="bibr">Kay,
+  2022</xref>), and <bold>bridgesampling</bold> for model comparison
+  using Bayes factors
+  (<xref alt="Gronau et al., 2020" rid="ref-gronau_2020" ref-type="bibr">Gronau
+  et al., 2020</xref>).</p>
+  <sec id="exploratory-spatial-data-analysis-esda">
+    <title>Exploratory spatial data analysis (ESDA)</title>
+    <p>The package provides convenience functions for visualizing
+    spatial patterns and conducting ESDA, including</p>
+    <list list-type="bullet">
+      <list-item>
+        <p>Moran scatter plot for visualizing spatial autocorrelation
+        (<xref alt="Chun &amp; Griffith, 2013" rid="ref-chun_2013" ref-type="bibr">Chun
+        &amp; Griffith, 2013</xref>)</p>
+      </list-item>
+      <list-item>
+        <p>Moran coefficient and Geary Ratio for measuring global
+        spatial autocorrelation
+        (<xref alt="Chun &amp; Griffith, 2013" rid="ref-chun_2013" ref-type="bibr">Chun
+        &amp; Griffith, 2013</xref>)</p>
+      </list-item>
+      <list-item>
+        <p>Local Moran’s I and local Geary’s C for measuring and
+        visualizing local spatial autocorrelation
+        (<xref alt="Anselin, 1995" rid="ref-anselin_1995" ref-type="bibr">Anselin,
+        1995</xref>)</p>
+      </list-item>
+      <list-item>
+        <p>The Approximate Profile Likelihood (APLE) estimator for
+        measuring spatial autocorrelation
+        (<xref alt="Li et al., 2007" rid="ref-li_2007" ref-type="bibr">Li
+        et al., 2007</xref>)</p>
+      </list-item>
+      <list-item>
+        <p>Effective sample size (ESS) calculation
+        (<xref alt="D. A. Griffith, 2005" rid="ref-griffith_2005" ref-type="bibr">D.
+        A. Griffith, 2005</xref>)</p>
+      </list-item>
+    </list>
+    <p>These tools are provided for exploratory analysis, but not for
+    detection of clusters. For this and other reasons, p-values are not
+    provided. Graphics are created with <bold>ggplot2</bold>
+    (<xref alt="Wickham, 2016" rid="ref-wickham_2016" ref-type="bibr">Wickham,
+    2016</xref>).</p>
+    <p><bold>geostan</bold> also provides a convenience function for
+    obtaining a quick visual summary of a variable (see
+    <xref alt="Figure 1" rid="figU003Asp_diag">Figure 1</xref>). When a
+    fitted model is provided, the <monospace>sp_diag</monospace>
+    function returns graphical diagnostics for model residuals.</p>
+    <fig>
+      <caption><p>Spatial diagnostic summary for percent college
+      educated, Georgia
+      counties.<styled-content id="figU003Asp_diag"></styled-content></p></caption>
+      <graphic mimetype="image" mime-subtype="png" xlink:href="media/sp-diag.png" xlink:title="" />
+    </fig>
+  </sec>
+  <sec id="spatial-models">
+    <title>Spatial models</title>
+    <p>Table 1 lists the types of spatial models that are implemented in
+    <bold>geostan</bold>. In addition to (non-spatial) generalized
+    linear models (GLMs), options include spatial conditional
+    autoregressive (CAR) models
+    (<xref alt="Donegan, 2021" rid="ref-donegan_2022" ref-type="bibr">Donegan,
+    2021</xref>), intrinsic conditional autoregressive (ICAR) models
+    including the BYM
+    (<xref alt="Besag et al., 1991" rid="ref-besag_1991" ref-type="bibr">Besag
+    et al., 1991</xref>) and BYM2 specifications
+    (<xref alt="Donegan &amp; Morris, 2021" rid="ref-donegan_2021b" ref-type="bibr">Donegan
+    &amp; Morris, 2021</xref>;
+    <xref alt="Morris et al., 2019" rid="ref-morris_2019" ref-type="bibr">Morris
+    et al., 2019</xref>;
+    <xref alt="Riebler et al., 2016" rid="ref-riebler_2016" ref-type="bibr">Riebler
+    et al., 2016</xref>), simultaneously-specified spatial
+    autoregressive (SAR) models
+    (<xref alt="Cliff &amp; Ord, 1981" rid="ref-cliff_1981" ref-type="bibr">Cliff
+    &amp; Ord, 1981</xref>) (which are referred to as the spatial error
+    model (SEM) in the econometrics literature
+    (<xref alt="LeSage, 2014" rid="ref-lesage_2014" ref-type="bibr">LeSage,
+    2014</xref>)), and eigenvector spatial filtering (ESF)
+    (<xref alt="Donegan et al., 2020" rid="ref-donegan_2020" ref-type="bibr">Donegan
+    et al., 2020</xref>;
+    <xref alt="D. Griffith et al., 2019" rid="ref-griffith_2019" ref-type="bibr">D.
+    Griffith et al., 2019</xref>).</p>
+    <boxed-text id="tblU003Amodels">
+      <table-wrap>
+        <caption>
+          <p>Spatial models currently implemented in
+          <bold>geostan</bold>.</p>
+        </caption>
+        <table>
+          <thead>
+            <tr>
+              <th align="left"></th>
+              <th align="center">Gaussian</th>
+              <th align="center">Student’s
+              <inline-formula><alternatives>
+              <tex-math><![CDATA[t]]></tex-math>
+              <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>t</mml:mi></mml:math></alternatives></inline-formula></th>
+              <th align="center">Poisson</th>
+              <th align="center">Binomial</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td align="left">CAR</td>
+              <td align="center">x</td>
+              <td align="center"></td>
+              <td align="center">x</td>
+              <td align="center">x</td>
+            </tr>
+            <tr>
+              <td align="left">ESF</td>
+              <td align="center">x</td>
+              <td align="center">x</td>
+              <td align="center">x</td>
+              <td align="center">x</td>
+            </tr>
+            <tr>
+              <td align="left">GLM</td>
+              <td align="center">x</td>
+              <td align="center">x</td>
+              <td align="center">x</td>
+              <td align="center">x</td>
+            </tr>
+            <tr>
+              <td align="left">ICAR</td>
+              <td align="center"></td>
+              <td align="center"></td>
+              <td align="center">x</td>
+              <td align="center">x</td>
+            </tr>
+            <tr>
+              <td align="left">SAR</td>
+              <td align="center">x</td>
+              <td align="center"></td>
+              <td align="center">x</td>
+              <td align="center">x</td>
+            </tr>
+          </tbody>
+        </table>
+      </table-wrap>
+    </boxed-text>
+    <p>All of the models allow for a set of exchangeable ‘random
+    effects’ to be added, and spatially lagged covariates (SLX) can also
+    be added to any of the models. While proper CAR models have been
+    avoided in the past due to their computational burden, the CAR model
+    is the most efficient spatial model in <bold>geostan</bold>. It is
+    fast enough to work interactively on a laptop with more than
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[3000]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mn>3000</mml:mn></mml:math></alternatives></inline-formula>
+    observations, such as U.S. county data
+    (<xref alt="Donegan, 2021" rid="ref-donegan_2022" ref-type="bibr">Donegan,
+    2021</xref>).</p>
+    <p>A set of functions for working with model results conveniently
+    extracts fitted values, marginal effects, residuals, spatial trends,
+    and posterior (or prior) predictive distributions. Users are
+    encouraged to always undertake a thoughtful spatial analysis of
+    model residuals and other quantities to critique and improve their
+    models through successive rounds of ESDA (cf.
+    <xref alt="Gabry et al., 2019" rid="ref-gabry_2019" ref-type="bibr">Gabry
+    et al., 2019</xref>).</p>
+  </sec>
+  <sec id="spatial-me-models">
+    <title>Spatial ME models</title>
+    <p>ME models can be added to any <bold>geostan</bold> model. These
+    are models for covariates measured with error, particularly
+    small-area survey estimates with standard errors. The ME models
+    treat the true covariate values as unknown parameters or latent
+    variables, which are assigned a spatial CAR prior model. Users
+    provide the scale of observational uncertainty or ME (e.g., survey
+    standard errors) as data
+    (<xref alt="Donegan et al., 2021" rid="ref-donegan_2021" ref-type="bibr">Donegan
+    et al., 2021</xref>; cf.
+    <xref alt="Bernardinelli et al., 1997" rid="ref-bernardinelli_1997" ref-type="bibr">Bernardinelli
+    et al., 1997</xref>;
+    <xref alt="Kang et al., 2009" rid="ref-kang_2009" ref-type="bibr">Kang
+    et al., 2009</xref>;
+    <xref alt="Logan et al., 2019" rid="ref-logan_2019" ref-type="bibr">Logan
+    et al., 2019</xref>;
+    <xref alt="Xia &amp; Carlin, 1998" rid="ref-xia_1998" ref-type="bibr">Xia
+    &amp; Carlin, 1998</xref>). All uncertain inferences from the ME
+    models are automatically propagated throughout the regression or a
+    disease mapping model, and graphical diagnostics are provided for
+    evaluating results of spatial ME models.</p>
+  </sec>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>I am grateful for support this project received from Esri Inc. and
+  from the Geography and Geospatial Information Sciences program at The
+  University of Texas at Dallas.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <ref id="ref-bates_2022">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Bates</surname><given-names>Douglas</given-names></name>
+        <name><surname>Maechler</surname><given-names>Martin</given-names></name>
+        <name><surname>Jagan</surname><given-names>Mikael</given-names></name>
+      </person-group>
+      <source>Matrix: Sparse and dense matrix classes and methods</source>
+      <year iso-8601-date="2022">2022</year>
+      <uri>https://R-Forge.R-project.org/projects/matrix/</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-umlauf_2015">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Umlauf</surname><given-names>Nikolaus</given-names></name>
+        <name><surname>Adler</surname><given-names>Daniel</given-names></name>
+        <name><surname>Kneib</surname><given-names>Thomas</given-names></name>
+        <name><surname>Lang</surname><given-names>Stefan</given-names></name>
+        <name><surname>Zeileis</surname><given-names>Achim</given-names></name>
+      </person-group>
+      <article-title>Structured additive regression models: An R interface to BayesX</article-title>
+      <source>Journal of Statistical Software</source>
+      <year iso-8601-date="2015">2015</year>
+      <volume>63</volume>
+      <issue>21</issue>
+      <uri>https://www.jstatsoft.org/v63/i21/</uri>
+      <fpage>1</fpage>
+      <lpage>46</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-belitz_2022">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Belitz</surname><given-names>Christiane</given-names></name>
+        <name><surname>Brezger</surname><given-names>Andreas</given-names></name>
+        <name><surname>Kneib</surname><given-names>Thomas</given-names></name>
+        <name><surname>Lang</surname><given-names>Stefan</given-names></name>
+        <name><surname>Umlauf</surname><given-names>Nikolaus</given-names></name>
+      </person-group>
+      <source>BayesX: Software for Bayesian inference in structured additive regression models</source>
+      <year iso-8601-date="2022">2022</year>
+      <uri>https://www.uni-goettingen.de/de/bayesx/550513.html</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-wickham_2016">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Wickham</surname><given-names>Hadley</given-names></name>
+      </person-group>
+      <source>ggplot2: Elegant graphics for data analysis</source>
+      <publisher-name>Springer-Verlag New York</publisher-name>
+      <year iso-8601-date="2016">2016</year>
+      <isbn>978-3-319-24277-4</isbn>
+      <uri>https://ggplot2.tidyverse.org</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-donegan_2022">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Donegan</surname><given-names>Connor</given-names></name>
+      </person-group>
+      <article-title>Building spatial conditional autoregressive (CAR) models in the Stan programming language</article-title>
+      <source>OSF Preprints</source>
+      <year iso-8601-date="2021">2021</year>
+      <pub-id pub-id-type="doi">10.31219/osf.io/3ey65</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-donegan_2020">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Donegan</surname><given-names>Connor</given-names></name>
+        <name><surname>Chun</surname><given-names>Yongwan</given-names></name>
+        <name><surname>Hughes</surname><given-names>Amy E</given-names></name>
+      </person-group>
+      <article-title>Bayesian estimation of spatial filters with Moran’s eigenvectors and hierarchical shrinkage priors</article-title>
+      <source>Spatial Statistics</source>
+      <publisher-name>Elsevier</publisher-name>
+      <year iso-8601-date="2020">2020</year>
+      <volume>38</volume>
+      <pub-id pub-id-type="doi">10.1016/j.spasta.2020.100450</pub-id>
+      <fpage>100450</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-donegan_2021">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Donegan</surname><given-names>Connor</given-names></name>
+        <name><surname>Chun</surname><given-names>Yongwan</given-names></name>
+        <name><surname>Griffith</surname><given-names>Daniel A.</given-names></name>
+      </person-group>
+      <article-title>Modeling community health with areal data: Bayesian inference with survey standard errors and spatial structure</article-title>
+      <source>Int. J. Env. Res. Public Health</source>
+      <year iso-8601-date="2021">2021</year>
+      <volume>18</volume>
+      <issue>13</issue>
+      <pub-id pub-id-type="doi">10.3390/ijerph18136856</pub-id>
+      <fpage>6856</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-donegan_2021b">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Donegan</surname><given-names>Connor</given-names></name>
+        <name><surname>Morris</surname><given-names>Mitzi</given-names></name>
+      </person-group>
+      <article-title>Flexible functions for ICAR, BYM, and BYM2 models in Stan</article-title>
+      <publisher-name>https://github.com/ConnorDonegan/Stan-IAR (accessed on July 13, 2022)</publisher-name>
+      <year iso-8601-date="2021">2021</year>
+    </element-citation>
+  </ref>
+  <ref id="ref-chun_2013">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Chun</surname><given-names>Yongwan</given-names></name>
+        <name><surname>Griffith</surname><given-names>Daniel A</given-names></name>
+      </person-group>
+      <source>Spatial statistics and geostatistics: Theory and applications for geographic information science and technology</source>
+      <publisher-name>Sage</publisher-name>
+      <publisher-loc>Los Angeles</publisher-loc>
+      <year iso-8601-date="2013">2013</year>
+    </element-citation>
+  </ref>
+  <ref id="ref-student_1914">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <string-name>“Student” [W.S. Gausset]</string-name>
+      </person-group>
+      <article-title>The elimination of spurious correlation due to position in time and space</article-title>
+      <source>Biometrika</source>
+      <year iso-8601-date="1914">1914</year>
+      <volume>10</volume>
+      <pub-id pub-id-type="doi">10.1093/biomet/10.1.179</pub-id>
+      <fpage>179</fpage>
+      <lpage>180</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-hughes_2020">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Hughes</surname><given-names>John</given-names></name>
+        <name><surname>Cui</surname><given-names>Xiaohui</given-names></name>
+      </person-group>
+      <source>ngspatial: Fitting the centered autologistic and sparse spatial generalized linear mixed models for areal data</source>
+      <publisher-loc>Frederick, MD</publisher-loc>
+      <year iso-8601-date="2020">2020</year>
+    </element-citation>
+  </ref>
+  <ref id="ref-cliff_1981">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Cliff</surname><given-names>AD</given-names></name>
+        <name><surname>Ord</surname><given-names>JK</given-names></name>
+      </person-group>
+      <source>Spatial processes: Models and applications</source>
+      <publisher-name>Pion</publisher-name>
+      <year iso-8601-date="1981">1981</year>
+    </element-citation>
+  </ref>
+  <ref id="ref-cressie_2015">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Cressie</surname><given-names>Noel</given-names></name>
+      </person-group>
+      <source>Statistics for spatial data</source>
+      <publisher-name>John Wiley &amp; Sons</publisher-name>
+      <year iso-8601-date="2015">2015</year>
+    </element-citation>
+  </ref>
+  <ref id="ref-clifford_1989">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Clifford</surname><given-names>Peter</given-names></name>
+        <name><surname>Richardson</surname><given-names>Sylvia</given-names></name>
+        <name><surname>Hémon</surname><given-names>Denis</given-names></name>
+      </person-group>
+      <article-title>Assessing the significance of the correlation between two spatial processes</article-title>
+      <source>Biometrics</source>
+      <publisher-name>JSTOR</publisher-name>
+      <year iso-8601-date="1989">1989</year>
+      <volume>45</volume>
+      <pub-id pub-id-type="doi">10.2307/2532039</pub-id>
+      <fpage>123</fpage>
+      <lpage>134</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-griffith_2005">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Griffith</surname><given-names>Daniel A</given-names></name>
+      </person-group>
+      <article-title>Effective geographic sample size in the presence of spatial autocorrelation</article-title>
+      <source>Annals of the Association of American Geographers</source>
+      <year iso-8601-date="2005">2005</year>
+      <volume>95</volume>
+      <issue>4</issue>
+      <pub-id pub-id-type="doi">10.1111/j.1467-8306.2005.00484.x</pub-id>
+      <fpage>740</fpage>
+      <lpage>760</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-griffith_2019">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Griffith</surname><given-names>Daniel</given-names></name>
+        <name><surname>Chun</surname><given-names>Yongwan</given-names></name>
+        <name><surname>Li</surname><given-names>Bin</given-names></name>
+      </person-group>
+      <source>Spatial regression analysis using eigenvector spatial filtering</source>
+      <publisher-name>Academic Press</publisher-name>
+      <publisher-loc>London</publisher-loc>
+      <year iso-8601-date="2019">2019</year>
+      <pub-id pub-id-type="doi">10.1016/C2017-0-01015-7</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-haining_2020">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Haining</surname><given-names>Robert P.</given-names></name>
+        <name><surname>Li</surname><given-names>Guangquan</given-names></name>
+      </person-group>
+      <source>Modelling spatial and spatio-temporal data: A Bayesian approach</source>
+      <publisher-name>CRC Press</publisher-name>
+      <publisher-loc>Boca Raton, FL, USA</publisher-loc>
+      <year iso-8601-date="2020">2020</year>
+    </element-citation>
+  </ref>
+  <ref id="ref-li_2007">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Li</surname><given-names>Honfei</given-names></name>
+        <name><surname>Calder</surname><given-names>Catherine A.</given-names></name>
+        <name><surname>Cressie</surname><given-names>Noel</given-names></name>
+      </person-group>
+      <article-title>Beyond Moran’s I: Testing for spatial dependence based on the spatial autoregressive model</article-title>
+      <source>Geographical Analysis</source>
+      <year iso-8601-date="2007">2007</year>
+      <volume>39</volume>
+      <issue>4</issue>
+      <pub-id pub-id-type="doi">10.1111/j.1538-4632.2007.00708.x</pub-id>
+      <fpage>357</fpage>
+      <lpage>375</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-bazuin_2013">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Bazuin</surname><given-names>Joshua Theodore</given-names></name>
+        <name><surname>Fraser</surname><given-names>James Curtis</given-names></name>
+      </person-group>
+      <article-title>How the ACS gets it wrong: The story of the American Community Survey and a small, inner city neighborhood</article-title>
+      <source>Applied Geography</source>
+      <year iso-8601-date="2013">2013</year>
+      <volume>45</volume>
+      <issue>12</issue>
+      <pub-id pub-id-type="doi">10.1016/j.apgeog.2013.08.013</pub-id>
+      <fpage>292</fpage>
+      <lpage>302</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-folch_2016">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Folch</surname><given-names>David C.</given-names></name>
+        <name><surname>Arribas-Bel</surname><given-names>Daniel</given-names></name>
+        <name><surname>Koschinsky</surname><given-names>Julia</given-names></name>
+        <name><surname>Spielman</surname><given-names>Seth E.</given-names></name>
+      </person-group>
+      <article-title>Spatial variation in the quality of American Community Survey estimates</article-title>
+      <source>Demography</source>
+      <year iso-8601-date="2016">2016</year>
+      <volume>53</volume>
+      <pub-id pub-id-type="doi">10.1007/s13524-016-0499-1</pub-id>
+      <fpage>1535</fpage>
+      <lpage>1554</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-logan_2019">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Logan</surname><given-names>John R</given-names></name>
+        <name><surname>Bauer</surname><given-names>Cici</given-names></name>
+        <name><surname>Ke</surname><given-names>Jun</given-names></name>
+        <name><surname>Xu</surname><given-names>Hongwei</given-names></name>
+        <name><surname>Li</surname><given-names>Fan</given-names></name>
+      </person-group>
+      <article-title>Models for small area estimation for census tracts</article-title>
+      <source>Geographical Analysis</source>
+      <publisher-name>Wiley Online Library</publisher-name>
+      <year iso-8601-date="2019">2019</year>
+      <volume>52</volume>
+      <issue>3</issue>
+      <pub-id pub-id-type="doi">10.1111/gean.12215</pub-id>
+      <fpage>325</fpage>
+      <lpage>350</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-kang_2009">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Kang</surname><given-names>Emily L.</given-names></name>
+        <name><surname>Liu</surname><given-names>Desheng</given-names></name>
+        <name><surname>Cressie</surname><given-names>Noel</given-names></name>
+      </person-group>
+      <article-title>Statistical analysis of small-area data based on independence, spatial, non-hierarchical, and hierarchical models</article-title>
+      <source>Computational Statistics &amp; Data Analysis</source>
+      <year iso-8601-date="2009">2009</year>
+      <volume>53</volume>
+      <pub-id pub-id-type="doi">10.1016/j.csda.2008.07.033</pub-id>
+      <fpage>3016</fpage>
+      <lpage>3032</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-bernardinelli_1997">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Bernardinelli</surname><given-names>Luisa</given-names></name>
+        <name><surname>Pascutto</surname><given-names>Cristian</given-names></name>
+        <name><surname>Best</surname><given-names>Nicola G.</given-names></name>
+        <name><surname>Gilks</surname><given-names>Walter R.</given-names></name>
+      </person-group>
+      <article-title>Disease mapping with errors in covariates</article-title>
+      <source>Statistics in Medicine</source>
+      <year iso-8601-date="1997">1997</year>
+      <volume>16</volume>
+      <issue>7</issue>
+      <pub-id pub-id-type="doi">10.1002/(sici)1097-0258(19970415)16:7&lt;741::aid-sim501&gt;3.0.co;2-1</pub-id>
+      <fpage>741</fpage>
+      <lpage>752</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-xia_1998">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Xia</surname><given-names>Hong</given-names></name>
+        <name><surname>Carlin</surname><given-names>Bradley P</given-names></name>
+      </person-group>
+      <article-title>Spatio-temporal models with errors in covariates: Mapping Ohio lung cancer mortality</article-title>
+      <source>Statistics in Medicine</source>
+      <publisher-name>Wiley Online Library</publisher-name>
+      <year iso-8601-date="1998">1998</year>
+      <volume>17</volume>
+      <issue>18</issue>
+      <pub-id pub-id-type="doi">10.1002/(sici)1097-0258(19980930)17:18&lt;2025::aid-sim865&gt;3.0.co;2-m</pub-id>
+      <fpage>2025</fpage>
+      <lpage>2043</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-besag_1991">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Besag</surname><given-names>Julian</given-names></name>
+        <name><surname>York</surname><given-names>Jeremy</given-names></name>
+        <name><surname>Mollié</surname><given-names>Annie</given-names></name>
+      </person-group>
+      <article-title>Bayesian image restoration, with two applications in spatial statistics</article-title>
+      <source>Annals of the Institute of Statistical volume</source>
+      <year iso-8601-date="1991">1991</year>
+      <volume>43</volume>
+      <pub-id pub-id-type="doi">10.1007/BF00116466</pub-id>
+      <fpage>1</fpage>
+      <lpage>20</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-riebler_2016">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Riebler</surname><given-names>Andrea</given-names></name>
+        <name><surname>Sørbye</surname><given-names>Sigrunn H</given-names></name>
+        <name><surname>Simpson</surname><given-names>Daniel</given-names></name>
+        <name><surname>Rue</surname><given-names>Håvard</given-names></name>
+      </person-group>
+      <article-title>An intuitive Bayesian spatial model for disease mapping that accounts for scaling</article-title>
+      <source>Statistical methods in medical research</source>
+      <publisher-name>Sage Publications Sage UK: London, England</publisher-name>
+      <year iso-8601-date="2016">2016</year>
+      <volume>25</volume>
+      <issue>4</issue>
+      <pub-id pub-id-type="doi">10.1177/0962280216660421</pub-id>
+      <fpage>1145</fpage>
+      <lpage>1165</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-lesage_2014">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>LeSage</surname><given-names>James P</given-names></name>
+      </person-group>
+      <article-title>What regional scientists need to know about spatial econometrics</article-title>
+      <source>The Review of Regional Studies</source>
+      <year iso-8601-date="2014">2014</year>
+      <volume>44</volume>
+      <pub-id pub-id-type="doi">10.2139/ssrn.2420725</pub-id>
+      <fpage>13</fpage>
+      <lpage>32</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-morris_2019">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Morris</surname><given-names>Mitzi</given-names></name>
+        <name><surname>Wheeler-Martin</surname><given-names>Katherine</given-names></name>
+        <name><surname>Simpson</surname><given-names>Dan</given-names></name>
+        <name><surname>Mooney</surname><given-names>Stephen J</given-names></name>
+        <name><surname>Gelman</surname><given-names>Andrew</given-names></name>
+        <name><surname>DiMaggio</surname><given-names>Charles</given-names></name>
+      </person-group>
+      <article-title>Bayesian hierarchical spatial models: Implementing the Besag York Mollié model in Stan</article-title>
+      <source>Spatial and Spatio-temporal Epidemiology</source>
+      <publisher-name>Elsevier</publisher-name>
+      <year iso-8601-date="2019">2019</year>
+      <volume>31</volume>
+      <pub-id pub-id-type="doi">10.1016/j.sste.2019.100301</pub-id>
+      <fpage>100301</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-gabry_2019">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Gabry</surname><given-names>Jonah</given-names></name>
+        <name><surname>Simpson</surname><given-names>Daniel</given-names></name>
+        <name><surname>Vehtari</surname><given-names>Aki</given-names></name>
+        <name><surname>Betancourt</surname><given-names>Michael</given-names></name>
+        <name><surname>Gelman</surname><given-names>Andrew</given-names></name>
+      </person-group>
+      <article-title>Visualization in Bayesian workflow</article-title>
+      <source>Journal of the Royal Statistical Society: Series A (Statistics in Society)</source>
+      <publisher-name>Wiley Online Library</publisher-name>
+      <year iso-8601-date="2019">2019</year>
+      <volume>182</volume>
+      <issue>2</issue>
+      <pub-id pub-id-type="doi">10.1111/rssa.12378</pub-id>
+      <fpage>389</fpage>
+      <lpage>402</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-bivand_2013">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Bivand</surname><given-names>Roger S.</given-names></name>
+        <name><surname>Pebesma</surname><given-names>Edzer</given-names></name>
+        <name><surname>Gomez-Rubio</surname><given-names>Virgilio</given-names></name>
+      </person-group>
+      <source>Applied spatial data analysis with R, second edition</source>
+      <publisher-name>Springer, NY</publisher-name>
+      <year iso-8601-date="2013">2013</year>
+      <uri>https://asdar-book.org/</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-bivand_2015">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Bivand</surname><given-names>Roger</given-names></name>
+        <name><surname>Piras</surname><given-names>Gianfranco</given-names></name>
+      </person-group>
+      <article-title>Comparing implementations of estimation methods for spatial econometrics</article-title>
+      <source>Journal of Statistical Software</source>
+      <year iso-8601-date="2015">2015</year>
+      <volume>63</volume>
+      <issue>18</issue>
+      <pub-id pub-id-type="doi">10.18637/jss.v063.i18</pub-id>
+      <fpage>1</fpage>
+      <lpage>36</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-rue_2009">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Rue</surname><given-names>Håvard</given-names></name>
+        <name><surname>Martino</surname><given-names>Sara</given-names></name>
+        <name><surname>Chopin</surname><given-names>Nicholas</given-names></name>
+      </person-group>
+      <article-title>Approximate Bayesian inference for latent Gaussian models using integrated nested Laplace approximations (with discussion).</article-title>
+      <source>Journal of the Royal Statistical Society B</source>
+      <year iso-8601-date="2009">2009</year>
+      <volume>71</volume>
+      <pub-id pub-id-type="doi">10.1111/j.1467-9868.2008.00700.x</pub-id>
+      <fpage>319</fpage>
+      <lpage>392</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-lee_2013">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Lee</surname><given-names>Duncan</given-names></name>
+      </person-group>
+      <article-title>CARBayes: An R package for Bayesian spatial modeling with conditional autoregressive priors</article-title>
+      <source>Journal of Statistical Software</source>
+      <year iso-8601-date="2013">2013</year>
+      <volume>55</volume>
+      <issue>13</issue>
+      <uri>https://www.jstatsoft.org/htaccess.php?volume=55&amp;type=i&amp;issue=13</uri>
+      <fpage>1</fpage>
+      <lpage>24</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-valpine_2017">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>de Valpine</surname><given-names>Perry</given-names></name>
+        <name><surname>Turek</surname><given-names>Daniel</given-names></name>
+        <name><surname>Paciorek</surname><given-names>Christopher</given-names></name>
+        <name><surname>Anderson-Bergman</surname><given-names>Cliff</given-names></name>
+        <name><surname>Temple Lang</surname><given-names>Duncan</given-names></name>
+        <name><surname>Bodik</surname><given-names>Ras</given-names></name>
+      </person-group>
+      <article-title>Programming with models: Writing statistical algorithms for general model structures with NIMBLE</article-title>
+      <source>Journal of Computational and Graphical Statistics</source>
+      <year iso-8601-date="2017">2017</year>
+      <volume>26</volume>
+      <pub-id pub-id-type="doi">10.1080/10618600.2016.1172487</pub-id>
+      <fpage>403</fpage>
+      <lpage>413</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-gabry_2020">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Gabry</surname><given-names>Jonah</given-names></name>
+        <name><surname>Goodrich</surname><given-names>Ben</given-names></name>
+        <name><surname>Lysy</surname><given-names>Martin</given-names></name>
+      </person-group>
+      <source>Rstantools: Tools for developing R packages interfacing with ’Stan’</source>
+      <year iso-8601-date="2020">2020</year>
+    </element-citation>
+  </ref>
+  <ref id="ref-gabry_2018">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Gabry</surname><given-names>Jonah</given-names></name>
+      </person-group>
+      <source>Shinystan: Interactive visual and numerical diagnostics and posterior analysis for Bayesian models</source>
+      <year iso-8601-date="2018">2018</year>
+      <uri>https://CRAN.R-project.org/package=shinystan</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-stan_2022b">
+    <element-citation>
+      <person-group person-group-type="author">
+        <string-name>Stan Development Team</string-name>
+      </person-group>
+      <article-title>Stan modeling language users guide and reference manual, 2.30</article-title>
+      <year iso-8601-date="2022">2022</year>
+      <uri>https://mc-stan.org/</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-stan_2022">
+    <element-citation>
+      <person-group person-group-type="author">
+        <string-name>Stan Development Team</string-name>
+      </person-group>
+      <article-title>RStan: The R interface to Stan</article-title>
+      <year iso-8601-date="2022">2022</year>
+      <uri>https://mc-stan.org/</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-kay_2022">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Kay</surname><given-names>Matthew</given-names></name>
+      </person-group>
+      <source>tidybayes: Tidy data and geoms for Bayesian models</source>
+      <year iso-8601-date="2022">2022</year>
+      <uri>http://mjskay.github.io/tidybayes/</uri>
+      <pub-id pub-id-type="doi">10.5281/zenodo.1308151</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-gronau_2020">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Gronau</surname><given-names>Quentin F.</given-names></name>
+        <name><surname>Singmann</surname><given-names>Henrik</given-names></name>
+        <name><surname>Wagenmakers</surname><given-names>Eric-Jan</given-names></name>
+      </person-group>
+      <article-title>bridgesampling: An R package for estimating normalizing constants</article-title>
+      <source>Journal of Statistical Software</source>
+      <year iso-8601-date="2020">2020</year>
+      <volume>92</volume>
+      <issue>10</issue>
+      <pub-id pub-id-type="doi">10.18637/jss.v092.i10</pub-id>
+      <fpage>1</fpage>
+      <lpage>29</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-anselin_1995">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Anselin</surname><given-names>Luc</given-names></name>
+      </person-group>
+      <article-title>Local indicators of spatial association—LISA</article-title>
+      <source>Geographical Analysis</source>
+      <publisher-name>Wiley Online Library</publisher-name>
+      <year iso-8601-date="1995">1995</year>
+      <volume>27</volume>
+      <issue>2</issue>
+      <pub-id pub-id-type="doi">10.1111/j.1538-4632.1995.tb00338.x</pub-id>
+      <fpage>93</fpage>
+      <lpage>115</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-rstats">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <string-name>R Core Team</string-name>
+      </person-group>
+      <source>R: A language and environment for statistical computing</source>
+      <publisher-name>R Foundation for Statistical Computing</publisher-name>
+      <publisher-loc>Vienna, Austria</publisher-loc>
+      <year iso-8601-date="2021">2021</year>
+      <uri>https://www.R-project.org/</uri>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
