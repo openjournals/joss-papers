@@ -1,0 +1,498 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">4908</article-id>
+<article-id pub-id-type="doi">10.21105/joss.04908</article-id>
+<title-group>
+<article-title>Metagenomic classification with KrakenUniq on low-memory
+computers</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author" corresp="yes">
+<name>
+<surname>Pockrandt</surname>
+<given-names>Christopher</given-names>
+</name>
+<email>pockrandt@jhu.edu</email>
+<xref ref-type="aff" rid="aff-1"/>
+<xref ref-type="aff" rid="aff-2"/>
+<xref ref-type="corresp" rid="cor-1"><sup>*</sup></xref>
+</contrib>
+<contrib contrib-type="author">
+<name>
+<surname>Zimin</surname>
+<given-names>Aleksey V.</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+<xref ref-type="aff" rid="aff-2"/>
+</contrib>
+<contrib contrib-type="author" corresp="yes">
+<name>
+<surname>Salzberg</surname>
+<given-names>Steven L.</given-names>
+</name>
+<email>salzberg@jhu.edu</email>
+<xref ref-type="aff" rid="aff-1"/>
+<xref ref-type="aff" rid="aff-2"/>
+<xref ref-type="aff" rid="aff-3"/>
+<xref ref-type="aff" rid="aff-4"/>
+<xref ref-type="corresp" rid="cor-2"><sup>*</sup></xref>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Center for Computational Biology, Johns Hopkins University,
+Baltimore, MD 21218, USA</institution>
+</institution-wrap>
+</aff>
+<aff id="aff-2">
+<institution-wrap>
+<institution>Department of Biomedical Engineering, Johns Hopkins
+University, Baltimore, MD 21218, USA</institution>
+</institution-wrap>
+</aff>
+<aff id="aff-3">
+<institution-wrap>
+<institution>Department of Computer Science, Johns Hopkins University,
+Baltimore, MD 21218, USA</institution>
+</institution-wrap>
+</aff>
+<aff id="aff-4">
+<institution-wrap>
+<institution>Department of Biostatistics, Johns Hopkins University,
+Baltimore, MD 21218, USA</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<author-notes>
+<corresp id="cor-1">* E-mail: <email>pockrandt@jhu.edu</email></corresp>
+<corresp id="cor-2">* E-mail: <email>salzberg@jhu.edu</email></corresp>
+</author-notes>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2022-10-06">
+<day>6</day>
+<month>10</month>
+<year>2022</year>
+</pub-date>
+<volume>7</volume>
+<issue>80</issue>
+<fpage>4908</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2022</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>metagenomics</kwd>
+<kwd>classification</kwd>
+<kwd>species</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p>Kraken and KrakenUniq are widely-used tools for classifying
+  metagenomics sequences. A key requirement for these systems is a
+  database containing all <italic>k-mers</italic> from all genomes that
+  the users want to be able to detect, where <italic>k</italic> = 31 by
+  default. This database can be very large, easily exceeding 100
+  gigabytes (GB) and sometimes 400 GB. Previously, Kraken and KrakenUniq
+  required loading the entire database into main memory (RAM), and if
+  RAM was insufficient, they used memory mapping, which significantly
+  increased the running time for large datasets. We have implemented a
+  new algorithm in KrakenUniq that allows it to load and process the
+  database in chunks, with only a modest increase in running time. This
+  enhancement now makes it feasible to run KrakenUniq on very large
+  datasets and huge databases on virtually any computer, even a laptop,
+  while providing the same very high classification accuracy as the
+  previous system.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p>KrakenUniq software classifies reads from metagenomic samples to
+  establish which organisms are present in the samples and estimate
+  their abundance. The software is widely-used used by researchers and
+  clinicians in medical diagnostics, microbiome and environmental
+  studies.</p>
+  <p>Typical databases used by KrakenUniq are tens to hundreds of
+  gigabytes in size. The original KrakenUniq code required loading the
+  entire database in RAM, which demanded expensive high-memory servers
+  to run it efficiently. If a user did not have enough physical RAM to
+  load the entire database, KrakenUniq resorted to memory-mapping the
+  database, which significantly increased run times, frequently by a
+  factor of more than 100. The new functionality described in this paper
+  enables users who do not have access to high-memory servers to run
+  KrakenUniq efficiently, with a CPU time performance increase of 3 to
+  4-fold, down from 100+.</p>
+</sec>
+<sec id="introduction">
+  <title>Introduction</title>
+  <p>The GenBank genome repository
+  (<xref alt="Benson et al., 2012" rid="ref-benson2012genbank" ref-type="bibr">Benson
+  et al., 2012</xref>) currently contains over 400,000 prokaryotic
+  genomes and over 20,000 eukaryotes, including thousands of microbial
+  eukaryotes such as fungi and protists. To take advantage of this
+  ever-growing variety of microbial sequences, metagenomic sequence
+  analysis methods must create customized databases that capture all of
+  this sequence diversity. Tools such as Kraken
+  (<xref alt="Wood &amp; Salzberg, 2014" rid="ref-wood2014kraken" ref-type="bibr">Wood
+  &amp; Salzberg, 2014</xref>) and KrakenUniq
+  (<xref alt="Breitwieser et al., 2018" rid="ref-breitwieser2018krakenuniq" ref-type="bibr">Breitwieser
+  et al., 2018</xref>) classify DNA or RNA sequencing reads against a
+  pre-built database of genomes using an exact <italic>k-mer</italic>
+  matching strategy that is not only highly accurate but that, because
+  it avoids the step of sequence alignment, makes both systems extremely
+  fast.</p>
+  <p>The Kraken database is a customized, compressed data structure that
+  associates a unique taxonomy identifier with every single
+  <italic>k-mer</italic> in every genome in the database. (Note that
+  both Kraken and KrakenUniq use the same database design, so we will
+  refer to both as Kraken databases.) If a <italic>k-mer</italic> occurs
+  in two or more genomes, then the database stores the taxonomy ID
+  associated with the lowest common ancestor of those genomes. This
+  strategy means that only a single ID is attached to each
+  <italic>k-mer</italic>.</p>
+  <p>However, with the number of genomes available today, a standard
+  Kraken database will contain billions of <italic>k-mers</italic>, and
+  even with careful compression this data structure can grow very large.
+  A key requirement for the speed of the Kraken algorithm (which is 900
+  times faster than MegaBlast
+  (<xref alt="Wood &amp; Salzberg, 2014" rid="ref-wood2014kraken" ref-type="bibr">Wood
+  &amp; Salzberg, 2014</xref>)) is the loading of the entire database
+  into main memory. For the large databases and read datasets that are
+  commonly used in metagenomics experiments today, this requires
+  dedicated machines with large amounts of RAM (e.g., exceeding 100 GB
+  or even 400 GB), without which classification becomes slow and
+  impractical. The newer Kraken2 system
+  (<xref alt="Wood et al., 2019" rid="ref-wood2019improved" ref-type="bibr">Wood
+  et al., 2019</xref>) achieves a significantly lower memory footprint
+  by using probabilistic data structures to reduce the database size, at
+  the cost of slightly lower accuracy than KrakenUniq. This reduction in
+  accuracy includes a very small but non-zero false positive rate (i.e.,
+  where the system incorrectly reports that a <italic>k-mer</italic> is
+  present in a particular genome), which is problematic for certain
+  applications that require very high precision. In particular, when
+  metagenomic sequencing is used for the diagnosis of infections in a
+  clinical setting
+  (<xref alt="Salzberg et al., 2016" rid="ref-salzberg-pardo2016" ref-type="bibr">Salzberg
+  et al., 2016</xref>), the pathogen of interest might be detected from
+  just a handful of reads. In that scenario, even a few false positives
+  can be confusing, and KrakenUniq is the preferred method rather than
+  Kraken2.</p>
+  <p>By default, KrakenUniq performs memory mapping to load the
+  database; i.e., it does not load the entire database into main memory.
+  (Kraken 1 employs the same strategy.) This makes classification of
+  larger read datasets much slower, but it allows KrakenUniq to run on
+  machines with low available main memory. If enough free RAM is
+  available to hold the entire database in main memory, users are
+  recommended to explicitly load the entire database prior to
+  classification using the flag <monospace>--preload</monospace>, which
+  dramatically speeds up the classification (see <bold>Table
+  1</bold>).</p>
+  <p>To improve KrakenUniq’s performance when not enough main memory is
+  available to load the entire database into RAM, we have added a new
+  capability to KrakenUniq, which we call database chunking. This new
+  feature is released in KrakenUniq v1.0.0 and subsequent releases at:
+  https://github.com/fbreitwieser/krakenuniq (Github)
+  https://anaconda.org/bioconda/krakenuniq (Conda)</p>
+</sec>
+<sec id="database-chunking">
+  <title>Database chunking</title>
+  <p>The KrakenUniq database consists of two tables: A
+  <italic>k-mer</italic> table maps each <italic>k-mer</italic> to its
+  taxonomic ID and is sorted by the <italic>k-mers’</italic> minimizers
+  (<xref alt="Roberts et al., 2004" rid="ref-roberts2004reducing" ref-type="bibr">Roberts
+  et al., 2004</xref>). A second table, the minimizer table, is
+  lexicographically sorted and maps each minimizer to the corresponding
+  <italic>k-mers</italic> in the <italic>k-mer</italic> table which form
+  a contiguous block. Hence, the database can be chunked by taking a
+  chunk of the minimizer table and the corresponding range of the
+  <italic>k-mer</italic> table that contains all <italic>k-mers</italic>
+  for the selected minimizers.</p>
+  <p>Under this new algorithm, KrakenUniq loads one chunk of the
+  database into memory at a time. KrakenUniq performs a binary search on
+  the minimizer table to find the largest minimizer such that the chunk
+  of the minimizer table and the corresponding chunk of the
+  <italic>k-mer</italic> table together use not more than the specified
+  amount of memory. It then loads the chunk of the minimizer table and
+  the corresponding chunk of the k-mer table and iterates over all of
+  the reads provided as input. The code looks up all
+  <italic>k-mers</italic> in the reads in the currently-loaded chunk of
+  the database. The taxonomic IDs for the <italic>k-mers</italic> that
+  matched a k-mer in the chunk (or placeholders for
+  <italic>k-mers</italic> without a hit) are stored in a temporary file
+  on disk for each read. With every chunk iteration, taxonomic IDs of
+  newly found <italic>k-mers</italic> in the reads are appended to the
+  temporary file. This process is repeated until the entire database has
+  been processed. At this point the temporary file contains taxonomic
+  IDs for all k-mers in the reads that matched any part of the database.
+  KrakenUniq then reads the temporary file, collects
+  <italic>k-mer</italic> hits for every read, and uses them to classify
+  each read. Classification results will be identical to running in the
+  default mode; i.e., database chunking does not alter the output.</p>
+  <p>This new feature makes it feasible to run KrakenUniq on very large
+  datasets and huge databases on virtually any computer, even a laptop,
+  while providing exact classifications that are identical to those of
+  KrakenUniq in its other modes. Users can employ this feature by using
+  <monospace>--preload-size</monospace> to specify the amount of
+  available main memory that they want to use for loading chunks of the
+  database, e.g., <monospace>--preload-size 8G</monospace> or
+  <monospace>--preload-size 500M</monospace>.</p>
+  <boxed-text>
+    <table-wrap>
+      <table>
+        <thead>
+          <tr>
+            <th align="left">Mode</th>
+            <th align="right">Running time</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td align="left">default (memory mapping)</td>
+            <td align="right">48 hours</td>
+          </tr>
+          <tr>
+            <td align="left"><monospace>--preload</monospace></td>
+            <td align="right">14 min</td>
+          </tr>
+          <tr>
+            <td align="left"><monospace>--preload-size 8G</monospace></td>
+            <td align="right">47 min</td>
+          </tr>
+          <tr>
+            <td align="left"><monospace>--preload-size 16G</monospace></td>
+            <td align="right">32 min</td>
+          </tr>
+          <tr>
+            <td align="left"><monospace>--preload-size 32G</monospace></td>
+            <td align="right">25 min</td>
+          </tr>
+          <tr>
+            <td align="left"><monospace>--preload-size 64G</monospace></td>
+            <td align="right">19 min</td>
+          </tr>
+        </tbody>
+      </table>
+    </table-wrap>
+  </boxed-text>
+  <p>Table 1: Running times for classifying 9.4 million reads (from a
+  human eye metagenome, accession SRR12486990, available from NCBI at
+  https://www.ncbi.nlm.nih.gov/sra/SRR12486990) with 8 threads using
+  KrakenUniq in different modes. The database size was 392 GB, and it
+  consisted of all complete bacterial, archeal, and viral genomes in
+  RefSeq from 2020, 46 selected eukaryotic human pathogens
+  (<xref alt="Lu &amp; Salzberg, 2018" rid="ref-lu2018removing" ref-type="bibr">Lu
+  &amp; Salzberg, 2018</xref>)), as well the human genome and a
+  collection of common vector sequences. The database is available for
+  download at https://benlangmead.github.io/aws-indexes/k2 under the
+  name EuPathDB46. The command lines used to measure the runtimes were
+  <monospace>krakenuniq --db krakendb-2020-08-16-all_pluseupath --threads 24 --report-file report --output classify SRR12486990.fastq</monospace>
+  with no additional options for default, and with addition of the
+  preload option shown in the table for various preload sizes. in the
+  database chunking experiments (using
+  <monospace>–preload-size</monospace>) KrakenUniq loaded the database
+  into RAM in 49, 25, 13 and 7 chunks (respectively).</p>
+  <p>Running times can vary significantly depending on the type of
+  storage (e.g., databases on network storage can take longer to load)
+  and the size of the read dataset (i.e., classifying a small number of
+  reads does not justify preloading the entire database, especially of
+  fast storage). The speed of loading the database is not impacted by
+  the <monospace>--preload-size</monospace> option because the database
+  is still read in a linear way.
+  Saving intermediate files from the chunks is done in the same way as
+  in the original code.
+  The only difference is that now classification results from all
+  individual chunks are concatenated into a single file, which is read
+  once all chunks are finished. <bold>Table 1</bold> shows that in a
+  typical use case, even when the database does fit in RAM, loading the
+  entire database (<monospace>--preload</monospace> option) is far
+  faster than memory mapping (14 minutes versus 48 hours). Loading the
+  database by chunks adds overhead because of the need to iterate over
+  the reads multiple times, but is still comparable to pre-loading the
+  entire database and highly recommended when not enough main memory is
+  available. For example, limiting the database to 8G, which means it
+  can be loaded even on a standard laptop computer, increased the
+  running time only about 3.4-fold, even though the database was broken
+  into 49 chunks. For large read datasets we expect that setting the
+  <monospace>--preload</monospace> or
+  <monospace>--preload-size</monospace> flag will always be faster than
+  the default behavior of memory mapping. The format of the databases
+  used by the new algorithm has not changed, hence all previously built
+  databases for Kraken and KrakenUniq can be used.</p>
+  <p>This feature has only been added to KrakenUniq, and not to Kraken,
+  which is no longer actively maintained. Because KrakenUniq offers more
+  features, shares the same implementation with Kraken and produces the
+  same output, we highly recommend that users upgrade from Kraken to
+  KrakenUniq.</p>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>This work was supported in part by NIH grants R35-GM130151,
+  R01-HG006677, and U24-CA180922.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <ref id="ref-benson2012genbank">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Benson</surname><given-names>Dennis A</given-names></name>
+        <name><surname>Cavanaugh</surname><given-names>Mark</given-names></name>
+        <name><surname>Clark</surname><given-names>Karen</given-names></name>
+        <name><surname>Karsch-Mizrachi</surname><given-names>Ilene</given-names></name>
+        <name><surname>Lipman</surname><given-names>David J</given-names></name>
+        <name><surname>Ostell</surname><given-names>James</given-names></name>
+        <name><surname>Sayers</surname><given-names>Eric W</given-names></name>
+      </person-group>
+      <article-title>GenBank</article-title>
+      <source>Nucleic acids research</source>
+      <publisher-name>Oxford University Press</publisher-name>
+      <year iso-8601-date="2012">2012</year>
+      <volume>41</volume>
+      <issue>D1</issue>
+      <pub-id pub-id-type="doi">10.1093/nar/gks1195</pub-id>
+      <fpage>D36</fpage>
+      <lpage>D42</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-roberts2004reducing">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Roberts</surname><given-names>Michael</given-names></name>
+        <name><surname>Hayes</surname><given-names>Wayne</given-names></name>
+        <name><surname>Hunt</surname><given-names>Brian R</given-names></name>
+        <name><surname>Mount</surname><given-names>Stephen M</given-names></name>
+        <name><surname>Yorke</surname><given-names>James A</given-names></name>
+      </person-group>
+      <article-title>Reducing storage requirements for biological sequence comparison</article-title>
+      <source>Bioinformatics</source>
+      <publisher-name>Oxford University Press</publisher-name>
+      <year iso-8601-date="2004">2004</year>
+      <volume>20</volume>
+      <issue>18</issue>
+      <pub-id pub-id-type="doi">10.1093/bioinformatics/bth408</pub-id>
+      <fpage>3363</fpage>
+      <lpage>3369</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-wood2014kraken">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Wood</surname><given-names>Derrick E.</given-names></name>
+        <name><surname>Salzberg</surname><given-names>Steven L.</given-names></name>
+      </person-group>
+      <article-title>Kraken: Ultrafast metagenomic sequence classification using exact alignments</article-title>
+      <source>Genome Biology</source>
+      <publisher-name>BioMed Central</publisher-name>
+      <year iso-8601-date="2014">2014</year>
+      <volume>15</volume>
+      <issue>3</issue>
+      <pub-id pub-id-type="doi">10.1186/gb-2014-15-3-r46</pub-id>
+      <fpage>1</fpage>
+      <lpage>12</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-breitwieser2018krakenuniq">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Breitwieser</surname><given-names>F. P.</given-names></name>
+        <name><surname>Baker</surname><given-names>D. N.</given-names></name>
+        <name><surname>Salzberg</surname><given-names>S. L.</given-names></name>
+      </person-group>
+      <article-title>KrakenUniq: Confident and fast metagenomics classification using unique k-mer counts</article-title>
+      <source>Genome Biology</source>
+      <publisher-name>BioMed Central</publisher-name>
+      <year iso-8601-date="2018">2018</year>
+      <volume>19</volume>
+      <issue>1</issue>
+      <pub-id pub-id-type="doi">10.1186/s13059-018-1568-0</pub-id>
+      <fpage>1</fpage>
+      <lpage>10</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-wood2019improved">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Wood</surname><given-names>Derrick E.</given-names></name>
+        <name><surname>Lu</surname><given-names>Jennifer</given-names></name>
+        <name><surname>Langmead</surname><given-names>Ben</given-names></name>
+      </person-group>
+      <article-title>Improved metagenomic analysis with kraken 2</article-title>
+      <source>Genome Biology</source>
+      <publisher-name>Springer</publisher-name>
+      <year iso-8601-date="2019">2019</year>
+      <volume>20</volume>
+      <issue>1</issue>
+      <pub-id pub-id-type="doi">10.1186/s13059-019-1891-0</pub-id>
+      <fpage>1</fpage>
+      <lpage>13</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-lu2018removing">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Lu</surname><given-names>Jennifer</given-names></name>
+        <name><surname>Salzberg</surname><given-names>Steven L.</given-names></name>
+      </person-group>
+      <article-title>Removing contaminants from databases of draft genomes</article-title>
+      <source>PLoS Computational Biology</source>
+      <publisher-name>Public Library of Science San Francisco, CA USA</publisher-name>
+      <year iso-8601-date="2018">2018</year>
+      <volume>14</volume>
+      <issue>6</issue>
+      <pub-id pub-id-type="doi">10.1371/journal.pcbi.1006277</pub-id>
+      <fpage>e1006277</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-salzberg-pardo2016">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Salzberg</surname><given-names>SL</given-names></name>
+        <name><surname>Breitwieser</surname><given-names>FP</given-names></name>
+        <name><surname>Kumar</surname><given-names>A</given-names></name>
+        <name><surname>Hao</surname><given-names>H</given-names></name>
+        <name><surname>Burger</surname><given-names>P</given-names></name>
+        <name><surname>Rodriguez</surname><given-names>FJ</given-names></name>
+        <name><surname>Lim</surname><given-names>M</given-names></name>
+        <name><surname>Quiñones-Hinojosa</surname><given-names>A</given-names></name>
+        <name><surname>Gallia</surname><given-names>GL</given-names></name>
+        <name><surname>Tornheim</surname><given-names>JA</given-names></name>
+        <name><surname>Melia</surname><given-names>MT</given-names></name>
+        <name><surname>Sears</surname><given-names>CL</given-names></name>
+        <name><surname>Pardo</surname><given-names>CA</given-names></name>
+      </person-group>
+      <article-title>Next-generation sequencing in neuropathologic diagnosis of infections of the nervous system</article-title>
+      <source>Neurology: Neuroimmunology and Neuroinflammation</source>
+      <year iso-8601-date="2016">2016</year>
+      <volume>3</volume>
+      <issue>4</issue>
+      <pub-id pub-id-type="pmid">27340685</pub-id>
+      <fpage>e251</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
