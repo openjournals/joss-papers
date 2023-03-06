@@ -1,0 +1,406 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">5003</article-id>
+<article-id pub-id-type="doi">10.21105/joss.05003</article-id>
+<title-group>
+<article-title>DistributedSparseGrids.jl: A Julia library implementing
+an Adaptive Sparse Grid collocation method</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0001-9954-294X</contrib-id>
+<name>
+<surname>Bittens</surname>
+<given-names>Maximilian</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<contrib contrib-type="author">
+<name>
+<surname>Gates</surname>
+<given-names>Robert L.</given-names>
+</name>
+<xref ref-type="aff" rid="aff-2"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Federal Institute for Geosciences and Natural Resources
+(BGR)</institution>
+</institution-wrap>
+</aff>
+<aff id="aff-2">
+<institution-wrap>
+<institution>None</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2022-10-11">
+<day>11</day>
+<month>10</month>
+<year>2022</year>
+</pub-date>
+<volume>8</volume>
+<issue>83</issue>
+<fpage>5003</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2022</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>Julia</kwd>
+<kwd>stochastics</kwd>
+<kwd>sparse grids</kwd>
+<kwd>high-performance computing</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="abstract">
+  <title>Abstract</title>
+  <p>Numerical integration or interpolation of high-dimensional
+  functions is subject to the curse of dimensionality on full tensor
+  grids. One remedy to this problem is sparse grid approximations. The
+  additional construction effort is often worth spending, especially for
+  underlying functions whose evaluation is time-consuming. In the
+  following, a Julia implementation of a local Lagrangian adaptive
+  hierarchical sparse grid collocation method is presented, which is
+  suitable for memory-heavy objects generated on distributed
+  workers.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p><ext-link ext-link-type="uri" xlink:href="https://github.com/baxmittens/DistributedSparseGrids.jl">DistributedSparseGrids.jl</ext-link>
+  is a Julia package for integrating and interpolating functions with
+  generic return types. There are other approaches to sparse grid
+  approximation written in the Julia language, such as
+  <ext-link ext-link-type="uri" xlink:href="https://github.com/robertdj/SparseGrids.jl">SparseGrids.jl</ext-link>,
+  <ext-link ext-link-type="uri" xlink:href="https://github.com/jacobadenbaum/AdaptiveSparseGrids.jl">AdaptiveSparseGrids.jl</ext-link>,
+  <ext-link ext-link-type="uri" xlink:href="https://github.com/ABAtanasov/GalerkinSparseGrids.jl">GalerkinSparseGrids.jl</ext-link>,
+  or
+  <ext-link ext-link-type="uri" xlink:href="https://github.com/floswald/Tasmanian.jl">Tasmanian.jl</ext-link>.
+  However, there is no Julia package available at the moment which is
+  suitable if the solution of the underlying (discretized) physical
+  problem is time and resource-consuming, requiring it to be solved on
+  either a server or cluster environment, or the solution is
+  memory-heavy, like a Vector, Matrix, or, for example, a complete
+  finite element solution.</p>
+</sec>
+<sec id="introduction">
+  <title>Introduction</title>
+  <p>Sparse tensor product quadrature rules, mitigating the curse of
+  dimensionality occurring in full tensor grid constructions, were
+  provided first by Smolyak
+  (<xref alt="1963" rid="ref-smolyak1963quadrature" ref-type="bibr">1963</xref>).
+  In the last two decades, collocation methods have been prominent in
+  solving stochastic partial differential equations, as shown in Babuška
+  et al.
+  (<xref alt="2007" rid="ref-babuvska2007stochastic" ref-type="bibr">2007</xref>)
+  and Nobile et al.
+  (<xref alt="2008" rid="ref-nobile2008sparse" ref-type="bibr">2008</xref>).
+  Ma &amp; Zabaras
+  (<xref alt="2009" rid="ref-ma2009adaptive" ref-type="bibr">2009</xref>)
+  were able to once again increase the efficiency of the collocation
+  approach by introducing an error-adaptive formulation of the method,
+  which will serve as a basis for the collocation method described in
+  this project. For more information about the theory of the method
+  implemented, see, e.g., Gates &amp; Bittens
+  (<xref alt="2015" rid="ref-gates2015multilevel" ref-type="bibr">2015</xref>).</p>
+</sec>
+<sec id="features">
+  <title>Features</title>
+  <p>In the following, some key features of the implemented approach are
+  listed.</p>
+  <sec id="arbitrary-return-types">
+    <title>Arbitrary return types</title>
+    <p><ext-link ext-link-type="uri" xlink:href="https://github.com/baxmittens/DistributedSparseGrids.jl">DistributedSparseGrids.jl</ext-link>
+    defines a
+    <monospace>HierarchicalCollocationPoint{N,CP,RT}</monospace> where
+    <monospace>N</monospace> is the number of dimensions,
+    <monospace>CP &lt;: AbstractCollocationPoint{N,CT&lt;:Real}</monospace>,
+    and <monospace>RT</monospace> is a generic return type.
+    <monospace>RT</monospace> can be conveniently defined as the type
+    most suitable for studying the problem at hand, such as a
+    <monospace>Float64</monospace>, a
+    <monospace>Vector{Float64}</monospace> or a
+    <monospace>Matrix{Float64}</monospace>, for example. Suppose the
+    underlying physical problem stores its data in the VTU file format
+    (<xref alt="Schroeder et al., 2000" rid="ref-schroeder2000visualizing" ref-type="bibr">Schroeder
+    et al., 2000</xref>). In that case, the Julia project
+    <ext-link ext-link-type="uri" xlink:href="https://github.com/baxmittens/VTUFileHandler.jl">VTUFileHandler.jl</ext-link>
+    (<xref alt="Bittens, 2022" rid="ref-bittens2022vtufilehandler" ref-type="bibr">Bittens,
+    2022</xref>) can be used, which implements all operators needed to
+    use complete result files with the sparse grid.</p>
+  </sec>
+  <sec id="in-place-operations">
+    <title>In-place operations</title>
+    <p>Computing the weights for the hierarchical basis as well as
+    performing interpolation and integration relies heavily on the use
+    of <italic>arithmetic operators</italic>, which allocate memory.
+    This can be a problem, especially if the result type is memory
+    heavy. Therefore,
+    <ext-link ext-link-type="uri" xlink:href="https://github.com/baxmittens/DistributedSparseGrids.jl">DistributedSparseGrids.jl</ext-link>
+    defines in-place variants to all of these actions given in-place
+    variants of the arithmetic operators are defined. For further
+    information, see the
+    <ext-link ext-link-type="uri" xlink:href="https://baxmittens.github.io/DistributedSparseGrids.jl/dev/#In-place-operations">documentation</ext-link>.</p>
+  </sec>
+  <sec id="distributed-computing">
+    <title>Distributed computing</title>
+    <p>If the function’s runtime to be evaluated is long, it may be
+    necessary to distribute the load to several workers. Julia provides
+    this functionality <italic>out-of-the-box</italic> via the
+    <monospace>Distributed</monospace> interface. Due to the
+    hierarchical construction of the basis and the level-wise adaptive
+    refinement indicator, it seems necessary to include this interface
+    in the sparse grid for a performant application of distributed
+    computing.
+    <ext-link ext-link-type="uri" xlink:href="https://github.com/baxmittens/DistributedSparseGrids.jl">DistributedSparseGrids.jl</ext-link>
+    uses all workers included by the
+    <monospace>Distributed.addprocs</monospace> command if the
+    <monospace>distributed_init_weights!</monospace> function is used to
+    determine the hierarchical weights.</p>
+  </sec>
+  <sec id="additional-features">
+    <title>Additional features</title>
+    <list list-type="bullet">
+      <list-item>
+        <p>Nested one-dimensional Clenshaw-Curtis rule</p>
+      </list-item>
+      <list-item>
+        <p>Smolyak’s sparse grid construction</p>
+      </list-item>
+      <list-item>
+        <p>local hierarchical Lagrangian basis</p>
+      </list-item>
+      <list-item>
+        <p>different pointsets (open, closed, halfopen)</p>
+      </list-item>
+      <list-item>
+        <p>adaptive refinement</p>
+      </list-item>
+      <list-item>
+        <p>multi-threaded calculation of basis coefficients with
+        <monospace>Threads.@threads</monospace></p>
+      </list-item>
+      <list-item>
+        <p>integration</p>
+      </list-item>
+      <list-item>
+        <p>experimental: integration over <inline-formula><alternatives>
+        <tex-math><![CDATA[X_{\sim (i)}]]></tex-math>
+        <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>X</mml:mi><mml:mrow><mml:mo>∼</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>i</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:msub></mml:math></alternatives></inline-formula>
+        (the <inline-formula><alternatives>
+        <tex-math><![CDATA[X_{\sim (i)}]]></tex-math>
+        <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>X</mml:mi><mml:mrow><mml:mo>∼</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>i</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:msub></mml:math></alternatives></inline-formula>
+        notation indicates the set of all variables except
+        <inline-formula><alternatives>
+        <tex-math><![CDATA[X_{i}]]></tex-math>
+        <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>X</mml:mi><mml:mi>i</mml:mi></mml:msub></mml:math></alternatives></inline-formula>).</p>
+      </list-item>
+    </list>
+  </sec>
+</sec>
+<sec id="example">
+  <title>Example</title>
+  <p>Below an example of an adaptive sampling of a function with a
+  curved singularity in 2D is provided. In
+  <xref alt="[fig:example]" rid="figU003Aexample">[fig:example]</xref>
+  an illustration of the sparse grid approximation is shown.</p>
+  <code language="julia">using DistributedSparseGrids
+using Distributed
+using StaticArrays
+import PlotlyJS
+
+function sparse_grid(N::Int,pointprobs,nlevel=6,RT=Float64,CT=Float64)
+  # define collocation point
+  CPType = CollocationPoint{N,CT}
+  # define hierarchical collocation point
+  HCPType = HierarchicalCollocationPoint{N,CPType,RT}
+  # init grid
+  asg = init(AHSG{N,HCPType},pointprobs)
+  # set of all collocation points
+  cpts = Set{HierarchicalCollocationPoint{N,CPType,RT}}(collect(asg))
+  # fully refine grid nlevel-1 times
+  for i = 1:nlevel-1
+    union!(cpts,generate_next_level!(asg))
+  end
+  return asg
+end
+
+# Sparse Grid with 4 initial levels
+pp = @SVector [1,1]
+asg = sparse_grid(2, pp, 4)
+
+# add 2 worker
+ar_worker = addprocs(2)
+
+@everywhere begin
+  using StaticArrays 
+  # Function with curved singularity
+  fun1(x::SVector{2,Float64},ID::String) =  
+    (1.0-exp(-1.0*(abs(2.0 - (x[1]-1.0)^2.0 - 
+      (x[2]-1.0)^2.0) +0.01)))/(abs(2-(x[1]-1.0)^2.0-(x[2]-1.0)^2.0)+0.01)
+end
+
+# calculate weights on master
+init_weights!(asg, fun1)
+
+# adaptive refine
+for i = 1:20
+  # call generate_next_level! with tol=1e-5 and maxlevels=20
+  cpts = generate_next_level!(asg, 1e-5, 20)
+  # calculate weights on all worker
+  distributed_init_weights!(asg, collect(cpts), fun1, ar_worker)
+end
+
+# plot
+surfplot = PlotlyJS.surface(asg, 100)
+gridplot = PlotlyJS.scatter3d(asg)
+PlotlyJS.plot([surfplot, gridplot])</code>
+  <fig>
+    <caption><p>Refined sparse
+    grid.<styled-content id="figU003Aexample"></styled-content></p></caption>
+    <graphic mimetype="image" mime-subtype="png" xlink:href="media/e1f1caab99abc5b1f8dadce6abe4327fa86c6206.PNG" />
+  </fig>
+</sec>
+</body>
+<back>
+<ref-list>
+  <ref id="ref-smolyak1963quadrature">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Smolyak</surname><given-names>Sergei Abramovich</given-names></name>
+      </person-group>
+      <article-title>Quadrature and interpolation formulas for tensor products of certain classes of functions</article-title>
+      <source>Doklady akademii nauk</source>
+      <publisher-name>Russian Academy of Sciences</publisher-name>
+      <year iso-8601-date="1963">1963</year>
+      <volume>148</volume>
+      <fpage>1042</fpage>
+      <lpage>1045</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-babuvska2007stochastic">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Babuška</surname><given-names>Ivo</given-names></name>
+        <name><surname>Nobile</surname><given-names>Fabio</given-names></name>
+        <name><surname>Tempone</surname><given-names>Raúl</given-names></name>
+      </person-group>
+      <article-title>A stochastic collocation method for elliptic partial differential equations with random input data</article-title>
+      <source>SIAM Journal on Numerical Analysis</source>
+      <publisher-name>SIAM</publisher-name>
+      <year iso-8601-date="2007">2007</year>
+      <volume>45</volume>
+      <issue>3</issue>
+      <pub-id pub-id-type="doi">10.1137/100786356</pub-id>
+      <fpage>1005</fpage>
+      <lpage>1034</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-nobile2008sparse">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Nobile</surname><given-names>Fabio</given-names></name>
+        <name><surname>Tempone</surname><given-names>Raúl</given-names></name>
+        <name><surname>Webster</surname><given-names>Clayton G</given-names></name>
+      </person-group>
+      <article-title>A sparse grid stochastic collocation method for partial differential equations with random input data</article-title>
+      <source>SIAM Journal on Numerical Analysis</source>
+      <publisher-name>SIAM</publisher-name>
+      <year iso-8601-date="2008">2008</year>
+      <volume>46</volume>
+      <issue>5</issue>
+      <pub-id pub-id-type="doi">10.1137/060663660</pub-id>
+      <fpage>2309</fpage>
+      <lpage>2345</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-ma2009adaptive">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Ma</surname><given-names>Xiang</given-names></name>
+        <name><surname>Zabaras</surname><given-names>Nicholas</given-names></name>
+      </person-group>
+      <article-title>An adaptive hierarchical sparse grid collocation algorithm for the solution of stochastic differential equations</article-title>
+      <source>Journal of Computational Physics</source>
+      <publisher-name>Elsevier</publisher-name>
+      <year iso-8601-date="2009">2009</year>
+      <volume>228</volume>
+      <issue>8</issue>
+      <pub-id pub-id-type="doi">10.1016/j.jcp.2009.01.006</pub-id>
+      <fpage>3084</fpage>
+      <lpage>3113</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-gates2015multilevel">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Gates</surname><given-names>Robert L</given-names></name>
+        <name><surname>Bittens</surname><given-names>Maximilian R</given-names></name>
+      </person-group>
+      <article-title>A multilevel adaptive sparse grid stochastic collocation approach to the non-smooth forward propagation of uncertainty in discretized problems</article-title>
+      <source>arXiv preprint arXiv:1509.01462</source>
+      <year iso-8601-date="2015">2015</year>
+      <pub-id pub-id-type="doi">10.48550/arXiv.1509.01462</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-bittens2022vtufilehandler">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Bittens</surname><given-names>Maximilian</given-names></name>
+      </person-group>
+      <article-title>VTUFileHandler: A VTU library in the julia language that implements an algebra for basic mathematical operations on VTU data</article-title>
+      <source>Journal of Open Source Software</source>
+      <year iso-8601-date="2022">2022</year>
+      <volume>7</volume>
+      <issue>73</issue>
+      <pub-id pub-id-type="doi">10.21105/joss.04300</pub-id>
+      <fpage>4300</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-schroeder2000visualizing">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Schroeder</surname><given-names>William J</given-names></name>
+        <name><surname>Avila</surname><given-names>Lisa Sobierajski</given-names></name>
+        <name><surname>Hoffman</surname><given-names>William</given-names></name>
+      </person-group>
+      <article-title>Visualizing with VTK: A tutorial</article-title>
+      <source>IEEE Computer graphics and applications</source>
+      <publisher-name>IEEE</publisher-name>
+      <year iso-8601-date="2000">2000</year>
+      <volume>20</volume>
+      <issue>5</issue>
+      <pub-id pub-id-type="doi">10.1109/38.865875</pub-id>
+      <fpage>20</fpage>
+      <lpage>27</lpage>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
