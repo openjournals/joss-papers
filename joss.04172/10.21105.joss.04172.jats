@@ -1,0 +1,888 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">4172</article-id>
+<article-id pub-id-type="doi">10.21105/joss.04172</article-id>
+<title-group>
+<article-title>FEM_2D: A Rust Package for 2D Finite Element Method
+Computations with Extensive Support for
+<italic>hp</italic>-refinement</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0003-2688-0600</contrib-id>
+<name>
+<surname>Corrado</surname>
+<given-names>Jeremiah</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<contrib contrib-type="author">
+<name>
+<surname>Harmon</surname>
+<given-names>Jake J.</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<contrib contrib-type="author">
+<name>
+<surname>Ilic</surname>
+<given-names>Milan M.</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+<xref ref-type="aff" rid="aff-2"/>
+</contrib>
+<contrib contrib-type="author">
+<name>
+<surname>Notaroš</surname>
+<given-names>Branislav M.</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Department of Electrical and Computer Engineering, Colorado
+State University, USA</institution>
+</institution-wrap>
+</aff>
+<aff id="aff-2">
+<institution-wrap>
+<institution>School of Electrical Engineering, University of Belgrade,
+Serbia</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2022-02-14">
+<day>14</day>
+<month>2</month>
+<year>2022</year>
+</pub-date>
+<volume>8</volume>
+<issue>84</issue>
+<fpage>4172</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2022</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>Rust</kwd>
+<kwd>FEM</kwd>
+<kwd>CEM</kwd>
+<kwd>hp-refinement</kwd>
+<kwd>PDE Solvers</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="introduction">
+  <title>Introduction</title>
+  <p>The Finite Element Method (FEM) is a powerful computation framework
+  used to solve Partial Differential Equations (PDEs) on arbitrary
+  geometries. While physical systems behave in a continuous manner (both
+  in space and time), FEM solvers are able to model these dynamics with
+  a high fidelity by decomposing a physical model into a finite set of
+  elements. Each element supports a finite number of degrees of freedom,
+  which are used to describe the behavior of the system. This way, other
+  mathematical tools, such as linear solvers, can be used to compute
+  highly accurate approximations of the continuous dynamics. Solutions
+  are constructed such that the PDE is satisfied along with some
+  boundary conditions (on the border of the domain) and some continuity
+  conditions (between neighboring elements).</p>
+  <p>Some common PDEs include the Navier-Stokes equations, which
+  characterize the behavior of fluids, Schrödinger’s equation, which
+  governs the evolution of quantum systems, and Maxwell’s Equations,
+  which are a macroscopic description of essentially all electromagnetic
+  phenomena. The ability to accurately and efficiently model these
+  differential equations and others is imperative to the success of many
+  engineering projects and scientific endeavors. Most of the technology
+  that engineers are interested in developing has far exceeded the reach
+  of direct mathematical analysis, and thus computational tools such as
+  FEM are used ubiquitously to drive technological development
+  forward.</p>
+  <p>As such, innovations in FEM have a direct impact on essentially all
+  engineering disciplines. The more efficient, accurate, and
+  feature-rich we can make simulation tools, the more beneficial they
+  will be to industrial and scientific applications. This is the
+  motivation behind academic work in the field of FEM. The
+  <monospace>FEM_2D</monospace> library is a Rust package that aims to
+  enable further research into a particular FEM innovation called
+  Refinement-by-Superposition (RBS). The related research papers
+  (<xref alt="Corrado et al., 2021" rid="ref-corradoU003A2021" ref-type="bibr">Corrado
+  et al., 2021</xref>;
+  <xref alt="Harmon et al., 2021" rid="ref-harmonU003A2021" ref-type="bibr">Harmon
+  et al., 2021</xref>) explore benefits of RBS using the 2D Maxwell
+  Eigenvalue Problem as an experimental test case.</p>
+  <p>FEM codes based on RBS differ from more traditional FEM codes in
+  two primary ways: (1) The discretization data structure supports a set
+  of hierarchical trees of elements (a “forest” data structure) rather
+  than a “flat” set of elements. <monospace>FEM_2D</monospace>’s
+  <monospace>Mesh</monospace> data structure aims to expose a wide array
+  of functionality for instantiating and manipulating a tree of elements
+  both with <italic>h</italic>- and <italic>p</italic>-refinements.
+  Here, <italic>h</italic>-refinement refers to the improvement of the
+  spatial discretization by superimposing smaller elements over existing
+  elements, and <italic>p</italic>-refinement refers to the process of
+  increasing the polynomial expansion order of the basis set associated
+  with a particular element. (2) The integration API, used to populate
+  the system matrices, supports inter-layer integration that can handle
+  integrals of overlapping basis functions defined on different layers
+  of element trees. In traditional implementations, integrals are
+  computed strictly on individual elements.
+  <monospace>FEM_2D</monospace> contains all the necessary integration
+  functionality to solve the Maxwell Eigenvalue Problem or other H(curl)
+  conforming problems.</p>
+  <p>In addition to the centrally important
+  <italic>hp</italic>-refinement functionality,
+  <monospace>FEM_2D</monospace> is supported by a rich set of
+  surrounding features. This includes two eigensolvers: a dense solver
+  that is entirely native to Rust, and a sparse solver implemented using
+  an external C++ library. There is also a solution plotting API, and an
+  <ext-link ext-link-type="uri" xlink:href="https://github.com/jeremiah-corrado/fem_2d_mesh_plot">external
+  Mesh plotting tool</ext-link> to assist in future research work based
+  on the <monospace>FEM_2D</monospace> Library.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of Need</title>
+  <p>In some application domains such as high-frequency structure
+  analysis, efficiently computing FEM solutions over geometries with
+  sharp edges or stark material discontinuities necessitates
+  <italic>hp</italic>-refinement (whether isotropic or anisotropic)
+  because these situations tend to introduce multi-scale solution
+  behavior that is challenging to model with pure <italic>p</italic>- or
+  pure <italic>h</italic>-refinements. This motivates the use of solvers
+  with combined <italic>hp</italic>-refinements where an initially
+  coarse mesh is progressively refined both spatially and in terms of
+  polynomial expansion order. Within this framework, at each refinement
+  step, small-scale behavior is localized into smaller elements using
+  <italic>h</italic>-refinement, and modelling of higher-order behavior
+  is improved using <italic>p</italic>-refinements. When intelligently
+  applied to problems with sharp or singular solutions, combined
+  <italic>hp</italic>-refinements can achieve exponential rates of
+  convergence, where <italic>h</italic>- or
+  <italic>p</italic>-refinements alone would only be able to achieve
+  algebraic convergence. <monospace>FEM_2D</monospace> exposes an
+  <italic>hp</italic>-refinement API that can be used to achieve such
+  results
+  (<xref alt="Harmon et al., 2021" rid="ref-harmonU003A2021" ref-type="bibr">Harmon
+  et al., 2021</xref>).</p>
+  <p>Within the class of <italic>hp</italic>-refinements, the addition
+  of anisotropic <italic>hp</italic>-refinements (over isotropic ones)
+  presents a larger capacity for solution efficiency, as small-scale
+  behavior can be targeted more directly and ineffectual Degrees of
+  Freedom (DoFs) can be left out of the system
+  (<xref alt="Corrado et al., 2021" rid="ref-corradoU003A2021" ref-type="bibr">Corrado
+  et al., 2021</xref>). In other words, these directionally specific
+  refinements can reduce the introduction of superfluous entropy into
+  the system by directly targeting inaccuracies that are specific to
+  only one direction. The resultant improvement in per-DoF efficiency
+  can be used to reduce the memory requirements for a given solution
+  accuracy or to increase the accuracy achievable with a given amount of
+  memory. Thus, providing a feature-rich anisotropic
+  <italic>hp</italic>-refinement API is an additional goal of the
+  <monospace>FEM_2D</monospace> library.</p>
+  <p><monospace>FEM_2D</monospace> aims to expose some features similar
+  to those in other FEM libraries such as Deal.II
+  (<xref alt="Arndt et al., 2021" rid="ref-dealII93" ref-type="bibr">Arndt
+  et al., 2021</xref>) and MFEM
+  (<xref alt="Anderson et al., 2021" rid="ref-mfem" ref-type="bibr">Anderson
+  et al., 2021</xref>) that are designed to be general purpose
+  frameworks for implementing FEM codes. Although it is not nearly as
+  feature-rich as these libraries, <monospace>FEM_2D</monospace>’s
+  <italic>hp</italic>-refinement API aims to provide the basic
+  functionality needed to iteratively solve challenging 2D FEM problems
+  as described in the associated work
+  (<xref alt="Corrado et al., 2021" rid="ref-corradoU003A2021" ref-type="bibr">Corrado
+  et al., 2021</xref>,
+  <xref alt="2022" rid="ref-corradoU003A2022" ref-type="bibr">2022</xref>;
+  <xref alt="Harmon et al., 2021" rid="ref-harmonU003A2021" ref-type="bibr">Harmon
+  et al., 2021</xref>). These features will be discussed in detail in
+  the following sections. Additionally, <monospace>FEM_2D</monospace>
+  differs from other common FEM libraries in that its
+  <italic>h</italic>-refinement functionality is built on a Refinement
+  by Superposition (RBS) framework, whereas most FEM libraries with
+  support for <italic>h</italic>-refinement use Refinement by
+  Replacement (RBR).</p>
+  <p>For research purposes, it can also be helpful to design software
+  libraries that are straightforward to use and understand. As such, we
+  note that <monospace>FEM_2D</monospace> is available on Rust’s package
+  manager Cargo, making it straightforward to download, compile, and run
+  using only a few commands. It can also be included as a dependency in
+  any Rust project in order to develop new code on top of the library.
+  Additionally, the RBS approach that underpins
+  <monospace>FEM_2D</monospace> lends itself to a desirable level of
+  simplicity with respect to its <italic>h</italic>-refinement
+  implementation. This is because RBS is designed such that continuity
+  conditions between neighboring elements are enforced by construction:
+  no explicit handling of hanging nodes is required. As such, some of
+  the typical difficulties with implementing
+  <italic>h</italic>-refinements over quadrilateral elements for H(curl)
+  or H(div) conforming boundary conditions are avoided entirely. Our
+  hope is that the straightforward nature of the RBS approach will allow
+  other researchers to easily contribute to
+  <monospace>FEM_2D</monospace>, or to use it as a starting point for
+  software development in adjacent research.</p>
+</sec>
+<sec id="features">
+  <title>Features</title>
+  <sec id="hp-refinement-api">
+    <title><italic>hp</italic>-Refinement API:</title>
+    <p><monospace>FEM_2D</monospace>’s most notable feature is its
+    highly dynamic and expressive <italic>hp</italic>-refinement API.
+    Notably, <monospace>FEM_2D</monospace> supports n-irregular
+    anisotropic <italic>h</italic>-refinement, meaning that elements can
+    be refined in each direction individually, and there is no
+    limitation on the number of hanging nodes introduced along an edge.
+    As such, refinement algorithms built on top of
+    <monospace>FEM_2D</monospace> do not have to check that an
+    <italic>h</italic>-refinement is valid before applying it, and no
+    transition elements are needed between regions of coarse and dense
+    <italic>h</italic>-refinement. This level of freedom is facilitated
+    by the underlying RBS methodology. <monospace>FEM_2D</monospace>
+    also supports anisotropic <italic>p</italic>-refinements, meaning
+    that the polynomial expansion orders of the Basis Functions
+    associated with each element can be modified separately in each
+    direction. Lastly, there are various methods for querying properties
+    of individual elements and the relationships between them
+    (adjacency/descendancy). Overall, the
+    <ext-link ext-link-type="uri" xlink:href="https://docs.rs/fem_2d/latest/fem_2d/fem_domain/domain/mesh/struct.Mesh.html#method.h_refine_elems">Mesh
+    Refinement API</ext-link> is intended to provide enough abstraction
+    and feature-richness to make the implementation of refinement
+    algorithms, like those used in Corrado et al.
+    (<xref alt="2022" rid="ref-corradoU003A2022" ref-type="bibr">2022</xref>),
+    as straightforward and unencumbered as possible.</p>
+    <sec id="h-refinement">
+      <title><italic>h</italic>-refinement:</title>
+      <p>It is important to note that there are three primary
+      <italic>h</italic>-refinement types that are designated by the
+      <monospace>HRef</monospace> enum:</p>
+      <list list-type="bullet">
+        <list-item>
+          <p>T - isotropic: produces 4 child elements</p>
+        </list-item>
+        <list-item>
+          <p>U - anisotropic in the u-direction: produces 2 child
+          elements</p>
+        </list-item>
+        <list-item>
+          <p>V - anisotropic in the v-direction: produces 2 child
+          elements</p>
+        </list-item>
+      </list>
+      <p>There are also two sub-types associated with the U and V
+      refinements that invoke a subsequent anisotropic refinement on one
+      of the two child elements in the opposite direction. These are
+      constructed by passing an additional optional index to the
+      relevant constructors:
+      <monospace>HRef::U(Some(child_index))</monospace> and
+      <monospace>HRef::V(Some(child_index))</monospace>, where
+      <monospace>child_index</monospace> must be either 0 or 1.</p>
+      <p>Note that <monospace>u</monospace> and <monospace>v</monospace>
+      represent the parametric <monospace>x</monospace> and
+      <monospace>y</monospace> dimensions. Curvilinear elements are not
+      yet supported; thus these symbols can generally be considered to
+      by synonymous with <monospace>x</monospace> and
+      <monospace>y</monospace> respectively.</p>
+      <p>It is also important to note that the
+      <monospace>global_h_refinement</monospace> and
+      <monospace>h_refine_with_filter</monospace> methods will only
+      apply refinements to elements that are eligible for
+      <italic>h</italic>-refinement (i.e., they must be leaf elements
+      and the length of each of their edges must be above a minimum
+      threshold). Alternatively, the methods that expose more explicit
+      control (<monospace>h_refine_elems</monospace> and
+      <monospace>execute_h_refinements</monospace>) can return an error
+      if one of the specified elements is not eligible for
+      <italic>h</italic>-refinement. A detailed explanation of the
+      possible error types is provided in the
+      <ext-link ext-link-type="uri" xlink:href="https://docs.rs/fem_2d/latest/fem_2d/fem_domain/domain/mesh/h_refinement/enum.HRefError.html">documentation</ext-link>.</p>
+      <p>The following example depicts a variety of
+      <italic>h</italic>-refinement methods that could be used to
+      manipulate a <monospace>Mesh</monospace> data structure:</p>
+      <code language="rust">use fem_2d::prelude::*;
+use std::error::Error;
+
+fn do_some_h_refinements(mesh_file_path: &amp;str) -&gt; Result&lt;Mesh, Box&lt;dyn Error&gt;&gt; {
+    let mut mesh = Mesh::from_file(mesh_file_path)?;
+
+    // isotropically h-refine all elems
+    mesh.global_h_refinement(HRef::T);
+
+    // anisotropically h-refine all elems connected to some target node
+    let target_node_id = 5;
+    mesh.h_refine_with_filter(|elem| {
+        if elem.nodes.contains(&amp;target_node_id) {
+            Some(HRef::u())
+        } else {
+            None
+        }
+    });
+
+    // anisotropically h-refine a list of elems by id
+    mesh.h_refine_elems(vec![3, 4, 8, 12], HRef::v())?;
+
+    // directly apply a list of refinements to the mesh
+    mesh.execute_h_refinements(vec![
+        (1, HRef::T),
+        (5, HRef::U(Some(0))),
+        (6, HRef::U(Some(1))),
+        (10, HRef::V(None)),
+    ])?;
+
+    Ok(mesh)
+}</code>
+    </sec>
+    <sec id="p-refinement">
+      <title><italic>p</italic>-refinement:</title>
+      <p>The following example shows how some of the
+      <italic>p</italic>-refinement methods may be used. Here, the
+      <monospace>Mesh</monospace> is provided as an argument to the
+      function rather than being loaded from a file. The
+      <italic>p</italic>-refinement objects are constructed from a
+      static method on <monospace>PRef</monospace> using a pair of
+      <monospace>i8</monospace>’s (8-bit signed integers). As such, any
+      element’s u- and v-directed expansion orders can be modified
+      independently in either the positive or negative direction.</p>
+      <p>The behavior of these methods is straightforward with the
+      slight caveat that the <monospace>global_p_refinement</monospace>
+      and <monospace>p_refine_with_filter</monospace> methods will guard
+      against any refinement pushing an element outside of its valid
+      expansion order range. Specifically, refinements are clamped
+      element-wise to ensure that the final expansion order is in the
+      range [1, 20]. The <italic>p</italic>-refinement methods that can
+      return an error (those followed by a <monospace>?</monospace> in
+      the example) do not exhibit this behavior. This is in keeping with
+      the design of the <italic>h</italic>-refinement API in the sense
+      that methods with less explicit control are safer—and are intended
+      for simpler use cases—while the more explicit methods allow for
+      failure and are intended for more advanced use.</p>
+      <code language="rust">use fem_2d::prelude::*;
+
+fn do_some_p_refinements(mesh: &amp;mut Mesh) -&gt; Result&lt;(), PRefError&gt; {
+    // isotropically p-refine all elems (with a magnitude-2 refinement)
+    mesh.global_p_refinement(PRef::from(2, 2));
+
+    // positively p-refine all &quot;leaf&quot; elems (with a magnitude 1 refinement)
+    // negatively p-refine all other elems (with a magnitude -1 refinement)
+    mesh.p_refine_with_filter(|elem| {
+        if elem.has_children() {
+            Some(PRef::from(-1, -1))
+        } else {
+            Some(PRef::from(1, 1))
+        }
+    });
+
+    // anisotropically p-refine a list of elems by id
+    mesh.p_refine_elems(vec![3, 4, 8, 12], PRef::from(4, 2))?;
+
+    // directly apply a list of refinements to the mesh
+    mesh.execute_p_refinements(vec![
+        (1, PRef::from(3, 2)),
+        (5, PRef::from(0, 1)),
+        (6, PRef::from(-1, -1)),
+        (10, PRef::from(4, -2)),
+    ])?;
+
+    Ok(())
+}</code>
+      <p>The <monospace>Mesh</monospace> data structure also has an
+      alternative set of methods to modify expansion orders by setting
+      them directly rather than additively. These methods can be very
+      useful in scenarios where the current expansion orders are
+      irrelevant, and elements require a specific expansion order which
+      is either known beforehand or computed ad-hoc. The following shows
+      how this API may be used in practice.</p>
+      <p>Here, both methods take an <monospace>Orders</monospace> object
+      that specifies the expansion order in the <monospace>u</monospace>
+      and <monospace>v</monospace> directions. In the first method,
+      <monospace>try_new</monospace> is used to construct an
+      <monospace>Orders</monospace>. This can fail if the expansion
+      order specified is either <monospace>0</monospace> or greater than
+      the maximum allowed expansion order:
+      <monospace>MAX_POLYNOMIAL_ORDER</monospace>. The second interface
+      takes a closure which creates an
+      <monospace>Option&lt;Orders&gt;</monospace> for each element (in
+      this example, the closure uses <monospace>Orders::new</monospace>
+      which will panic when provided with invalid expansion orders).</p>
+      <code language="rust">use fem_2d::prelude::*;
+
+fn set_some_expansion_orders(mesh: &amp;mut Mesh, order: u8) -&gt; Result&lt;(), PRefError&gt; {
+    // set the expansion order on all elems to 'order'
+    mesh.set_global_expansion_orders(Orders::try_new(order, order)?);
+
+    // set the expansion orders to (4, 4) on all &quot;leaf&quot; elems
+    // set the expansion orders to (2, 2) on all base layer elems
+    // leave all other elems unchanged
+    mesh.set_expansions_with_filter(|elem| {
+        if !elem.has_children() {
+            Some(Orders::new(4, 4))
+        } else if elem.parent_id().is_none() {
+            Some(Orders::new(2, 2))
+        } else {
+            None
+        }
+    });
+
+    Ok(())
+}</code>
+    </sec>
+  </sec>
+  <sec id="problem-formulation-and-solution">
+    <title>Problem Formulation and Solution</title>
+    <p>The following example shows how a simplified formulation of the
+    Maxwell Eigenvalue Problem maps to the corresponding code in the
+    library. This is intended provide a general overview of the
+    libraries available functionality. It is not comprehensive, but does
+    aim to provide a good starting point.</p>
+    <p>The Maxwell eigenvalue problem has the following
+    Continuous-Galerkin formulation for an arbitrary Domain terminated
+    with Dirichlet boundary conditions, (constraining the solution to TE
+    modes only):</p>
+    <disp-quote>
+      <p>Find a solution:
+      <named-content id="eqU003Asolution" content-type="equation"><disp-formula><alternatives>
+      <tex-math><![CDATA[ \quad \text{U} = \{{\mathbf{u}}, \lambda \} \in B_{hp} \times \mathbb{R} \quad]]></tex-math>
+      <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mspace width="1.0em"></mml:mspace><mml:mtext mathvariant="normal">U</mml:mtext><mml:mo>=</mml:mo><mml:mo stretchy="false" form="prefix">{</mml:mo><mml:mi>𝐮</mml:mi><mml:mo>,</mml:mo><mml:mi>λ</mml:mi><mml:mo stretchy="false" form="postfix">}</mml:mo><mml:mo>∈</mml:mo><mml:msub><mml:mi>B</mml:mi><mml:mrow><mml:mi>h</mml:mi><mml:mi>p</mml:mi></mml:mrow></mml:msub><mml:mo>×</mml:mo><mml:mi>ℝ</mml:mi><mml:mspace width="1.0em"></mml:mspace></mml:mrow></mml:math></alternatives></disp-formula></named-content>
+      which satisfies:
+      <named-content id="eqU003Aformulation" content-type="equation"><disp-formula><alternatives>
+      <tex-math><![CDATA[ b(\mathbf{u}, \phi) = \lambda a(\mathbf{u}, \phi) \quad \forall \phi \in B_{hp}]]></tex-math>
+      <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>b</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>𝐮</mml:mi><mml:mo>,</mml:mo><mml:mi>ϕ</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>=</mml:mo><mml:mi>λ</mml:mi><mml:mi>a</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>𝐮</mml:mi><mml:mo>,</mml:mo><mml:mi>ϕ</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mspace width="1.0em"></mml:mspace><mml:mo>∀</mml:mo><mml:mi>ϕ</mml:mi><mml:mo>∈</mml:mo><mml:msub><mml:mi>B</mml:mi><mml:mrow><mml:mi>h</mml:mi><mml:mi>p</mml:mi></mml:mrow></mml:msub></mml:mrow></mml:math></alternatives></disp-formula></named-content>
+      <named-content id="eqU003Agen_args" content-type="equation"><disp-formula><alternatives>
+      <tex-math><![CDATA[ \text{where: } \left\{\begin{array}{l}
+      B_{hp} \subset H_0(\text{curl}; \Omega) \\
+      a(\mathbf{u}, \phi) = \langle \nabla_t \times \mathbf{u}, \nabla_t \times \phi \rangle \\
+      b(\mathbf{u}, \phi) = \langle \mathbf{u}, \phi \rangle
+      \end{array}\right.]]></tex-math>
+      <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mrow><mml:mtext mathvariant="normal">where: </mml:mtext><mml:mspace width="0.333em"></mml:mspace></mml:mrow><mml:mrow><mml:mo stretchy="true" form="prefix">{</mml:mo><mml:mtable><mml:mtr><mml:mtd columnalign="left" style="text-align: left"><mml:msub><mml:mi>B</mml:mi><mml:mrow><mml:mi>h</mml:mi><mml:mi>p</mml:mi></mml:mrow></mml:msub><mml:mo>⊂</mml:mo><mml:msub><mml:mi>H</mml:mi><mml:mn>0</mml:mn></mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mtext mathvariant="normal">curl</mml:mtext><mml:mo>;</mml:mo><mml:mi>Ω</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mtd></mml:mtr><mml:mtr><mml:mtd columnalign="left" style="text-align: left"><mml:mi>a</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>𝐮</mml:mi><mml:mo>,</mml:mo><mml:mi>ϕ</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>=</mml:mo><mml:mo stretchy="false" form="prefix">⟨</mml:mo><mml:msub><mml:mi>∇</mml:mi><mml:mi>t</mml:mi></mml:msub><mml:mo>×</mml:mo><mml:mi>𝐮</mml:mi><mml:mo>,</mml:mo><mml:msub><mml:mi>∇</mml:mi><mml:mi>t</mml:mi></mml:msub><mml:mo>×</mml:mo><mml:mi>ϕ</mml:mi><mml:mo stretchy="false" form="postfix">⟩</mml:mo></mml:mtd></mml:mtr><mml:mtr><mml:mtd columnalign="left" style="text-align: left"><mml:mi>b</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>𝐮</mml:mi><mml:mo>,</mml:mo><mml:mi>ϕ</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>=</mml:mo><mml:mo stretchy="false" form="prefix">⟨</mml:mo><mml:mi>𝐮</mml:mi><mml:mo>,</mml:mo><mml:mi>ϕ</mml:mi><mml:mo stretchy="false" form="postfix">⟩</mml:mo></mml:mtd></mml:mtr></mml:mtable></mml:mrow></mml:mrow></mml:math></alternatives></disp-formula></named-content></p>
+    </disp-quote>
+    <p>The Generalized Eigenvalue Problem is built from a
+    <monospace>Mesh</monospace> with the following code. This example
+    assumes that <monospace>mesh</monospace> has already been refined to
+    the desired state.</p>
+    <code language="rust">use fem_2d::prelude::*;
+use rayon::prelude::*;
+
+fn problem_from_mesh(mesh: Mesh) -&gt; Result&lt;GEP, GalerkinSamplingError&gt; {
+  // Setup a global thread-pool for parallelizing Galerkin Sampling
+  rayon::ThreadPoolBuilder::new().num_threads(8).build_global().unwrap();
+
+  // Generate a Domain (Ω) from a Mesh with H(curl) Continuity Conditions
+  let domain = Domain::from(mesh, ContinuityCondition::HCurl);
+
+  // Compute a Generalized Eigenvalue Problem
+  let gep = galerkin_sample_gep_hcurl::&lt;
+      HierPoly, // Basis Space
+      CurlCurl, // Stiffness Integral
+      L2Inner,  // Mass Integral
+  &gt;(&amp;domain, Some([8, 8]))
+}</code>
+    <p>The <monospace>Domain</monospace> structure represents the entire
+    FEM domain, including the discretization and the basis space that
+    conforms to the provided continuity condition. (Only H(curl) is
+    currently implemented but a framework is in place for implementing
+    H(div) and other continuity conditions.)</p>
+    <p>Galerkin sampling is then executed in parallel over the Domain,
+    yielding a Generalized Eigenvalue Problem composed of two sparse
+    matrices. The Domain and a Gauss-Legendre-Quadrature grid size are
+    provided as arguments. This function may also return an Error if the
+    Galerkin Sampling fails due to an ill-posed problem.</p>
+    <p>The three generic arguments – designated with the turbofish
+    operator (<monospace>::&lt;&gt;</monospace>) – correspond to the
+    three lines of
+    <xref alt="Equation 3" rid="eqU003Agen_args">Equation 3</xref>. The
+    basis space can be swapped for any other space that implements the
+    <monospace>HierCurlBasisFnSpace</monospace> Trait.
+    <monospace>HierPoly</monospace> is a relatively simple
+    implementation composed of products of polynomial functions. A more
+    sophisticated basis space: <monospace>HierMaxOrtho</monospace> can
+    be included using the <monospace>max_ortho_basis</monospace> Feature
+    Flag. Custom Basis Spaces can also be created by implementing the
+    same Trait.</p>
+    <p>The <monospace>CurlCurl</monospace> and
+    <monospace>L2Inner</monospace> integrals, which correspond to the
+    Stiffness and Mass matrices respectively, can be swapped for any
+    other structure that implements the
+    <monospace>HierCurlIntegral</monospace> Trait. This generic
+    interface allows users to leverage the Galerkin Sampling
+    functionality against other curl-conforming
+    problems.<xref ref-type="fn" rid="fn1">1</xref></p>
+    <p>The Generalized Eigenvalue Problem, can then be solved using one
+    of the available solvers:</p>
+    <code language="rust">// Dense solution (not recommended for large problems)
+let eigenpair = nalgebra_solve_gep(gep, target_eigenvalue).unwrap();
+
+// OR: Sparse solution (requires external SLEPc solver)
+let eigenpair = slepc_solve_gep(gep, target_eigenvalue).unwrap();</code>
+    <p>The dense solver, implemented using Nalgebra
+    (<xref alt="“Nalgebra,” 2021" rid="ref-nalgebra" ref-type="bibr">“Nalgebra,”
+    2021</xref>), converts the eigenproblem’s sparse matrices into dense
+    matrices. This is an expensive operation, and should be avoided for
+    large problems. The sparse solver, implemented using SLEPc
+    (<xref alt="Balay et al., 1997" rid="ref-petsc-efficient" ref-type="bibr">Balay
+    et al., 1997</xref>,
+    <xref alt="2021a" rid="ref-petsc-web-page" ref-type="bibr">2021a</xref>,
+    <xref alt="2021b" rid="ref-petsc-user-ref" ref-type="bibr">2021b</xref>;
+    <xref alt="Hernandez et al., 2005" rid="ref-slepc" ref-type="bibr">Hernandez
+    et al., 2005</xref>), is a direct interface to a generalized
+    eigensolver. This is a relatively fast operation, but requires an
+    <ext-link ext-link-type="uri" xlink:href="https://github.com/jeremiah-corrado/slepc_gep_solver">external
+    solver</ext-link> to be installed and compiled. It also avoids
+    directly inverting the B-matrix, which is numerically advantageous
+    for ill-conditioned problems.</p>
+    <p>Both solvers look for the eigenvalue closest to the provided
+    <monospace>target_eigenvalue</monospace>. They can return errors if
+    the solution does not converge. Upon success, the returned eigenpair
+    contains the eigenvalue nearest to the target, and the corresponding
+    eigenvector with length equal to the number of degrees of freedom in
+    the domain.</p>
+  </sec>
+  <sec id="field-visualization">
+    <title>Field Visualization</title>
+    <p>The Fields API exposes functionality to generate a solution-field
+    using an eigenvector and associated domain. It also allows functions
+    of field solutions to be computed using basic mathematical
+    operations. The following example shows how electric field solutions
+    are generated and exported to a VTK file.</p>
+    <code language="rust">use fem_2d::prelude::*;
+use std::error::Error;
+
+fn compute_some_solution_fields(
+    eigenpair: EigenPair,
+    domain: &amp;Domain
+) -&gt; Result&lt;(), Box&lt;dyn Error&gt;&gt; {
+    // build a solution field space
+    let mut field_space = UniformFieldSpace::new(domain, [16, 16]);
+
+    // compute the x and y directed electric fields
+    let [ex_name, ey_name] =
+        field_space.xy_fields::&lt;HierPoly&gt;(&quot;E&quot;, eigenpair.vector)?;
+
+    // compute the magnitude of the electric field
+    field_space.expression_2arg([&amp;ex_name, &amp;ey_name], &quot;E_mag&quot;, |ex, ey| {
+        (ex.powi(2) + ey.powi(2)).sqrt()
+    })?;
+
+    // compute the absolute value of the x and y directed electric fields
+    field_space.map_to_quantity(ex_name, &quot;E_x_abs&quot;, |e| e.abs())?;
+    field_space.map_to_quantity(ey_name, &quot;E_y_abs&quot;, |e| e.abs())?;
+
+    // print E_x, E_y, E_x_abs, E_y_abs, and E_mag to a VTK file
+    field_space.print_all_to_vtk(&quot;path/to/file.vtk&quot;)
+}</code>
+    <p>Here, we are using a <monospace>UniformFieldSpace</monospace> to
+    define our solution space over the domain. This structure defines a
+    grid of points such that the density is uniform across
+    leaf-elements.<xref ref-type="fn" rid="fn2">2</xref> Here, we use a
+    16x16 grid. The parent elements will have a larger density because
+    the leaf-element’s points are projected “downwards” onto their
+    ancestors. So, in this case, an element that has four children (who
+    are all leafs) would evaluate its local solution using a 32x32 point
+    grid such that the points align with the grids on its
+    descendants.</p>
+    <p>On the following line, we compute the X- and Y-directed fields
+    using the eigenvector (and the same basis-space as before). The
+    <monospace>UniformFieldSpace</monospace> maintains an internal table
+    of solution components designated by name. The names for the fields
+    are returned from the <monospace>xy_fields</monospace> method.</p>
+    <p>The next line uses the X- and Y-components to compute the
+    magnitude of the electric field using a two-argument expression.
+    This solution component is stored in the provided name
+    <monospace>&quot;E_mag&quot;</monospace>. We also compute the
+    absolute value of both components.</p>
+    <p>Finally, the fields are exported to a VTK file for plotting.
+    Multiple external tools are available to generate high-quality plots
+    from the VTK data.
+    <xref alt="[fig:emag]" rid="figU003Aemag">[fig:emag]</xref> shows an
+    electric field magnitude generated using
+    <monospace>FEM_2D</monospace> and
+    <ext-link ext-link-type="uri" xlink:href="https://wci.llnl.gov/simulation/computer-codes/visit">VISIT</ext-link>.</p>
+    <fig>
+      <caption><p>Example of an Electric Field Magnitude of an
+      Eigenfunction
+      <styled-content id="figU003Aemag"></styled-content></p></caption>
+      <graphic mimetype="image" mime-subtype="jpeg" xlink:href="media/rm_figs/e_mag_9.jpeg" />
+    </fig>
+  </sec>
+</sec>
+</body>
+<back>
+<ref-list>
+  <ref id="ref-corradoU003A2022">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Corrado</surname><given-names>Jeremiah</given-names></name>
+        <name><surname>Harmon</surname><given-names>Jake</given-names></name>
+        <name><surname>Notaros</surname><given-names>Branislav</given-names></name>
+      </person-group>
+      <article-title>An adaptive anisotropic hp-refinement algorithm for the 2D Maxwell eigenvalue problem</article-title>
+      <year iso-8601-date="2022-04">2022</year><month>04</month>
+      <uri>https://www.techrxiv.org/articles/preprint/An_Adaptive_Anisotropic_hp-Refinement_Algorithm_for_the_2D_Maxwell_Eigenvalue_Problem/19636770</uri>
+      <pub-id pub-id-type="doi">10.36227/techrxiv.19636770.v1</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-corradoU003A2021">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Corrado</surname><given-names>Jeremiah</given-names></name>
+        <name><surname>Harmon</surname><given-names>Jake</given-names></name>
+        <name><surname>Notaros</surname><given-names>Branislav</given-names></name>
+      </person-group>
+      <article-title>A refinement-by-superposition approach to fully anisotropic hp-refinement for improved efficiency in CEM</article-title>
+      <publisher-name>TechRxiv</publisher-name>
+      <year iso-8601-date="2021-10">2021</year><month>10</month>
+      <uri>https://www.techrxiv.org/articles/preprint/A_Refinement-by-Superposition_Approach_to_Fully_Anisotropic_hp-Refinement_for_Improved_Efficiency_in_CEM/16695163/1</uri>
+      <pub-id pub-id-type="doi">10.36227/techrxiv.16695163.v1</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-harmonU003A2021">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Harmon</surname><given-names>Jake</given-names></name>
+        <name><surname>Corrado</surname><given-names>Jeremiah</given-names></name>
+        <name><surname>Notaros</surname><given-names>Branislav</given-names></name>
+      </person-group>
+      <article-title>A refinement-by-superposition hp-method for H(curl)- and H(div)-conforming discretizations</article-title>
+      <publisher-name>TechRxiv</publisher-name>
+      <year iso-8601-date="2021-06">2021</year><month>06</month>
+      <uri>https://www.techrxiv.org/articles/preprint/A_Refinement-by-Superposition_hp-Method_for_H_curl_-_and_H_div_-Conforming_Discretizations/14807895/1</uri>
+      <pub-id pub-id-type="doi">10.36227/techrxiv.14807895.v1</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-nalgebra">
+    <element-citation>
+      <article-title>Nalgebra: Linear algebra library for the Rust programming language</article-title>
+      <source>GitHub repository</source>
+      <publisher-name>GitHub</publisher-name>
+      <year iso-8601-date="2021">2021</year>
+      <uri>https://github.com/dimforge/nalgebra</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-slepc">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Hernandez</surname><given-names>Vicente</given-names></name>
+        <name><surname>Roman</surname><given-names>Jose E.</given-names></name>
+        <name><surname>Vidal</surname><given-names>Vicente</given-names></name>
+      </person-group>
+      <article-title>SLEPc: A scalable and flexible toolkit for the solution of eigenvalue problems</article-title>
+      <source>ACM Trans. Math. Software</source>
+      <year iso-8601-date="2005">2005</year>
+      <volume>31</volume>
+      <issue>3</issue>
+      <pub-id pub-id-type="doi">10.1145/1089014.1089019</pub-id>
+      <fpage>351</fpage>
+      <lpage>362</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-petsc-web-page">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Balay</surname><given-names>Satish</given-names></name>
+        <name><surname>Abhyankar</surname><given-names>Shrirang</given-names></name>
+        <name><surname>Adams</surname><given-names>Mark F.</given-names></name>
+        <name><surname>Benson</surname><given-names>Steven</given-names></name>
+        <name><surname>Brown</surname><given-names>Jed</given-names></name>
+        <name><surname>Brune</surname><given-names>Peter</given-names></name>
+        <name><surname>Buschelman</surname><given-names>Kris</given-names></name>
+        <name><surname>Constantinescu</surname><given-names>Emil M.</given-names></name>
+        <name><surname>Dalcin</surname><given-names>Lisandro</given-names></name>
+        <name><surname>Dener</surname><given-names>Alp</given-names></name>
+        <name><surname>Eijkhout</surname><given-names>Victor</given-names></name>
+        <name><surname>Gropp</surname><given-names>William D.</given-names></name>
+        <name><surname>Hapla</surname><given-names>Václav</given-names></name>
+        <name><surname>Isaac</surname><given-names>Tobin</given-names></name>
+        <name><surname>Jolivet</surname><given-names>Pierre</given-names></name>
+        <name><surname>Karpeev</surname><given-names>Dmitry</given-names></name>
+        <name><surname>Kaushik</surname><given-names>Dinesh</given-names></name>
+        <name><surname>Knepley</surname><given-names>Matthew G.</given-names></name>
+        <name><surname>Kong</surname><given-names>Fande</given-names></name>
+        <name><surname>Kruger</surname><given-names>Scott</given-names></name>
+        <name><surname>May</surname><given-names>Dave A.</given-names></name>
+        <name><surname>McInnes</surname><given-names>Lois Curfman</given-names></name>
+        <name><surname>Mills</surname><given-names>Richard Tran</given-names></name>
+        <name><surname>Mitchell</surname><given-names>Lawrence</given-names></name>
+        <name><surname>Munson</surname><given-names>Todd</given-names></name>
+        <name><surname>Roman</surname><given-names>Jose E.</given-names></name>
+        <name><surname>Rupp</surname><given-names>Karl</given-names></name>
+        <name><surname>Sanan</surname><given-names>Patrick</given-names></name>
+        <name><surname>Sarich</surname><given-names>Jason</given-names></name>
+        <name><surname>Smith</surname><given-names>Barry F.</given-names></name>
+        <name><surname>Zampini</surname><given-names>Stefano</given-names></name>
+        <name><surname>Zhang</surname><given-names>Hong</given-names></name>
+        <name><surname>Zhang</surname><given-names>Hong</given-names></name>
+        <name><surname>Zhang</surname><given-names>Junchao</given-names></name>
+      </person-group>
+      <article-title>PETSc Web page</article-title>
+      <year iso-8601-date="2021">2021</year>
+      <uri>https://petsc.org/</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-petsc-user-ref">
+    <element-citation publication-type="report">
+      <person-group person-group-type="author">
+        <name><surname>Balay</surname><given-names>Satish</given-names></name>
+        <name><surname>Abhyankar</surname><given-names>Shrirang</given-names></name>
+        <name><surname>Adams</surname><given-names>Mark F.</given-names></name>
+        <name><surname>Benson</surname><given-names>Steven</given-names></name>
+        <name><surname>Brown</surname><given-names>Jed</given-names></name>
+        <name><surname>Brune</surname><given-names>Peter</given-names></name>
+        <name><surname>Buschelman</surname><given-names>Kris</given-names></name>
+        <name><surname>Constantinescu</surname><given-names>Emil</given-names></name>
+        <name><surname>Dalcin</surname><given-names>Lisandro</given-names></name>
+        <name><surname>Dener</surname><given-names>Alp</given-names></name>
+        <name><surname>Eijkhout</surname><given-names>Victor</given-names></name>
+        <name><surname>Gropp</surname><given-names>William D.</given-names></name>
+        <name><surname>Hapla</surname><given-names>Václav</given-names></name>
+        <name><surname>Isaac</surname><given-names>Tobin</given-names></name>
+        <name><surname>Jolivet</surname><given-names>Pierre</given-names></name>
+        <name><surname>Karpeev</surname><given-names>Dmitry</given-names></name>
+        <name><surname>Kaushik</surname><given-names>Dinesh</given-names></name>
+        <name><surname>Knepley</surname><given-names>Matthew G.</given-names></name>
+        <name><surname>Kong</surname><given-names>Fande</given-names></name>
+        <name><surname>Kruger</surname><given-names>Scott</given-names></name>
+        <name><surname>May</surname><given-names>Dave A.</given-names></name>
+        <name><surname>McInnes</surname><given-names>Lois Curfman</given-names></name>
+        <name><surname>Mills</surname><given-names>Richard Tran</given-names></name>
+        <name><surname>Mitchell</surname><given-names>Lawrence</given-names></name>
+        <name><surname>Munson</surname><given-names>Todd</given-names></name>
+        <name><surname>Roman</surname><given-names>Jose E.</given-names></name>
+        <name><surname>Rupp</surname><given-names>Karl</given-names></name>
+        <name><surname>Sanan</surname><given-names>Patrick</given-names></name>
+        <name><surname>Sarich</surname><given-names>Jason</given-names></name>
+        <name><surname>Smith</surname><given-names>Barry F.</given-names></name>
+        <name><surname>Zampini</surname><given-names>Stefano</given-names></name>
+        <name><surname>Zhang</surname><given-names>Hong</given-names></name>
+        <name><surname>Zhang</surname><given-names>Hong</given-names></name>
+        <name><surname>Zhang</surname><given-names>Junchao</given-names></name>
+      </person-group>
+      <article-title>PETSc/TAO users manual</article-title>
+      <publisher-name>Argonne National Laboratory</publisher-name>
+      <year iso-8601-date="2021">2021</year>
+    </element-citation>
+  </ref>
+  <ref id="ref-petsc-efficient">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Balay</surname><given-names>Satish</given-names></name>
+        <name><surname>Gropp</surname><given-names>William D.</given-names></name>
+        <name><surname>McInnes</surname><given-names>Lois Curfman</given-names></name>
+        <name><surname>Smith</surname><given-names>Barry F.</given-names></name>
+      </person-group>
+      <article-title>Efficient management of parallelism in object oriented numerical software libraries</article-title>
+      <source>Modern software tools in scientific computing</source>
+      <person-group person-group-type="editor">
+        <name><surname>Arge</surname><given-names>E.</given-names></name>
+        <name><surname>Bruaset</surname><given-names>A. M.</given-names></name>
+        <name><surname>Langtangen</surname><given-names>H. P.</given-names></name>
+      </person-group>
+      <publisher-name>Birkhäuser Press</publisher-name>
+      <year iso-8601-date="1997">1997</year>
+      <pub-id pub-id-type="doi">10.1007/978-1-4612-1986-6_8</pub-id>
+      <fpage>163</fpage>
+      <lpage>202</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-dealII93">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Arndt</surname><given-names>Daniel</given-names></name>
+        <name><surname>Bangerth</surname><given-names>Wolfgang</given-names></name>
+        <name><surname>Blais</surname><given-names>Bruno</given-names></name>
+        <name><surname>Fehling</surname><given-names>Marc</given-names></name>
+        <name><surname>Gassmöller</surname><given-names>Rene</given-names></name>
+        <name><surname>Heister</surname><given-names>Timo</given-names></name>
+        <name><surname>Heltai</surname><given-names>Luca</given-names></name>
+        <name><surname>Köcher</surname><given-names>Uwe</given-names></name>
+        <name><surname>Kronbichler</surname><given-names>Martin</given-names></name>
+        <name><surname>Maier</surname><given-names>Matthias</given-names></name>
+        <name><surname>Munch</surname><given-names>Peter</given-names></name>
+        <name><surname>Pelteret</surname><given-names>Jean-Paul</given-names></name>
+        <name><surname>Proell</surname><given-names>Sebastian</given-names></name>
+        <name><surname>Simon</surname><given-names>Konrad</given-names></name>
+        <name><surname>Turcksin</surname><given-names>Bruno</given-names></name>
+        <name><surname>Wells</surname><given-names>David</given-names></name>
+        <name><surname>Zhang</surname><given-names>Jiaqi</given-names></name>
+      </person-group>
+      <article-title>The deal.II library, version 9.3</article-title>
+      <source>Journal of Numerical Mathematics</source>
+      <year iso-8601-date="2021">2021</year>
+      <volume>29</volume>
+      <issue>3</issue>
+      <uri>https://dealii.org/deal93-preprint.pdf</uri>
+      <pub-id pub-id-type="doi">10.1515/jnma-2021-0081</pub-id>
+      <fpage>171</fpage>
+      <lpage>186</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-mfem">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Anderson</surname><given-names>R.</given-names></name>
+        <name><surname>Andrej</surname><given-names>J.</given-names></name>
+        <name><surname>Barker</surname><given-names>A.</given-names></name>
+        <name><surname>Bramwell</surname><given-names>J.</given-names></name>
+        <name><surname>Camier</surname><given-names>J.-S.</given-names></name>
+        <name><surname>Dobrev</surname><given-names>J. Cerveny V.</given-names></name>
+        <name><surname>Dudouit</surname><given-names>Y.</given-names></name>
+        <name><surname>Fisher</surname><given-names>A.</given-names></name>
+        <name><surname>Kolev</surname><given-names>Tz.</given-names></name>
+        <name><surname>Pazner</surname><given-names>W.</given-names></name>
+        <name><surname>Stowell</surname><given-names>M.</given-names></name>
+        <name><surname>Tomov</surname><given-names>V.</given-names></name>
+        <name><surname>Akkerman</surname><given-names>I.</given-names></name>
+        <name><surname>Dahm</surname><given-names>J.</given-names></name>
+        <name><surname>Medina</surname><given-names>D.</given-names></name>
+        <name><surname>Zampini</surname><given-names>S.</given-names></name>
+      </person-group>
+      <article-title>MFEM: A modular finite element methods library</article-title>
+      <source>Computers &amp; Mathematics with Applications</source>
+      <year iso-8601-date="2021">2021</year>
+      <volume>81</volume>
+      <pub-id pub-id-type="doi">10.1016/j.camwa.2020.06.009</pub-id>
+      <fpage>42</fpage>
+      <lpage>74</lpage>
+    </element-citation>
+  </ref>
+</ref-list>
+<fn-group>
+  <fn id="fn1">
+    <label>1</label><p>The provided functionality is obviously somewhat
+    incomplete, as only Curl Conforming problems can be solved; however,
+    the library’s module-structure and trait-hierarchy provide a clear
+    template for the analogous H(div) implementation. There is also room
+    for other Galerkin sampling and integration functionality associated
+    with alternate continuity conditions. These methods, structures, and
+    traits would require additions to the <monospace>Domain</monospace>
+    structure, and few changes to the <monospace>Mesh</monospace>
+    structure if any.</p>
+  </fn>
+  <fn id="fn2">
+    <label>2</label><p>There is also a need for an implementation with
+    densities proportional to the size of the elements. This would be
+    useful for generating images of the fields, as the overall
+    point-density would be globally uniform across the domain.</p>
+  </fn>
+</fn-group>
+</back>
+</article>
