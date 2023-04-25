@@ -1,0 +1,257 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">5293</article-id>
+<article-id pub-id-type="doi">10.21105/joss.05293</article-id>
+<title-group>
+<article-title>byteparsing: a functional parser combinator for mixed
+ASCII/binary data</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author" equal-contrib="yes" corresp="yes">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0002-7550-1796</contrib-id>
+<name>
+<surname>Hidding</surname>
+<given-names>Johan</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+<xref ref-type="corresp" rid="cor-1"><sup>*</sup></xref>
+</contrib>
+<contrib contrib-type="author" equal-contrib="yes">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0002-2855-940X</contrib-id>
+<name>
+<surname>Rodríguez-Sánchez</surname>
+<given-names>Pablo</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Netherlands eScience Center</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<author-notes>
+<corresp id="cor-1">* E-mail: <email></email></corresp>
+</author-notes>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2022-10-25">
+<day>25</day>
+<month>10</month>
+<year>2022</year>
+</pub-date>
+<volume>8</volume>
+<issue>84</issue>
+<fpage>5293</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2022</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>Python</kwd>
+<kwd>parsing</kwd>
+<kwd>binary</kwd>
+<kwd>ascii</kwd>
+<kwd>functional-programming</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p>Byteparsing is a functional parser combinator for Python. It was
+  originally motivated by the problem of parsing OpenFOAM files.
+  OpenFOAM<xref ref-type="fn" rid="fn1">1</xref> is a free, open source
+  computational fluid dynamics software package whose input and output
+  files contain both ASCII and binary data. Other common formats
+  combining ASCII and binary are PLY triangle data or PPM
+  images<xref ref-type="fn" rid="fn2">2</xref>. This makes them
+  particularly hard to parse using traditional tools. Byteparsing is a
+  flexible tool capable of dealing with generic formats.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p>There are already a few accessible options for parsing and
+  manipulating data in Python. For instance:</p>
+  <list list-type="bullet">
+    <list-item>
+      <p><monospace>pyparsing</monospace> is the <italic>de
+      facto</italic> standard for text parsing in Python. It seems to
+      have no features for dealing with binary data though.</p>
+    </list-item>
+    <list-item>
+      <p><monospace>construct</monospace> deals mostly with pure binary
+      data.</p>
+    </list-item>
+    <list-item>
+      <p><monospace>Kaitai Struct</monospace> and
+      <monospace>Antlr</monospace> both require a large time investment
+      to learn.</p>
+    </list-item>
+  </list>
+  <p>The major downside of the remaining binary parser Python packages
+  we could find is that they focus mostly either on parsing network
+  traffic or on data structures that can be described in a fixed
+  declarative language.</p>
+  <p>Our research problem, namely, manipulating OpenFOAM files from
+  Python, required a parser with the following characteristics:</p>
+  <list list-type="bullet">
+    <list-item>
+      <p>Capable of dealing with files combining ASCII and binary.</p>
+    </list-item>
+    <list-item>
+      <p>Easy to program, using concepts similar to those found in other
+      functional parser combinators like
+      <monospace>pyparsing</monospace>.</p>
+    </list-item>
+    <list-item>
+      <p>Composable and testable at all levels of complexity.</p>
+    </list-item>
+    <list-item>
+      <p>Capable of dealing transparently with Python objects that
+      support the buffer protocol (i.e., memory mapped file access is
+      trivially supported).</p>
+    </list-item>
+    <list-item>
+      <p>Performant enough, considering the use case where we have small
+      ASCII headers and large contiguous blocks of floating point
+      data.</p>
+    </list-item>
+    <list-item>
+      <p>Compliant with best practices, such as automated unit testing
+      and thorough documentation.</p>
+    </list-item>
+  </list>
+  <p>Byteparser is the solution we developed based on this list of
+  requirements.</p>
+  <sec id="a-note-on-architecture">
+    <title>A note on architecture</title>
+    <p>Writing functional parser combinators is a staple of functional
+    languages like Haskell or Ocaml
+    (<xref alt="Frost &amp; Launchbury, 1989" rid="ref-frost_1989" ref-type="bibr">Frost
+    &amp; Launchbury, 1989</xref>;
+    <xref alt="Hutton, 1992" rid="ref-hutton_1992" ref-type="bibr">Hutton,
+    1992</xref>). The paper “Monadic Parsing in Haskell”
+    (<xref alt="Hutton &amp; Meijer, 1998" rid="ref-hutton_meijer_1998" ref-type="bibr">Hutton
+    &amp; Meijer, 1998</xref>) gives a complete tutorial on how to write
+    a basic recursive descent parser. Most of what Hutton and Meijer
+    teach carries over nicely to Python once we take care of a few
+    details. We’ve replaced some Haskell idioms by features that are
+    considered more ‘pythonic’.</p>
+    <p>An extended description of the concept of functional parser
+    combinators can be found in the
+    documentation<xref ref-type="fn" rid="fn3">3</xref>. Those readers
+    more interested in starting working right away will probably find
+    our lists of examples<xref ref-type="fn" rid="fn4">4</xref> very
+    practical.</p>
+  </sec>
+</sec>
+<sec id="conclusion">
+  <title>Conclusion</title>
+  <p>In research software it is unfortunately still quite common to
+  encounter non-standard data formats. For those data formats where a
+  mix of ASCII and binary parsing is needed, Byteparsing can make a
+  useful addition to the existing landscape of parser libraries in
+  Python. Development of a parser using Byteparsing can be relatively
+  quick, as it is easy to build up parsers from smaller testable
+  components.</p>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>This project was supported by funding from the Netherlands eScience
+  Center and NWO as part of the Joint Call for Energy Research, Project
+  Number CSER.JCER.025. We also want to acknowledge Dr. Nicolas Renaud
+  for his support and suggestions.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <ref id="ref-hutton_meijer_1998">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Hutton</surname><given-names>Graham</given-names></name>
+        <name><surname>Meijer</surname><given-names>Erik</given-names></name>
+      </person-group>
+      <article-title>Monadic parsing in Haskell</article-title>
+      <source>Journal of Functional Programming</source>
+      <publisher-name>Cambridge University Press</publisher-name>
+      <year iso-8601-date="1998">1998</year>
+      <volume>8</volume>
+      <issue>4</issue>
+      <pub-id pub-id-type="doi">10.1017/S0956796898003050</pub-id>
+      <fpage>437</fpage>
+      <lpage>444</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-frost_1989">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Frost</surname><given-names>R.</given-names></name>
+        <name><surname>Launchbury</surname><given-names>J.</given-names></name>
+      </person-group>
+      <article-title>Constructing natural language interpreters in a lazy functional language</article-title>
+      <source>The Computer Journal</source>
+      <year iso-8601-date="1989-01">1989</year><month>01</month>
+      <volume>32</volume>
+      <issue>2</issue>
+      <issn>0010-4620</issn>
+      <uri>https://doi.org/10.1093/comjnl/32.2.108</uri>
+      <pub-id pub-id-type="doi">10.1093/comjnl/32.2.108</pub-id>
+      <fpage>108</fpage>
+      <lpage>121</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-hutton_1992">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Hutton</surname><given-names>Graham</given-names></name>
+      </person-group>
+      <article-title>Higher-order functions for parsing</article-title>
+      <source>Journal of Functional Programming</source>
+      <publisher-name>Cambridge University Press</publisher-name>
+      <year iso-8601-date="1992">1992</year>
+      <volume>2</volume>
+      <issue>3</issue>
+      <pub-id pub-id-type="doi">10.1017/S0956796800000411</pub-id>
+      <fpage>323</fpage>
+      <lpage>343</lpage>
+    </element-citation>
+  </ref>
+</ref-list>
+<fn-group>
+  <fn id="fn1">
+    <label>1</label><p><ext-link ext-link-type="uri" xlink:href="https://www.openfoam.com/">https://www.openfoam.com/</ext-link></p>
+  </fn>
+  <fn id="fn2">
+    <label>2</label><p><ext-link ext-link-type="uri" xlink:href="https://parallelwindfarms.github.io/byteparsing/advanced.html">https://parallelwindfarms.github.io/byteparsing/advanced.html</ext-link></p>
+  </fn>
+  <fn id="fn3">
+    <label>3</label><p><ext-link ext-link-type="uri" xlink:href="https://parallelwindfarms.github.io/byteparsing/functional.html">https://parallelwindfarms.github.io/byteparsing/functional.html</ext-link></p>
+  </fn>
+  <fn id="fn4">
+    <label>4</label><p><ext-link ext-link-type="uri" xlink:href="https://parallelwindfarms.github.io/byteparsing/examples.html">https://parallelwindfarms.github.io/byteparsing/examples.html</ext-link></p>
+  </fn>
+</fn-group>
+</back>
+</article>
