@@ -1,0 +1,791 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">5114</article-id>
+<article-id pub-id-type="doi">10.21105/joss.05114</article-id>
+<title-group>
+<article-title>hdt-rs: A Rust library for the Header Dictionary Triples
+binary RDF compression format</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author" equal-contrib="yes" corresp="yes">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0001-7358-3217</contrib-id>
+<name>
+<surname>Höffner</surname>
+<given-names>Konrad</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+<xref ref-type="corresp" rid="cor-1"><sup>*</sup></xref>
+</contrib>
+<contrib contrib-type="author" equal-contrib="yes">
+<name>
+<surname>Baccaert</surname>
+<given-names>Tim</given-names>
+</name>
+<xref ref-type="aff" rid="aff-2"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Institute for Medical Informatics, Statistics, and
+Epidemiology, Medical Faculty, Leipzig University</institution>
+</institution-wrap>
+</aff>
+<aff id="aff-2">
+<institution-wrap>
+<institution>Independent Researcher, Belgium</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<author-notes>
+<corresp id="cor-1">* E-mail: <email></email></corresp>
+</author-notes>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2022-01-01">
+<day>1</day>
+<month>1</month>
+<year>2022</year>
+</pub-date>
+<volume>8</volume>
+<issue>84</issue>
+<fpage>5114</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2022</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>Rust</kwd>
+<kwd>HDT</kwd>
+<kwd>RDF</kwd>
+<kwd>linked data</kwd>
+<kwd>semantic web</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p>We present the Rust library hdt-rs (named “hdt” in the context of
+  Rust libraries, such as
+  <ext-link ext-link-type="uri" xlink:href="https://crates.io/crates/hdt">on
+  crates.io</ext-link>) for the Header Dictionary Triples (HDT) binary
+  RDF compression format. This allows the writing of high-performance
+  Rust applications that load and query HDT datasets using triple
+  patterns. Existing Rust applications that use the
+  <ext-link ext-link-type="uri" xlink:href="https://crates.io/crates/sophia">Sophia
+  library</ext-link>
+  (<xref alt="Champin, 2020" rid="ref-sophia" ref-type="bibr">Champin,
+  2020</xref>) can easily and greatly reduce their RAM usage by using
+  the provided Sophia HDT adapter.</p>
+</sec>
+<sec id="preliminaries">
+  <title>Preliminaries</title>
+  <sec id="rdf">
+    <title>RDF</title>
+    <p>The <italic>Resource Description Framework</italic> (RDF) is a
+    data model that represents information using
+    <italic>triples</italic>, each of which consists of a
+    <italic>subject</italic>, a <italic>predicate</italic>, and an
+    <italic>object</italic>. A set of triples is called an <italic>RDF
+    graph</italic>, where the subjects and objects can be visualised as
+    nodes and the predicates as labelled, directed edges. Predicates are
+    always <italic>IRIs</italic> (Internationalised Resource
+    Identifiers), which are generalisations of a URIs that allow
+    additional characters. Subjects and objects can also be
+    <italic>blank nodes</italic> and objects can also be
+    <italic>literals</italic>. There are several text-based RDF
+    serialisation formats with different compromises between verbosity,
+    ease of automatic processing, and human readability. For example,
+    the N-Triples representation of the fact <italic>“the mayor of
+    Leipzig is Burkhard Jung”</italic> from DBpedia
+    (<xref alt="Lehmann et al., 2015" rid="ref-dbpedia" ref-type="bibr">Lehmann
+    et al., 2015</xref>) is:</p>
+    <preformat>&lt;http://dbpedia.org/resource/Leipzig&gt; &lt;http://dbpedia.org/ontology/mayor&gt; \
+    &lt;http://dbpedia.org/resource/Burkhard_Jung&gt; .</preformat>
+  </sec>
+  <sec id="triple-patterns">
+    <title>Triple Patterns</title>
+    <p><italic>Triple patterns</italic> match a subset of a graph. Each
+    part of the pattern is either a constant or a variable, resulting in
+    eight different types. We denote the pattern type with all constants
+    as SPO (<italic>subject-predicate-object</italic>, matches one or
+    zero triples) and the type with all variables as ??? (matches all
+    triples in the graph). The other triple patterns are denoted
+    analogously.</p>
+  </sec>
+  <sec id="header-dictionary-triples">
+    <title>Header Dictionary Triples</title>
+    <p>While text-based RDF serialisation formats can be read by humans,
+    they are too verbose to be practical for large graphs. The
+    serialised size of a graph can be drastically lowered by using the
+    Header Dictionary Triples binary RDF format, which can be loaded
+    into memory in compressed form while still allowing for efficient
+    queries. The <italic>header</italic> contains metadata as
+    uncompressed RDF that describes the dataset. The
+    <italic>dictionary</italic> stores all the <italic>RDF
+    terms</italic> (IRIs, literals, and blank nodes) in the dataset in
+    compressed form using front-coding
+    (<xref alt="Witten et al., 1999" rid="ref-frontcoding" ref-type="bibr">Witten
+    et al., 1999</xref>), and assigns a unique numerical identifier (ID)
+    to each of them. This allows the <italic>triples</italic> component
+    to store the adjacency matrix of the graph using those IDs in
+    compressed form.</p>
+    <fig>
+      <caption><p>The Bitmap Triples structure represents the adjacency
+      matrix of the RDF graph as trees. Image source and further
+      information in Martínez-Prieto et al.
+      (<xref alt="2012" rid="ref-hdt2012" ref-type="bibr">2012</xref>).
+      <styled-content id="figU003Abt"></styled-content></p></caption>
+      <graphic mimetype="image" mime-subtype="png" xlink:href="media/img/bt.png" />
+    </fig>
+    <p>All patterns with constant subject (SPO, SP?, SO?, and S??) as
+    well as the one with all variables (???) are answered using the
+    Bitmap Triples structure (see
+    <xref alt="[fig:bt]" rid="figU003Abt">[fig:bt]</xref>), while the
+    other patterns use the HDT <italic>Focused on Querying</italic>
+    (HDT-FoQ) extension, see
+    <xref alt="[fig:foq]" rid="figU003Afoq">[fig:foq]</xref>. As HDT is
+    a complex format, we recommend referring to Martínez-Prieto et al.
+    (<xref alt="2012" rid="ref-hdt2012" ref-type="bibr">2012</xref>) and
+    Fernández et al.
+    (<xref alt="2013" rid="ref-hdt2013" ref-type="bibr">2013</xref>) for
+    comprehensive documentation.</p>
+    <fig>
+      <caption><p>The HDT <italic>Focused on Querying</italic> (HDT-FoQ)
+      extension allows efficient queries with ?PO, ?P?, and ??O
+      patterns. Image source and further information in Martínez-Prieto
+      et al.
+      (<xref alt="2012" rid="ref-hdt2012" ref-type="bibr">2012</xref>).
+      <styled-content id="figU003Afoq"></styled-content></p></caption>
+      <graphic mimetype="image" mime-subtype="png" xlink:href="media/img/hdt-foq.png" />
+    </fig>
+  </sec>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p>Semantic Web technologies have been adopted by major tech companies
+  in recent years but widespread use is still inhibited by a lack of
+  freely available performant, accessible, robust, and adaptable tooling
+  (<xref alt="Hitzler, 2021" rid="ref-semanticwebreview" ref-type="bibr">Hitzler,
+  2021</xref>). SPARQL endpoints provide a standard publication channel
+  and API to any RDF graph but they are not suitable for all use cases.
+  On small graphs, there is a large relative overhead in both memory and
+  CPU resources. On large graphs, on the other hand, query complexity
+  and shared access may cause an overload of the server, causing delayed
+  or missed responses. The long-term availability of SPARQL endpoints is
+  often compromised
+  (<xref alt="Buil-Aranda et al., 2013" rid="ref-readyforaction" ref-type="bibr">Buil-Aranda
+  et al., 2013</xref>), which impacts all applications that depend on
+  them.</p>
+  <p>To insulate against such problems, Semantic Web applications can
+  integrate and query an RDF graph using libraries such as Apache Jena
+  (<xref alt="Carroll et al., 2004" rid="ref-jena" ref-type="bibr">Carroll
+  et al., 2004</xref>) for Java, RDFlib
+  (<xref alt="Swartz et al., 2023" rid="ref-rdflib" ref-type="bibr">Swartz
+  et al., 2023</xref>) for Python, librdf
+  (<xref alt="Beckett et al., 2015" rid="ref-librdf" ref-type="bibr">Beckett
+  et al., 2015</xref>) for C, or Sophia
+  (<xref alt="Champin, 2020" rid="ref-sophia" ref-type="bibr">Champin,
+  2020</xref>) for Rust. However these libraries do not scale to large
+  RDF graphs due to their excessive memory usage, see
+  <xref alt="[fig:benchmark]" rid="figU003Abenchmark">[fig:benchmark]</xref>.
+  To complement hdt-cpp
+  (<xref alt="Arias et al., 2023" rid="ref-hdtcpp" ref-type="bibr">Arias
+  et al., 2023</xref>) and hdt-java
+  (<xref alt="Torres et al., 2022" rid="ref-hdtjava" ref-type="bibr">Torres
+  et al., 2022</xref>), we implement HDT in Rust, which is a popular
+  modern, statically typed high-level programming language that allows
+  writing performant software while ensuring memory safety, which meets
+  the challenges of Semantic Web adoption. hdt-rs is used by the RDF
+  browser RickView
+  (<xref alt="Höffner, 2023" rid="ref-rickview" ref-type="bibr">Höffner,
+  2023</xref>) via the included Sophia adapter to publish large graphs,
+  for example LinkedSpending
+  (<xref alt="Höffner et al., 2016" rid="ref-linkedspending" ref-type="bibr">Höffner
+  et al., 2016</xref>) at
+  <ext-link ext-link-type="uri" xlink:href="https://linkedspending.aksw.org">https://linkedspending.aksw.org</ext-link>,
+  which previously suffered from frequent downtime when based on a
+  SPARQL endpoint.</p>
+</sec>
+<sec id="benchmark">
+  <title>Benchmark</title>
+  <fig>
+    <caption><p>Dataset load time, memory usage (resident set size), and
+    ?PO triple pattern query time of different RDF libraries on an Intel
+    i9-12900k CPU based on the benchmark suite of Champin
+    (<xref alt="2020" rid="ref-sophia" ref-type="bibr">2020</xref>).
+    librdf was not benchmarked on <inline-formula><alternatives>
+    <tex-math><![CDATA[10^6]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msup><mml:mn>10</mml:mn><mml:mn>6</mml:mn></mml:msup></mml:math></alternatives></inline-formula>
+    triples and beyond due to graph loading times exceeding several
+    hours. hdt-java produces <monospace>DelayedString</monospace>
+    instances that are converted to strings to account for the time that
+    would otherwise be spent later. The index files created by hdt-java
+    and hdt-cpp produce are deleted before each run. Versions: Apache
+    Jena 4.6.1, n3.js 1.6.3, librdf 1.0.17, RDFlib 6.2.0, sophia
+    0.8.0-alpha, hdt-rs 0.0.13-alpha, hdt-java 3.0.9, hdt-cpp master
+    fbcb31a, OpenJDK 19, Node.js 16.18.0, clang 14.0.6, Python 3.10.8,
+    rustc 1.69.0-nightly (target-cpu=native), GCC 12.2.1.
+    <styled-content id="figU003Abenchmark"></styled-content></p></caption>
+    <graphic mimetype="image" mime-subtype="png" xlink:href="media/img/benchmark.png" />
+  </fig>
+  <table-wrap>
+    <caption>
+      <p>Rounded averages over four runs on the complete person data
+      dataset containing 10310105 triples (rightmost points in
+      <xref alt="[fig:benchmark]" rid="figU003Abenchmark">[fig:benchmark]</xref>)
+      serialised as a 90 MB HDT and 1.2 GB RDF Turtle file. Sorted by
+      memory usage of the graph. For better comparison, results for
+      hdt_java are given both with and without calling
+      <monospace>DelayedString::toString</monospace> on the results. The
+      measured values are subject to considerable fluctuations, see the
+      vertical bars in
+      <xref alt="[fig:benchmark]" rid="figU003Abenchmark">[fig:benchmark]</xref>.<styled-content id="tabU003Abenchmark"></styled-content></p>
+    </caption>
+    <table>
+      <thead>
+        <tr>
+          <th align="left">Library</th>
+          <th align="right">Memory in MB</th>
+          <th align="right">Load Time in ms</th>
+          <th align="right">Query Time in ms</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td align="left">hdt_cpp</td>
+          <td align="right"><bold>112</bold></td>
+          <td align="right">1985</td>
+          <td align="right">362</td>
+        </tr>
+        <tr>
+          <td align="left">sophia_hdt</td>
+          <td align="right">263</td>
+          <td align="right">930</td>
+          <td align="right">355</td>
+        </tr>
+        <tr>
+          <td align="left">hdt_rs</td>
+          <td align="right">264</td>
+          <td align="right"><bold>912</bold></td>
+          <td align="right">315</td>
+        </tr>
+        <tr>
+          <td align="left">hdt_java (DelayedString)</td>
+          <td align="right">738</td>
+          <td align="right">3170</td>
+          <td align="right"><bold>214</bold></td>
+        </tr>
+        <tr>
+          <td align="left">hdt_java (String)</td>
+          <td align="right">785</td>
+          <td align="right">3476</td>
+          <td align="right"><bold>321</bold></td>
+        </tr>
+        <tr>
+          <td align="left">sophia_lg</td>
+          <td align="right"><bold>834</bold></td>
+          <td align="right"><bold>11656</bold></td>
+          <td align="right">85</td>
+        </tr>
+        <tr>
+          <td align="left">sophia</td>
+          <td align="right">1371</td>
+          <td align="right">15990</td>
+          <td align="right"><bold>20</bold></td>
+        </tr>
+        <tr>
+          <td align="left">jena (java)</td>
+          <td align="right">5352</td>
+          <td align="right">40400</td>
+          <td align="right">159</td>
+        </tr>
+        <tr>
+          <td align="left">n3js (js)</td>
+          <td align="right">12404</td>
+          <td align="right">100820</td>
+          <td align="right">654</td>
+        </tr>
+        <tr>
+          <td align="left">rdflib (python)</td>
+          <td align="right">14481</td>
+          <td align="right">182002</td>
+          <td align="right">940</td>
+        </tr>
+        <tr>
+          <td align="left">librdf (c)</td>
+          <td align="right">–</td>
+          <td align="right">–</td>
+          <td align="right">–</td>
+        </tr>
+      </tbody>
+    </table>
+  </table-wrap>
+  <p><xref alt="Table 1" rid="tabU003Abenchmark">Table 1</xref>
+  demonstrates the advantage of HDT libraries in memory usage, with
+  hdt_cpp using only 112 MB compared to 834 MB for the most
+  memory-efficient non-HDT RDF library tested, sophia_lg (LightGraph).
+  When comparing only Rust libraries, sophia_lg still uses over three
+  times as much memory as hdt_rs. The memory consumption is calculated
+  by comparing the resident set size before and after graph loading and
+  index generation, with the caveat that the memory usage may be higher
+  during graph loading. Converting other formats to HDT in the first
+  place is also a time and memory-intensive process. The uncompressed
+  and fully indexed Sophia FastGraph (sophia) strongly outperforms the
+  HDT libraries in ?PO query time, with 20ms compared to 214ms
+  respectively 321ms for hdt_java. While being the fastest querying HDT
+  library in this test, hdt_java has a large memory usage for an HDT
+  library placing it closer to the much faster sophia_lg. The large
+  overhead on small graph sizes for hdt_java in
+  <xref alt="[fig:benchmark]" rid="figU003Abenchmark">[fig:benchmark]</xref>
+  suggests that with larger graph sizes, these considerations might
+  yield different results. In fact, HDT allows loading much larger
+  datasets, but at that point, several of the tested libraries could not
+  have been included, such as rdflib, which already uses over 14 GB of
+  memory to load the ~10 million triples. hdt_rs achieves the lowest
+  graph-loading time with 912ms compared to more than 11s for the
+  fastest-loading non-HDT library sophia_lg. hdt_cpp and hdt_java can
+  speed up loading by reusing previously saved indexes, but these were
+  deleted between runs to achieve consistent measurements.</p>
+</sec>
+<sec id="examples">
+  <title>Examples</title>
+  <p>Further examples are available in the
+  <ext-link ext-link-type="uri" xlink:href="https://docs.rs/hdt/latest/hdt/">API
+  documentation</ext-link> and
+  <ext-link ext-link-type="uri" xlink:href="https://github.com/KonradHoeffner/hdt/tree/main/examples">in
+  the code repository</ext-link>.</p>
+  <sec id="add-the-dependency-to-a-rust-application">
+    <title>Add the dependency to a Rust application</title>
+    <code language="bash">$ cargo add hdt</code>
+  </sec>
+  <sec id="load-an-hdt-file">
+    <title>Load an HDT file</title>
+    <code language="rust">use hdt::Hdt;
+use std::{fs::File,io::BufReader};
+let f = File::open(&quot;example.hdt&quot;).expect(&quot;error opening file&quot;);
+let hdt = Hdt::new(BufReader::new(f)).expect(&quot;error loading HDT&quot;);</code>
+  </sec>
+  <sec id="query-sp-pattern">
+    <title>Query SP? pattern</title>
+    <p>Find the mayor of Leipzig from DBpedia using an SP? triple
+    pattern:</p>
+    <code language="rust">hdt.triples_with_pattern(
+    Some(&quot;http://dbpedia.org/resource/Leipzig&quot;),
+    Some(&quot;http://dbpedia.org/ontology/mayor&quot;),
+    None).next();</code>
+  </sec>
+  <sec id="query-po-pattern">
+    <title>Query ?PO pattern</title>
+    <p>Which city has Burkhard Jung as the mayor?</p>
+    <code language="rust">hdt.triples_with_pattern(
+    None,
+    Some(&quot;http://dbpedia.org/ontology/mayor&quot;),
+    Some(&quot;http://dbpedia.org/resource/Burkhard_Jung&quot;)).next();</code>
+  </sec>
+  <sec id="use-hdt-with-the-sophia-library">
+    <title>Use HDT with the Sophia library</title>
+    <code language="rust">use hdt::{Hdt,HdtGraph};
+use hdt::sophia::api::graph::Graph;
+use hdt::sophia::api::term::{IriRef, SimpleTerm, matcher::Any};
+use std::{fs::File,io::BufReader};
+
+let file = File::open(&quot;dbpedia.hdt&quot;).expect(&quot;error opening file&quot;);
+let hdt = Hdt::new(BufReader::new(file)).expect(&quot;error loading HDT&quot;);
+let graph = HdtGraph::new(hdt);
+// now Sophia can be used as usual
+let s = SimpleTerm::Iri(
+    IriRef::new_unchecked(&quot;http://dbpedia.org/resource/Leipzig&quot;.into()));
+let p = SimpleTerm::Iri(
+    IriRef::new_unchecked(&quot;http://dbpedia.org/ontology/mayor&quot;.into()));
+let mayors = graph.triples_matching(Some(s),Some(p),Any);</code>
+  </sec>
+</sec>
+<sec id="limitations">
+  <title>Limitations</title>
+  <p>HDT is read-only, so for querying and modifying large graphs, we
+  recommend to use a separate SPARQL endpoint. We do not supply command
+  line tools for converting other formats to and from HDT. Instead, the
+  tools of hdt-cpp and hdt-java can be used. Extensions such as HDT++
+  (<xref alt="Hernández-Illera et al., 2015" rid="ref-serializingrdf" ref-type="bibr">Hernández-Illera
+  et al., 2015</xref>) or iHDT++
+  (<xref alt="Hernández-Illera et al., 2020" rid="ref-ihdt" ref-type="bibr">Hernández-Illera
+  et al., 2020</xref>) are unsupported.</p>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>We express our gratitude to Pierre-Antoine Champin for explaining
+  the intricacies of Sophia and for developing
+  <ext-link ext-link-type="uri" xlink:href="https://github.com/pchampin/sophia_benchmark">the
+  benchmark suite</ext-link> that the
+  <ext-link ext-link-type="uri" xlink:href="https://github.com/KonradHoeffner/hdt_benchmark">HDT
+  benchmarks</ext-link> are based on and for the thorough code review.
+  We extend our thanks to Edgard Marx for proofreading the paper.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <ref id="ref-semanticwebreview">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Hitzler</surname><given-names>Pascal</given-names></name>
+      </person-group>
+      <article-title>A review of the semantic web field</article-title>
+      <source>Communications of the ACM</source>
+      <publisher-name>Association for Computing Machinery</publisher-name>
+      <publisher-loc>New York, NY, USA</publisher-loc>
+      <year iso-8601-date="2021">2021</year>
+      <volume>64</volume>
+      <issue>2</issue>
+      <issn>0001-0782</issn>
+      <pub-id pub-id-type="doi">10.1145/3397512</pub-id>
+      <fpage>76</fpage>
+      <lpage>83</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-hdt2013">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Fernández</surname><given-names>Javier D.</given-names></name>
+        <name><surname>Martínez-Prieto</surname><given-names>Miguel A.</given-names></name>
+        <name><surname>Gutiérrez</surname><given-names>Claudio</given-names></name>
+        <name><surname>Polleres</surname><given-names>Axel</given-names></name>
+        <name><surname>Arias</surname><given-names>Mario</given-names></name>
+      </person-group>
+      <article-title>Binary RDF representation for publication and exchange (HDT)</article-title>
+      <source>Web Semantics: Science, Services and Agents on the World Wide Web</source>
+      <publisher-name>Elsevier</publisher-name>
+      <year iso-8601-date="2013">2013</year>
+      <volume>19</volume>
+      <uri>http://www.websemanticsjournal.org/index.php/ps/article/view/328</uri>
+      <pub-id pub-id-type="doi">10.2139/ssrn.3198999</pub-id>
+      <fpage>22</fpage>
+      <lpage>41</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-hdt2012">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Martínez-Prieto</surname><given-names>Miguel A.</given-names></name>
+        <name><surname>Arias</surname><given-names>Mario</given-names></name>
+        <name><surname>Fernández</surname><given-names>Javier D.</given-names></name>
+      </person-group>
+      <article-title>Exchange and consumption of huge RDF data</article-title>
+      <source>The semantic web: Research and applications</source>
+      <publisher-name>Springer</publisher-name>
+      <year iso-8601-date="2012">2012</year>
+      <pub-id pub-id-type="doi">10.1007/978-3-642-30284-8_36</pub-id>
+      <fpage>437</fpage>
+      <lpage>452</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-sophia">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Champin</surname><given-names>Pierre-Antoine</given-names></name>
+      </person-group>
+      <article-title>Sophia: A Linked Data and Semantic Web toolkit for Rust</article-title>
+      <person-group person-group-type="editor">
+        <name><surname>Wilde</surname><given-names>Erik</given-names></name>
+        <name><surname>Amundsen</surname><given-names>Mike</given-names></name>
+      </person-group>
+      <publisher-name>The Web Conference 2020: Developers Track</publisher-name>
+      <publisher-loc>Taipei, TW</publisher-loc>
+      <year iso-8601-date="2020-04">2020</year><month>04</month>
+      <uri>https://www2020devtrack.github.io/site/schedule</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-jena">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Carroll</surname><given-names>Jeremy J</given-names></name>
+        <name><surname>Dickinson</surname><given-names>Ian</given-names></name>
+        <name><surname>Dollin</surname><given-names>Chris</given-names></name>
+        <name><surname>Reynolds</surname><given-names>Dave</given-names></name>
+        <name><surname>Seaborne</surname><given-names>Andy</given-names></name>
+        <name><surname>Wilkinson</surname><given-names>Kevin</given-names></name>
+      </person-group>
+      <article-title>Jena: Implementing the semantic web recommendations</article-title>
+      <source>Proceedings of the 13th international world wide web conference on alternate track papers &amp; posters</source>
+      <publisher-name>Association for Computing Machinery</publisher-name>
+      <publisher-loc>New York, NY, USA</publisher-loc>
+      <year iso-8601-date="2004">2004</year>
+      <isbn>1581139128</isbn>
+      <pub-id pub-id-type="doi">10.1145/1013367.1013381</pub-id>
+      <fpage>74</fpage>
+      <lpage>83</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-rdflib">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Swartz</surname><given-names>Aaron</given-names></name>
+        <name><surname>Eland</surname><given-names>Andrew</given-names></name>
+        <name><surname>Nelson</surname><given-names>Alex</given-names></name>
+        <name><surname>Kuchling</surname><given-names>Andrew</given-names></name>
+        <name><surname>Sommer</surname><given-names>Ashley</given-names></name>
+        <name><surname>Knudsen</surname><given-names>Arve</given-names></name>
+        <name><surname>Cogrel</surname><given-names>Benjamin</given-names></name>
+        <name><surname>Pelakh</surname><given-names>Boris</given-names></name>
+        <name><surname>Ogbuji</surname><given-names>Chimezie</given-names></name>
+        <name><surname>Markiewicz</surname><given-names>Chris</given-names></name>
+        <name><surname>Mungall</surname><given-names>Chris</given-names></name>
+        <name><surname>Scott</surname><given-names>Dan</given-names></name>
+        <name><surname>Krech</surname><given-names>Daniel</given-names></name>
+        <name><surname>Jones</surname><given-names>David H</given-names></name>
+        <name><surname>Bowman</surname><given-names>Don</given-names></name>
+        <name><surname>Winston</surname><given-names>Donny</given-names></name>
+        <name><surname>Perttula</surname><given-names>Drew</given-names></name>
+        <name><surname>Chuc</surname><given-names>Edmond</given-names></name>
+        <name><surname>Torres</surname><given-names>Elias</given-names></name>
+        <name><surname>Ludwig</surname><given-names>Florian</given-names></name>
+        <name><surname>Fierro</surname><given-names>Gabe</given-names></name>
+        <name><surname>Weis</surname><given-names>Gerhard</given-names></name>
+        <name><surname>Higgins</surname><given-names>Graham</given-names></name>
+        <name><surname>Klyne</surname><given-names>Graham</given-names></name>
+        <name><surname>Grimnes</surname><given-names>Gunnar AAstrand</given-names></name>
+        <name><surname>Solbrig</surname><given-names>Harold</given-names></name>
+        <name><surname>Herman</surname><given-names>Ivan</given-names></name>
+        <name><surname>Aucamp</surname><given-names>Iwan</given-names></name>
+        <name><surname>McCusker</surname><given-names>Jamie</given-names></name>
+        <name><surname>Ham</surname><given-names>Jeroen van der</given-names></name>
+        <name><surname>Bolleman</surname><given-names>Jerven</given-names></name>
+        <name><surname>Hees</surname><given-names>Joern</given-names></name>
+        <name><surname>González</surname><given-names>Juan José</given-names></name>
+        <name><surname>Clark</surname><given-names>Kendall</given-names></name>
+        <name><surname>López</surname><given-names>Leandro</given-names></name>
+        <name><surname>Torre</surname><given-names>Lucio</given-names></name>
+        <name><surname>Watts</surname><given-names>Mark</given-names></name>
+        <name><surname>Pelletier</surname><given-names>Michel</given-names></name>
+        <name><surname>Arndt</surname><given-names>Natanael</given-names></name>
+        <name><surname>Arias</surname><given-names>Nacho Barrientos</given-names></name>
+        <name><surname>Car</surname><given-names>Nicholas J.</given-names></name>
+        <name><surname>Lindström</surname><given-names>Niklas</given-names></name>
+        <name><surname>Champin</surname><given-names>Pierre-Antoine</given-names></name>
+        <name><surname>Dawes</surname><given-names>Phil</given-names></name>
+        <name><surname>Pearson</surname><given-names>Phillip</given-names></name>
+        <name><surname>Alford</surname><given-names>Ron</given-names></name>
+        <name><surname>Chateauneu</surname><given-names>Remi</given-names></name>
+        <name><surname>Silva</surname><given-names>Sidnei da</given-names></name>
+        <name><surname>McVittie</surname><given-names>Simon</given-names></name>
+        <name><surname>Niederhauser</surname><given-names>Stefan</given-names></name>
+        <name><surname>Dørmænen</surname><given-names>Stig B.</given-names></name>
+        <name><surname>Gillespie</surname><given-names>Tom</given-names></name>
+        <name><surname>Kluyver</surname><given-names>Thomas</given-names></name>
+        <name><surname>Holzer</surname><given-names>Urs</given-names></name>
+        <name><surname>Waites</surname><given-names>William</given-names></name>
+      </person-group>
+      <article-title>RDFLib</article-title>
+      <source>GitHub repository</source>
+      <publisher-name>GitHub</publisher-name>
+      <year iso-8601-date="2023">2023</year>
+      <uri>https://github.com/RDFLib/rdflib</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-hdtjava">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Torres</surname><given-names>Pablo</given-names></name>
+        <name><surname>Arias</surname><given-names>Mario</given-names></name>
+        <name><surname>Verbogh</surname><given-names>Ruben</given-names></name>
+        <name><surname>Nikolopoulos</surname><given-names>Dimitris</given-names></name>
+        <name><surname>Robillard</surname><given-names>David</given-names></name>
+        <name><surname>Bendiken</surname><given-names>Arto</given-names></name>
+        <name><surname>Rietveld</surname><given-names>Laurens</given-names></name>
+        <name><surname>Beek</surname><given-names>Wouter</given-names></name>
+      </person-group>
+      <article-title>C++ implementation of the HDT compression format</article-title>
+      <source>GitHub repository</source>
+      <publisher-name>GitHub</publisher-name>
+      <year iso-8601-date="2022">2022</year>
+      <uri>https://github.com/rdfhdt/hdt-java</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-hdtcpp">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Arias</surname><given-names>Mario</given-names></name>
+        <name><surname>Smith</surname><given-names>Antoine Willerval Shawn</given-names></name>
+        <name><surname>Diefenbach</surname><given-names>Dennis</given-names></name>
+        <name><surname>Sande</surname><given-names>Miel Vander</given-names></name>
+      </person-group>
+      <article-title>HDT library, Java implementation</article-title>
+      <source>GitHub repository</source>
+      <publisher-name>GitHub</publisher-name>
+      <year iso-8601-date="2023">2023</year>
+      <uri>https://github.com/rdfhdt/hdt-cpp</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-librdf">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Beckett</surname><given-names>Dave</given-names></name>
+        <name><surname>Frederiksen</surname><given-names>Morten</given-names></name>
+        <name><surname>Robillard</surname><given-names>Dave</given-names></name>
+        <name><surname>Aalto</surname><given-names>Lauri</given-names></name>
+      </person-group>
+      <article-title>Redland librdf RDF API and triple stores</article-title>
+      <source>GitHub repository</source>
+      <publisher-name>GitHub</publisher-name>
+      <year iso-8601-date="2015">2015</year>
+      <uri>https://github.com/dajobe/librdf</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-rickview">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Höffner</surname><given-names>Konrad</given-names></name>
+      </person-group>
+      <article-title>RickView</article-title>
+      <source>GitHub repository</source>
+      <publisher-name>GitHub</publisher-name>
+      <year iso-8601-date="2023">2023</year>
+      <uri>https://github.com/KonradHoeffner/rickview</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-linkedspending">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Höffner</surname><given-names>Konrad</given-names></name>
+        <name><surname>Martin</surname><given-names>Michael</given-names></name>
+        <name><surname>Lehmann</surname><given-names>Jens</given-names></name>
+      </person-group>
+      <article-title>LinkedSpending: OpenSpending becomes Linked Open Data</article-title>
+      <source>Semantic Web</source>
+      <publisher-name>IOS Press</publisher-name>
+      <year iso-8601-date="2016">2016</year>
+      <volume>7</volume>
+      <issue>1</issue>
+      <pub-id pub-id-type="doi">10.3233/sw-150172</pub-id>
+      <fpage>95</fpage>
+      <lpage>104</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-readyforaction">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Buil-Aranda</surname><given-names>Carlos</given-names></name>
+        <name><surname>Hogan</surname><given-names>Aidan</given-names></name>
+        <name><surname>Umbrich</surname><given-names>Jürgen</given-names></name>
+        <name><surname>Vandenbussche</surname><given-names>Pierre-Yves</given-names></name>
+      </person-group>
+      <article-title>SPARQL web-querying infrastructure: Ready for action?</article-title>
+      <source>The semantic web – ISWC 2013</source>
+      <person-group person-group-type="editor">
+        <name><surname>Alani</surname><given-names>Harith</given-names></name>
+        <name><surname>Kagal</surname><given-names>Lalana</given-names></name>
+        <name><surname>Fokoue</surname><given-names>Achille</given-names></name>
+        <name><surname>Groth</surname><given-names>Paul</given-names></name>
+        <name><surname>Biemann</surname><given-names>Chris</given-names></name>
+        <name><surname>Parreira</surname><given-names>Josiane Xavier</given-names></name>
+        <etal/>
+      </person-group>
+      <publisher-name>Springer Berlin Heidelberg</publisher-name>
+      <publisher-loc>Berlin, Heidelberg</publisher-loc>
+      <year iso-8601-date="2013">2013</year>
+      <isbn>978-3-642-41338-4</isbn>
+      <pub-id pub-id-type="doi">10.1007/978-3-642-41338-4_18</pub-id>
+      <fpage>277</fpage>
+      <lpage>293</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-serializingrdf">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Hernández-Illera</surname><given-names>Antonio</given-names></name>
+        <name><surname>Martı́nez-Prieto</surname><given-names>Miguel A</given-names></name>
+        <name><surname>Fernández</surname><given-names>Javier D</given-names></name>
+      </person-group>
+      <article-title>Serializing RDF in compressed space</article-title>
+      <source>Proceedings of the data compression conference 2015</source>
+      <publisher-name>IEEE</publisher-name>
+      <year iso-8601-date="2015">2015</year>
+      <pub-id pub-id-type="doi">10.1109/dcc.2015.16</pub-id>
+      <fpage>363</fpage>
+      <lpage>372</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-ihdt">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Hernández-Illera</surname><given-names>Antonio</given-names></name>
+        <name><surname>Martı́nez-Prieto</surname><given-names>Miguel A</given-names></name>
+        <name><surname>Fernández</surname><given-names>Javier D</given-names></name>
+        <name><surname>Fariña</surname><given-names>Antonio</given-names></name>
+      </person-group>
+      <article-title>iHDT++: Improving HDT for SPARQL triple pattern resolution</article-title>
+      <source>Journal of Intelligent &amp; Fuzzy Systems</source>
+      <publisher-name>IOS Press</publisher-name>
+      <year iso-8601-date="2020">2020</year>
+      <volume>39</volume>
+      <issue>2</issue>
+      <pub-id pub-id-type="doi">10.3233/JIFS-179888</pub-id>
+      <fpage>2249</fpage>
+      <lpage>2261</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-dbpedia">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Lehmann</surname><given-names>Jens</given-names></name>
+        <name><surname>Isele</surname><given-names>Robert</given-names></name>
+        <name><surname>Jakob</surname><given-names>Max</given-names></name>
+        <name><surname>Jentzsch</surname><given-names>Anja</given-names></name>
+        <name><surname>Kontokostas</surname><given-names>Dimitris</given-names></name>
+        <name><surname>Mendes</surname><given-names>Pablo N</given-names></name>
+        <name><surname>Hellmann</surname><given-names>Sebastian</given-names></name>
+        <name><surname>Morsey</surname><given-names>Mohamed</given-names></name>
+        <name><surname>Van Kleef</surname><given-names>Patrick</given-names></name>
+        <name><surname>Auer</surname><given-names>Sören</given-names></name>
+        <name><surname>Bizer</surname><given-names>Christian</given-names></name>
+      </person-group>
+      <article-title>DBpedia – A large-scale, multilingual knowledge base extracted from Wikipedia</article-title>
+      <source>Semantic web</source>
+      <publisher-name>IOS Press</publisher-name>
+      <year iso-8601-date="2015">2015</year>
+      <volume>6</volume>
+      <issue>2</issue>
+      <pub-id pub-id-type="doi">10.3233/SW-140134</pub-id>
+      <fpage>167</fpage>
+      <lpage>195</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-frontcoding">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Witten</surname><given-names>Ian H</given-names></name>
+        <name><surname>Witten</surname><given-names>Ian H</given-names></name>
+        <name><surname>Moffat</surname><given-names>Alistair</given-names></name>
+        <name><surname>Bell</surname><given-names>Timothy C</given-names></name>
+        <name><surname>Bell</surname><given-names>Timothy C</given-names></name>
+        <name><surname>Fox</surname><given-names>Ed</given-names></name>
+        <name><surname>Bell</surname><given-names>Timothy C</given-names></name>
+      </person-group>
+      <source>Managing gigabytes: Compressing and indexing documents and images</source>
+      <publisher-name>Morgan Kaufmann</publisher-name>
+      <year iso-8601-date="1999">1999</year>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
