@@ -1,0 +1,357 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">5092</article-id>
+<article-id pub-id-type="doi">10.21105/joss.05092</article-id>
+<title-group>
+<article-title>Fast Resampling and Monte Carlo Methods in
+Python</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author" corresp="yes">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0003-4806-3601</contrib-id>
+<name>
+<surname>Haberland</surname>
+<given-names>Matt</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+<xref ref-type="corresp" rid="cor-1"><sup>*</sup></xref>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>California Polytechnic State University, San Luis Obispo,
+USA</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<author-notes>
+<corresp id="cor-1">* E-mail: <email></email></corresp>
+</author-notes>
+<volume>8</volume>
+<issue>86</issue>
+<fpage>5092</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2022</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>Python</kwd>
+<kwd>SciPy</kwd>
+<kwd>statistics</kwd>
+<kwd>bootstrap</kwd>
+<kwd>confidence intervals</kwd>
+<kwd>permutation tests</kwd>
+<kwd>monte carlo methods</kwd>
+<kwd>hypothesis testing</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p>In the 1935 book The Design of Experiments
+  (<xref alt="Fisher, 1951" rid="ref-fisher1949design" ref-type="bibr">Fisher,
+  1951</xref>), Ronald Fisher analyzed the results of an experiment
+  performed by Charles Darwin to determine the effect of
+  cross-fertilization on plant growth
+  (<xref alt="Darwin, 1877" rid="ref-darwin1877effects" ref-type="bibr">Darwin,
+  1877</xref>). In these experiments, Darwin collected seeds from both
+  cross- and self-fertilized flowers of a parent plant and germinated
+  the seeds under identical conditions. When a pair of cross- and
+  self-fertilized seeds happened to germinate at the same time, the two
+  were planted in opposite sides of the same pot and nurtured in the
+  same environment. At the end of the study, the heights of the plants
+  were measured.</p>
+  <p>To infer whether the greater height of the cross-fertilized plants
+  should be attributed to random chance or the change in fertilization
+  method, Fisher computed the differences in heights between paired
+  plants and used a paired-sample t-test
+  (<xref alt="Student, 1908" rid="ref-student1908probable" ref-type="bibr">Student,
+  1908</xref>) to estimate the statistical significance of the results.
+  He noted that the t-test relies on assumptions about the population of
+  height differences, and he proposed the following statistical test,
+  which makes no such assumptions.</p>
+  <p>Under the null hypothesis that the fertilization method has no
+  effect on plant height, the heights of the two plants in a pair are
+  sampled from the same population. Therefore, under the null
+  hypothesis, the sign of the difference in heights would be positive or
+  negative with equal probability. To perform the test, Fisher considers
+  the distribution of mean height differences under all possible
+  combinations of signs: the “null distribution”. If the observed mean
+  height difference is greater than almost all elements in the null
+  distribution, it is unlikely to be observed under the null hypothesis,
+  and this is taken as evidence against the null hypothesis in favor of
+  the alternative that cross-fertilized plants tend to be taller.</p>
+  <p>This is an early example of a <italic>permutation test</italic>.
+  Like <italic>Monte Carlo tests</italic>
+  (<xref alt="Robert et al., 1999" rid="ref-robert1999monte" ref-type="bibr">Robert
+  et al., 1999</xref>) and the <italic>bootstrap</italic>
+  (<xref alt="Efron &amp; Tibshirani, 1994" rid="ref-efron1994introduction" ref-type="bibr">Efron
+  &amp; Tibshirani, 1994</xref>), permutation tests replace many
+  assumptions and mathematical approximations with <italic>lots</italic>
+  of computation. Naturally, these methods did not become very popular
+  until the advent of the computer, but even today, some popular
+  programming languages lack efficient implementations of these
+  essential statistical techniques. This paper discusses the addition of
+  functions implementing these techniques to SciPy
+  (<xref alt="Virtanen et al., 2020" rid="ref-virtanen2020scipy" ref-type="bibr">Virtanen
+  et al., 2020</xref>), the de facto standard library for scientific
+  computing in Python.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p>Scientists and engineers frequently analyze data by considering
+  questions of the following forms, illustrated with examples based on
+  Darwin’s experiment
+  (<xref alt="Darwin, 1877" rid="ref-darwin1877effects" ref-type="bibr">Darwin,
+  1877</xref>).</p>
+  <list list-type="order">
+    <list-item>
+      <p>Are the observations sampled from a hypothesized distribution?
+      For instance, are the differences in heights between paired plants
+      normally distributed?</p>
+    </list-item>
+    <list-item>
+      <p>Are the samples drawn from the <italic>same</italic>
+      distribution? For example, does the fertilization method have no
+      effect on plant height?</p>
+    </list-item>
+    <list-item>
+      <p>What can be inferred from the samples about the true value of a
+      population statistic? For instance, what is the uncertainty in the
+      true mean difference in heights between paired plants?</p>
+    </list-item>
+  </list>
+  <p>Monte Carlo hypothesis tests, permutation tests, and the bootstrap
+  are general procedures for answering questions of these forms,
+  respectively.</p>
+  <p>Although there are a variety of specialized statistical procedures
+  for answering such questions (e.g., normality tests, t-tests, standard
+  error of the mean), most computer implementations provide answers that
+  are only guaranteed to be accurate when assumptions that simplify the
+  mathematics are met (e.g., the sample size is large, there are no ties
+  in the data). At the expense of additional computation, the
+  <monospace>scipy.stats</monospace> functions
+  <monospace>monte_carlo_test</monospace>,
+  <monospace>permutation_test</monospace>, and
+  <monospace>bootstrap</monospace> provide accurate answers to questions
+  1-3 even when the simplifying assumptions of specialized procedures
+  are not met. Furthermore, these functions can be used to answer
+  questions 1-3 even when specialized procedures have not been
+  <italic>developed</italic>, giving users tremendous flexibility in the
+  analysis that they can perform.</p>
+  <p>Before the release of SciPy 1.9.0, the need for these procedures
+  was partially met in the scientific Python ecosystem by tutorials
+  (<xref alt="Omar, 2021" rid="ref-omar2021" ref-type="bibr">Omar,
+  2021</xref>;
+  <xref alt="Saenger, 2019" rid="ref-saenger2019" ref-type="bibr">Saenger,
+  2019</xref>; <xref alt="Ye, 2020" rid="ref-ye2020" ref-type="bibr">Ye,
+  2020</xref>) and niche packages
+  (<xref alt="Millman, 2021" rid="ref-permute2021" ref-type="bibr">Millman,
+  2021</xref>;
+  <xref alt="Saxton &amp; Dembinski, 2020" rid="ref-resample2020" ref-type="bibr">Saxton
+  &amp; Dembinski, 2020</xref>), but the functions in SciPy have several
+  advantages:</p>
+  <list list-type="bullet">
+    <list-item>
+      <p>Prevalence: SciPy is one of the most frequently downloaded
+      scientific Python packages. If a Python user finds the need for
+      these statistical methods, chances are that they already have
+      SciPy, eliminating the need to find and install a new package.</p>
+    </list-item>
+    <list-item>
+      <p>Speed: the functions take advantage of vectorized user code,
+      avoiding slow Python loops.</p>
+    </list-item>
+    <list-item>
+      <p>Easy-of-use: the function API reference and tutorials are
+      thorough, and the interfaces share common features and complement
+      other SciPy functions.</p>
+    </list-item>
+    <list-item>
+      <p>Dependability: as with all SciPy code, these functions were
+      rigorously peer-reviewed, and unit tests are extensive.</p>
+    </list-item>
+  </list>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>We gratefully acknowledge the support of Chan Zuckerberg Initiative
+  Essential Open Source Software for Science Grant EOSS-0000000432 and
+  the 2022 Round 1 NumFOCUS Small Development Grant “Introducing Users
+  to Powerful New Features of SciPy”. Thanks to all those who have
+  submitted feature requests, bug reports, and review comments related
+  to these features, and especially to SciPy maintainers Christoph
+  Baumgarten, Robert Lucas, Tirth Patel, Pamphile Roy, and Warren
+  Weckesser who reviewed this work.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <ref id="ref-fisher1949design">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Fisher</surname><given-names>Ronald A</given-names></name>
+      </person-group>
+      <source>The design of experiments</source>
+      <publisher-name>Oliver &amp; Boyd</publisher-name>
+      <year iso-8601-date="1951">1951</year>
+      <isbn>9780050008683</isbn>
+    </element-citation>
+  </ref>
+  <ref id="ref-darwin1877effects">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Darwin</surname><given-names>Charles</given-names></name>
+      </person-group>
+      <source>The effects of cross and self fertilisation in the vegetable kingdom</source>
+      <publisher-name>D. Appleton; Company</publisher-name>
+      <year iso-8601-date="1877">1877</year>
+    </element-citation>
+  </ref>
+  <ref id="ref-student1908probable">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Student</surname></name>
+      </person-group>
+      <article-title>The probable error of a mean</article-title>
+      <source>Biometrika</source>
+      <publisher-name>JSTOR</publisher-name>
+      <year iso-8601-date="1908">1908</year>
+      <pub-id pub-id-type="doi">10.2307/2331554</pub-id>
+      <fpage>1</fpage>
+      <lpage>25</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-robert1999monte">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Robert</surname><given-names>Christian P</given-names></name>
+        <name><surname>Casella</surname><given-names>George</given-names></name>
+        <name><surname>Casella</surname><given-names>George</given-names></name>
+      </person-group>
+      <source>Monte Carlo statistical methods</source>
+      <publisher-name>Springer</publisher-name>
+      <year iso-8601-date="1999">1999</year>
+      <volume>2</volume>
+    </element-citation>
+  </ref>
+  <ref id="ref-efron1994introduction">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Efron</surname><given-names>Bradley</given-names></name>
+        <name><surname>Tibshirani</surname><given-names>Robert J</given-names></name>
+      </person-group>
+      <source>An introduction to the bootstrap</source>
+      <publisher-name>CRC press</publisher-name>
+      <year iso-8601-date="1994">1994</year>
+    </element-citation>
+  </ref>
+  <ref id="ref-virtanen2020scipy">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Virtanen</surname><given-names>Pauli</given-names></name>
+        <name><surname>Gommers</surname><given-names>Ralf</given-names></name>
+        <name><surname>Oliphant</surname><given-names>Travis E</given-names></name>
+        <name><surname>Haberland</surname><given-names>Matt</given-names></name>
+        <name><surname>Reddy</surname><given-names>Tyler</given-names></name>
+        <name><surname>Cournapeau</surname><given-names>David</given-names></name>
+        <name><surname>Burovski</surname><given-names>Evgeni</given-names></name>
+        <name><surname>Peterson</surname><given-names>Pearu</given-names></name>
+        <name><surname>Weckesser</surname><given-names>Warren</given-names></name>
+        <name><surname>Bright</surname><given-names>Jonathan</given-names></name>
+        <name><surname>others</surname></name>
+      </person-group>
+      <article-title>SciPy 1.0: Fundamental algorithms for scientific computing in Python</article-title>
+      <source>Nature methods</source>
+      <publisher-name>Nature Publishing Group</publisher-name>
+      <year iso-8601-date="2020">2020</year>
+      <volume>17</volume>
+      <issue>3</issue>
+      <pub-id pub-id-type="doi">10.1038/s41592-019-0686-2</pub-id>
+      <fpage>261</fpage>
+      <lpage>272</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-ye2020">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Ye</surname><given-names>Leihua</given-names></name>
+      </person-group>
+      <article-title>Bootstrap and statistical inference in Python</article-title>
+      <source>Towards Data Science</source>
+      <publisher-name>Medium</publisher-name>
+      <year iso-8601-date="2020-12">2020</year><month>12</month>
+      <uri>https://towardsdatascience.com/a06d098a8bfd</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-saenger2019">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Saenger</surname><given-names>Victor</given-names></name>
+      </person-group>
+      <article-title>How to assess statistical significance in your data with permutation tests</article-title>
+      <source>Towards Data Science</source>
+      <publisher-name>Medium</publisher-name>
+      <year iso-8601-date="2019-10">2019</year><month>10</month>
+      <uri>https://towardsdatascience.com/8bb925b2113d</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-omar2021">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Omar</surname><given-names>Hamid</given-names></name>
+      </person-group>
+      <article-title>A guide on how to simulate and visualize hypothesis tests using Python code</article-title>
+      <source>Analytics Vidhya</source>
+      <publisher-name>Medium</publisher-name>
+      <year iso-8601-date="2021-06">2021</year><month>06</month>
+      <uri>https://medium.com/analytics-vidhya/66861e0d0f74</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-resample2020">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Saxton</surname><given-names>Daniel</given-names></name>
+        <name><surname>Dembinski</surname><given-names>Hans</given-names></name>
+      </person-group>
+      <article-title>Resample 1.0.0</article-title>
+      <year iso-8601-date="2020-08">2020</year><month>08</month>
+      <uri>https://github.com/scikit-hep/resample/</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-permute2021">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Millman</surname><given-names>Jarrod</given-names></name>
+      </person-group>
+      <article-title>Permute 0.2</article-title>
+      <year iso-8601-date="2021-06">2021</year><month>06</month>
+      <uri>https://github.com/statlab/permute</uri>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
