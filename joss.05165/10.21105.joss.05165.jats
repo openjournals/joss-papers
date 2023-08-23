@@ -1,0 +1,386 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">5165</article-id>
+<article-id pub-id-type="doi">10.21105/joss.05165</article-id>
+<title-group>
+<article-title>ctbench - compile-time benchmarking and
+analysis</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0002-6377-6880</contrib-id>
+<name>
+<surname>Penuchot</surname>
+<given-names>Jules</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0001-5380-7375</contrib-id>
+<name>
+<surname>Falcou</surname>
+<given-names>Joel</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Université Paris-Saclay, CNRS, Laboratoire
+Interdisciplinaire des Sciences du Numérique, 91400, Orsay,
+France</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2023-12-07">
+<day>7</day>
+<month>12</month>
+<year>2023</year>
+</pub-date>
+<volume>8</volume>
+<issue>88</issue>
+<fpage>5165</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2022</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>C++</kwd>
+<kwd>metaprogramming</kwd>
+<kwd>compilation</kwd>
+<kwd>benchmarking</kwd>
+<kwd>library</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p>With libraries like Eigen
+  (<xref alt="Guennebaud et al., 2010" rid="ref-eigen" ref-type="bibr">Guennebaud
+  et al., 2010</xref>), Blaze
+  (<xref alt="Iglberger, 2012" rid="ref-blazelib" ref-type="bibr">Iglberger,
+  2012</xref>), and CTRE
+  (<xref alt="Dusíková, 2018" rid="ref-ctre" ref-type="bibr">Dusíková,
+  2018</xref>) being developed with a large tempalte metaprogrammed
+  implementation, we’re seeing increasing computing needs at compile
+  time. These needs might grow even larger as C++ embeds more features
+  over time to support and extend these kinds of practices, like
+  compile-time containers
+  (<xref alt="Dimov et al., 2019" rid="ref-more-constexpr-containers" ref-type="bibr">Dimov
+  et al., 2019</xref>) and static reflection
+  (<xref alt="Vandevoorde et al., 2022" rid="ref-static-reflection" ref-type="bibr">Vandevoorde
+  et al., 2022</xref>). However, there is still no clear cut methodology
+  to compare the performance impact of different metaprogramming
+  strategies. And as new C++ features allows for new techniques with
+  claimed better compile-time performance, no proper methodologies are
+  provided to back up those claims.</p>
+  <p>This paper introduces <bold>ctbench</bold>, a set of tools for
+  compile-time benchmarking and analysis in C++. It aims to provide
+  developer-friendly tools to declare and run benchmarks, then
+  aggregate, filter out, and plot the data to analyze it. As such,
+  <bold>ctbench</bold> is meant to become the first layer of a proper
+  scientific methodology for analyzing compile-time program
+  behavior.</p>
+  <p>We’ll first have a look at current tools for compile-time profiling
+  and benchmarking and establish the limits of current tooling, then
+  we’ll explain what <bold>ctbench</bold> brings to overcome these
+  limits.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p>C++ template metaprogramming raised interest for allowing computing
+  libraries to offer great performance with a very high level of
+  abstraction. As a tradeoff for interpreting representations of
+  calculations at runtime, they are represented at compile time, and
+  transformed directly into their own programs.</p>
+  <p>As metaprogramming became easier with C++11 and C++17, it became
+  more mainstream and consequently, developers have to bear with longer
+  compilation times without being able to explain them. Therefore, being
+  able to measure compilation times is increasingly important, as is
+  being able to explain them as well. A first generation of tools aims
+  to tackle this issue with their own specific methodologies:</p>
+  <list list-type="bullet">
+    <list-item>
+      <p>Buildbench
+      (<xref alt="Tingaud, 2017" rid="ref-buildbench" ref-type="bibr">Tingaud,
+      2017</xref>) measures compiler execution times for basic A-B
+      compile-time comparisons in a web browser,</p>
+    </list-item>
+    <list-item>
+      <p>Metabench
+      (<xref alt="Dionne et al., 2017" rid="ref-metabench" ref-type="bibr">Dionne
+      et al., 2017</xref>) instantiates variably sized benchmarks using
+      embedded Ruby (ERB) templating and plots compiler execution time,
+      allowing scaling analyses of metaprograms,</p>
+    </list-item>
+    <list-item>
+      <p>Templight
+      (<xref alt="Porkoláb et al., 2009" rid="ref-templight" ref-type="bibr">Porkoláb
+      et al., 2009</xref>) adds Clang template instantiation inspection
+      capabilities with debugging and profiling tools.</p>
+    </list-item>
+  </list>
+  <p>Additionally, Clang has a built-in profiler
+  (<xref alt="Afanasyev, 2019" rid="ref-time-trace" ref-type="bibr">Afanasyev,
+  2019</xref>) that provides in-depth time measurements of various
+  compilation steps, which can be enabled by passing the
+  <monospace>-ftime-trace</monospace> flag. Its output contains data
+  that can be directly linked to symbols in the source code, making it
+  easier to study the impact of specific symbols on various stages of
+  compilation. The output format is a JSON file meant to be compatible
+  with Chrome’s flame graph visualizer, which contains a series of time
+  events with optional metadata like the mangled C++ symbol or the file
+  related to an event. The profiling data can then be visualized using
+  tools such as Google’s
+  <ext-link ext-link-type="uri" xlink:href="https://ui.perfetto.dev/">Perfetto
+  UI</ext-link>.</p>
+  <fig>
+    <caption><p>Perfetto UI displaying a sample Clang time trace
+    file</p></caption>
+    <graphic mimetype="image" mime-subtype="png" xlink:href="media/docs/images/perfetto-ui.png" />
+  </fig>
+  <p>Clang’s profiler data is very exhaustive and insightful; however,
+  there is no tooling to make sense of it in the context of variable
+  size compile-time benchmarks. <bold>ctbench</bold> tries to bridge the
+  gap by providing a tool to analyze this valuable data. It also
+  improves upon existing tools by providing a solution that’s easy to
+  integrate into existing CMake projects, and generates graphs in
+  various formats that are trivially embeddable in documents like
+  research papers, web pages, and documentation. Additionally, relying
+  on persistent configuration, benchmark declaration and description
+  files provide strong guarantees for benchmark reproductibility, as
+  opposed to web tools or interactive profilers.</p>
+</sec>
+<sec id="functionality">
+  <title>Functionality</title>
+  <p>Originally inspired by Metabench
+  (<xref alt="Dionne et al., 2017" rid="ref-metabench" ref-type="bibr">Dionne
+  et al., 2017</xref>), <bold>ctbench</bold> development was driven by
+  the need for a similar tool observes Clang’s time-trace files to help
+  get a more comprehensive view on the impact of metaprogramming
+  techniques on compile times. A strong emphasis was put on developer
+  friendliness, project integration, and component reusability.</p>
+  <p><bold>ctbench</bold> provides:</p>
+  <list list-type="bullet">
+    <list-item>
+      <p>a well documented CMake API for benchmark declaration, which
+      can be generated using the C++ pre-processor,</p>
+    </list-item>
+    <list-item>
+      <p>a set of JSON-configurable plotters with customizable data
+      aggregation features and boilerplate code for data handling, which
+      can be reused as a C++ library.</p>
+    </list-item>
+  </list>
+  <p>In addition to <bold>ctbench</bold>’s time-trace handling, it has a
+  compatibility mode for compilers that do not support it like GCC. This
+  mode works by measuring compiler execution time just like Metabench
+  (<xref alt="Dionne et al., 2017" rid="ref-metabench" ref-type="bibr">Dionne
+  et al., 2017</xref>) and generating a time-trace file that contains
+  compiler execution time. Moreover, the tooling allows setting
+  different compilers per target within a same CMake build, allowing
+  black-box compiler performance comparisons between GCC and Clang for
+  example or comparisons between different versions of a compiler.</p>
+  <p>All these features make <bold>ctbench</bold> a very complete
+  toolkit for compile-time benchmarking, making comprehensive benchmark
+  quick and easy, and the only compile-time benchmarking tool that can
+  use Clang profiling data for metaprogram scaling analysis.</p>
+</sec>
+<sec id="statement-of-interest">
+  <title>Statement of interest</title>
+  <p><bold>ctbench</bold> was first presented at the CPPP 2021
+  conference
+  (<xref alt="Penuchot, 2021" rid="ref-ctbench-cppp21" ref-type="bibr">Penuchot,
+  2021</xref>), which is the main C++ technical conference in France. It
+  is being used to benchmark examples from the poacher
+  (<xref alt="Penuchot, 2020" rid="ref-poacher" ref-type="bibr">Penuchot,
+  2020</xref>) project, which was briefly presented at the Meeting C++
+  2022
+  (<xref alt="Paul Keir, 2022" rid="ref-meetingcpp22" ref-type="bibr">Paul
+  Keir, 2022</xref>) technical conference.</p>
+</sec>
+<sec id="related-projects">
+  <title>Related projects</title>
+  <list list-type="bullet">
+    <list-item>
+      <p><ext-link ext-link-type="uri" xlink:href="https://github.com/jpenuchot/poacher">Poacher</ext-link>:
+      Experimental constexpr parsing and code generation for the
+      integration of arbitrary syntax DSL in C++20</p>
+    </list-item>
+    <list-item>
+      <p><ext-link ext-link-type="uri" xlink:href="https://github.com/jpenuchot/rule-of-cheese">Rule
+      of Cheese</ext-link>: A collection of compile-time microbenchmarks
+      to help set better C++ metaprogramming guidelines to improve
+      compile-time performance</p>
+    </list-item>
+  </list>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>We acknowledge contributions and insightful suggestions from
+  Philippe Virouleau and Paul Keir.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <ref id="ref-static-reflection">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Vandevoorde</surname><given-names>Daveed</given-names></name>
+        <name><surname>Childers</surname><given-names>Wyatt</given-names></name>
+        <name><surname>Sutton</surname><given-names>Andrew</given-names></name>
+        <name><surname>Vali</surname><given-names>Faisal</given-names></name>
+      </person-group>
+      <article-title>P1240R2: Scalable reflection</article-title>
+      <publisher-name>https://wg21.link/p1240r2; WG21</publisher-name>
+      <year iso-8601-date="2022-01">2022</year><month>01</month>
+    </element-citation>
+  </ref>
+  <ref id="ref-more-constexpr-containers">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Dimov</surname><given-names>Peter</given-names></name>
+        <name><surname>Dionne</surname><given-names>Louis</given-names></name>
+        <name><surname>Ranns</surname><given-names>Nina</given-names></name>
+        <name><surname>Smith</surname><given-names>Richard</given-names></name>
+        <name><surname>Vandevoorde</surname><given-names>Daveed</given-names></name>
+      </person-group>
+      <article-title>More constexpr containers</article-title>
+      <year iso-8601-date="2019">2019</year>
+      <uri>https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2019/p0784r7.html</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-metabench">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Dionne</surname><given-names>Louis</given-names></name>
+        <name><surname>Dutra</surname><given-names>Bruno</given-names></name>
+        <name><surname>Holmes</surname><given-names>Odin</given-names></name>
+        <name><surname>others</surname></name>
+      </person-group>
+      <article-title>Metabench: A simple framework for compile-time microbenchmarks</article-title>
+      <year iso-8601-date="2017">2017</year>
+      <uri>https://github.com/ldionne/metabench/</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-poacher">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Penuchot</surname><given-names>Jules</given-names></name>
+      </person-group>
+      <article-title>Poacher: C++ compile-time compiling experiments</article-title>
+      <year iso-8601-date="2020">2020</year>
+      <uri>https://github.com/jpenuchot/poacher/</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-templight">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Porkoláb</surname><given-names>Zoltán</given-names></name>
+        <name><surname>Mihalicza</surname><given-names>József</given-names></name>
+        <name><surname>Pataki</surname><given-names>Norbert</given-names></name>
+      </person-group>
+      <article-title>Measuring compilation time of C++ template metaprograms</article-title>
+      <year iso-8601-date="2009">2009</year>
+      <uri>http://aszt.inf.elte.hu/~gsd/s/cikkek/abel/comptime.pdf</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-ctre">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Dusíková</surname><given-names>Hana</given-names></name>
+      </person-group>
+      <article-title>Compile time regular expression in C++</article-title>
+      <year iso-8601-date="2018">2018</year>
+      <uri>https://github.com/hanickadot/compile-time-regular-expressions</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-ctbench-cppp21">
+    <element-citation publication-type="webpage">
+      <person-group person-group-type="author">
+        <name><surname>Penuchot</surname><given-names>Jules</given-names></name>
+      </person-group>
+      <article-title>Ctbench: Compile time benchmarking for clang</article-title>
+      <year iso-8601-date="2021">2021</year>
+      <uri>https://www.youtube.com/watch?v=1RZY6skM0Rc</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-time-trace">
+    <element-citation publication-type="webpage">
+      <person-group person-group-type="author">
+        <name><surname>Afanasyev</surname><given-names>Anton</given-names></name>
+      </person-group>
+      <article-title>Adds ‘-ftime-trace‘ option to clang that produces chrome ‘chrome://tracing‘ compatible JSON profiling output dumps</article-title>
+      <year iso-8601-date="2019">2019</year>
+      <uri>https://reviews.llvm.org/D58675</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-meetingcpp22">
+    <element-citation publication-type="webpage">
+      <person-group person-group-type="author">
+        <name><surname>Paul Keir</surname><given-names>Jules Penuchot</given-names><suffix>Joel Falcou</suffix></name>
+      </person-group>
+      <article-title>Meeting C++ - a totally constexpr standard library</article-title>
+      <year iso-8601-date="2022">2022</year>
+      <uri>https://www.youtube.com/watch?v=ekFPm7e__vI</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-buildbench">
+    <element-citation publication-type="webpage">
+      <person-group person-group-type="author">
+        <name><surname>Tingaud</surname><given-names>Fred</given-names></name>
+      </person-group>
+      <article-title>Build-bench</article-title>
+      <year iso-8601-date="2017">2017</year>
+      <uri>https://build-bench.com/</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-blazelib">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Iglberger</surname><given-names>Klaus</given-names></name>
+      </person-group>
+      <article-title>Blaze C++ linear algebra library</article-title>
+      <year iso-8601-date="2012">2012</year>
+      <uri>https://bitbucket.org/blaze-lib</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-eigen">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Guennebaud</surname><given-names>Gaël</given-names></name>
+        <name><surname>Jacob</surname><given-names>Benoit</given-names></name>
+        <name><surname>others</surname></name>
+      </person-group>
+      <article-title>Eigen</article-title>
+      <year iso-8601-date="2010">2010</year>
+      <volume>3</volume>
+      <uri>https://eigen.tuxfamily.org</uri>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
