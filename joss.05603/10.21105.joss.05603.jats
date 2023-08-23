@@ -1,0 +1,1370 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">5603</article-id>
+<article-id pub-id-type="doi">10.21105/joss.05603</article-id>
+<title-group>
+<article-title>Powering single-cell analyses in the browser with
+WebAssembly</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author" equal-contrib="yes">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0002-3564-4813</contrib-id>
+<name>
+<surname>Lun</surname>
+<given-names>Aaron T. L.</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<contrib contrib-type="author" equal-contrib="yes">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0001-5855-5031</contrib-id>
+<name>
+<surname>Kancherla</surname>
+<given-names>Jayaram</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Genentech Inc., South San Francisco, USA</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2023-07-20">
+<day>20</day>
+<month>7</month>
+<year>2023</year>
+</pub-date>
+<volume>8</volume>
+<issue>88</issue>
+<fpage>5603</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2022</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>WebAssembly</kwd>
+<kwd>bioinformatics</kwd>
+<kwd>single-cell</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p>We present kana, a web application for interactive single-cell
+  ’omics data analysis in the browser. Like, literally, in the browser:
+  kana leverages web technologies such as WebAssembly to efficiently
+  perform the relevant computations on the user’s machine, avoiding the
+  need to provision and maintain a backend service. The application
+  provides a streamlined one-click workflow for the main steps in a
+  typical single-cell analysis, starting from a count matrix and
+  finishing with marker detection. Results are presented in an intuitive
+  web interface for further exploration and iterative analysis.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p>Single-cell ’omics is routinely used to identify cell
+  subpopulations with distinct molecular phenotypes in heterogeneous
+  biological samples
+  (<xref alt="Stegle et al., 2015" rid="ref-stegle2015computational" ref-type="bibr">Stegle
+  et al., 2015</xref>). For example, in single cell RNA sequencing
+  (scRNA-seq), cells are clustered based on their transcriptional
+  profiles and each cluster is characterized based on differential
+  expression of marker genes. Changes in expression or cellular
+  abundance for each cluster can then provide some insight into the
+  biological processes associated with the corresponding cell type or
+  state. This analysis is often exploratory in nature as the properties
+  of an interesting cell subpopulation are difficult to define <italic>a
+  priori</italic>. As a result, each analysis involves several
+  iterations of computation, visualization and interpretation by
+  biologists who may not be familiar with programming frameworks for
+  bioinformatics.</p>
+  <p>Web applications offer an ideal environment for single-cell
+  analyses, providing a user-friendly interface to the analysis workflow
+  without any installation of additional software (other than a
+  browser). This strategy has been used by tools such as Cellxgene
+  (<xref alt="Megill et al., 2021" rid="ref-megill2021cellxgene" ref-type="bibr">Megill
+  et al., 2021</xref>), Cirrocumulus
+  (<xref alt="Gould et al., 2021" rid="ref-cirrocumulus" ref-type="bibr">Gould
+  et al., 2021</xref>), and a variety of R/Shiny applications
+  (<xref alt="Chang et al., 2021" rid="ref-shiny" ref-type="bibr">Chang
+  et al., 2021</xref>) for processing single-cell data. The vast
+  majority of these existing web applications use a traditional
+  server-based architecture, where data is sent to a backend server to
+  compute results that are returned to the client - i.e., the user’s
+  machine - for inspection. This obviously requires the deployment of a
+  backend server, which has non-negligible cost when scaled to a large
+  number of users. It also requires data transfer from the client to the
+  server, which introduces latency as well as invoking concerns over
+  data ownership and privacy.</p>
+  <p>An alternative paradigm is to perform all the compute on the client
+  device. This “client-side compute” circumvents all of the
+  aforementioned issues with a backend server as data remains local to
+  the user’s machine and is analyzed wholly within the browser. Some
+  existing web applications have employed this approach for
+  bioinformatics data analysis
+  (<xref alt="Fan et al., 2017" rid="ref-fan2017ubit2" ref-type="bibr">Fan
+  et al., 2017</xref>;
+  <xref alt="Gómez et al., 2013" rid="ref-gomez2013biojs" ref-type="bibr">Gómez
+  et al., 2013</xref>;
+  <xref alt="Schmid-Burgk &amp; Hornung, 2015" rid="ref-schmid2015browsergenome" ref-type="bibr">Schmid-Burgk
+  &amp; Hornung, 2015</xref>), but these represent a minority in the
+  application ecosystem. This is not surprising given the paucity of
+  efficient, browser-compatible implementations of various algorithms
+  required for such analyses. However, new web technologies such as
+  WebAssembly
+  (<xref alt="Haas et al., 2017" rid="ref-haas2017bringing" ref-type="bibr">Haas
+  et al., 2017</xref>) have greatly enhanced browsers’ capabilities for
+  intensive computation. If we could generate a WebAssembly (Wasm)
+  binary containing single-cell analysis functionality, we could
+  feasibly repurpose the browser as a self-contained interactive data
+  analysis tool for single-cell ’omics.</p>
+  <p>To this end, we present kana, a web application for analyzing
+  single-cell `omics data inside the browser
+  (https://www.kanaverse.org/kana). kana provides a streamlined
+  one-click workflow for the main steps in a typical single-cell
+  analysis
+  (<xref alt="Amezquita et al., 2020" rid="ref-amezquita2020orchestrating" ref-type="bibr">Amezquita
+  et al., 2020</xref>), starting from a count matrix (or multiple such
+  matrices, for datasets with multiple modalities and/or samples) and
+  finishing with marker detection. Users can interactively explore the
+  low-dimensional embeddings, clusterings and marker genes in an
+  intuitive graphical interface that encourages iterative re-analysis.
+  Once finished, users can save their analysis and results for later
+  examination or sharing with collaborators. By using technologies like
+  WebAssembly and web workers, we achieve high-performance client-side
+  compute for datasets containing hundreds of thousands of cells.</p>
+</sec>
+<sec id="usage">
+  <title>Usage</title>
+  <p>Given a single-cell dataset - typically for gene expression, but
+  possibly with protein and/or CRISPR counts - kana executes a routine
+  analysis based on A. T. L. Lun et al.
+  (<xref alt="2020" rid="ref-oscabook" ref-type="bibr">2020</xref>).
+  Users can supply data in several formats, such as Matrix Market files
+  produced by the Cellranger pipeline; HDF5 files, using either the 10X
+  HDF5 feature barcode matrix format or as H5AD files;
+  SummarizedExperiment or SingleCellExperiment objects
+  (<xref alt="Amezquita et al., 2020" rid="ref-amezquita2020orchestrating" ref-type="bibr">Amezquita
+  et al., 2020</xref>) saved to RDS files; or datasets from public
+  repositories like Bioconductor’s ExperimentHub
+  (<xref alt="Morgan &amp; Shepherd, n.d." rid="ref-morgan2019experimenthub" ref-type="bibr">Morgan
+  &amp; Shepherd, n.d.</xref>). The entire analysis can then be executed
+  with a single click, though users can easily customize key parameters
+  if desired
+  (<xref alt="[screenshot:analysis]" rid="screenshotU003Aanalysis">[screenshot:analysis]</xref>).</p>
+  <fig>
+    <caption><p>Screenshot showing the analysis configuration panel in
+    the kana application. Clicking “Analyze” will perform the entire
+    analysis.<styled-content id="screenshotU003Aanalysis"></styled-content></p></caption>
+    <graphic mimetype="image" mime-subtype="png" xlink:href="media/screenshots/analysis.png" />
+  </fig>
+  <p>Once each step of the analysis is complete, kana visualizes its
+  results in a multi-panel layout
+  (<xref alt="[screenshot:results]" rid="screenshotU003Aresults">[screenshot:results]</xref>).
+  One panel contains a scatter plot for the low-dimensional embeddings,
+  where each cell is a point that is colored by cluster identity or gene
+  expression. Another panel contains a table of marker statistics for a
+  selected cluster, where potential marker genes are ranked and filtered
+  according to the magnitude of upregulation over other clusters.
+  Scientists can use this interface to examine the cellular
+  heterogeneity in the dataset and to determine which biological
+  processes are most active in each subpopulation. We also provide a
+  gallery to visualize miscellaneous details such as the distribution of
+  QC metrics.</p>
+  <fig>
+    <caption><p>Screenshot showing the multi-panel layout for results in
+    the kana application. The left panel is used for the low-dimensional
+    embeddings, the middle panel contains the marker table for a
+    selected cluster, and the right panel contains a gallery of
+    miscellaneous
+    plots.<styled-content id="screenshotU003Aresults"></styled-content></p></caption>
+    <graphic mimetype="image" mime-subtype="png" xlink:href="media/screenshots/results.png" />
+  </fig>
+  <p>Once the analysis is complete, users can export the analysis
+  configuration and results for later inspection. The exported results
+  can be quickly reloaded in a new browser session, allowing users or
+  their collaborators to explore existing results without repeating the
+  computation. Indeed, kana’s “explore-only” mode can be used more
+  generally for single-cell analysis results in other formats, e.g., to
+  load RDS or H5AD files containing pre-computed clusterings and
+  low-dimensional embeddings. Similarly, the exported configuration can
+  be used to restore the analysis session for further parameter tuning
+  and iteration.</p>
+  <p>From a user perspective, kana’s interface is quite similiar to
+  those of other single-cell web applications like Cellxgene. In fact,
+  most single-cell user interfaces have very similar layouts and
+  functionality due to the commonality of the analysis steps and the
+  standardized nature of the results. kana’s novelty comes from how the
+  analysis is performed - unlike most other applications, we do not rely
+  on a backend server, but perform the analysis directly on the user’s
+  machine. Importantly, this is achieved via the browser and does not
+  require installation of additional software like, e.g., the 10X
+  Genomics Loupe browser.</p>
+</sec>
+<sec id="implementation-details">
+  <title>Implementation details</title>
+  <p>We convert the browser into a compute engine by compiling
+  scientific libraries for bioinformatics data analysis to Wasm - see
+  the biowasm project
+  (<xref alt="Aboukhalil, 2019" rid="ref-biowasm" ref-type="bibr">Aboukhalil,
+  2019</xref>) for previous efforts in this direction. For kana, we
+  created C++ implementations of the data representations or algorithms
+  required for each analysis step:</p>
+  <list list-type="bullet">
+    <list-item>
+      <p>tatami
+      (<xref alt="A. Lun, 2021a" rid="ref-tatami" ref-type="bibr">A.
+      Lun, 2021a</xref>) provides an abstract interface to different
+      matrix classes, based on ideas in the beachmat
+      (<xref alt="A. T. L. Lun et al., 2018" rid="ref-lun2018beachmat" ref-type="bibr">A.
+      T. L. Lun et al., 2018</xref>) and DelayedArray
+      (<xref alt="Pagès et al., 2021" rid="ref-delayedarray" ref-type="bibr">Pagès
+      et al., 2021</xref>) packages.</p>
+    </list-item>
+    <list-item>
+      <p>CppWeightedLowess
+      (<xref alt="A. T. L. Lun, 2021h" rid="ref-cppweightedlowess" ref-type="bibr">A.
+      T. L. Lun, 2021h</xref>) contains a C++ port of the weightedLowess
+      function from the limma package
+      (<xref alt="Ritchie et al., 2015" rid="ref-ritchie2015limma" ref-type="bibr">Ritchie
+      et al., 2015</xref>), itself derived from R’s LOWESS
+      implementation
+      (<xref alt="Cleveland, 1979" rid="ref-cleveland1979robust" ref-type="bibr">Cleveland,
+      1979</xref>).</p>
+    </list-item>
+    <list-item>
+      <p>CppIrlba
+      (<xref alt="A. T. L. Lun, 2021d" rid="ref-cppirlba" ref-type="bibr">A.
+      T. L. Lun, 2021d</xref>) contains a C++ implementation of the
+      IRLBA algorithm
+      (<xref alt="James Baglama &amp; Reichel, 2005" rid="ref-baglama2005augmented" ref-type="bibr">James
+      Baglama &amp; Reichel, 2005</xref>), based on the C code in the
+      irlba R package
+      (<xref alt="Jim Baglama et al., 2019" rid="ref-irlba" ref-type="bibr">Jim
+      Baglama et al., 2019</xref>).</p>
+    </list-item>
+    <list-item>
+      <p>CppKmeans
+      (<xref alt="A. T. L. Lun, 2021e" rid="ref-cppkmeans" ref-type="bibr">A.
+      T. L. Lun, 2021e</xref>) implements the several algorithms for
+      k-means clustering Su &amp; Dy
+      (<xref alt="2007" rid="ref-su2007search" ref-type="bibr">2007</xref>),
+      based on R’s Fortran code.</p>
+    </list-item>
+    <list-item>
+      <p>knncolle
+      (<xref alt="A. T. L. Lun, 2021g" rid="ref-knncolle" ref-type="bibr">A.
+      T. L. Lun, 2021g</xref>) wraps several nearest neighbor detection
+      algorithms
+      (<xref alt="Bernhardsson, 2021" rid="ref-annoy" ref-type="bibr">Bernhardsson,
+      2021</xref>;
+      <xref alt="Yianilos, 1993" rid="ref-yianilos1993data" ref-type="bibr">Yianilos,
+      1993</xref>) in a consistent interface, using the same design as
+      the BiocNeighbors package
+      (<xref alt="A. T. L. Lun, 2021c" rid="ref-biocneighbors" ref-type="bibr">A.
+      T. L. Lun, 2021c</xref>).</p>
+    </list-item>
+    <list-item>
+      <p>libscran
+      (<xref alt="A. T. L. Lun, 2021a" rid="ref-libscran" ref-type="bibr">A.
+      T. L. Lun, 2021a</xref>) implements high-level methods for
+      scRNA-seq data analysis based on code from the scran, scuttle and
+      scater packages
+      (<xref alt="Aaron T. L. Lun et al., 2016" rid="ref-lun2016step" ref-type="bibr">Aaron
+      T. L. Lun et al., 2016</xref>;
+      <xref alt="McCarthy et al., 2017" rid="ref-lun2017scater" ref-type="bibr">McCarthy
+      et al., 2017</xref>).</p>
+    </list-item>
+    <list-item>
+      <p>qdtsne
+      (<xref alt="A. T. L. Lun, 2021f" rid="ref-qdtsne" ref-type="bibr">A.
+      T. L. Lun, 2021f</xref>) contains a C++ implementation of the
+      Barnes-Hut t-SNE algorithm
+      (<xref alt="Maaten, 2014" rid="ref-maaten2014accelerating" ref-type="bibr">Maaten,
+      2014</xref>), refactored and optimized from code in the Rtsne
+      package
+      (<xref alt="Krijthe, 2015" rid="ref-rtsne" ref-type="bibr">Krijthe,
+      2015</xref>).</p>
+    </list-item>
+    <list-item>
+      <p>umappp
+      (<xref alt="A. T. L. Lun, 2021b" rid="ref-umappp" ref-type="bibr">A.
+      T. L. Lun, 2021b</xref>) contains a C++ implementation of the UMAP
+      algorithm
+      (<xref alt="McInnes et al., 2018" rid="ref-mcinnes2018umap" ref-type="bibr">McInnes
+      et al., 2018</xref>), derived from code in the uwot R package
+      (<xref alt="Melville, 2021" rid="ref-uwot" ref-type="bibr">Melville,
+      2021</xref>).</p>
+    </list-item>
+    <list-item>
+      <p>SinglePP
+      (<xref alt="A. T. L. Lun, 2022c" rid="ref-singlepp" ref-type="bibr">A.
+      T. L. Lun, 2022c</xref>) contains a C++ implementation of the
+      SingleR algorithm for cell type annotation
+      (<xref alt="Aran et al., 2019" rid="ref-aran2019reference" ref-type="bibr">Aran
+      et al., 2019</xref>).</p>
+    </list-item>
+    <list-item>
+      <p>CppMnnCorrect
+      (<xref alt="A. T. L. Lun, 2022a" rid="ref-cppmnncorrect" ref-type="bibr">A.
+      T. L. Lun, 2022a</xref>) implements the MNN method for batch
+      correction
+      (<xref alt="Haghverdi et al., 2018" rid="ref-haghverdi2018batch" ref-type="bibr">Haghverdi
+      et al., 2018</xref>), loosely based on an existing method from the
+      batchelor package
+      (<xref alt="A. T. L. Lun &amp; Haghverdi, 2018" rid="ref-batchelorbioc" ref-type="bibr">A.
+      T. L. Lun &amp; Haghverdi, 2018</xref>).</p>
+    </list-item>
+    <list-item>
+      <p>rds2cpp
+      (<xref alt="A. T. L. Lun, 2022b" rid="ref-rds2cpp" ref-type="bibr">A.
+      T. L. Lun, 2022b</xref>) provides a RDS file parser/writer as a
+      standalone C++ library.</p>
+    </list-item>
+  </list>
+  <p>We compiled these libraries to a Wasm binary using the Emscripten
+  toolchain
+  (<xref alt="Zakai, 2011" rid="ref-zakai2011emscripten" ref-type="bibr">Zakai,
+  2011</xref>), using PThreads to enable parallelization via web
+  workers. We then wrapped the binary in the scran.js library
+  (<xref alt="A. Lun &amp; Kancherla, 2021" rid="ref-scran.js" ref-type="bibr">A.
+  Lun &amp; Kancherla, 2021</xref>) to provide JavaScript bindings for
+  use in web applications. kana itself was developed using React with
+  extensive use of WebGL for efficient plotting. Testing indicates that
+  kana is only 25-50% slower than an equivalent native executable
+  (<xref alt="Table 1" rid="tabU003Aperf">Table 1</xref>), indicating
+  that Wasm’s promise of near-native execution is feasible.</p>
+  <table-wrap>
+    <caption>
+      <p>Performance of kana for analyzing different scRNA-seq datasets,
+      compared to a native executable created from the same C++
+      libraries. Measurements were taken on a laptop with an Intel Core
+      i7-8850H CPU (2.60GHz, 6 cores) and 32 GB memory running Manjaro
+      Linux. Runtimes are reported in seconds with the mean and standard
+      error across 3 runs. See A. Lun &amp; Kancherla
+      (<xref alt="2023" rid="ref-otherkana" ref-type="bibr">2023</xref>)
+      for more
+      details.<styled-content id="tabU003Aperf"></styled-content></p>
+    </caption>
+    <table>
+      <colgroup>
+        <col width="35%" />
+        <col width="23%" />
+        <col width="21%" />
+        <col width="21%" />
+      </colgroup>
+      <thead>
+        <tr>
+          <th>Dataset</th>
+          <th>Number of cells</th>
+          <th>kana runtime</th>
+          <th>Native runtime</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Zeisel et al.
+          (<xref alt="2015" rid="ref-zeisel2015cell" ref-type="bibr">2015</xref>)</td>
+          <td>3005</td>
+          <td>7.00 ± 0.10</td>
+          <td>5.60 ± 0.05</td>
+        </tr>
+        <tr>
+          <td>Paul et al.
+          (<xref alt="2015" rid="ref-paul2015transcriptional" ref-type="bibr">2015</xref>)</td>
+          <td>10368</td>
+          <td>17.59 ± 0.20</td>
+          <td>13.52 ± 0.38</td>
+        </tr>
+        <tr>
+          <td>Bach et al.
+          (<xref alt="2017" rid="ref-bach2017differentiation" ref-type="bibr">2017</xref>)</td>
+          <td>25806</td>
+          <td>54.96 ± 1.13</td>
+          <td>43.33 ± 0.39</td>
+        </tr>
+        <tr>
+          <td>Ernst et al.
+          (<xref alt="2019" rid="ref-ernst2019staged" ref-type="bibr">2019</xref>)</td>
+          <td>68937</td>
+          <td>157.15 ± 7.39</td>
+          <td>114.67 ± 1.86</td>
+        </tr>
+        <tr>
+          <td>Bacher et al.
+          (<xref alt="2020" rid="ref-bacher2020low" ref-type="bibr">2020</xref>)</td>
+          <td>104417</td>
+          <td>228.02 ± 2.85</td>
+          <td>170.32 ± 1.34</td>
+        </tr>
+        <tr>
+          <td>Zilionis et al.
+          (<xref alt="2019" rid="ref-zilionis2019single" ref-type="bibr">2019</xref>)</td>
+          <td>173954</td>
+          <td>272.26 ± 4.22</td>
+          <td>183.77 ± 2.46</td>
+        </tr>
+      </tbody>
+    </table>
+  </table-wrap>
+</sec>
+<sec id="further-comments">
+  <title>Further comments</title>
+  <p>kana’s key innovation lies in its use of modern web technologies to
+  perform the analysis directly in the browser. This eliminates the
+  difficulties of software installation and makes the analysis
+  accessible to a non-programming audience. At the same time, we retain
+  all the benefits of client-side operation, namely:</p>
+  <list list-type="bullet">
+    <list-item>
+      <p>No dependency on a backend server, which greatly simplifies
+      application deployment and maintenance for developers. For
+      example, we do not need any monitoring, scaling, hardening, or
+      other DevOps processes typically associated with a backend
+      architecture.</p>
+    </list-item>
+    <list-item>
+      <p>No latency from transfer of data and results to/from the
+      server, which yields a more responsive user experience. In
+      particular, uploads of large data files (up to 1 GB, depending on
+      the number of cells and sequencing depth) would cause a
+      significant delay.</p>
+    </list-item>
+    <list-item>
+      <p>No issues with data ownership, enabling users to process
+      sensitive datasets from the privacy of their own machine. Users
+      are not forced to trust the application maintainers to correctly
+      handle and secure their datasets on the latter’s server.</p>
+    </list-item>
+    <list-item>
+      <p>Effectively free compute, as each client brings its own
+      computing power to the application. No funding is required for a
+      centralized backend, allowing us to pass on those savings to our
+      users, i.e., kana can be used by anyone for free.</p>
+    </list-item>
+  </list>
+  <p>Client-side compute has interesting scalability characteristics
+  compared to a traditional backend approach. Most obviously, we are
+  constrained by the computational resources available on the client
+  machine, which limits the size of any single dataset that can be
+  analyzed by a particular client. From another perspective, though,
+  client-side compute is more scalable as it automatically distributes
+  analyses of many datasets across any number of machines at no cost and
+  with no configuration. This is especially relevant for web
+  applications like kana where the maintainers would otherwise be
+  responsible for provisioning more computing resources to match user
+  demand.</p>
+  <p>That said, how do we deal with large datasets? Our C++
+  implementations mean that we are not limited to computation in the
+  browser. We can easily provide wrappers to the same underlying
+  libraries in any client-side framework, e.g., as a command-line tool
+  or as an extension to existing data science ecosystems
+  (<xref alt="A. Lun, 2021b" rid="ref-scranchan" ref-type="bibr">A. Lun,
+  2021b</xref>). Indeed, one could use the wrapped C++ libraries to run
+  large analyses on a sufficiently well-resourced backend, export the
+  results in a kana-compatible file format, and then serve them to
+  clients for use in kana’s exploration mode.</p>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>We thank Michael Lawrence, Hector Corrada Bravo and Adrian Waddell
+  for their suggestions to improve this manuscript.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <ref id="ref-amezquita2020orchestrating">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Amezquita</surname><given-names>R. A.</given-names></name>
+        <name><surname>Lun</surname><given-names>A. T. L.</given-names></name>
+        <name><surname>Becht</surname><given-names>E.</given-names></name>
+        <name><surname>Carey</surname><given-names>V. J.</given-names></name>
+        <name><surname>Carpp</surname><given-names>L. N.</given-names></name>
+        <name><surname>Geistlinger</surname><given-names>L.</given-names></name>
+        <name><surname>Marini</surname><given-names>F.</given-names></name>
+        <name><surname>Rue-Albrecht</surname><given-names>K.</given-names></name>
+        <name><surname>Risso</surname><given-names>D.</given-names></name>
+        <name><surname>Soneson</surname><given-names>C.</given-names></name>
+        <name><surname>Waldron</surname><given-names>L.</given-names></name>
+        <name><surname>Pagès</surname><given-names>H.</given-names></name>
+        <name><surname>Smith</surname><given-names>M. L.</given-names></name>
+        <name><surname>Huber</surname><given-names>W.</given-names></name>
+        <name><surname>Morgan</surname><given-names>M.</given-names></name>
+        <name><surname>Gottardo</surname><given-names>R.</given-names></name>
+        <name><surname>Hicks</surname><given-names>S. C.</given-names></name>
+      </person-group>
+      <article-title>Orchestrating single-cell analysis with Bioconductor</article-title>
+      <source>Nat Methods</source>
+      <year iso-8601-date="2020-02">2020</year><month>02</month>
+      <volume>17</volume>
+      <issue>2</issue>
+      <pub-id pub-id-type="doi">10.1038/s41592-019-0654-x</pub-id>
+      <fpage>137</fpage>
+      <lpage>145</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-oscabook">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Lun</surname><given-names>A. T. L.</given-names></name>
+        <name><surname>Amezquita</surname><given-names>R. A.</given-names></name>
+        <name><surname>Gottardo</surname><given-names>R.</given-names></name>
+        <name><surname>Hicks</surname><given-names>S. C.</given-names></name>
+      </person-group>
+      <article-title>Orchestrating single-cell analysis with Bioconductor</article-title>
+      <publisher-name>Bioconductor</publisher-name>
+      <year iso-8601-date="2020">2020</year>
+      <uri>https://bioconductor.org/books/release/OSCA/</uri>
+      <pub-id pub-id-type="doi">10.1038/s41592-019-0654-x</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-knncolle">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Lun</surname><given-names>A. T. L.</given-names></name>
+      </person-group>
+      <article-title>Collection of KNN algorithms</article-title>
+      <year iso-8601-date="2021">2021</year>
+      <uri>https://github.com/LTLA/knncolle</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-cppirlba">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Lun</surname><given-names>A. T. L.</given-names></name>
+      </person-group>
+      <article-title>C++ library for IRLBA</article-title>
+      <year iso-8601-date="2021">2021</year>
+      <uri>https://github.com/LTLA/CppIrlba</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-annoy">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Bernhardsson</surname><given-names>E.</given-names></name>
+      </person-group>
+      <article-title>Annoy</article-title>
+      <year iso-8601-date="2021">2021</year>
+      <uri>https://github.com/spotify/annoy</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-delayedarray">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Pagès</surname><given-names>H.</given-names></name>
+        <name><surname>Hickey</surname><given-names>P.</given-names></name>
+        <name><surname>Lun</surname><given-names>A. T. L.</given-names></name>
+      </person-group>
+      <source>DelayedArray: A unified framework for working transparently with on-disk and -memory array-like datasets</source>
+      <year iso-8601-date="2021">2021</year>
+      <uri>https://bioconductor.org/packages/DelayedArray</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-biocneighbors">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Lun</surname><given-names>A. T. L.</given-names></name>
+      </person-group>
+      <source>BiocNeighbors: Nearest neighbor detection for bioconductor packages</source>
+      <year iso-8601-date="2021">2021</year>
+      <uri>https://bioconductor.org/packages/BiocNeighbors</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-baglama2005augmented">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Baglama</surname><given-names>James</given-names></name>
+        <name><surname>Reichel</surname><given-names>Lothar</given-names></name>
+      </person-group>
+      <article-title>Augmented implicitly restarted lanczos bidiagonalization methods</article-title>
+      <source>SIAM Journal on Scientific Computing</source>
+      <year iso-8601-date="2005">2005</year>
+      <volume>27</volume>
+      <issue>1</issue>
+      <pub-id pub-id-type="doi">10.1137/04060593X</pub-id>
+      <fpage>19</fpage>
+      <lpage>42</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-irlba">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Baglama</surname><given-names>Jim</given-names></name>
+        <name><surname>Reichel</surname><given-names>Lothar</given-names></name>
+        <name><surname>Lewis</surname><given-names>B. W.</given-names></name>
+      </person-group>
+      <source>Irlba: Fast truncated singular value decomposition and principal components analysis for large dense and sparse matrices</source>
+      <year iso-8601-date="2019">2019</year>
+      <uri>https://CRAN.R-project.org/package=irlba</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-cppkmeans">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Lun</surname><given-names>A. T. L.</given-names></name>
+      </person-group>
+      <article-title>C++ library for k-means</article-title>
+      <year iso-8601-date="2021">2021</year>
+      <uri>https://github.com/LTLA/CppKmeans</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-cppweightedlowess">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Lun</surname><given-names>A. T. L.</given-names></name>
+      </person-group>
+      <article-title>Weighted LOWESS for C++</article-title>
+      <year iso-8601-date="2021">2021</year>
+      <uri>https://github.com/LTLA/CppWeightedLowess</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-hartiganwong">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Hartigan</surname><given-names>J. A.</given-names></name>
+        <name><surname>Wong</surname><given-names>M. A.</given-names></name>
+      </person-group>
+      <article-title>Algorithm AS 136: A k-means clustering algorithm</article-title>
+      <source>Journal of the Royal Statistical Society. Series C (Applied Statistics)</source>
+      <year iso-8601-date="1979">1979</year>
+      <volume>28</volume>
+      <issue>1</issue>
+      <pub-id pub-id-type="doi">10.2307/2346830</pub-id>
+      <fpage>100</fpage>
+      <lpage>108</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-lloyd">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Lloyd</surname><given-names>S.</given-names></name>
+      </person-group>
+      <article-title>Least squares quantization in PCM</article-title>
+      <source>IEEE Transactions on Information Theory</source>
+      <year iso-8601-date="1982">1982</year>
+      <volume>28</volume>
+      <issue>2</issue>
+      <pub-id pub-id-type="doi">10.1109/TIT.1982.1056489</pub-id>
+      <fpage>129</fpage>
+      <lpage>137</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-ritchie2015limma">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Ritchie</surname><given-names>Matthew E</given-names></name>
+        <name><surname>Phipson</surname><given-names>Belinda</given-names></name>
+        <name><surname>Wu</surname><given-names>Di</given-names></name>
+        <name><surname>Hu</surname><given-names>Yifang</given-names></name>
+        <name><surname>Law</surname><given-names>Charity W</given-names></name>
+        <name><surname>Shi</surname><given-names>Wei</given-names></name>
+        <name><surname>Smyth</surname><given-names>Gordon K</given-names></name>
+      </person-group>
+      <article-title>limma powers differential expression analyses for RNA-sequencing and microarray studies</article-title>
+      <source>Nucleic Acids Research</source>
+      <year iso-8601-date="2015">2015</year>
+      <volume>43</volume>
+      <issue>7</issue>
+      <pub-id pub-id-type="doi">10.1093/nar/gkv007</pub-id>
+      <fpage>e47</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-cleveland1979robust">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Cleveland</surname><given-names>William S.</given-names></name>
+      </person-group>
+      <article-title>Robust locally weighted regression and smoothing scatterplots</article-title>
+      <source>Journal of the American Statistical Association</source>
+      <year iso-8601-date="1979">1979</year>
+      <volume>74</volume>
+      <issue>368</issue>
+      <pub-id pub-id-type="doi">10.1080/01621459.1979.10481038</pub-id>
+      <fpage>829</fpage>
+      <lpage>836</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-qdtsne">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Lun</surname><given-names>A. T. L.</given-names></name>
+      </person-group>
+      <article-title>C++ library for t-SNE</article-title>
+      <year iso-8601-date="2021">2021</year>
+      <uri>https://github.com/LTLA/qdtsne</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-umappp">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Lun</surname><given-names>A. T. L.</given-names></name>
+      </person-group>
+      <article-title>A C++ library for UMAP</article-title>
+      <year iso-8601-date="2021">2021</year>
+      <uri>https://github.com/LTLA/umappp</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-maaten2014accelerating">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Maaten</surname><given-names>Laurens van der</given-names></name>
+      </person-group>
+      <article-title>Accelerating t-SNE using tree-based algorithms</article-title>
+      <source>Journal of Machine Learning Research</source>
+      <year iso-8601-date="2014">2014</year>
+      <volume>15</volume>
+      <issue>93</issue>
+      <uri>http://jmlr.org/papers/v15/vandermaaten14a.html</uri>
+      <fpage>3221</fpage>
+      <lpage>3245</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-rtsne">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Krijthe</surname><given-names>Jesse H.</given-names></name>
+      </person-group>
+      <source>Rtsne: T-distributed stochastic neighbor embedding using barnes-hut implementation</source>
+      <year iso-8601-date="2015">2015</year>
+      <uri>https://github.com/jkrijthe/Rtsne</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-mcinnes2018umap">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>McInnes</surname><given-names>Leland</given-names></name>
+        <name><surname>Healy</surname><given-names>John</given-names></name>
+        <name><surname>Saul</surname><given-names>Nathaniel</given-names></name>
+        <name><surname>Grossberger</surname><given-names>Lukas</given-names></name>
+      </person-group>
+      <article-title>UMAP: Uniform manifold approximation and projection</article-title>
+      <source>The Journal of Open Source Software</source>
+      <year iso-8601-date="2018">2018</year>
+      <volume>3</volume>
+      <issue>29</issue>
+      <pub-id pub-id-type="doi">10.21105/joss.00861</pub-id>
+      <fpage>861</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-uwot">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Melville</surname><given-names>James</given-names></name>
+      </person-group>
+      <source>Uwot: The uniform manifold approximation and projection (UMAP) method for dimensionality reduction</source>
+      <year iso-8601-date="2021">2021</year>
+      <uri>https://github.com/jlmelville/uwot</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-libscran">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Lun</surname><given-names>A. T. L.</given-names></name>
+      </person-group>
+      <article-title>A C++ library for single-cell data analysis</article-title>
+      <year iso-8601-date="2021">2021</year>
+      <uri>https://github.com/LTLA/libscran</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-lun2016step">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Lun</surname><given-names>Aaron T. L.</given-names></name>
+        <name><surname>McCarthy</surname><given-names>Davis J.</given-names></name>
+        <name><surname>Marioni</surname><given-names>John C.</given-names></name>
+      </person-group>
+      <article-title>A step-by-step workflow for low-level analysis of single-cell RNA-seq data with bioconductor</article-title>
+      <source>F1000Res.</source>
+      <year iso-8601-date="2016">2016</year>
+      <volume>5</volume>
+      <pub-id pub-id-type="doi">10.12688/f1000research.9501.2</pub-id>
+      <fpage>2122</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-lun2017scater">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>McCarthy</surname><given-names>Davis J.</given-names></name>
+        <name><surname>Campbell</surname><given-names>Kieran R.</given-names></name>
+        <name><surname>Lun</surname><given-names>Aaron T. L.</given-names></name>
+        <name><surname>Willis</surname><given-names>Quin F.</given-names></name>
+      </person-group>
+      <article-title>Scater: Pre-processing, quality control, normalisation and visualisation of single-cell RNA-seq data in R</article-title>
+      <source>Bioinformatics</source>
+      <year iso-8601-date="2017">2017</year>
+      <volume>33</volume>
+      <pub-id pub-id-type="doi">10.1093/bioinformatics/btw777</pub-id>
+      <fpage>1179</fpage>
+      <lpage>1186</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-lun2018beachmat">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Lun</surname><given-names>A. T. L.</given-names></name>
+        <name><surname>Pagès</surname><given-names>H.</given-names></name>
+        <name><surname>Smith</surname><given-names>M. L.</given-names></name>
+      </person-group>
+      <article-title>beachmat: A Bioconductor C++ API for accessing high-throughput biological data from a variety of R matrix types</article-title>
+      <source>PLoS Comput Biol</source>
+      <year iso-8601-date="2018-05">2018</year><month>05</month>
+      <volume>14</volume>
+      <issue>5</issue>
+      <pub-id pub-id-type="doi">10.1371/journal.pcbi.1006135</pub-id>
+      <fpage>e1006135</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-yianilos1993data">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Yianilos</surname><given-names>Peter N.</given-names></name>
+      </person-group>
+      <article-title>Data structures and algorithms for nearest neighbor search in general metric spaces</article-title>
+      <source>Proceedings of the fourth annual ACM-SIAM symposium on discrete algorithms</source>
+      <publisher-name>Society for Industrial; Applied Mathematics</publisher-name>
+      <publisher-loc>USA</publisher-loc>
+      <year iso-8601-date="1993">1993</year>
+      <isbn>0898713137</isbn>
+      <fpage>311</fpage>
+      <lpage>321</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-haas2017bringing">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Haas</surname><given-names>Andreas</given-names></name>
+        <name><surname>Rossberg</surname><given-names>Andreas</given-names></name>
+        <name><surname>Schuff</surname><given-names>Derek L.</given-names></name>
+        <name><surname>Titzer</surname><given-names>Ben L.</given-names></name>
+        <name><surname>Holman</surname><given-names>Michael</given-names></name>
+        <name><surname>Gohman</surname><given-names>Dan</given-names></name>
+        <name><surname>Wagner</surname><given-names>Luke</given-names></name>
+        <name><surname>Zakai</surname><given-names>Alon</given-names></name>
+        <name><surname>Bastien</surname><given-names>JF</given-names></name>
+      </person-group>
+      <article-title>Bringing the web up to speed with WebAssembly</article-title>
+      <source>SIGPLAN Not.</source>
+      <publisher-name>Association for Computing Machinery</publisher-name>
+      <publisher-loc>New York, NY, USA</publisher-loc>
+      <year iso-8601-date="2017-06">2017</year><month>06</month>
+      <volume>52</volume>
+      <issue>6</issue>
+      <issn>0362-1340</issn>
+      <uri>https://doi.org/10.1145/3140587.3062363</uri>
+      <pub-id pub-id-type="doi">10.1145/3140587.3062363</pub-id>
+      <fpage>185</fpage>
+      <lpage>200</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-schmid2015browsergenome">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Schmid-Burgk</surname><given-names>Jonathan L</given-names></name>
+        <name><surname>Hornung</surname><given-names>Veit</given-names></name>
+      </person-group>
+      <article-title>BrowserGenome.org: Web-based RNA-seq data analysis and visualization</article-title>
+      <source>Nature Methods</source>
+      <publisher-name>Nature Publishing Group</publisher-name>
+      <year iso-8601-date="2015">2015</year>
+      <volume>12</volume>
+      <issue>11</issue>
+      <pub-id pub-id-type="doi">10.1038/nmeth.3615</pub-id>
+      <fpage>1001</fpage>
+      <lpage>1001</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-fan2017ubit2">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Fan</surname><given-names>Jean</given-names></name>
+        <name><surname>Fan</surname><given-names>David</given-names></name>
+        <name><surname>Slowikowski</surname><given-names>Kamil</given-names></name>
+        <name><surname>Gehlenborg</surname><given-names>Nils</given-names></name>
+        <name><surname>Kharchenko</surname><given-names>Peter</given-names></name>
+      </person-group>
+      <article-title>UBiT2: A client-side web-application for gene expression data analysis</article-title>
+      <source>bioRxiv</source>
+      <publisher-name>Cold Spring Harbor Laboratory</publisher-name>
+      <year iso-8601-date="2017">2017</year>
+      <pub-id pub-id-type="doi">10.1101/118992</pub-id>
+      <fpage>118992</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-gomez2013biojs">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Gómez</surname><given-names>John</given-names></name>
+        <name><surname>Garcı́a</surname><given-names>Leyla J</given-names></name>
+        <name><surname>Salazar</surname><given-names>Gustavo A</given-names></name>
+        <name><surname>Villaveces</surname><given-names>Jose</given-names></name>
+        <name><surname>Gore</surname><given-names>Swanand</given-names></name>
+        <name><surname>Garcı́a</surname><given-names>Alexander</given-names></name>
+        <name><surname>Martı́n</surname><given-names>Maria J</given-names></name>
+        <name><surname>Launay</surname><given-names>Guillaume</given-names></name>
+        <name><surname>Alcántara</surname><given-names>Rafael</given-names></name>
+        <name><surname>Del-Toro</surname><given-names>Noemi</given-names></name>
+        <name><surname>others</surname></name>
+      </person-group>
+      <article-title>BioJS: An open source JavaScript framework for biological data visualization</article-title>
+      <source>Bioinformatics</source>
+      <publisher-name>Oxford University Press</publisher-name>
+      <year iso-8601-date="2013">2013</year>
+      <volume>29</volume>
+      <issue>8</issue>
+      <pub-id pub-id-type="doi">10.1093/bioinformatics/btt100</pub-id>
+      <fpage>1103</fpage>
+      <lpage>1104</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-megill2021cellxgene">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Megill</surname><given-names>Colin</given-names></name>
+        <name><surname>Martin</surname><given-names>Bruce</given-names></name>
+        <name><surname>Weaver</surname><given-names>Charlotte</given-names></name>
+        <name><surname>Bell</surname><given-names>Sidney</given-names></name>
+        <name><surname>Prins</surname><given-names>Lia</given-names></name>
+        <name><surname>Badajoz</surname><given-names>Seve</given-names></name>
+        <name><surname>McCandless</surname><given-names>Brian</given-names></name>
+        <name><surname>Pisco</surname><given-names>Angela Oliveira</given-names></name>
+        <name><surname>Kinsella</surname><given-names>Marcus</given-names></name>
+        <name><surname>Griffin</surname><given-names>Fiona</given-names></name>
+        <name><surname>Kiggins</surname><given-names>Justin</given-names></name>
+        <name><surname>Haliburton</surname><given-names>Genevieve</given-names></name>
+        <name><surname>Mani</surname><given-names>Arathi</given-names></name>
+        <name><surname>Weiden</surname><given-names>Matthew</given-names></name>
+        <name><surname>Dunitz</surname><given-names>Madison</given-names></name>
+        <name><surname>Lombardo</surname><given-names>Maximilian</given-names></name>
+        <name><surname>Huang</surname><given-names>Timmy</given-names></name>
+        <name><surname>Smith</surname><given-names>Trent</given-names></name>
+        <name><surname>Chambers</surname><given-names>Signe</given-names></name>
+        <name><surname>Freeman</surname><given-names>Jeremy</given-names></name>
+        <name><surname>Cool</surname><given-names>Jonah</given-names></name>
+        <name><surname>Carr</surname><given-names>Ambrose</given-names></name>
+      </person-group>
+      <article-title>Cellxgene: A performant, scalable exploration platform for high dimensional sparse matrices</article-title>
+      <source>bioRxiv</source>
+      <publisher-name>Cold Spring Harbor Laboratory</publisher-name>
+      <year iso-8601-date="2021">2021</year>
+      <uri>https://www.biorxiv.org/content/early/2021/04/06/2021.04.05.438318</uri>
+      <pub-id pub-id-type="doi">10.1101/2021.04.05.438318</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-stegle2015computational">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Stegle</surname><given-names>Oliver</given-names></name>
+        <name><surname>Teichmann</surname><given-names>Sarah A</given-names></name>
+        <name><surname>Marioni</surname><given-names>John C</given-names></name>
+      </person-group>
+      <article-title>Computational and analytical challenges in single-cell transcriptomics</article-title>
+      <source>Nature Reviews Genetics</source>
+      <publisher-name>Nature Publishing Group</publisher-name>
+      <year iso-8601-date="2015">2015</year>
+      <volume>16</volume>
+      <issue>3</issue>
+      <pub-id pub-id-type="doi">10.1038/nrg3833</pub-id>
+      <fpage>133</fpage>
+      <lpage>145</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-zeisel2015cell">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Zeisel</surname><given-names>Amit</given-names></name>
+        <name><surname>Muñoz-Manchado</surname><given-names>Ana B</given-names></name>
+        <name><surname>Codeluppi</surname><given-names>Simone</given-names></name>
+        <name><surname>Lönnerberg</surname><given-names>Peter</given-names></name>
+        <name><surname>La Manno</surname><given-names>Gioele</given-names></name>
+        <name><surname>Juréus</surname><given-names>Anna</given-names></name>
+        <name><surname>Marques</surname><given-names>Sueli</given-names></name>
+        <name><surname>Munguba</surname><given-names>Hermany</given-names></name>
+        <name><surname>He</surname><given-names>Liqun</given-names></name>
+        <name><surname>Betsholtz</surname><given-names>Christer</given-names></name>
+        <name><surname>others</surname></name>
+      </person-group>
+      <article-title>Cell types in the mouse cortex and hippocampus revealed by single-cell RNA-seq</article-title>
+      <source>Science</source>
+      <publisher-name>American Association for the Advancement of Science</publisher-name>
+      <year iso-8601-date="2015">2015</year>
+      <volume>347</volume>
+      <issue>6226</issue>
+      <fpage>1138</fpage>
+      <lpage>1142</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-paul2015transcriptional">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Paul</surname><given-names>Franziska</given-names></name>
+        <name><surname>Arkin</surname><given-names>Ya’ara</given-names></name>
+        <name><surname>Giladi</surname><given-names>Amir</given-names></name>
+        <name><surname>Jaitin</surname><given-names>Diego Adhemar</given-names></name>
+        <name><surname>Kenigsberg</surname><given-names>Ephraim</given-names></name>
+        <name><surname>Keren-Shaul</surname><given-names>Hadas</given-names></name>
+        <name><surname>Winter</surname><given-names>Deborah</given-names></name>
+        <name><surname>Lara-Astiaso</surname><given-names>David</given-names></name>
+        <name><surname>Gury</surname><given-names>Meital</given-names></name>
+        <name><surname>Weiner</surname><given-names>Assaf</given-names></name>
+        <name><surname>others</surname></name>
+      </person-group>
+      <article-title>Transcriptional heterogeneity and lineage commitment in myeloid progenitors</article-title>
+      <source>Cell</source>
+      <publisher-name>Elsevier</publisher-name>
+      <year iso-8601-date="2015">2015</year>
+      <volume>163</volume>
+      <issue>7</issue>
+      <fpage>1663</fpage>
+      <lpage>1677</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-bach2017differentiation">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Bach</surname><given-names>Karsten</given-names></name>
+        <name><surname>Pensa</surname><given-names>Sara</given-names></name>
+        <name><surname>Grzelak</surname><given-names>Marta</given-names></name>
+        <name><surname>Hadfield</surname><given-names>James</given-names></name>
+        <name><surname>Adams</surname><given-names>David J</given-names></name>
+        <name><surname>Marioni</surname><given-names>John C</given-names></name>
+        <name><surname>Khaled</surname><given-names>Walid T</given-names></name>
+      </person-group>
+      <article-title>Differentiation dynamics of mammary epithelial cells revealed by single-cell RNA sequencing</article-title>
+      <source>Nature communications</source>
+      <publisher-name>Nature Publishing Group</publisher-name>
+      <year iso-8601-date="2017">2017</year>
+      <volume>8</volume>
+      <issue>1</issue>
+      <pub-id pub-id-type="doi">10.1038/s41467-017-02001-5</pub-id>
+      <fpage>1</fpage>
+      <lpage>11</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-ernst2019staged">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Ernst</surname><given-names>Christina</given-names></name>
+        <name><surname>Eling</surname><given-names>Nils</given-names></name>
+        <name><surname>Martinez-Jimenez</surname><given-names>Celia P</given-names></name>
+        <name><surname>Marioni</surname><given-names>John C</given-names></name>
+        <name><surname>Odom</surname><given-names>Duncan T</given-names></name>
+      </person-group>
+      <article-title>Staged developmental mapping and X chromosome transcriptional dynamics during mouse spermatogenesis</article-title>
+      <source>Nature communications</source>
+      <publisher-name>Nature Publishing Group</publisher-name>
+      <year iso-8601-date="2019">2019</year>
+      <volume>10</volume>
+      <issue>1</issue>
+      <pub-id pub-id-type="doi">10.1038/s41467-019-09182-1</pub-id>
+      <fpage>1</fpage>
+      <lpage>20</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-bacher2020low">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Bacher</surname><given-names>Petra</given-names></name>
+        <name><surname>Rosati</surname><given-names>Elisa</given-names></name>
+        <name><surname>Esser</surname><given-names>Daniela</given-names></name>
+        <name><surname>Martini</surname><given-names>Gabriela Rios</given-names></name>
+        <name><surname>Saggau</surname><given-names>Carina</given-names></name>
+        <name><surname>Schiminsky</surname><given-names>Esther</given-names></name>
+        <name><surname>Dargvainiene</surname><given-names>Justina</given-names></name>
+        <name><surname>Schröder</surname><given-names>Ina</given-names></name>
+        <name><surname>Wieters</surname><given-names>Imke</given-names></name>
+        <name><surname>Khodamoradi</surname><given-names>Yascha</given-names></name>
+        <name><surname>others</surname></name>
+      </person-group>
+      <article-title>Low-avidity CD4+ T cell responses to SARS-CoV-2 in unexposed individuals and humans with severe COVID-19</article-title>
+      <source>Immunity</source>
+      <publisher-name>Elsevier</publisher-name>
+      <year iso-8601-date="2020">2020</year>
+      <volume>53</volume>
+      <issue>6</issue>
+      <fpage>1258</fpage>
+      <lpage>1271</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-zilionis2019single">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Zilionis</surname><given-names>Rapolas</given-names></name>
+        <name><surname>Engblom</surname><given-names>Camilla</given-names></name>
+        <name><surname>Pfirschke</surname><given-names>Christina</given-names></name>
+        <name><surname>Savova</surname><given-names>Virginia</given-names></name>
+        <name><surname>Zemmour</surname><given-names>David</given-names></name>
+        <name><surname>Saatcioglu</surname><given-names>Hatice D</given-names></name>
+        <name><surname>Krishnan</surname><given-names>Indira</given-names></name>
+        <name><surname>Maroni</surname><given-names>Giorgia</given-names></name>
+        <name><surname>Meyerovitz</surname><given-names>Claire V</given-names></name>
+        <name><surname>Kerwin</surname><given-names>Clara M</given-names></name>
+        <name><surname>others</surname></name>
+      </person-group>
+      <article-title>Single-cell transcriptomics of human and mouse lung cancers reveals conserved myeloid populations across individuals and species</article-title>
+      <source>Immunity</source>
+      <publisher-name>Elsevier</publisher-name>
+      <year iso-8601-date="2019">2019</year>
+      <volume>50</volume>
+      <issue>5</issue>
+      <pub-id pub-id-type="doi">10.1016/j.immuni.2019.03.009</pub-id>
+      <fpage>1317</fpage>
+      <lpage>1334</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-zakai2011emscripten">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Zakai</surname><given-names>Alon</given-names></name>
+      </person-group>
+      <article-title>Emscripten: An LLVM-to-JavaScript compiler</article-title>
+      <source>Proceedings of the ACM international conference companion on object oriented programming systems languages and applications companion</source>
+      <year iso-8601-date="2011">2011</year>
+      <fpage>301</fpage>
+      <lpage>312</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-haghverdi2018batch">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Haghverdi</surname><given-names>Laleh</given-names></name>
+        <name><surname>Lun</surname><given-names>Aaron TL</given-names></name>
+        <name><surname>Morgan</surname><given-names>Michael D</given-names></name>
+        <name><surname>Marioni</surname><given-names>John C</given-names></name>
+      </person-group>
+      <article-title>Batch effects in single-cell RNA-sequencing data are corrected by matching mutual nearest neighbors</article-title>
+      <source>Nature biotechnology</source>
+      <publisher-name>Nature Publishing Group</publisher-name>
+      <year iso-8601-date="2018">2018</year>
+      <volume>36</volume>
+      <issue>5</issue>
+      <pub-id pub-id-type="doi">10.1038/nbt.4091</pub-id>
+      <fpage>421</fpage>
+      <lpage>427</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-aran2019reference">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Aran</surname><given-names>Dvir</given-names></name>
+        <name><surname>Looney</surname><given-names>Agnieszka P</given-names></name>
+        <name><surname>Liu</surname><given-names>Leqian</given-names></name>
+        <name><surname>Wu</surname><given-names>Esther</given-names></name>
+        <name><surname>Fong</surname><given-names>Valerie</given-names></name>
+        <name><surname>Hsu</surname><given-names>Austin</given-names></name>
+        <name><surname>Chak</surname><given-names>Suzanna</given-names></name>
+        <name><surname>Naikawadi</surname><given-names>Ram P</given-names></name>
+        <name><surname>Wolters</surname><given-names>Paul J</given-names></name>
+        <name><surname>Abate</surname><given-names>Adam R</given-names></name>
+        <name><surname>others</surname></name>
+      </person-group>
+      <article-title>Reference-based analysis of lung single-cell sequencing reveals a transitional profibrotic macrophage</article-title>
+      <source>Nature immunology</source>
+      <publisher-name>Nature Publishing Group</publisher-name>
+      <year iso-8601-date="2019">2019</year>
+      <volume>20</volume>
+      <issue>2</issue>
+      <pub-id pub-id-type="doi">10.1038/s41590-018-0276-y</pub-id>
+      <fpage>163</fpage>
+      <lpage>172</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-cirrocumulus">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Gould</surname><given-names>Joshua</given-names></name>
+        <name><surname>Yang</surname><given-names>Yiming</given-names></name>
+        <name><surname>Li</surname><given-names>Bo</given-names></name>
+      </person-group>
+      <article-title>Cirrocumulus</article-title>
+      <year iso-8601-date="2021">2021</year>
+      <uri>https://cirrocumulus.readthedocs.io/en/latest/</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-shiny">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Chang</surname><given-names>Winston</given-names></name>
+        <name><surname>Cheng</surname><given-names>Joe</given-names></name>
+        <name><surname>Allaire</surname><given-names>JJ</given-names></name>
+        <name><surname>Sievert</surname><given-names>Carson</given-names></name>
+        <name><surname>Schloerke</surname><given-names>Barret</given-names></name>
+        <name><surname>Xie</surname><given-names>Yihui</given-names></name>
+        <name><surname>Allen</surname><given-names>Jeff</given-names></name>
+        <name><surname>McPherson</surname><given-names>Jonathan</given-names></name>
+        <name><surname>Dipert</surname><given-names>Alan</given-names></name>
+        <name><surname>Borges</surname><given-names>Barbara</given-names></name>
+      </person-group>
+      <source>Shiny: Web application framework for r</source>
+      <year iso-8601-date="2021">2021</year>
+      <uri>https://CRAN.R-project.org/package=shiny</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-biowasm">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Aboukhalil</surname><given-names>Robert</given-names></name>
+      </person-group>
+      <article-title>Biowasm</article-title>
+      <year iso-8601-date="2019">2019</year>
+      <uri>https://github.com/biowasm/biowasm</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-tatami">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Lun</surname><given-names>Aaron</given-names></name>
+      </person-group>
+      <article-title>A C++ API for all sorts of matrices</article-title>
+      <year iso-8601-date="2021">2021</year>
+      <uri>https://github.com/LTLA/tatami</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-vassilvitskii2006kmeanspp">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Vassilvitskii</surname><given-names>Sergei</given-names></name>
+        <name><surname>Arthur</surname><given-names>David</given-names></name>
+      </person-group>
+      <article-title>K-means++: The advantages of careful seeding</article-title>
+      <source>Proceedings of the eighteenth annual ACM-SIAM symposium on discrete algorithms</source>
+      <year iso-8601-date="2007">2007</year>
+      <fpage>1027</fpage>
+      <lpage>1035</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-su2007search">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Su</surname><given-names>Ting</given-names></name>
+        <name><surname>Dy</surname><given-names>Jennifer G</given-names></name>
+      </person-group>
+      <article-title>In search of deterministic methods for initializing k-means and gaussian mixture clustering</article-title>
+      <source>Intelligent Data Analysis</source>
+      <publisher-name>IOS Press</publisher-name>
+      <year iso-8601-date="2007">2007</year>
+      <volume>11</volume>
+      <issue>4</issue>
+      <pub-id pub-id-type="doi">10.3233/ida-2007-11402</pub-id>
+      <fpage>319</fpage>
+      <lpage>338</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-scran.js">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Lun</surname><given-names>Aaron</given-names></name>
+        <name><surname>Kancherla</surname><given-names>Jayaram</given-names></name>
+      </person-group>
+      <article-title>Single cell RNA-seq analysis in Javascript</article-title>
+      <year iso-8601-date="2021">2021</year>
+      <uri>https://github.com/jkanche/scran.js</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-scranchan">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Lun</surname><given-names>Aaron</given-names></name>
+      </person-group>
+      <article-title>A slimmed-down version of scran</article-title>
+      <year iso-8601-date="2021">2021</year>
+      <uri>https://github.com/LTLA/scran.chan</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-morgan2019experimenthub">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Morgan</surname><given-names>Martin</given-names></name>
+        <name><surname>Shepherd</surname><given-names>Lori</given-names></name>
+      </person-group>
+      <source>ExperimentHub: Client to access ExperimentHub resources</source>
+      <uri>https://bioconductor.org/packages/release/bioc/html/ExperimentHub.html</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-singlepp">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Lun</surname><given-names>A. T. L.</given-names></name>
+      </person-group>
+      <article-title>C++ port of the SingleR method for cell type annotation</article-title>
+      <year iso-8601-date="2022">2022</year>
+      <uri>https://github.com/LTLA/SinglePP</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-cppmnncorrect">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Lun</surname><given-names>A. T. L.</given-names></name>
+      </person-group>
+      <article-title>A C++ implementation of the MNN correction algorithm</article-title>
+      <year iso-8601-date="2022">2022</year>
+      <uri>https://github.com/LTLA/CppMnnCorrect</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-batchelorbioc">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Lun</surname><given-names>A. T. L.</given-names></name>
+        <name><surname>Haghverdi</surname><given-names>L.</given-names></name>
+      </person-group>
+      <source>Single-cell batch correction methods</source>
+      <year iso-8601-date="2018">2018</year>
+      <uri>https://bioconductor.org/packages/release/bioc/html/batchelor.html</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-rds2cpp">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Lun</surname><given-names>A. T. L.</given-names></name>
+      </person-group>
+      <article-title>A C++ library to read and write RDS files</article-title>
+      <year iso-8601-date="2022">2022</year>
+      <uri>https://github.com/LTLA/rds2cpp</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-otherkana">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Lun</surname><given-names>Aaron</given-names></name>
+        <name><surname>Kancherla</surname><given-names>Jayaram</given-names></name>
+      </person-group>
+      <article-title>Powering single-cell analyses in the browser with WebAssembly</article-title>
+      <source>bioRxiv</source>
+      <publisher-name>Cold Spring Harbor Laboratory</publisher-name>
+      <year iso-8601-date="2023">2023</year>
+      <uri>https://www.biorxiv.org/content/early/2023/05/15/2022.03.02.482701</uri>
+      <pub-id pub-id-type="doi">10.1101/2022.03.02.482701</pub-id>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
