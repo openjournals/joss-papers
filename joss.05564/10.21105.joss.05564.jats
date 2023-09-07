@@ -1,0 +1,659 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">5564</article-id>
+<article-id pub-id-type="doi">10.21105/joss.05564</article-id>
+<title-group>
+<article-title>SBArchOpt: Surrogate-Based Architecture
+Optimization</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0002-5421-6419</contrib-id>
+<name>
+<surname>Bussemaker</surname>
+<given-names>Jasper H.</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Institute of System Architectures in Aeronautics, German
+Aerospace Center (DLR), Hamburg, Germany</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2023-05-25">
+<day>25</day>
+<month>5</month>
+<year>2023</year>
+</pub-date>
+<volume>8</volume>
+<issue>89</issue>
+<fpage>5564</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2022</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>Python</kwd>
+<kwd>optimization</kwd>
+<kwd>engineering</kwd>
+<kwd>system architecture optimization</kwd>
+<kwd>MBSE</kwd>
+<kwd>surrogate-based optimization</kwd>
+<kwd>Bayesian optimization</kwd>
+<kwd>multi-objective optimization</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p>In engineered systems, the architecture of a system describes how
+  the components of a system work together to fulfill the system
+  functions and meet stakeholder expectations
+  (<xref alt="Crawley et al., 2015" rid="ref-Crawley2015" ref-type="bibr">Crawley
+  et al., 2015</xref>). As the architecture is developed in early
+  conceptual design stages, decisions involving architecture often have
+  a large influence on final system performance, for example, in terms
+  of how well the functions are fulfilled, or at what cost and in what
+  timeframe. However, architecture design spaces (i.e., the set of all
+  possible architecture alternatives) can be very large due to the
+  combinatorial nature of architecture decisions, making it infeasible
+  to compare all alternatives to each other. Additionally, for new
+  systems there might not be any prior experience to start from,
+  requiring the use of (typically) computationally-expensive
+  physics-based simulation to estimate system performance.</p>
+  <p>The field of <italic>system architecture optimization</italic> aims
+  to enable the use of physics-based simulation for exploring the large
+  combinatorial architecture design space, by formulating the system
+  architecting process as a numerical optimization problem
+  (<xref alt="Bussemaker &amp; Ciampa, 2022" rid="ref-Bussemaker2022c" ref-type="bibr">Bussemaker
+  &amp; Ciampa, 2022</xref>). In optimization, the goal is to minimize
+  (or maximize) one or more objective functions by modifying design
+  variables, while ensuring that design constraints are satisfied. For
+  example, for an aircraft propulsion system, the objectives could be to
+  minimize energy consumption and operating costs, by changing number of
+  propellers, mechanical power generation source, fuel type, and
+  operating strategy (i.e., the design variable), while ensuring that
+  thermodynamic stress and reliability constraints are satisfied. By
+  applying architecture optimization, more architecture alternatives can
+  be considered in the early design phase with the expected result of
+  better understanding of the design space and more informed
+  decision-making.</p>
+  <p>Architecture optimization problems feature several behavioral
+  characteristics that make them a particularly challenging class of
+  optimization problem
+  (<xref alt="Bussemaker, Bartoli, et al., 2021" rid="ref-Bussemaker2021" ref-type="bibr">Bussemaker,
+  Bartoli, et al., 2021</xref>):</p>
+  <list list-type="bullet">
+    <list-item>
+      <p>Evaluation functions are non-linear <italic>black-box</italic>
+      functions that are <italic>expensive</italic> to evaluate: it
+      might for example take several hours to evaluate the performance
+      of only one architecture alternative.</p>
+    </list-item>
+    <list-item>
+      <p>There might be <italic>multiple conflicting objectives</italic>
+      (i.e., design goals) to optimize for, meaning that rather than one
+      optimal design, there might be a Pareto-set of optimal
+      designs.</p>
+    </list-item>
+    <list-item>
+      <p>Simulations used in performance evaluation might fail to
+      converge, yielding Not-a-Number as evaluation result; this
+      phenomenon is called <italic>hidden constraints</italic>, because
+      they can be seen as design constraints that are “hidden” when
+      defining the problem.</p>
+    </list-item>
+    <list-item>
+      <p>The design space might contain both continuous and discrete
+      variables, making the optimization problem a
+      <italic>mixed-discrete</italic> problem.</p>
+    </list-item>
+    <list-item>
+      <p>Decisions can be conditionally active based on other decisions:
+      there is a <italic>hierarchy</italic> between decisions.</p>
+    </list-item>
+  </list>
+  <p>Such optimization problems can be readily solved by Multi-Objective
+  Evolutionary Algorithms (MOEAs). However, these need many function
+  evaluations to converge
+  (<xref alt="Chugh et al., 2019" rid="ref-Chugh2019" ref-type="bibr">Chugh
+  et al., 2019</xref>), which is a problem for expensive evaluation
+  functions. Surrogate-Based Optimization (SBO) algorithms and in
+  particular Bayesian Optimization (BO) algorithms
+  (<xref alt="Garnett, 2023" rid="ref-Garnett2023" ref-type="bibr">Garnett,
+  2023</xref>) instead build a surrogate model (also known as response
+  surface or regression function) of the design space, use that model to
+  suggest new design points to evaluate, and repeat the process after
+  updating the surrogate model. This approach is powerful, although
+  existing SBO algorithms need to be extended to support all
+  architecture optimization challenges described above.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p>Several open-source Surrogate-Based Optimization (SBO) libraries
+  already exist, in particular BoTorch
+  (<xref alt="Balandat et al., 2020" rid="ref-Balandat2020" ref-type="bibr">Balandat
+  et al., 2020</xref>), Trieste
+  (<xref alt="Picheny et al., 2023" rid="ref-Picheny2023" ref-type="bibr">Picheny
+  et al., 2023</xref>), SMAC3
+  (<xref alt="Lindauer et al., 2022" rid="ref-Lindauer2022" ref-type="bibr">Lindauer
+  et al., 2022</xref>), and HEBO
+  (<xref alt="Cowen-Rivers et al., 2022" rid="ref-CowenRivers2022" ref-type="bibr">Cowen-Rivers
+  et al., 2022</xref>). These libraries support multi-objective and
+  mixed-discrete optimization; however, they do not all support hidden
+  constraints and decision hierarchy. The latter requires the automatic
+  correction and imputation of design vectors to ensure no duplicate
+  design vectors are generated
+  (<xref alt="Bussemaker, Bartoli, et al., 2021" rid="ref-Bussemaker2021" ref-type="bibr">Bussemaker,
+  Bartoli, et al., 2021</xref>).</p>
+  <p>The purpose of SBArchOpt is to provide a one-stop solution for
+  solving architecture optimization problems, by:</p>
+  <list list-type="order">
+    <list-item>
+      <p>providing a common interface for implementing architecture
+      optimization problems, ensuring that all information needed by
+      optimization algorithms is available; and</p>
+    </list-item>
+    <list-item>
+      <p>providing several options for optimization algorithms that work
+      out-of-the-box for most architecture optimization problems.</p>
+    </list-item>
+  </list>
+  <p><italic>SBArchOpt</italic> implements experience with solving
+  architecture optimization problems (e.g.,
+  (<xref alt="Bussemaker, Bartoli, et al., 2021" rid="ref-Bussemaker2021" ref-type="bibr">Bussemaker,
+  Bartoli, et al., 2021</xref>;
+  <xref alt="Bussemaker et al., 2023" rid="ref-Bussemaker2023" ref-type="bibr">Bussemaker
+  et al., 2023</xref>)) in an open-source Python library. Target users
+  are systems engineers and researchers in the field of (architecture)
+  optimization.</p>
+  <p><italic>SBArchOpt</italic> will be used as the go-to library for
+  solving architecture optimization problems modeled using ADORE
+  (<xref alt="Bussemaker et al., 2022" rid="ref-Bussemaker2022" ref-type="bibr">Bussemaker
+  et al., 2022</xref>), software developed by the German Aerospace
+  Center (DLR) and applied in several German and European research
+  projects. ADORE already implements the problem definition API of
+  <italic>SBArchOpt</italic>.</p>
+</sec>
+<sec id="library-features">
+  <title>Library features</title>
+  <p>The problem definition API
+  <monospace>ArchOptProblemBase</monospace> extends the
+  <monospace>Problem</monospace> class of pymoo
+  (<xref alt="Blank &amp; Deb, 2020" rid="ref-Blank2020" ref-type="bibr">Blank
+  &amp; Deb, 2020</xref>), an evolutionary optimization framework, with
+  several additional features:</p>
+  <list list-type="order">
+    <list-item>
+      <p>a unified way to define continuous, integer, and categorical
+      design variables;</p>
+    </list-item>
+    <list-item>
+      <p>an interface for accepting modified design vectors from the
+      evaluation function;</p>
+    </list-item>
+    <list-item>
+      <p>a function for correcting design vectors without running an
+      evaluation;</p>
+    </list-item>
+    <list-item>
+      <p>a function for returning which design variables are
+      conditionally active;</p>
+    </list-item>
+    <list-item>
+      <p>an interface for storing and loading problem-specific
+      intermediate results; and</p>
+    </list-item>
+    <list-item>
+      <p>several functions for compiling statistics about the design
+      space, such as the number of valid architectures, the average
+      number of active design variables, and more.</p>
+    </list-item>
+  </list>
+  <p>Optionally, the hierarchical design space structure can also be
+  specified using the <monospace>ExplicitDesignSpace</monospace> class,
+  which then relieves the user from implementing correction,
+  conditional-activeness and statistics-related functions. The explicit
+  design space definition uses
+  <ext-link ext-link-type="uri" xlink:href="https://github.com/automl/ConfigSpace">ConfigSpace</ext-link>
+  (<xref alt="Lindauer et al., 2022" rid="ref-Lindauer2022" ref-type="bibr">Lindauer
+  et al., 2022</xref>) to model conditional activation and value-pair
+  constraints.</p>
+  <p>Then, <italic>SBArchOpt</italic> implements several features that
+  may be used by any optimizer, using pymoo’s API:</p>
+  <list list-type="order">
+    <list-item>
+      <p>a sampling algorithm for hierarchical design spaces;</p>
+    </list-item>
+    <list-item>
+      <p>a repair operator that calls the correction function of the
+      problem class; and</p>
+    </list-item>
+    <list-item>
+      <p>intermediate results storage and restart capabilities.</p>
+    </list-item>
+  </list>
+  <p>To solve optimization problems, <italic>SBArchOpt</italic>
+  implements the following (interfaces to) optimization
+  libraries/algorithms:</p>
+  <list list-type="order">
+    <list-item>
+      <p>pymoo: <italic>SBArchOpt</italic> provides a pre-configured
+      version of the NSGA2 evolutionary optimization algorithm;</p>
+    </list-item>
+    <list-item>
+      <p>ArchSBO: a custom implementation of a mixed-discrete,
+      multi-objective Surrogate-Based Optimization algorithm, with
+      support for design variable correction, hidden constraints, and
+      restart, using state-of-the-art mixed-discrete, hierarchical
+      Gaussian Process models
+      (<xref alt="Saves et al., 2023" rid="ref-Saves2023" ref-type="bibr">Saves
+      et al., 2023</xref>);</p>
+    </list-item>
+    <list-item>
+      <p>three open-source Bayesian Optimization libraries: BoTorch (Ax)
+      (<xref alt="Balandat et al., 2020" rid="ref-Balandat2020" ref-type="bibr">Balandat
+      et al., 2020</xref>), Trieste
+      (<xref alt="Picheny et al., 2023" rid="ref-Picheny2023" ref-type="bibr">Picheny
+      et al., 2023</xref>), and HEBO
+      (<xref alt="Cowen-Rivers et al., 2022" rid="ref-CowenRivers2022" ref-type="bibr">Cowen-Rivers
+      et al., 2022</xref>);</p>
+    </list-item>
+    <list-item>
+      <p>two proprietary Bayesian Optimization libraries: SEGOMOE
+      (<xref alt="Bartoli et al., 2019" rid="ref-Bartoli2019" ref-type="bibr">Bartoli
+      et al., 2019</xref>) and SMARTy
+      (<xref alt="Bekemeyer et al., 2022" rid="ref-Bekemeyer2022" ref-type="bibr">Bekemeyer
+      et al., 2022</xref>); and</p>
+    </list-item>
+    <list-item>
+      <p>a Tree Parzen Estimator (TPE) algorithm with support for hidden
+      constraints.</p>
+    </list-item>
+  </list>
+  <p>Finally, to support development of optimization algorithms,
+  <italic>SBArchOpt</italic> also provides a database of test
+  functions:</p>
+  <list list-type="order">
+    <list-item>
+      <p>many analytical test problems with various combinations of
+      characteristics: continuous vs mixed-discrete, single- or
+      multi-objective, with or without constraints, hierarchy, and/or
+      hidden constraints;</p>
+    </list-item>
+    <list-item>
+      <p>a Guidance, Navigation and Control (GNC) optimization problem
+      from
+      (<xref alt="Apaza &amp; Selva, 2021" rid="ref-Apaza2021" ref-type="bibr">Apaza
+      &amp; Selva, 2021</xref>) trading-off system mass against
+      reliability, and a little over 79 million possible architectures;
+      and</p>
+    </list-item>
+    <list-item>
+      <p>an aircraft jet engine architecture optimization problem from
+      (<xref alt="Bussemaker, De Smedt, et al., 2021" rid="ref-Bussemaker2021c" ref-type="bibr">Bussemaker,
+      De Smedt, et al., 2021</xref>) that uses a realistic engine
+      simulation framework for performance evaluation, features hidden
+      constraints, and trades fuel consumption against engine weight and
+      emissions.</p>
+    </list-item>
+  </list>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>I would like to thank my colleagues at the DLR in Hamburg (DE) and
+  at ONERA in Toulouse (FR) for supporting my research and for their
+  helpful discussions and feedback. In particular, I would like to thank
+  Nathalie Bartoli, Thierry Lefebvre, Paul Saves, and Rémi Lafage for
+  their warm welcome in Toulouse, and Luca Boggero and Björn Nagel for
+  supporting my secondment at ONERA.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <ref id="ref-Crawley2015">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Crawley</surname><given-names>E.</given-names></name>
+        <name><surname>Cameron</surname><given-names>B.</given-names></name>
+        <name><surname>Selva</surname><given-names>D.</given-names></name>
+      </person-group>
+      <source>System architecture: Strategy and product development for complex systems</source>
+      <publisher-name>Pearson Education</publisher-name>
+      <year iso-8601-date="2015">2015</year>
+      <isbn>1-292-11084-8</isbn>
+      <pub-id pub-id-type="doi">10.1007/978-1-4020-4399-4</pub-id>
+      <fpage>465</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Bussemaker2022c">
+    <element-citation publication-type="chapter">
+      <person-group person-group-type="author">
+        <name><surname>Bussemaker</surname><given-names>J. H.</given-names></name>
+        <name><surname>Ciampa</surname><given-names>P. D.</given-names></name>
+      </person-group>
+      <article-title>MBSE in architecture design space exploration</article-title>
+      <source>Handbook of model-based systems engineering</source>
+      <person-group person-group-type="editor">
+        <name><surname>Madni</surname><given-names>A. M.</given-names></name>
+        <name><surname>Augustine</surname><given-names>N.</given-names></name>
+        <name><surname>Sievers</surname><given-names>M.</given-names></name>
+      </person-group>
+      <publisher-name>Springer</publisher-name>
+      <year iso-8601-date="2022">2022</year>
+      <uri>https://elib.dlr.de/186203/</uri>
+      <pub-id pub-id-type="doi">10.1007/978-3-030-27486-3_36-1</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-Bussemaker2021">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Bussemaker</surname><given-names>J. H.</given-names></name>
+        <name><surname>Bartoli</surname><given-names>N.</given-names></name>
+        <name><surname>Lefebvre</surname><given-names>T.</given-names></name>
+        <name><surname>Ciampa</surname><given-names>P. D.</given-names></name>
+        <name><surname>Nagel</surname><given-names>B.</given-names></name>
+      </person-group>
+      <article-title>Effectiveness of surrogate-based optimization algorithms for system architecture optimization</article-title>
+      <source>American institute of aeronautics and astronautics (AIAA) AVIATION 2021 FORUM</source>
+      <publisher-loc>Virtual Event</publisher-loc>
+      <year iso-8601-date="2021-08">2021</year><month>08</month>
+      <pub-id pub-id-type="doi">10.2514/6.2021-3095</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-Chugh2019">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Chugh</surname><given-names>T.</given-names></name>
+        <name><surname>Sindhya</surname><given-names>K.</given-names></name>
+        <name><surname>Hakanen</surname><given-names>J.</given-names></name>
+        <name><surname>Miettinen</surname><given-names>K.</given-names></name>
+      </person-group>
+      <article-title>A survey on handling computationally expensive multiobjective optimization problems with evolutionary algorithms</article-title>
+      <source>Soft Computing</source>
+      <publisher-name>Springer Berlin Heidelberg</publisher-name>
+      <year iso-8601-date="2019-05">2019</year><month>05</month>
+      <volume>23</volume>
+      <issue>9</issue>
+      <issn>1432-7643</issn>
+      <pub-id pub-id-type="doi">10.1007/s00500-017-2965-0</pub-id>
+      <fpage>3137</fpage>
+      <lpage>3166</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Garnett2023">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Garnett</surname><given-names>R.</given-names></name>
+      </person-group>
+      <source>Bayesian optimization</source>
+      <publisher-name>Cambridge University Press</publisher-name>
+      <year iso-8601-date="2023-01">2023</year><month>01</month>
+      <pub-id pub-id-type="doi">10.1017/9781108348973</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-Bussemaker2023">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Bussemaker</surname><given-names>J. H.</given-names></name>
+        <name><surname>García Sánchez</surname><given-names>R.</given-names></name>
+        <name><surname>Fouda</surname><given-names>M.</given-names></name>
+        <name><surname>Boggero</surname><given-names>L.</given-names></name>
+        <name><surname>Nagel</surname><given-names>B.</given-names></name>
+      </person-group>
+      <article-title>Function-based architecture optimization: An application to hybrid-electric propulsion systems</article-title>
+      <source>33rd annual international council on systems engineering (INCOSE) international symposium</source>
+      <publisher-loc>Honolulu, HI, USA</publisher-loc>
+      <year iso-8601-date="2023-07">2023</year><month>07</month>
+      <pub-id pub-id-type="doi">10.1002/iis2.13020</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-Bussemaker2022">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Bussemaker</surname><given-names>J. H.</given-names></name>
+        <name><surname>Boggero</surname><given-names>L.</given-names></name>
+        <name><surname>Ciampa</surname><given-names>P. D.</given-names></name>
+      </person-group>
+      <article-title>From system architecting to system design and optimization: A link between MBSE and MDAO</article-title>
+      <source>32nd annual international council on systems engineering (INCOSE) international symposium</source>
+      <publisher-loc>Detroit, MI, USA</publisher-loc>
+      <year iso-8601-date="2022-06">2022</year><month>06</month>
+      <pub-id pub-id-type="doi">10.1002/iis2.12935</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-Balandat2020">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Balandat</surname><given-names>M.</given-names></name>
+        <name><surname>Karrer</surname><given-names>B.</given-names></name>
+        <name><surname>Jiang</surname><given-names>D. R.</given-names></name>
+        <name><surname>Daulton</surname><given-names>S.</given-names></name>
+        <name><surname>Letham</surname><given-names>B.</given-names></name>
+        <name><surname>Wilson</surname><given-names>A. G.</given-names></name>
+        <name><surname>Bakshy</surname><given-names>E.</given-names></name>
+      </person-group>
+      <article-title>BoTorch: A framework for efficient Monte-Carlo Bayesian optimization</article-title>
+      <source>Advances in neural information processing systems 33: Annual conference on neural information processing systems 2020, NeurIPS 2020, december 6-12, 2020, virtual</source>
+      <person-group person-group-type="editor">
+        <name><surname>Larochelle</surname><given-names>Hugo</given-names></name>
+        <name><surname>Ranzato</surname><given-names>Marc’Aurelio</given-names></name>
+        <name><surname>Hadsell</surname><given-names>Raia</given-names></name>
+        <name><surname>Balcan</surname><given-names>Maria-Florina</given-names></name>
+        <name><surname>Lin</surname><given-names>Hsuan-Tien</given-names></name>
+      </person-group>
+      <year iso-8601-date="2020">2020</year>
+      <uri>https://proceedings.neurips.cc/paper/2020/hash/f5b1b89d98b7286673128a5fb112cb9a-Abstract.html</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-Picheny2023">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Picheny</surname><given-names>Victor</given-names></name>
+        <name><surname>Berkeley</surname><given-names>Joel</given-names></name>
+        <name><surname>Moss</surname><given-names>Henry B.</given-names></name>
+        <name><surname>Stojic</surname><given-names>Hrvoje</given-names></name>
+        <name><surname>Granta</surname><given-names>Uri</given-names></name>
+        <name><surname>Ober</surname><given-names>Sebastian W.</given-names></name>
+        <name><surname>Artemev</surname><given-names>Artem</given-names></name>
+        <name><surname>Ghani</surname><given-names>Khurram</given-names></name>
+        <name><surname>Goodall</surname><given-names>Alexander</given-names></name>
+        <name><surname>Paleyes</surname><given-names>Andrei</given-names></name>
+        <name><surname>Vakili</surname><given-names>Sattar</given-names></name>
+        <name><surname>Pascual-Diaz</surname><given-names>Sergio</given-names></name>
+        <name><surname>Markou</surname><given-names>Stratis</given-names></name>
+        <name><surname>Qing</surname><given-names>Jixiang</given-names></name>
+        <name><surname>Loka</surname><given-names>Nasrulloh R. B. S</given-names></name>
+        <name><surname>Couckuyt</surname><given-names>Ivo</given-names></name>
+      </person-group>
+      <article-title>Trieste: Efficiently exploring the depths of black-box functions with TensorFlow</article-title>
+      <publisher-name>arXiv</publisher-name>
+      <year iso-8601-date="2023">2023</year>
+      <pub-id pub-id-type="doi">10.48550/ARXIV.2302.08436</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-CowenRivers2022">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Cowen-Rivers</surname><given-names>Alexander I</given-names></name>
+        <name><surname>Lyu</surname><given-names>Wenlong</given-names></name>
+        <name><surname>Tutunov</surname><given-names>Rasul</given-names></name>
+        <name><surname>Wang</surname><given-names>Zhi</given-names></name>
+        <name><surname>Grosnit</surname><given-names>Antoine</given-names></name>
+        <name><surname>Griffiths</surname><given-names>Ryan Rhys</given-names></name>
+        <name><surname>Maraval</surname><given-names>Alexandre Max</given-names></name>
+        <name><surname>Jianye</surname><given-names>Hao</given-names></name>
+        <name><surname>Wang</surname><given-names>Jun</given-names></name>
+        <name><surname>Peters</surname><given-names>Jan</given-names></name>
+        <name><surname>others</surname></name>
+      </person-group>
+      <article-title>HEBO: Pushing the limits of sample-efficient hyper-parameter optimisation</article-title>
+      <source>Journal of Artificial Intelligence Research</source>
+      <year iso-8601-date="2022">2022</year>
+      <volume>74</volume>
+      <pub-id pub-id-type="doi">10.1613/jair.1.13643</pub-id>
+      <fpage>1269</fpage>
+      <lpage>1349</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Blank2020">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Blank</surname><given-names>J.</given-names></name>
+        <name><surname>Deb</surname><given-names>K.</given-names></name>
+      </person-group>
+      <article-title>Pymoo: Multi-objective optimization in Python</article-title>
+      <source>IEEE Access</source>
+      <publisher-name>Institute of Electrical; Electronics Engineers (IEEE)</publisher-name>
+      <year iso-8601-date="2020">2020</year>
+      <volume>8</volume>
+      <pub-id pub-id-type="doi">10.1109/access.2020.2990567</pub-id>
+      <fpage>89497</fpage>
+      <lpage>89509</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Bartoli2019">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Bartoli</surname><given-names>N.</given-names></name>
+        <name><surname>Lefebvre</surname><given-names>T.</given-names></name>
+        <name><surname>Dubreuil</surname><given-names>S.</given-names></name>
+        <name><surname>Olivanti</surname><given-names>R.</given-names></name>
+        <name><surname>Priem</surname><given-names>R.</given-names></name>
+        <name><surname>Bons</surname><given-names>N.</given-names></name>
+        <name><surname>Martins</surname><given-names>J. R. R. A.</given-names></name>
+        <name><surname>Morlier</surname><given-names>J.</given-names></name>
+      </person-group>
+      <article-title>Adaptive modeling strategy for constrained global optimization with application to aerodynamic wing design</article-title>
+      <source>Aerospace Science and Technology</source>
+      <publisher-name>Elsevier Masson SAS</publisher-name>
+      <year iso-8601-date="2019-07">2019</year><month>07</month>
+      <volume>90</volume>
+      <pub-id pub-id-type="doi">10.1016/j.ast.2019.03.041</pub-id>
+      <fpage>85</fpage>
+      <lpage>102</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Bekemeyer2022">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Bekemeyer</surname><given-names>P.</given-names></name>
+        <name><surname>Bertram</surname><given-names>A.</given-names></name>
+        <name><surname>Hines Chaves</surname><given-names>D. A.</given-names></name>
+        <name><surname>Dias Ribeiro</surname><given-names>M.</given-names></name>
+        <name><surname>Garbo</surname><given-names>A.</given-names></name>
+        <name><surname>Kiener</surname><given-names>A.</given-names></name>
+        <name><surname>Sabater</surname><given-names>C.</given-names></name>
+        <name><surname>Stradtner</surname><given-names>M.</given-names></name>
+        <name><surname>Wassing</surname><given-names>S.</given-names></name>
+        <name><surname>Widhalm</surname><given-names>M.</given-names></name>
+        <name><surname>others</surname></name>
+      </person-group>
+      <article-title>Data-driven aerodynamic modeling using the DLR SMARTy toolbox</article-title>
+      <source>American institute of aeronautics and astronautics (AIAA) aviation 2022 forum</source>
+      <year iso-8601-date="2022">2022</year>
+      <pub-id pub-id-type="doi">10.2514/6.2022-3899</pub-id>
+      <fpage>3899</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Apaza2021">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Apaza</surname><given-names>G.</given-names></name>
+        <name><surname>Selva</surname><given-names>D.</given-names></name>
+      </person-group>
+      <article-title>Automatic composition of encoding scheme and search operators in system architecture optimization</article-title>
+      <source>Volume 2: 41st computers and information in engineering conference (CIE)</source>
+      <publisher-name>American Society of Mechanical Engineers</publisher-name>
+      <year iso-8601-date="2021-08">2021</year><month>08</month>
+      <pub-id pub-id-type="doi">10.1115/detc2021-71399</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-Bussemaker2021c">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Bussemaker</surname><given-names>J. H.</given-names></name>
+        <name><surname>De Smedt</surname><given-names>T.</given-names></name>
+        <name><surname>La Rocca</surname><given-names>G.</given-names></name>
+        <name><surname>Ciampa</surname><given-names>P. D.</given-names></name>
+        <name><surname>Nagel</surname><given-names>B.</given-names></name>
+      </person-group>
+      <article-title>System architecture optimization: An open source multidisciplinary aircraft jet engine architecting problem</article-title>
+      <source>AIAA AVIATION 2021 FORUM</source>
+      <publisher-loc>Virtual Event</publisher-loc>
+      <year iso-8601-date="2021-08">2021</year><month>08</month>
+      <pub-id pub-id-type="doi">10.2514/6.2021-3078</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-Lindauer2022">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Lindauer</surname><given-names>M.</given-names></name>
+        <name><surname>Eggensperger</surname><given-names>K.</given-names></name>
+        <name><surname>Feurer</surname><given-names>M.</given-names></name>
+        <name><surname>Biedenkapp</surname><given-names>A.</given-names></name>
+        <name><surname>Deng</surname><given-names>D.</given-names></name>
+        <name><surname>Benjamins</surname><given-names>C.</given-names></name>
+        <name><surname>Ruhkopf</surname><given-names>T.</given-names></name>
+        <name><surname>Sass</surname><given-names>R.</given-names></name>
+        <name><surname>Hutter</surname><given-names>F.</given-names></name>
+      </person-group>
+      <article-title>SMAC3: A versatile Bayesian optimization package for hyperparameter optimization</article-title>
+      <source>Journal of Machine Learning Research</source>
+      <year iso-8601-date="2022">2022</year>
+      <volume>23</volume>
+      <issue>54</issue>
+      <uri>http://jmlr.org/papers/v23/21-0888.html</uri>
+      <fpage>1</fpage>
+      <lpage>9</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Saves2023">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Saves</surname><given-names>P.</given-names></name>
+        <name><surname>Lafage</surname><given-names>R.</given-names></name>
+        <name><surname>Bartoli</surname><given-names>N.</given-names></name>
+        <name><surname>Diouane</surname><given-names>Y.</given-names></name>
+        <name><surname>Bussemaker</surname><given-names>J. H.</given-names></name>
+        <name><surname>Lefebvre</surname><given-names>T.</given-names></name>
+        <name><surname>Hwang</surname><given-names>J. T.</given-names></name>
+        <name><surname>Morlier</surname><given-names>J.</given-names></name>
+        <name><surname>Martins</surname><given-names>J. R. R. A.</given-names></name>
+      </person-group>
+      <article-title>SMT 2.0: A surrogate modeling toolbox with a focus on hierarchical and mixed variables Gaussian processes</article-title>
+      <year iso-8601-date="2023">2023</year>
+      <uri>https://arxiv.org/abs/2305.13998</uri>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
