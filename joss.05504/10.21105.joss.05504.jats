@@ -1,0 +1,692 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">5504</article-id>
+<article-id pub-id-type="doi">10.21105/joss.05504</article-id>
+<title-group>
+<article-title>qujax: Simulating quantum circuits with
+JAX</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author" corresp="yes">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0002-8656-8734</contrib-id>
+<name>
+<surname>Duffield</surname>
+<given-names>Samuel</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+<xref ref-type="corresp" rid="cor-1"><sup>*</sup></xref>
+</contrib>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0002-3373-0128</contrib-id>
+<name>
+<surname>Matos</surname>
+<given-names>Gabriel</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+<xref ref-type="aff" rid="aff-2"/>
+</contrib>
+<contrib contrib-type="author">
+<name>
+<surname>Johannsen</surname>
+<given-names>Melf</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Quantinuum</institution>
+</institution-wrap>
+</aff>
+<aff id="aff-2">
+<institution-wrap>
+<institution>University of Leeds</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<author-notes>
+<corresp id="cor-1">* E-mail: <email></email></corresp>
+</author-notes>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2023-02-09">
+<day>9</day>
+<month>2</month>
+<year>2023</year>
+</pub-date>
+<volume>8</volume>
+<issue>89</issue>
+<fpage>5504</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2022</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>Python</kwd>
+<kwd>JAX</kwd>
+<kwd>quantum computation</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p><monospace>qujax</monospace> is a pure JAX
+  (<xref alt="Bradbury et al., 2018" rid="ref-jax2018github" ref-type="bibr">Bradbury
+  et al., 2018</xref>), purely functional Python package for the
+  classical simulation of quantum circuits. A JAX implementation of
+  quantum circuits inherits benefits such as seamless automatic
+  differentiation, support for GPUs/TPUs as well as integration with a
+  host of other tools within the JAX ecosystem.</p>
+  <p><monospace>qujax</monospace> is hosted on
+  <ext-link ext-link-type="uri" xlink:href="https://pypi.org/project/qujax/">PyPI</ext-link>
+  for easy installation and comes with detailed
+  <ext-link ext-link-type="uri" xlink:href="https://cqcl.github.io/qujax/api/">documentation</ext-link>
+  and a suite of
+  <ext-link ext-link-type="uri" xlink:href="https://github.com/CQCL/qujax/tree/main/examples">example
+  notebooks</ext-link>.</p>
+  <p><monospace>qujax</monospace> represents a quantum circuit as a
+  collection of three equal length Python iterables:</p>
+  <list list-type="bullet">
+    <list-item>
+      <p>a series of gate identifiers specifying the sequence of quantum
+      gates to be applied to the qubits as part of the circuit. Each
+      element can be either</p>
+      <list list-type="bullet">
+        <list-item>
+          <p>a string referring to a gate in
+          <monospace>qujax.gates</monospace>
+          e.g. <monospace>&quot;Z&quot;</monospace>,
+          <monospace>&quot;Rx&quot;</monospace></p>
+        </list-item>
+        <list-item>
+          <p>a JAX array representing a unitary matrix</p>
+        </list-item>
+        <list-item>
+          <p>a function that returns such an array</p>
+        </list-item>
+      </list>
+    </list-item>
+    <list-item>
+      <p>a series indicating which qubits in the circuit each gate
+      should be applied to</p>
+    </list-item>
+    <list-item>
+      <p>a series of indices indicating which entries of a parameter
+      vector (which is provided when later evaluating the circuit)
+      correspond to parameters of the gate (e.g. rotation gates such as
+      <monospace>&quot;Rx&quot;</monospace> take one parameter).</p>
+    </list-item>
+  </list>
+  <p>For example, a valid quantum circuit specification would be the
+  following</p>
+  <code language="python">qujax.print_circuit([&quot;X&quot;, &quot;Rz&quot;, &quot;Rz&quot;, &quot;CRz&quot;],
+                    [[0], [1], [0], [0, 1]],
+                    [[], [0], [1], [1]])
+
+# q0: -----X-----Rz[1]-----◯---
+#                          |   
+# q1: ---Rz[0]-----------CRz[1]</code>
+  <p>Note that for angular parameters, the default parameterised gates
+  in <monospace>qujax.gates</monospace> assume <bold>angles are
+  specified in half-turns</bold> (i.e. <inline-formula><alternatives>
+  <tex-math><![CDATA[\theta \in [0, 2)]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>θ</mml:mi><mml:mo>∈</mml:mo><mml:mo stretchy="false" form="prefix">[</mml:mo><mml:mn>0</mml:mn><mml:mo>,</mml:mo><mml:mn>2</mml:mn><mml:mo stretchy="false" form="postfix">)</mml:mo></mml:mrow></mml:math></alternatives></inline-formula>)
+  as opposed to radians.</p>
+  <sec id="statetensor">
+    <title>Statetensor</title>
+    <p>In quantum mechanics, a <italic>pure state</italic> is fully
+    specified by a statevector <disp-formula><alternatives>
+    <tex-math><![CDATA[
+    |\psi\rangle = \sum_{i=1}^{2^N} \alpha_i |i\rangle \in \mathbb{C}^{2^N},
+    ]]></tex-math>
+    <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mrow><mml:mo stretchy="true" form="prefix">|</mml:mo><mml:mi>ψ</mml:mi><mml:mo stretchy="false" form="postfix">⟩</mml:mo><mml:mo>=</mml:mo><mml:munderover><mml:mo>∑</mml:mo><mml:mrow><mml:mi>i</mml:mi><mml:mo>=</mml:mo><mml:mn>1</mml:mn></mml:mrow><mml:msup><mml:mn>2</mml:mn><mml:mi>N</mml:mi></mml:msup></mml:munderover><mml:msub><mml:mi>α</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mo stretchy="true" form="postfix">|</mml:mo></mml:mrow><mml:mi>i</mml:mi><mml:mo stretchy="false" form="postfix">⟩</mml:mo><mml:mo>∈</mml:mo><mml:msup><mml:mi>ℂ</mml:mi><mml:msup><mml:mn>2</mml:mn><mml:mi>N</mml:mi></mml:msup></mml:msup><mml:mo>,</mml:mo></mml:mrow></mml:math></alternatives></disp-formula>
+    where <inline-formula><alternatives>
+    <tex-math><![CDATA[N]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>N</mml:mi></mml:math></alternatives></inline-formula>
+    is the number of qubits and each <inline-formula><alternatives>
+    <tex-math><![CDATA[\alpha_i]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>α</mml:mi><mml:mi>i</mml:mi></mml:msub></mml:math></alternatives></inline-formula>
+    is a complex scalar number referred to as the
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[i]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>i</mml:mi></mml:math></alternatives></inline-formula>th
+    <italic>amplitude</italic>. Quantum states are also normalised such
+    that <inline-formula><alternatives>
+    <tex-math><![CDATA[\langle \psi | \psi \rangle = \sum_{i=1}^{2^N} |\alpha_i|^2 = 1]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mo stretchy="false" form="prefix">⟨</mml:mo><mml:mi>ψ</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">|</mml:mo><mml:mi>ψ</mml:mi><mml:mo stretchy="false" form="postfix">⟩</mml:mo><mml:mo>=</mml:mo><mml:msubsup><mml:mo>∑</mml:mo><mml:mrow><mml:mi>i</mml:mi><mml:mo>=</mml:mo><mml:mn>1</mml:mn></mml:mrow><mml:msup><mml:mn>2</mml:mn><mml:mi>N</mml:mi></mml:msup></mml:msubsup><mml:mo stretchy="true" form="postfix">|</mml:mo></mml:mrow><mml:msub><mml:mi>α</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:msup><mml:mo stretchy="false" form="prefix">|</mml:mo><mml:mn>2</mml:mn></mml:msup><mml:mo>=</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>.
+    We work in the computational basis, where
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[|i\rangle]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mo stretchy="false" form="prefix">|</mml:mo><mml:mi>i</mml:mi><mml:mo stretchy="false" form="postfix">⟩</mml:mo></mml:mrow></mml:math></alternatives></inline-formula>
+    is represented as a vector of zeros with a one in the
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[i]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>i</mml:mi></mml:math></alternatives></inline-formula>th
+    position (e.g. for <inline-formula><alternatives>
+    <tex-math><![CDATA[N=2]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>N</mml:mi><mml:mo>=</mml:mo><mml:mn>2</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>,
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[|2\rangle]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mo stretchy="false" form="prefix">|</mml:mo><mml:mn>2</mml:mn><mml:mo stretchy="false" form="postfix">⟩</mml:mo></mml:mrow></mml:math></alternatives></inline-formula>
+    is represented as <monospace>[0 1 0 0]</monospace>). In
+    <monospace>qujax</monospace>, we represent such vectors as a
+    <italic>statetensor</italic>, where a pure state is encoded in a
+    tensor of complex numbers with shape
+    <monospace>(2,) * N</monospace>. The statetensor representation is
+    convenient for quantum arithmetic (such as applying gates, tracing
+    out qubits and sampling bitstrings). For example, the amplitude
+    corresponding to the bitstring <monospace>[0 1 0 0]</monospace> can
+    be accessed with <monospace>statetensor[0, 1, 0, 0]</monospace>. The
+    statevector can always be obtained by calling
+    <monospace>statevector = statetensor.flatten()</monospace>.</p>
+    <p>One can use
+    <monospace>qujax.get_params_to_statetensor_func</monospace> to
+    generate a pure JAX function encoding a parameterised quantum state
+    <disp-formula><alternatives>
+    <tex-math><![CDATA[
+    |\psi_\theta \rangle = U_\theta |\phi\rangle,
+    ]]></tex-math>
+    <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mrow><mml:mo stretchy="true" form="prefix">|</mml:mo><mml:msub><mml:mi>ψ</mml:mi><mml:mi>θ</mml:mi></mml:msub><mml:mo stretchy="false" form="postfix">⟩</mml:mo><mml:mo>=</mml:mo><mml:msub><mml:mi>U</mml:mi><mml:mi>θ</mml:mi></mml:msub><mml:mo stretchy="true" form="postfix">|</mml:mo></mml:mrow><mml:mi>ϕ</mml:mi><mml:mo stretchy="false" form="postfix">⟩</mml:mo><mml:mo>,</mml:mo></mml:mrow></mml:math></alternatives></disp-formula>
+    where <inline-formula><alternatives>
+    <tex-math><![CDATA[\theta]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>θ</mml:mi></mml:math></alternatives></inline-formula>
+    is a parameter vector and <inline-formula><alternatives>
+    <tex-math><![CDATA[|\phi\rangle]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mo stretchy="false" form="prefix">|</mml:mo><mml:mi>ϕ</mml:mi><mml:mo stretchy="false" form="postfix">⟩</mml:mo></mml:mrow></mml:math></alternatives></inline-formula>
+    is an initial quantum state that can be provided via the optional
+    argument <monospace>statetensor_in</monospace> (that defaults to
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[|0\rangle=]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mo stretchy="false" form="prefix">|</mml:mo><mml:mn>0</mml:mn><mml:mo stretchy="false" form="postfix">⟩</mml:mo><mml:mo>=</mml:mo></mml:mrow></mml:math></alternatives></inline-formula><monospace>[1 0 ... 0]</monospace>).</p>
+  </sec>
+  <sec id="unitarytensor">
+    <title>Unitarytensor</title>
+    <p>Alternatively, one can call
+    <monospace>qujax.get_params_to_unitarytensor_func</monospace> to get
+    a function returning a tensor representation of the unitary
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[U_\theta]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>U</mml:mi><mml:mi>θ</mml:mi></mml:msub></mml:math></alternatives></inline-formula>
+    with shape <monospace>(2,) * 2 * N</monospace>.</p>
+  </sec>
+  <sec id="densitytensor">
+    <title>Densitytensor</title>
+    <p>The quantum states that can be represented as above are called
+    pure quantum states. More general quantum states can be represented
+    by using a <italic>density matrix</italic>. The density matrix
+    representation of a pure quantum state
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[|\psi\rangle]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mo stretchy="false" form="prefix">|</mml:mo><mml:mi>ψ</mml:mi><mml:mo stretchy="false" form="postfix">⟩</mml:mo></mml:mrow></mml:math></alternatives></inline-formula>
+    can be obtained via the outer product <inline-formula><alternatives>
+    <tex-math><![CDATA[\rho = |\psi \rangle \langle \psi| \in \mathbb{C}^{2^N \times 2^N}]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>ρ</mml:mi><mml:mo>=</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">|</mml:mo><mml:mi>ψ</mml:mi><mml:mo stretchy="false" form="postfix">⟩</mml:mo><mml:mo stretchy="false" form="prefix">⟨</mml:mo><mml:mi>ψ</mml:mi><mml:mo stretchy="true" form="postfix">|</mml:mo></mml:mrow><mml:mo>∈</mml:mo><mml:msup><mml:mi>ℂ</mml:mi><mml:mrow><mml:msup><mml:mn>2</mml:mn><mml:mi>N</mml:mi></mml:msup><mml:mo>×</mml:mo><mml:msup><mml:mn>2</mml:mn><mml:mi>N</mml:mi></mml:msup></mml:mrow></mml:msup></mml:mrow></mml:math></alternatives></inline-formula>.
+    More generally a density matrix encodes a <italic>mixed
+    state</italic> <disp-formula><alternatives>
+    <tex-math><![CDATA[
+    \rho = \sum_{k} p_k|\psi_k \rangle \langle \psi_k|,
+    ]]></tex-math>
+    <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>ρ</mml:mi><mml:mo>=</mml:mo><mml:munder><mml:mo>∑</mml:mo><mml:mi>k</mml:mi></mml:munder><mml:msub><mml:mi>p</mml:mi><mml:mi>k</mml:mi></mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">|</mml:mo><mml:msub><mml:mi>ψ</mml:mi><mml:mi>k</mml:mi></mml:msub><mml:mo stretchy="false" form="postfix">⟩</mml:mo><mml:mo stretchy="false" form="prefix">⟨</mml:mo><mml:msub><mml:mi>ψ</mml:mi><mml:mi>k</mml:mi></mml:msub><mml:mo stretchy="true" form="postfix">|</mml:mo></mml:mrow><mml:mo>,</mml:mo></mml:mrow></mml:math></alternatives></disp-formula>
+    which can be interpreted as classical statistical mixture of pure
+    states, with <inline-formula><alternatives>
+    <tex-math><![CDATA[p_k \in [0,1]]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>p</mml:mi><mml:mi>k</mml:mi></mml:msub><mml:mo>∈</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">[</mml:mo><mml:mn>0</mml:mn><mml:mo>,</mml:mo><mml:mn>1</mml:mn><mml:mo stretchy="true" form="postfix">]</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>
+    and <inline-formula><alternatives>
+    <tex-math><![CDATA[\sum_{k} p_k =1]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mo>∑</mml:mo><mml:mi>k</mml:mi></mml:msub><mml:msub><mml:mi>p</mml:mi><mml:mi>k</mml:mi></mml:msub><mml:mo>=</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>.</p>
+    <p>Density matrices are also supported in
+    <monospace>qujax</monospace> in the form of
+    <italic>densitytensors</italic> - complex tensors of shape
+    <monospace>(2,) * 2 * N</monospace>. Similar to the statetensor
+    simulator, parameterised evolution of a densitytensor can be
+    implemented via general Kraus operations with
+    <monospace>qujax.get_params_to_densitytensor_func</monospace>.
+    Further details on density matrices and Kraus operators are
+    available in the
+    <ext-link ext-link-type="uri" xlink:href="https://cqcl.github.io/qujax/api/densitytensor.html">documentation</ext-link>
+    or published literature
+    (<xref alt="Nielsen &amp; Chuang, 2010, pp. 98–105" rid="ref-Nielsen2010" ref-type="bibr">Nielsen
+    &amp; Chuang, 2010, pp. 98–105</xref>).</p>
+  </sec>
+  <sec id="expectation-values">
+    <title>Expectation values</title>
+    <p>Expectation values can also be calculated conveniently with
+    <monospace>qujax</monospace>. In simple cases, such as a
+    combinatorial optimisation problems (e.g. MaxCut), this can be done
+    by extracting measurement probabilities from the statetensor or
+    densitytensor and calculating the expected value of a cost function
+    directly. For more sophisticated bases,
+    <monospace>qujax.get_statetensor_to_expectation_func</monospace> and
+    <monospace>qujax.get_densitytensor_to_expectation_func</monospace>
+    generate functions that map to the expected value of a given series
+    of Hermitian tensors. Sampled expectation values (which replicate
+    so-called shot noise for a given number of shots) are also supported
+    in <monospace>qujax</monospace>.</p>
+  </sec>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p>JAX is emerging as a state-of-the-art library for high-perfomance
+  scientific computation in Python due to its composability, automatic
+  differentiation and support for GPUs/TPUs, as well as adopting the
+  NumPy
+  (<xref alt="Harris et al., 2020" rid="ref-numpy" ref-type="bibr">Harris
+  et al., 2020</xref>) API resulting in a low barrier to entry.</p>
+  <p><monospace>qujax</monospace> is a lightweight, purely functional
+  library written entirely in JAX, composing seamlessly with the
+  ever-expanding JAX ecosystem. It emphasises clarity and readability,
+  making it easy to debug, reducing the barrier to entry, and decreasing
+  the overhead when integrating with existing code or extending it to
+  meet specific research needs.</p>
+  <p>These characteristics contrast with the already existing array of
+  excellent quantum computation resources in Python, such as cirq
+  (<xref alt="Cirq Developers, 2022" rid="ref-cirq" ref-type="bibr">Cirq
+  Developers, 2022</xref>), pytket
+  (<xref alt="Sivarajah et al., 2020" rid="ref-pytket" ref-type="bibr">Sivarajah
+  et al., 2020</xref>), qiskit
+  (<xref alt="Bradbury et al., 2018" rid="ref-jax2018github" ref-type="bibr">Bradbury
+  et al., 2018</xref>), Qulacs
+  (<xref alt="Suzuki et al., 2021" rid="ref-qulacs" ref-type="bibr">Suzuki
+  et al., 2021</xref>), TensorFlow Quantum
+  (<xref alt="Broughton et al., 2020" rid="ref-tensorflowquantum" ref-type="bibr">Broughton
+  et al., 2020</xref>), DisCoPy
+  (<xref alt="Toumi et al., 2022" rid="ref-discopy" ref-type="bibr">Toumi
+  et al., 2022</xref>), Pennylane
+  (<xref alt="Bergholm et al., 2018" rid="ref-pennylane" ref-type="bibr">Bergholm
+  et al., 2018</xref>) or quimb
+  (<xref alt="Gray, 2018" rid="ref-quimb" ref-type="bibr">Gray,
+  2018</xref>), the latter three supporting JAX as a backend. These
+  represent complex full-fledged frameworks which supply their own
+  abstractions, being either wider in scope or specializing in specific
+  use-cases. The core difference is that <monospace>qujax</monospace> is
+  designed to be purely functional.</p>
+  <p>While generic circuit simulation is within scope,
+  <monospace>qujax</monospace> does not support tensor network
+  simulation. There is an active area of research investigating this as
+  a tool for classical simulation of quantum circuits with software
+  including DisCoPy
+  (<xref alt="Toumi et al., 2022" rid="ref-discopy" ref-type="bibr">Toumi
+  et al., 2022</xref>), quimb
+  (<xref alt="Gray, 2018" rid="ref-quimb" ref-type="bibr">Gray,
+  2018</xref>) and TensorCircuit
+  (<xref alt="Zhang et al., 2023" rid="ref-tensorcircuit" ref-type="bibr">Zhang
+  et al., 2023</xref>). While tensor networks represent a very promising
+  field of research, their implementation entails a more sophisticated
+  API (in tensor networks, the representation of a quantum state can be
+  considerably more elaborate), greatly increasing the complexity of the
+  package. Thus, tensor network computation is currently seen as being
+  beyond the scope of <monospace>qujax</monospace>.</p>
+</sec>
+<sec id="pytket-qujax">
+  <title><monospace>pytket-qujax</monospace></title>
+  <p><monospace>qujax</monospace> is accompanied by an extension package
+  <monospace>pytket-qujax</monospace> supporting easy conversion to and
+  from <monospace>pytket.Circuit</monospace> objects, thus providing a
+  convenient bridge between pytket and JAX ecosystems. It possible to
+  use the other pytket extensions to convert from and to qiskit
+  (<xref alt="Bradbury et al., 2018" rid="ref-jax2018github" ref-type="bibr">Bradbury
+  et al., 2018</xref>), Qulacs
+  (<xref alt="Suzuki et al., 2021" rid="ref-qulacs" ref-type="bibr">Suzuki
+  et al., 2021</xref>), cirq
+  (<xref alt="Cirq Developers, 2022" rid="ref-cirq" ref-type="bibr">Cirq
+  Developers, 2022</xref>) and Pennylane
+  (<xref alt="Bergholm et al., 2018" rid="ref-pennylane" ref-type="bibr">Bergholm
+  et al., 2018</xref>) as well.</p>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>We acknowledge notable support from Kirill Plekhanov as well as
+  Gabriel Marin, Enrico Rinaldi and Richie Yeung.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <ref id="ref-jax2018github">
+    <element-citation publication-type="software">
+      <person-group person-group-type="author">
+        <name><surname>Bradbury</surname><given-names>James</given-names></name>
+        <name><surname>Frostig</surname><given-names>Roy</given-names></name>
+        <name><surname>Hawkins</surname><given-names>Peter</given-names></name>
+        <name><surname>Johnson</surname><given-names>Matthew James</given-names></name>
+        <name><surname>Leary</surname><given-names>Chris</given-names></name>
+        <name><surname>Maclaurin</surname><given-names>Dougal</given-names></name>
+        <name><surname>Necula</surname><given-names>George</given-names></name>
+        <name><surname>Paszke</surname><given-names>Adam</given-names></name>
+        <name><surname>VanderPlas</surname><given-names>Jake</given-names></name>
+        <name><surname>Wanderman-Milne</surname><given-names>Skye</given-names></name>
+        <name><surname>Zhang</surname><given-names>Qiao</given-names></name>
+      </person-group>
+      <article-title>JAX: Composable transformations of Python+NumPy programs</article-title>
+      <year iso-8601-date="2018">2018</year>
+      <uri>http://github.com/google/jax</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-pennylane">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Bergholm</surname><given-names>Ville</given-names></name>
+        <name><surname>Izaac</surname><given-names>Josh</given-names></name>
+        <name><surname>Schuld</surname><given-names>Maria</given-names></name>
+        <name><surname>Gogolin</surname><given-names>Christian</given-names></name>
+        <name><surname>Ahmed</surname><given-names>Shahnawaz</given-names></name>
+        <name><surname>Ajith</surname><given-names>Vishnu</given-names></name>
+        <name><surname>Alam</surname><given-names>M. Sohaib</given-names></name>
+        <name><surname>Alonso-Linaje</surname><given-names>Guillermo</given-names></name>
+        <name><surname>AkashNarayanan</surname><given-names>B.</given-names></name>
+        <name><surname>Asadi</surname><given-names>Ali</given-names></name>
+        <name><surname>Arrazola</surname><given-names>Juan Miguel</given-names></name>
+        <name><surname>Azad</surname><given-names>Utkarsh</given-names></name>
+        <name><surname>Banning</surname><given-names>Sam</given-names></name>
+        <name><surname>Blank</surname><given-names>Carsten</given-names></name>
+        <name><surname>Bromley</surname><given-names>Thomas R</given-names></name>
+        <name><surname>Cordier</surname><given-names>Benjamin A.</given-names></name>
+        <name><surname>Ceroni</surname><given-names>Jack</given-names></name>
+        <name><surname>Delgado</surname><given-names>Alain</given-names></name>
+        <name><surname>Di Matteo</surname><given-names>Olivia</given-names></name>
+        <name><surname>Dusko</surname><given-names>Amintor</given-names></name>
+        <name><surname>Garg</surname><given-names>Tanya</given-names></name>
+        <name><surname>Guala</surname><given-names>Diego</given-names></name>
+        <name><surname>Hayes</surname><given-names>Anthony</given-names></name>
+        <name><surname>Hill</surname><given-names>Ryan</given-names></name>
+        <name><surname>Ijaz</surname><given-names>Aroosa</given-names></name>
+        <name><surname>Isacsson</surname><given-names>Theodor</given-names></name>
+        <name><surname>Ittah</surname><given-names>David</given-names></name>
+        <name><surname>Jahangiri</surname><given-names>Soran</given-names></name>
+        <name><surname>Jain</surname><given-names>Prateek</given-names></name>
+        <name><surname>Jiang</surname><given-names>Edward</given-names></name>
+        <name><surname>Khandelwal</surname><given-names>Ankit</given-names></name>
+        <name><surname>Kottmann</surname><given-names>Korbinian</given-names></name>
+        <name><surname>Lang</surname><given-names>Robert A.</given-names></name>
+        <name><surname>Lee</surname><given-names>Christina</given-names></name>
+        <name><surname>Loke</surname><given-names>Thomas</given-names></name>
+        <name><surname>Lowe</surname><given-names>Angus</given-names></name>
+        <name><surname>McKiernan</surname><given-names>Keri</given-names></name>
+        <name><surname>Meyer</surname><given-names>Johannes Jakob</given-names></name>
+        <name><surname>Montañez-Barrera</surname><given-names>J. A.</given-names></name>
+        <name><surname>Moyard</surname><given-names>Romain</given-names></name>
+        <name><surname>Niu</surname><given-names>Zeyue</given-names></name>
+        <name><surname>O’Riordan</surname><given-names>Lee James</given-names></name>
+        <name><surname>Oud</surname><given-names>Steven</given-names></name>
+        <name><surname>Panigrahi</surname><given-names>Ashish</given-names></name>
+        <name><surname>Park</surname><given-names>Chae-Yeun</given-names></name>
+        <name><surname>Polatajko</surname><given-names>Daniel</given-names></name>
+        <name><surname>Quesada</surname><given-names>Nicolás</given-names></name>
+        <name><surname>Roberts</surname><given-names>Chase</given-names></name>
+        <name><surname>Sá</surname><given-names>Nahum</given-names></name>
+        <name><surname>Schoch</surname><given-names>Isidor</given-names></name>
+        <name><surname>Shi</surname><given-names>Borun</given-names></name>
+        <name><surname>Shu</surname><given-names>Shuli</given-names></name>
+        <name><surname>Sim</surname><given-names>Sukin</given-names></name>
+        <name><surname>Singh</surname><given-names>Arshpreet</given-names></name>
+        <name><surname>Strandberg</surname><given-names>Ingrid</given-names></name>
+        <name><surname>Soni</surname><given-names>Jay</given-names></name>
+        <name><surname>Száva</surname><given-names>Antal</given-names></name>
+        <name><surname>Thabet</surname><given-names>Slimane</given-names></name>
+        <name><surname>Vargas-Hernández</surname><given-names>Rodrigo A.</given-names></name>
+        <name><surname>Vincent</surname><given-names>Trevor</given-names></name>
+        <name><surname>Vitucci</surname><given-names>Nicola</given-names></name>
+        <name><surname>Weber</surname><given-names>Maurice</given-names></name>
+        <name><surname>Wierichs</surname><given-names>David</given-names></name>
+        <name><surname>Wiersema</surname><given-names>Roeland</given-names></name>
+        <name><surname>Willmann</surname><given-names>Moritz</given-names></name>
+        <name><surname>Wong</surname><given-names>Vincent</given-names></name>
+        <name><surname>Zhang</surname><given-names>Shaoming</given-names></name>
+        <name><surname>Killoran</surname><given-names>Nathan</given-names></name>
+      </person-group>
+      <article-title>PennyLane: Automatic differentiation of hybrid quantum-classical computations</article-title>
+      <publisher-name>arXiv</publisher-name>
+      <year iso-8601-date="2018">2018</year>
+      <uri>https://arxiv.org/abs/1811.04968</uri>
+      <pub-id pub-id-type="doi">10.48550/ARXIV.1811.04968</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-pytket">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Sivarajah</surname><given-names>Seyon</given-names></name>
+        <name><surname>Dilkes</surname><given-names>Silas</given-names></name>
+        <name><surname>Cowtan</surname><given-names>Alexander</given-names></name>
+        <name><surname>Simmons</surname><given-names>Will</given-names></name>
+        <name><surname>Edgington</surname><given-names>Alec</given-names></name>
+        <name><surname>Duncan</surname><given-names>Ross</given-names></name>
+      </person-group>
+      <article-title>T|ket⟩: A retargetable compiler for NISQ devices</article-title>
+      <source>Quantum Science and Technology</source>
+      <publisher-name>IOP Publishing</publisher-name>
+      <year iso-8601-date="2020-11">2020</year><month>11</month>
+      <volume>6</volume>
+      <issue>1</issue>
+      <uri>https://dx.doi.org/10.1088/2058-9565/ab8e92</uri>
+      <pub-id pub-id-type="doi">10.1088/2058-9565/ab8e92</pub-id>
+      <fpage>014003</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-quimb">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Gray</surname><given-names>Johnnie</given-names></name>
+      </person-group>
+      <article-title>Quimb: A python package for quantum information and many-body calculations</article-title>
+      <source>Journal of Open Source Software</source>
+      <publisher-name>The Open Journal</publisher-name>
+      <year iso-8601-date="2018">2018</year>
+      <volume>3</volume>
+      <issue>29</issue>
+      <uri>https://doi.org/10.21105/joss.00819</uri>
+      <pub-id pub-id-type="doi">10.21105/joss.00819</pub-id>
+      <fpage>819</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-tensorflowquantum">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Broughton</surname><given-names>Michael</given-names></name>
+        <name><surname>Verdon</surname><given-names>Guillaume</given-names></name>
+        <name><surname>McCourt</surname><given-names>Trevor</given-names></name>
+        <name><surname>Martinez</surname><given-names>Antonio J.</given-names></name>
+        <name><surname>Yoo</surname><given-names>Jae Hyeon</given-names></name>
+        <name><surname>Isakov</surname><given-names>Sergei V.</given-names></name>
+        <name><surname>Massey</surname><given-names>Philip</given-names></name>
+        <name><surname>Halavati</surname><given-names>Ramin</given-names></name>
+        <name><surname>Niu</surname><given-names>Murphy Yuezhen</given-names></name>
+        <name><surname>Zlokapa</surname><given-names>Alexander</given-names></name>
+        <name><surname>Peters</surname><given-names>Evan</given-names></name>
+        <name><surname>Lockwood</surname><given-names>Owen</given-names></name>
+        <name><surname>Skolik</surname><given-names>Andrea</given-names></name>
+        <name><surname>Jerbi</surname><given-names>Sofiene</given-names></name>
+        <name><surname>Dunjko</surname><given-names>Vedran</given-names></name>
+        <name><surname>Leib</surname><given-names>Martin</given-names></name>
+        <name><surname>Streif</surname><given-names>Michael</given-names></name>
+        <name><surname>Von Dollen</surname><given-names>David</given-names></name>
+        <name><surname>Chen</surname><given-names>Hongxiang</given-names></name>
+        <name><surname>Cao</surname><given-names>Shuxiang</given-names></name>
+        <name><surname>Wiersema</surname><given-names>Roeland</given-names></name>
+        <name><surname>Huang</surname><given-names>Hsin-Yuan</given-names></name>
+        <name><surname>McClean</surname><given-names>Jarrod R.</given-names></name>
+        <name><surname>Babbush</surname><given-names>Ryan</given-names></name>
+        <name><surname>Boixo</surname><given-names>Sergio</given-names></name>
+        <name><surname>Bacon</surname><given-names>Dave</given-names></name>
+        <name><surname>Ho</surname><given-names>Alan K.</given-names></name>
+        <name><surname>Neven</surname><given-names>Hartmut</given-names></name>
+        <name><surname>Mohseni</surname><given-names>Masoud</given-names></name>
+      </person-group>
+      <article-title>TensorFlow quantum: A software framework for quantum machine learning</article-title>
+      <publisher-name>arXiv</publisher-name>
+      <year iso-8601-date="2020">2020</year>
+      <uri>https://arxiv.org/abs/2003.02989</uri>
+      <pub-id pub-id-type="doi">10.48550/ARXIV.2003.02989</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-discopy">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Toumi</surname><given-names>Alexis</given-names></name>
+        <name><surname>Felice</surname><given-names>Giovanni de</given-names></name>
+        <name><surname>Yeung</surname><given-names>Richie</given-names></name>
+      </person-group>
+      <article-title>DisCoPy for the quantum computer scientist</article-title>
+      <publisher-name>arXiv</publisher-name>
+      <year iso-8601-date="2022">2022</year>
+      <uri>https://arxiv.org/abs/2205.05190</uri>
+      <pub-id pub-id-type="doi">10.48550/ARXIV.2205.05190</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-qulacs">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Suzuki</surname><given-names>Yasunari</given-names></name>
+        <name><surname>Kawase</surname><given-names>Yoshiaki</given-names></name>
+        <name><surname>Masumura</surname><given-names>Yuya</given-names></name>
+        <name><surname>Hiraga</surname><given-names>Yuria</given-names></name>
+        <name><surname>Nakadai</surname><given-names>Masahiro</given-names></name>
+        <name><surname>Chen</surname><given-names>Jiabao</given-names></name>
+        <name><surname>Nakanishi</surname><given-names>Ken M.</given-names></name>
+        <name><surname>Mitarai</surname><given-names>Kosuke</given-names></name>
+        <name><surname>Imai</surname><given-names>Ryosuke</given-names></name>
+        <name><surname>Tamiya</surname><given-names>Shiro</given-names></name>
+        <name><surname>Yamamoto</surname><given-names>Takahiro</given-names></name>
+        <name><surname>Yan</surname><given-names>Tennin</given-names></name>
+        <name><surname>Kawakubo</surname><given-names>Toru</given-names></name>
+        <name><surname>Nakagawa</surname><given-names>Yuya O.</given-names></name>
+        <name><surname>Ibe</surname><given-names>Yohei</given-names></name>
+        <name><surname>Zhang</surname><given-names>Youyuan</given-names></name>
+        <name><surname>Yamashita</surname><given-names>Hirotsugu</given-names></name>
+        <name><surname>Yoshimura</surname><given-names>Hikaru</given-names></name>
+        <name><surname>Hayashi</surname><given-names>Akihiro</given-names></name>
+        <name><surname>Fujii</surname><given-names>Keisuke</given-names></name>
+      </person-group>
+      <article-title>Qulacs: A fast and versatile quantum circuit simulator for research purpose</article-title>
+      <source>Quantum</source>
+      <publisher-name>Verein zur Forderung des Open Access Publizierens in den Quantenwissenschaften</publisher-name>
+      <year iso-8601-date="2021-10">2021</year><month>10</month>
+      <volume>5</volume>
+      <uri>https://doi.org/10.22331%2Fq-2021-10-06-559</uri>
+      <pub-id pub-id-type="doi">10.22331/q-2021-10-06-559</pub-id>
+      <fpage>559</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-tensorcircuit">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Zhang</surname><given-names>Shi-Xin</given-names></name>
+        <name><surname>Allcock</surname><given-names>Jonathan</given-names></name>
+        <name><surname>Wan</surname><given-names>Zhou-Quan</given-names></name>
+        <name><surname>Liu</surname><given-names>Shuo</given-names></name>
+        <name><surname>Sun</surname><given-names>Jiace</given-names></name>
+        <name><surname>Yu</surname><given-names>Hao</given-names></name>
+        <name><surname>Yang</surname><given-names>Xing-Han</given-names></name>
+        <name><surname>Qiu</surname><given-names>Jiezhong</given-names></name>
+        <name><surname>Ye</surname><given-names>Zhaofeng</given-names></name>
+        <name><surname>Chen</surname><given-names>Yu-Qin</given-names></name>
+        <name><surname>Lee</surname><given-names>Chee-Kong</given-names></name>
+        <name><surname>Zheng</surname><given-names>Yi-Cong</given-names></name>
+        <name><surname>Jian</surname><given-names>Shao-Kai</given-names></name>
+        <name><surname>Yao</surname><given-names>Hong</given-names></name>
+        <name><surname>Hsieh</surname><given-names>Chang-Yu</given-names></name>
+        <name><surname>Zhang</surname><given-names>Shengyu</given-names></name>
+      </person-group>
+      <article-title>TensorCircuit: A Quantum Software Framework for the NISQ Era</article-title>
+      <source>Quantum</source>
+      <publisher-name>Verein zur Förderung des Open Access Publizierens in den Quantenwissenschaften</publisher-name>
+      <year iso-8601-date="2023-02">2023</year><month>02</month>
+      <volume>7</volume>
+      <issn>2521-327X</issn>
+      <uri>https://doi.org/10.22331/q-2023-02-02-912</uri>
+      <pub-id pub-id-type="doi">10.22331/q-2023-02-02-912</pub-id>
+      <fpage>912</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-cirq">
+    <element-citation publication-type="software">
+      <person-group person-group-type="author">
+        <string-name>Cirq Developers</string-name>
+      </person-group>
+      <article-title>Cirq</article-title>
+      <publisher-name>Zenodo</publisher-name>
+      <year iso-8601-date="2022-12">2022</year><month>12</month>
+      <uri>https://doi.org/10.5281/zenodo.7465577</uri>
+      <pub-id pub-id-type="doi">10.5281/zenodo.7465577</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-numpy">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Harris</surname><given-names>Charles R.</given-names></name>
+        <name><surname>Millman</surname><given-names>K. Jarrod</given-names></name>
+        <name><surname>Walt</surname><given-names>Stéfan J. van der</given-names></name>
+        <name><surname>Gommers</surname><given-names>Ralf</given-names></name>
+        <name><surname>Virtanen</surname><given-names>Pauli</given-names></name>
+        <name><surname>Cournapeau</surname><given-names>David</given-names></name>
+        <name><surname>Wieser</surname><given-names>Eric</given-names></name>
+        <name><surname>Taylor</surname><given-names>Julian</given-names></name>
+        <name><surname>Berg</surname><given-names>Sebastian</given-names></name>
+        <name><surname>Smith</surname><given-names>Nathaniel J.</given-names></name>
+        <name><surname>Kern</surname><given-names>Robert</given-names></name>
+        <name><surname>Picus</surname><given-names>Matti</given-names></name>
+        <name><surname>Hoyer</surname><given-names>Stephan</given-names></name>
+        <name><surname>Kerkwijk</surname><given-names>Marten H. van</given-names></name>
+        <name><surname>Brett</surname><given-names>Matthew</given-names></name>
+        <name><surname>Haldane</surname><given-names>Allan</given-names></name>
+        <name><surname>Río</surname><given-names>Jaime Fernández del</given-names></name>
+        <name><surname>Wiebe</surname><given-names>Mark</given-names></name>
+        <name><surname>Peterson</surname><given-names>Pearu</given-names></name>
+        <name><surname>Gérard-Marchant</surname><given-names>Pierre</given-names></name>
+        <name><surname>Sheppard</surname><given-names>Kevin</given-names></name>
+        <name><surname>Reddy</surname><given-names>Tyler</given-names></name>
+        <name><surname>Weckesser</surname><given-names>Warren</given-names></name>
+        <name><surname>Abbasi</surname><given-names>Hameer</given-names></name>
+        <name><surname>Gohlke</surname><given-names>Christoph</given-names></name>
+        <name><surname>Oliphant</surname><given-names>Travis E.</given-names></name>
+      </person-group>
+      <article-title>Array programming with NumPy</article-title>
+      <source>Nature</source>
+      <publisher-name>Springer Science; Business Media LLC</publisher-name>
+      <year iso-8601-date="2020-09">2020</year><month>09</month>
+      <volume>585</volume>
+      <issue>7825</issue>
+      <uri>https://doi.org/10.1038/s41586-020-2649-2</uri>
+      <pub-id pub-id-type="doi">10.1038/s41586-020-2649-2</pub-id>
+      <fpage>357</fpage>
+      <lpage>362</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Nielsen2010">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Nielsen</surname><given-names>Michael A.</given-names></name>
+        <name><surname>Chuang</surname><given-names>Isaac L.</given-names></name>
+      </person-group>
+      <source>Quantum computation and quantum information: 10th anniversary edition</source>
+      <publisher-name>Cambridge University Press</publisher-name>
+      <year iso-8601-date="2010">2010</year>
+      <pub-id pub-id-type="doi">10.1017/CBO9780511976667</pub-id>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
