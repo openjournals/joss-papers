@@ -1,0 +1,1411 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">5703</article-id>
+<article-id pub-id-type="doi">10.21105/joss.05703</article-id>
+<title-group>
+<article-title>pysersic: A Python package for determining galaxy
+structural properties via Bayesian inference, accelerated with
+jax</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author" equal-contrib="yes">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0002-7075-9931</contrib-id>
+<name>
+<surname>Pasha</surname>
+<given-names>Imad</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+<xref ref-type="aff" rid="aff-2"/>
+</contrib>
+<contrib contrib-type="author" equal-contrib="yes">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0001-8367-6265</contrib-id>
+<name>
+<surname>Miller</surname>
+<given-names>Tim B.</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Department of Astronomy, Yale University, USA</institution>
+</institution-wrap>
+</aff>
+<aff id="aff-2">
+<institution-wrap>
+<institution>National Science Foundation Graduate Research
+Fellow</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2023-06-05">
+<day>5</day>
+<month>6</month>
+<year>2023</year>
+</pub-date>
+<volume>8</volume>
+<issue>89</issue>
+<fpage>5703</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2022</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>Python</kwd>
+<kwd>astronomy</kwd>
+<kwd>galaxies</kwd>
+<kwd>model fitting</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p>The modern standard for measuring structural parameters of galaxies
+  involves a forward-modeling procedure in which parametric models are
+  fit directly to images while accounting for the effect of the
+  point-spread function (PSF). This is an integral step in many
+  extragalactic studies. The most common parametric form is a Sérsic
+  profile
+  (<xref alt="Sersic, 1968" rid="ref-SersicU003A1968" ref-type="bibr">Sersic,
+  1968</xref>) which is described by a radial surface brightness
+  profiles following,</p>
+  <p><disp-formula><tex-math><![CDATA[
+  I(R) ∝ F_{\rm total} \exp \left[\left(\frac{R}{R_e}\right)^{1/n}-1\right],
+  ]]></tex-math></disp-formula></p>
+  <p>where the total flux,
+  <inline-formula><tex-math><![CDATA[F_{\rm total}]]></tex-math></inline-formula>,
+  half-light radius, <inline-formula><alternatives>
+  <tex-math><![CDATA[R_e]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>R</mml:mi><mml:mi>e</mml:mi></mml:msub></mml:math></alternatives></inline-formula>
+  and Sérsic index, <inline-formula><alternatives>
+  <tex-math><![CDATA[n]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>n</mml:mi></mml:math></alternatives></inline-formula>
+  are the parameters of interest to be fit and subsequently used to
+  characterize a galaxy’s morphology.</p>
+  <p>Here we present <monospace>pysersic</monospace>, a Bayesian
+  framework created to facilitate the inference of structural parameters
+  from galaxy images. It is written in pure
+  <monospace>Python</monospace>, and built using the
+  <monospace>jax</monospace> framework
+  (<xref alt="Bradbury et al., 2018" rid="ref-BradburyU003A2018" ref-type="bibr">Bradbury
+  et al., 2018</xref>) allowing for just-in-time (JIT) compilation,
+  auto-differentiation and seamless execution on CPUs, GPUs or TPUs.
+  Inference is performed with the <monospace>numpyro</monospace>
+  (<xref alt="Bingham et al., 2019" rid="ref-BinghamU003A2019" ref-type="bibr">Bingham
+  et al., 2019</xref>;
+  <xref alt="Phan et al., 2019" rid="ref-PhanU003A2019" ref-type="bibr">Phan
+  et al., 2019</xref>) package utilizing gradient based methods, e.g.,
+  No U-Turn Sampling (NUTS)
+  (<xref alt="Hoffman et al., 2014" rid="ref-HoffmanU003A2014" ref-type="bibr">Hoffman
+  et al., 2014</xref>), for efficient and robust posterior estimation.
+  <monospace>pysersic</monospace> was designed to have a user-friendly
+  interface, allowing users to fit single or multiple sources in a few
+  lines of code. It was also designed to scale to many images, such that
+  it can be seamlessly integrated into current and future analysis
+  pipelines.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p>Parametric profile fitting has become a ubiquitous and essential
+  tool for numerous applications including measuring the photometry — or
+  total flux — of galaxies, as well as the investigation of the
+  structural evolution of galaxies over cosmic time
+  (<xref alt="Kawinwanichakij et al., 2021" rid="ref-KawinwanichakijU003A2021" ref-type="bibr">Kawinwanichakij
+  et al., 2021</xref>;
+  <xref alt="Lange et al., 2015" rid="ref-LangeU003A2015" ref-type="bibr">Lange
+  et al., 2015</xref>;
+  <xref alt="Mowla et al., 2019" rid="ref-MowlaU003A2019" ref-type="bibr">Mowla
+  et al., 2019</xref>). This approach allows one to both extrapolate
+  galaxy surface brightness profiles beyond the noise limit of images,
+  as well as account for the PSF to accurately measure the structure of
+  galaxies near the resolution limit of those images. The empirically
+  derived Sérsic profile is the most common parametric form for the
+  surface-brightness profile as it provides a reasonable approximation
+  to nearly all galaxies, given the additional freedom of the Sérsic
+  index, <inline-formula><alternatives>
+  <tex-math><![CDATA[n]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>n</mml:mi></mml:math></alternatives></inline-formula>,
+  over fixed-index profiles.</p>
+  <p>Given the long history of Sérsic fitting codes with many available
+  tools, the development of <monospace>pysersic</monospace> was largely
+  motivated by two related factors, first and foremost of which was the
+  desire to implement Sérsic fitting in a fully Bayesian context
+  <italic>at speed</italic>. The <italic>ability</italic> to place the
+  typical Sérsic fitting problem into a Bayesian context with runtimes
+  that are not prohibitive (the traditional drawback of MCMC methods)
+  has recently been unlocked by the second motivation: to leverage the
+  <monospace>jax</monospace> library. <monospace>jax</monospace>
+  utilizes JIT compilation to decrease computational runtimes, provides
+  seamless integration with hardware accelerators such as GPUs and TPUs
+  for further improvements in performance, and enables automatic
+  differentiation, facilitating gradient based optimization and sampling
+  methods. Together, these features greatly increase speed and
+  efficiency, especially when sampling or optimizing a large number of
+  parameters.</p>
+  <p>Inference in <monospace>pysersic</monospace> is implemented using
+  the <monospace>numpyro</monospace> probabilistic programming language
+  (PPL). This allows for total control over the priors and methods used
+  for inference. The <monospace>numpyro</monospace> package utilizes
+  <monospace>jax</monospace>’s auto-differentiation capabilities for
+  gradient based samplers such as Hamiltonian Monte Carlo (HMC) and
+  No-U-Turn-Sampling (NUTS). In addition, there are recently-developed
+  techniques for posterior estimation, including variational inference
+  (<xref alt="Ranganath et al., 2014" rid="ref-RanganathU003A2014" ref-type="bibr">Ranganath
+  et al., 2014</xref>) utilizing normalizing flows
+  (<xref alt="De Cao et al., 2020" rid="ref-DeCaoU003A2020" ref-type="bibr">De
+  Cao et al., 2020</xref>). These techniques dramatically reduce the
+  number of likelihood calls required to provide accurate estimates of
+  the posterior relative to gradient-free methods. Combined with the
+  <monospace>jax</monospace>’s JIT compilation, posteriors can now be
+  generated in a few minutes or less on modern laptops.</p>
+</sec>
+<sec id="code-description">
+  <title>Code Description</title>
+  <p><monospace>pysersic</monospace> was designed to have a
+  user-friendly API with sensible defaults. Tools are provided to
+  automatically generate priors for all free parameters based on an
+  initial characterization of a given image — but can also easily be set
+  manually. We provide default inference routines for NUTS MCMC and
+  variational inference using neural flows. Users can access the
+  underlying <monospace>numpyro</monospace> model if desired, to perform
+  inference using any tools available within the
+  <monospace>numpyro</monospace> ecosystem. The goal for
+  <monospace>pysersic</monospace> is to provide a reasonable defaults
+  for new users interested in a handful of galaxies, yet maintain the
+  ability for advanced users to tweak options as necessary to perform
+  inference for entire surveys.</p>
+  <p>A crucial component of any Sérsic fitting code is an efficient and
+  accurate rendering algorithm. Sérsic profiles with high index,
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[n\gtrsim 3]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>n</mml:mi><mml:mo>≳</mml:mo><mml:mn>3</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>
+  are notoriously difficult to render accurately given the steep
+  increase in brightness as <inline-formula><alternatives>
+  <tex-math><![CDATA[r \rightarrow 0]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>r</mml:mi><mml:mo>→</mml:mo><mml:mn>0</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>.
+  In <monospace>pysersic</monospace>, the
+  <monospace>rendering</monospace> module is kept separate from the
+  frontend API and inference modules, such that different algorithms can
+  be interchanged and therefore easily tested (and hopefully encourage
+  innovation as well). In this initial release, we provide three
+  algorithms. The first is a traditional rendering algorithm in which
+  the intrinsic profile is rendered in real space, with oversampling in
+  the center to ensure accurate results for high index profiles. The
+  second and third methods render the profiles in Fourier space,
+  providing accurate results even for strongly peaked profiles and
+  avoiding artifacts due to pixelization. In
+  <monospace>pysersic</monospace>, this is achieved by representing the
+  profiles using a series of Gaussian following the algorithm presented
+  in Shajib
+  (<xref alt="2019" rid="ref-ShajibU003A2019" ref-type="bibr">2019</xref>).
+  We include one algorithm that is fully based in Fourier space, along
+  with a version of the hybrid real-Fourier algorithm introduced in Lang
+  (<xref alt="2020" rid="ref-LangU003A2020" ref-type="bibr">2020</xref>)
+  which helps avoid some of the aliasing present when rendering solely
+  in Fourier space.</p>
+</sec>
+<sec id="related-software">
+  <title>Related Software</title>
+  <p>There is a long history and many software tools designed for Sérsic
+  profile fitting. Some of the most popular libraries are listed
+  below.</p>
+  <list list-type="bullet">
+    <list-item>
+      <p><monospace>galfit</monospace>
+      (<xref alt="Peng et al., 2002" rid="ref-PengU003A2002" ref-type="bibr">Peng
+      et al., 2002</xref>)</p>
+    </list-item>
+    <list-item>
+      <p><monospace>imfit</monospace>
+      (<xref alt="Erwin, 2015" rid="ref-ErwinU003A2015" ref-type="bibr">Erwin,
+      2015</xref>)</p>
+    </list-item>
+    <list-item>
+      <p><monospace>profit</monospace>
+      (<xref alt="Robotham et al., 2017" rid="ref-RobothamU003A2017" ref-type="bibr">Robotham
+      et al., 2017</xref>)</p>
+    </list-item>
+    <list-item>
+      <p><monospace>galight</monospace>
+      (<xref alt="Ding et al., 2021" rid="ref-DingU003A2021" ref-type="bibr">Ding
+      et al., 2021</xref>), which is built on top of
+      <monospace>lenstronomy</monospace>
+      (<xref alt="Birrer et al., 2021" rid="ref-BirrerU003A2021" ref-type="bibr">Birrer
+      et al., 2021</xref>)</p>
+    </list-item>
+    <list-item>
+      <p><monospace>PetroFit</monospace>
+      (<xref alt="Geda et al., 2022" rid="ref-GedaU003A2022" ref-type="bibr">Geda
+      et al., 2022</xref>)</p>
+    </list-item>
+    <list-item>
+      <p><monospace>PyAutoGalaxy</monospace>
+      (<xref alt="Nightingale et al., 2023" rid="ref-NightingaleU003A2023" ref-type="bibr">Nightingale
+      et al., 2023</xref>)</p>
+    </list-item>
+  </list>
+</sec>
+<sec id="software-citations">
+  <title>Software Citations</title>
+  <p><monospace>pysersic</monospace> makes use of the following
+  packages:</p>
+  <list list-type="bullet">
+    <list-item>
+      <p>arviz
+      (<xref alt="Kumar et al., 2019" rid="ref-arvizU003A2019" ref-type="bibr">Kumar
+      et al., 2019</xref>)</p>
+    </list-item>
+    <list-item>
+      <p>asdf
+      (<xref alt="D’Avella et al., 2023" rid="ref-asdf" ref-type="bibr">D’Avella
+      et al., 2023</xref>)</p>
+    </list-item>
+    <list-item>
+      <p>astropy
+      (<xref alt="Astropy Collaboration et al., 2013" rid="ref-astropyU003A2013" ref-type="bibr">Astropy
+      Collaboration et al., 2013</xref>,
+      <xref alt="2018" rid="ref-astropyU003A2018" ref-type="bibr">2018</xref>,
+      <xref alt="2022" rid="ref-astropyU003A2022" ref-type="bibr">2022</xref>)</p>
+    </list-item>
+    <list-item>
+      <p>corner
+      (<xref alt="Foreman-Mackey, 2016" rid="ref-corner" ref-type="bibr">Foreman-Mackey,
+      2016</xref>)</p>
+    </list-item>
+    <list-item>
+      <p>jax
+      (<xref alt="Bradbury et al., 2018" rid="ref-BradburyU003A2018" ref-type="bibr">Bradbury
+      et al., 2018</xref>)</p>
+    </list-item>
+    <list-item>
+      <p>matplotlib
+      (<xref alt="Hunter, 2007" rid="ref-HunterU003A2007" ref-type="bibr">Hunter,
+      2007</xref>)</p>
+    </list-item>
+    <list-item>
+      <p>numpy
+      (<xref alt="Harris et al., 2020" rid="ref-HarrisU003A2020" ref-type="bibr">Harris
+      et al., 2020</xref>)</p>
+    </list-item>
+    <list-item>
+      <p>numpyro
+      (<xref alt="Bingham et al., 2019" rid="ref-BinghamU003A2019" ref-type="bibr">Bingham
+      et al., 2019</xref>;
+      <xref alt="Phan et al., 2019" rid="ref-PhanU003A2019" ref-type="bibr">Phan
+      et al., 2019</xref>)</p>
+    </list-item>
+    <list-item>
+      <p>pandas
+      (<xref alt="team, 2020" rid="ref-rebackU003A2020" ref-type="bibr">team,
+      2020</xref>)</p>
+    </list-item>
+    <list-item>
+      <p>photutils
+      (<xref alt="Bradley et al., 2022" rid="ref-BradleyU003A2022" ref-type="bibr">Bradley
+      et al., 2022</xref>)</p>
+    </list-item>
+    <list-item>
+      <p>pytest
+      (<xref alt="Krekel et al., 2004" rid="ref-pytest" ref-type="bibr">Krekel
+      et al., 2004</xref>)</p>
+    </list-item>
+    <list-item>
+      <p>scipy
+      (<xref alt="Virtanen et al., 2020" rid="ref-ScipyU003A2020" ref-type="bibr">Virtanen
+      et al., 2020</xref>)</p>
+    </list-item>
+    <list-item>
+      <p>tqdm
+      (<xref alt="Costa-Luis et al., 2023" rid="ref-tqdm" ref-type="bibr">Costa-Luis
+      et al., 2023</xref>)</p>
+    </list-item>
+  </list>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>We acknowledge Pieter van Dokkum for useful conversations
+  surrounding the design and implementation of
+  <monospace>pysersic</monospace>.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <ref id="ref-LangU003A2020">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Lang</surname><given-names>Dustin</given-names></name>
+      </person-group>
+      <article-title>A hybrid Fourier–Real Gaussian Mixture method for fast galaxy–PSF convolution</article-title>
+      <source>arXiv e-prints</source>
+      <year iso-8601-date="2020-12">2020</year><month>12</month>
+      <uri>https://arxiv.org/abs/2012.15797</uri>
+      <pub-id pub-id-type="doi">10.48550/arXiv.2012.15797</pub-id>
+      <fpage>arXiv:2012.15797</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-SersicU003A1968">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Sersic</surname><given-names>Jose Luis</given-names></name>
+      </person-group>
+      <source>Atlas de Galaxias Australes</source>
+      <year iso-8601-date="1968">1968</year>
+    </element-citation>
+  </ref>
+  <ref id="ref-BradburyU003A2018">
+    <element-citation publication-type="software">
+      <person-group person-group-type="author">
+        <name><surname>Bradbury</surname><given-names>James</given-names></name>
+        <name><surname>Frostig</surname><given-names>Roy</given-names></name>
+        <name><surname>Hawkins</surname><given-names>Peter</given-names></name>
+        <name><surname>Johnson</surname><given-names>Matthew James</given-names></name>
+        <name><surname>Leary</surname><given-names>Chris</given-names></name>
+        <name><surname>Maclaurin</surname><given-names>Dougal</given-names></name>
+        <name><surname>Necula</surname><given-names>George</given-names></name>
+        <name><surname>Paszke</surname><given-names>Adam</given-names></name>
+        <name><surname>VanderPlas</surname><given-names>Jake</given-names></name>
+        <name><surname>Wanderman-Milne</surname><given-names>Skye</given-names></name>
+        <name><surname>Zhang</surname><given-names>Qiao</given-names></name>
+      </person-group>
+      <article-title>JAX: Composable transformations of Python+NumPy programs</article-title>
+      <year iso-8601-date="2018">2018</year>
+      <uri>http://github.com/google/jax</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-BinghamU003A2019">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Bingham</surname><given-names>Eli</given-names></name>
+        <name><surname>Chen</surname><given-names>Jonathan P.</given-names></name>
+        <name><surname>Jankowiak</surname><given-names>Martin</given-names></name>
+        <name><surname>Obermeyer</surname><given-names>Fritz</given-names></name>
+        <name><surname>Pradhan</surname><given-names>Neeraj</given-names></name>
+        <name><surname>Karaletsos</surname><given-names>Theofanis</given-names></name>
+        <name><surname>Singh</surname><given-names>Rohit</given-names></name>
+        <name><surname>Szerlip</surname><given-names>Paul A.</given-names></name>
+        <name><surname>Horsfall</surname><given-names>Paul</given-names></name>
+        <name><surname>Goodman</surname><given-names>Noah D.</given-names></name>
+      </person-group>
+      <article-title>Pyro: Deep universal probabilistic programming</article-title>
+      <source>J. Mach. Learn. Res.</source>
+      <year iso-8601-date="2019">2019</year>
+      <volume>20</volume>
+      <uri>http://jmlr.org/papers/v20/18-403.html</uri>
+      <fpage>28:1</fpage>
+      <lpage>28:6</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-PhanU003A2019">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Phan</surname><given-names>Du</given-names></name>
+        <name><surname>Pradhan</surname><given-names>Neeraj</given-names></name>
+        <name><surname>Jankowiak</surname><given-names>Martin</given-names></name>
+      </person-group>
+      <article-title>Composable effects for flexible and accelerated probabilistic programming in NumPyro</article-title>
+      <source>arXiv preprint arXiv:1912.11554</source>
+      <year iso-8601-date="2019">2019</year>
+    </element-citation>
+  </ref>
+  <ref id="ref-MowlaU003A2019">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Mowla</surname><given-names>Lamiya A.</given-names></name>
+        <name><surname>van Dokkum</surname><given-names>Pieter</given-names></name>
+        <name><surname>Brammer</surname><given-names>Gabriel B.</given-names></name>
+        <name><surname>Momcheva</surname><given-names>Ivelina</given-names></name>
+        <name><surname>van der Wel</surname><given-names>Arjen</given-names></name>
+        <name><surname>Whitaker</surname><given-names>Katherine</given-names></name>
+        <name><surname>Nelson</surname><given-names>Erica</given-names></name>
+        <name><surname>Bezanson</surname><given-names>Rachel</given-names></name>
+        <name><surname>Muzzin</surname><given-names>Adam</given-names></name>
+        <name><surname>Franx</surname><given-names>Marijn</given-names></name>
+        <name><surname>MacKenty</surname><given-names>John</given-names></name>
+        <name><surname>Leja</surname><given-names>Joel</given-names></name>
+        <name><surname>Kriek</surname><given-names>Mariska</given-names></name>
+        <name><surname>Marchesini</surname><given-names>Danilo</given-names></name>
+      </person-group>
+      <article-title>COSMOS-DASH: The Evolution of the Galaxy Size-Mass Relation since z \sim 3 from New Wide-field WFC3 Imaging Combined with CANDELS/3D-HST</article-title>
+      <source></source>
+      <year iso-8601-date="2019-07">2019</year><month>07</month>
+      <volume>880</volume>
+      <issue>1</issue>
+      <uri>https://arxiv.org/abs/1808.04379</uri>
+      <pub-id pub-id-type="doi">10.3847/1538-4357/ab290a</pub-id>
+      <fpage>57</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-LangeU003A2015">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Lange</surname><given-names>Rebecca</given-names></name>
+        <name><surname>Driver</surname><given-names>Simon P.</given-names></name>
+        <name><surname>Robotham</surname><given-names>Aaron S. G.</given-names></name>
+        <name><surname>Kelvin</surname><given-names>Lee S.</given-names></name>
+        <name><surname>Graham</surname><given-names>Alister W.</given-names></name>
+        <name><surname>Alpaslan</surname><given-names>Mehmet</given-names></name>
+        <name><surname>Andrews</surname><given-names>Stephen K.</given-names></name>
+        <name><surname>Baldry</surname><given-names>Ivan K.</given-names></name>
+        <name><surname>Bamford</surname><given-names>Steven</given-names></name>
+        <name><surname>Bland-Hawthorn</surname><given-names>Joss</given-names></name>
+        <name><surname>Brough</surname><given-names>Sarah</given-names></name>
+        <name><surname>Cluver</surname><given-names>Michelle E.</given-names></name>
+        <name><surname>Conselice</surname><given-names>Christopher J.</given-names></name>
+        <name><surname>Davies</surname><given-names>Luke J. M.</given-names></name>
+        <name><surname>Haeussler</surname><given-names>Boris</given-names></name>
+        <name><surname>Konstantopoulos</surname><given-names>Iraklis S.</given-names></name>
+        <name><surname>Loveday</surname><given-names>Jon</given-names></name>
+        <name><surname>Moffett</surname><given-names>Amanda J.</given-names></name>
+        <name><surname>Norberg</surname><given-names>Peder</given-names></name>
+        <name><surname>Phillipps</surname><given-names>Steven</given-names></name>
+        <name><surname>Taylor</surname><given-names>Edward N.</given-names></name>
+        <name><surname>López-Sánchez</surname><given-names>Ángel R.</given-names></name>
+        <name><surname>Wilkins</surname><given-names>Stephen M.</given-names></name>
+      </person-group>
+      <article-title>Galaxy And Mass Assembly (GAMA): mass-size relations of z &lt; 0.1 galaxies subdivided by Sérsic index, colour and morphology</article-title>
+      <source></source>
+      <year iso-8601-date="2015-03">2015</year><month>03</month>
+      <volume>447</volume>
+      <issue>3</issue>
+      <uri>https://arxiv.org/abs/1411.6355</uri>
+      <pub-id pub-id-type="doi">10.1093/mnras/stu2467</pub-id>
+      <fpage>2603</fpage>
+      <lpage>2630</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-KawinwanichakijU003A2021">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Kawinwanichakij</surname><given-names>Lalitwadee</given-names></name>
+        <name><surname>Silverman</surname><given-names>John D.</given-names></name>
+        <name><surname>Ding</surname><given-names>Xuheng</given-names></name>
+        <name><surname>George</surname><given-names>Angelo</given-names></name>
+        <name><surname>Damjanov</surname><given-names>Ivana</given-names></name>
+        <name><surname>Sawicki</surname><given-names>Marcin</given-names></name>
+        <name><surname>Tanaka</surname><given-names>Masayuki</given-names></name>
+        <name><surname>Taranu</surname><given-names>Dan S.</given-names></name>
+        <name><surname>Birrer</surname><given-names>Simon</given-names></name>
+        <name><surname>Huang</surname><given-names>Song</given-names></name>
+        <name><surname>Li</surname><given-names>Junyao</given-names></name>
+        <name><surname>Onodera</surname><given-names>Masato</given-names></name>
+        <name><surname>Shibuya</surname><given-names>Takatoshi</given-names></name>
+        <name><surname>Yasuda</surname><given-names>Naoki</given-names></name>
+      </person-group>
+      <article-title>Hyper Suprime-Cam Subaru Strategic Program: A Mass-dependent Slope of the Galaxy Size-Mass Relation at z &lt; 1</article-title>
+      <source></source>
+      <year iso-8601-date="2021-11">2021</year><month>11</month>
+      <volume>921</volume>
+      <issue>1</issue>
+      <uri>https://arxiv.org/abs/2109.09766</uri>
+      <pub-id pub-id-type="doi">10.3847/1538-4357/ac1f21</pub-id>
+      <fpage>38</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-ErwinU003A2015">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Erwin</surname><given-names>Peter</given-names></name>
+      </person-group>
+      <article-title>IMFIT: A Fast, Flexible New Program for Astronomical Image Fitting</article-title>
+      <source></source>
+      <year iso-8601-date="2015-02">2015</year><month>02</month>
+      <volume>799</volume>
+      <issue>2</issue>
+      <uri>https://arxiv.org/abs/1408.1097</uri>
+      <pub-id pub-id-type="doi">10.1088/0004-637X/799/2/226</pub-id>
+      <fpage>226</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-PengU003A2002">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Peng</surname><given-names>Chien Y.</given-names></name>
+        <name><surname>Ho</surname><given-names>Luis C.</given-names></name>
+        <name><surname>Impey</surname><given-names>Chris D.</given-names></name>
+        <name><surname>Rix</surname><given-names>Hans-Walter</given-names></name>
+      </person-group>
+      <article-title>Detailed Structural Decomposition of Galaxy Images</article-title>
+      <source></source>
+      <year iso-8601-date="2002-07">2002</year><month>07</month>
+      <volume>124</volume>
+      <issue>1</issue>
+      <uri>https://arxiv.org/abs/astro-ph/0204182</uri>
+      <pub-id pub-id-type="doi">10.1086/340952</pub-id>
+      <fpage>266</fpage>
+      <lpage>293</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-RobothamU003A2017">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Robotham</surname><given-names>A. S. G.</given-names></name>
+        <name><surname>Taranu</surname><given-names>D. S.</given-names></name>
+        <name><surname>Tobar</surname><given-names>R.</given-names></name>
+        <name><surname>Moffett</surname><given-names>A.</given-names></name>
+        <name><surname>Driver</surname><given-names>S. P.</given-names></name>
+      </person-group>
+      <article-title>PROFIT: Bayesian profile fitting of galaxy images</article-title>
+      <source></source>
+      <year iso-8601-date="2017-04">2017</year><month>04</month>
+      <volume>466</volume>
+      <issue>2</issue>
+      <uri>https://arxiv.org/abs/1611.08586</uri>
+      <pub-id pub-id-type="doi">10.1093/mnras/stw3039</pub-id>
+      <fpage>1513</fpage>
+      <lpage>1541</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-NightingaleU003A2023">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Nightingale</surname><given-names>James. W.</given-names></name>
+        <name><surname>Amvrosiadis</surname><given-names>Aristeidis</given-names></name>
+        <name><surname>Hayes</surname><given-names>Richard G.</given-names></name>
+        <name><surname>He</surname><given-names>Qiuhan</given-names></name>
+        <name><surname>Etherington</surname><given-names>Amy</given-names></name>
+        <name><surname>Cao</surname><given-names>XiaoYue</given-names></name>
+        <name><surname>Cole</surname><given-names>Shaun</given-names></name>
+        <name><surname>Frawley</surname><given-names>Jonathan</given-names></name>
+        <name><surname>Frenk</surname><given-names>Carlos S.</given-names></name>
+        <name><surname>Lange</surname><given-names>Sam</given-names></name>
+        <name><surname>Li</surname><given-names>Ran</given-names></name>
+        <name><surname>Massey</surname><given-names>Richard J.</given-names></name>
+        <name><surname>Negrello</surname><given-names>Mattia</given-names></name>
+        <name><surname>Robertson</surname><given-names>Andrew</given-names></name>
+      </person-group>
+      <article-title>PyAutoGalaxy: Open-source multiwavelength galaxy structure &amp; morphology</article-title>
+      <source>Journal of Open Source Software</source>
+      <publisher-name>The Open Journal</publisher-name>
+      <year iso-8601-date="2023">2023</year>
+      <volume>8</volume>
+      <issue>81</issue>
+      <uri>https://doi.org/10.21105/joss.04475</uri>
+      <pub-id pub-id-type="doi">10.21105/joss.04475</pub-id>
+      <fpage>4475</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-DingU003A2021">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Ding</surname><given-names>Xuheng</given-names></name>
+        <name><surname>Birrer</surname><given-names>Simon</given-names></name>
+        <name><surname>Treu</surname><given-names>Tommaso</given-names></name>
+        <name><surname>Silverman</surname><given-names>John D.</given-names></name>
+      </person-group>
+      <article-title>Galaxy shapes of Light (GaLight): a 2D modeling of galaxy images</article-title>
+      <source>arXiv e-prints</source>
+      <year iso-8601-date="2021-11">2021</year><month>11</month>
+      <uri>https://arxiv.org/abs/2111.08721</uri>
+      <pub-id pub-id-type="doi">10.48550/arXiv.2111.08721</pub-id>
+      <fpage>arXiv:2111.08721</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-BirrerU003A2021">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Birrer</surname><given-names>Simon</given-names></name>
+        <name><surname>Shajib</surname><given-names>Anowar J.</given-names></name>
+        <name><surname>Gilman</surname><given-names>Daniel</given-names></name>
+        <name><surname>Galan</surname><given-names>Aymeric</given-names></name>
+        <name><surname>Aalbers</surname><given-names>Jelle</given-names></name>
+        <name><surname>Millon</surname><given-names>Martin</given-names></name>
+        <name><surname>Morgan</surname><given-names>Robert</given-names></name>
+        <name><surname>Pagano</surname><given-names>Giulia</given-names></name>
+        <name><surname>Park</surname><given-names>Ji Won</given-names></name>
+        <name><surname>Teodori</surname><given-names>Luca</given-names></name>
+        <name><surname>Tessore</surname><given-names>Nicolas</given-names></name>
+        <name><surname>Ueland</surname><given-names>Madison</given-names></name>
+        <name><surname>Vyvere</surname><given-names>Lyne Van de</given-names></name>
+        <name><surname>Wagner-Carena</surname><given-names>Sebastian</given-names></name>
+        <name><surname>Wempe</surname><given-names>Ewoud</given-names></name>
+        <name><surname>Yang</surname><given-names>Lilan</given-names></name>
+        <name><surname>Ding</surname><given-names>Xuheng</given-names></name>
+        <name><surname>Schmidt</surname><given-names>Thomas</given-names></name>
+        <name><surname>Sluse</surname><given-names>Dominique</given-names></name>
+        <name><surname>Zhang</surname><given-names>Ming</given-names></name>
+        <name><surname>Amara</surname><given-names>Adam</given-names></name>
+      </person-group>
+      <article-title>Lenstronomy II: A gravitational lensingW software ecosystem</article-title>
+      <source>Journal of Open Source Software</source>
+      <publisher-name>The Open Journal</publisher-name>
+      <year iso-8601-date="2021">2021</year>
+      <volume>6</volume>
+      <issue>62</issue>
+      <uri>https://doi.org/10.21105/joss.03283</uri>
+      <pub-id pub-id-type="doi">10.21105/joss.03283</pub-id>
+      <fpage>3283</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-ShajibU003A2019">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Shajib</surname><given-names>Anowar J.</given-names></name>
+      </person-group>
+      <article-title>Unified lensing and kinematic analysis for any elliptical mass profile</article-title>
+      <source></source>
+      <year iso-8601-date="2019-09">2019</year><month>09</month>
+      <volume>488</volume>
+      <issue>1</issue>
+      <uri>https://arxiv.org/abs/1906.08263</uri>
+      <pub-id pub-id-type="doi">10.1093/mnras/stz1796</pub-id>
+      <fpage>1387</fpage>
+      <lpage>1400</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-GedaU003A2022">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Geda</surname><given-names>Robel</given-names></name>
+        <name><surname>Crawford</surname><given-names>Steven M.</given-names></name>
+        <name><surname>Hunt</surname><given-names>Lucas</given-names></name>
+        <name><surname>Bershady</surname><given-names>Matthew</given-names></name>
+        <name><surname>Tollerud</surname><given-names>Erik</given-names></name>
+        <name><surname>Randriamampandry</surname><given-names>Solohery</given-names></name>
+      </person-group>
+      <article-title>PetroFit: A Python Package for Computing Petrosian Radii and Fitting Galaxy Light Profiles</article-title>
+      <source></source>
+      <year iso-8601-date="2022-05">2022</year><month>05</month>
+      <volume>163</volume>
+      <issue>5</issue>
+      <uri>https://arxiv.org/abs/2202.13493</uri>
+      <pub-id pub-id-type="doi">10.3847/1538-3881/ac5908</pub-id>
+      <fpage>202</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-HoffmanU003A2014">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Hoffman</surname><given-names>Matthew D</given-names></name>
+        <name><surname>Gelman</surname><given-names>Andrew</given-names></name>
+        <name><surname>others</surname></name>
+      </person-group>
+      <article-title>The no-u-turn sampler: Adaptively setting path lengths in hamiltonian monte carlo.</article-title>
+      <source>J. Mach. Learn. Res.</source>
+      <year iso-8601-date="2014">2014</year>
+      <volume>15</volume>
+      <issue>1</issue>
+      <fpage>1593</fpage>
+      <lpage>1623</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-RanganathU003A2014">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Ranganath</surname><given-names>Rajesh</given-names></name>
+        <name><surname>Gerrish</surname><given-names>Sean</given-names></name>
+        <name><surname>Blei</surname><given-names>David</given-names></name>
+      </person-group>
+      <article-title>Black box variational inference</article-title>
+      <source>Artificial intelligence and statistics</source>
+      <publisher-name>PMLR</publisher-name>
+      <year iso-8601-date="2014">2014</year>
+      <fpage>814</fpage>
+      <lpage>822</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-DeCaoU003A2020">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>De Cao</surname><given-names>Nicola</given-names></name>
+        <name><surname>Aziz</surname><given-names>Wilker</given-names></name>
+        <name><surname>Titov</surname><given-names>Ivan</given-names></name>
+      </person-group>
+      <article-title>Block neural autoregressive flow</article-title>
+      <source>Uncertainty in artificial intelligence</source>
+      <publisher-name>PMLR</publisher-name>
+      <year iso-8601-date="2020">2020</year>
+      <fpage>1263</fpage>
+      <lpage>1273</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-rebackU003A2020">
+    <element-citation publication-type="software">
+      <person-group person-group-type="author">
+        <name><surname>team</surname><given-names>The pandas development</given-names></name>
+      </person-group>
+      <article-title>Pandas-dev/pandas: pandas</article-title>
+      <publisher-name>Zenodo</publisher-name>
+      <year iso-8601-date="2020-02">2020</year><month>02</month>
+      <uri>https://doi.org/10.5281/zenodo.3509134</uri>
+      <pub-id pub-id-type="doi">10.5281/zenodo.3509134</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-BradleyU003A2022">
+    <element-citation publication-type="software">
+      <person-group person-group-type="author">
+        <name><surname>Bradley</surname><given-names>Larry</given-names></name>
+        <name><surname>Sipőcz</surname><given-names>Brigitta</given-names></name>
+        <name><surname>Robitaille</surname><given-names>Thomas</given-names></name>
+        <name><surname>Tollerud</surname><given-names>Erik</given-names></name>
+        <name><surname>Vinícius</surname><given-names>Zé</given-names></name>
+        <name><surname>Deil</surname><given-names>Christoph</given-names></name>
+        <name><surname>Barbary</surname><given-names>Kyle</given-names></name>
+        <name><surname>Wilson</surname><given-names>Tom J</given-names></name>
+        <name><surname>Busko</surname><given-names>Ivo</given-names></name>
+        <name><surname>Donath</surname><given-names>Axel</given-names></name>
+        <name><surname>Günther</surname><given-names>Hans Moritz</given-names></name>
+        <name><surname>Cara</surname><given-names>Mihai</given-names></name>
+        <name><surname>Lim</surname><given-names>P. L.</given-names></name>
+        <name><surname>Meßlinger</surname><given-names>Sebastian</given-names></name>
+        <name><surname>Conseil</surname><given-names>Simon</given-names></name>
+        <name><surname>Bostroem</surname><given-names>Azalee</given-names></name>
+        <name><surname>Droettboom</surname><given-names>Michael</given-names></name>
+        <name><surname>Bray</surname><given-names>E. M.</given-names></name>
+        <name><surname>Bratholm</surname><given-names>Lars Andersen</given-names></name>
+        <name><surname>Barentsen</surname><given-names>Geert</given-names></name>
+        <name><surname>Craig</surname><given-names>Matt</given-names></name>
+        <name><surname>Rathi</surname><given-names>Shivangee</given-names></name>
+        <name><surname>Pascual</surname><given-names>Sergio</given-names></name>
+        <name><surname>Perren</surname><given-names>Gabriel</given-names></name>
+        <name><surname>Georgiev</surname><given-names>Iskren Y.</given-names></name>
+        <name><surname>Val-Borro</surname><given-names>Miguel de</given-names></name>
+        <name><surname>Kerzendorf</surname><given-names>Wolfgang</given-names></name>
+        <name><surname>Bach</surname><given-names>Yoonsoo P.</given-names></name>
+        <name><surname>Quint</surname><given-names>Bruno</given-names></name>
+        <name><surname>Souchereau</surname><given-names>Harrison</given-names></name>
+      </person-group>
+      <article-title>Astropy/photutils: 1.5.0</article-title>
+      <publisher-name>Zenodo</publisher-name>
+      <year iso-8601-date="2022-07">2022</year><month>07</month>
+      <uri>https://doi.org/10.5281/zenodo.6825092</uri>
+      <pub-id pub-id-type="doi">10.5281/zenodo.6825092</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-pytest">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Krekel</surname><given-names>Holger</given-names></name>
+        <name><surname>Oliveira</surname><given-names>Bruno</given-names></name>
+        <name><surname>Pfannschmidt</surname><given-names>Ronny</given-names></name>
+        <name><surname>Bruynooghe</surname><given-names>Floris</given-names></name>
+        <name><surname>Laugher</surname><given-names>Brianna</given-names></name>
+        <name><surname>Bruhin</surname><given-names>Florian</given-names></name>
+      </person-group>
+      <article-title>Pytest</article-title>
+      <year iso-8601-date="2004">2004</year>
+      <uri>https://github.com/pytest-dev/pytest</uri>
+      <pub-id pub-id-type="doi">10.1007/978-1-4842-2677-3_5</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-ScipyU003A2020">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Virtanen</surname><given-names>Pauli</given-names></name>
+        <name><surname>Gommers</surname><given-names>Ralf</given-names></name>
+        <name><surname>Oliphant</surname><given-names>Travis E.</given-names></name>
+        <name><surname>Haberland</surname><given-names>Matt</given-names></name>
+        <name><surname>Reddy</surname><given-names>Tyler</given-names></name>
+        <name><surname>Cournapeau</surname><given-names>David</given-names></name>
+        <name><surname>Burovski</surname><given-names>Evgeni</given-names></name>
+        <name><surname>Peterson</surname><given-names>Pearu</given-names></name>
+        <name><surname>Weckesser</surname><given-names>Warren</given-names></name>
+        <name><surname>Bright</surname><given-names>Jonathan</given-names></name>
+        <name><surname>van der Walt</surname><given-names>Stéfan J.</given-names></name>
+        <name><surname>Brett</surname><given-names>Matthew</given-names></name>
+        <name><surname>Wilson</surname><given-names>Joshua</given-names></name>
+        <name><surname>Millman</surname><given-names>K. Jarrod</given-names></name>
+        <name><surname>Mayorov</surname><given-names>Nikolay</given-names></name>
+        <name><surname>Nelson</surname><given-names>Andrew R. J.</given-names></name>
+        <name><surname>Jones</surname><given-names>Eric</given-names></name>
+        <name><surname>Kern</surname><given-names>Robert</given-names></name>
+        <name><surname>Larson</surname><given-names>Eric</given-names></name>
+        <name><surname>Carey</surname><given-names>C J</given-names></name>
+        <name><surname>Polat</surname><given-names>İlhan</given-names></name>
+        <name><surname>Feng</surname><given-names>Yu</given-names></name>
+        <name><surname>Moore</surname><given-names>Eric W.</given-names></name>
+        <name><surname>VanderPlas</surname><given-names>Jake</given-names></name>
+        <name><surname>Laxalde</surname><given-names>Denis</given-names></name>
+        <name><surname>Perktold</surname><given-names>Josef</given-names></name>
+        <name><surname>Cimrman</surname><given-names>Robert</given-names></name>
+        <name><surname>Henriksen</surname><given-names>Ian</given-names></name>
+        <name><surname>Quintero</surname><given-names>E. A.</given-names></name>
+        <name><surname>Harris</surname><given-names>Charles R.</given-names></name>
+        <name><surname>Archibald</surname><given-names>Anne M.</given-names></name>
+        <name><surname>Ribeiro</surname><given-names>Antônio H.</given-names></name>
+        <name><surname>Pedregosa</surname><given-names>Fabian</given-names></name>
+        <name><surname>van Mulbregt</surname><given-names>Paul</given-names></name>
+        <string-name>SciPy 1.0 Contributors</string-name>
+      </person-group>
+      <article-title>SciPy 1.0: Fundamental Algorithms for Scientific Computing in Python</article-title>
+      <source>Nature Methods</source>
+      <year iso-8601-date="2020">2020</year>
+      <volume>17</volume>
+      <pub-id pub-id-type="doi">10.1038/s41592-019-0686-2</pub-id>
+      <fpage>261</fpage>
+      <lpage>272</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-tqdm">
+    <element-citation publication-type="software">
+      <person-group person-group-type="author">
+        <name><surname>Costa-Luis</surname><given-names>Casper da</given-names></name>
+        <name><surname>Larroque</surname><given-names>Stephen Karl</given-names></name>
+        <name><surname>Altendorf</surname><given-names>Kyle</given-names></name>
+        <name><surname>Mary</surname><given-names>Hadrien</given-names></name>
+        <name><surname>richardsheridan</surname></name>
+        <name><surname>Korobov</surname><given-names>Mikhail</given-names></name>
+        <name><surname>Raphael</surname><given-names>Noam</given-names></name>
+        <name><surname>Ivanov</surname><given-names>Ivan</given-names></name>
+        <name><surname>Bargull</surname><given-names>Marcel</given-names></name>
+        <name><surname>Rodrigues</surname><given-names>Nishant</given-names></name>
+        <name><surname>Chen</surname><given-names>Guangshuo</given-names></name>
+        <name><surname>Lee</surname><given-names>Antony</given-names></name>
+        <name><surname>Newey</surname><given-names>Charles</given-names></name>
+        <name><surname>CrazyPython</surname></name>
+        <name><surname>JC</surname></name>
+        <name><surname>Zugnoni</surname><given-names>Martin</given-names></name>
+        <name><surname>Pagel</surname><given-names>Matthew D.</given-names></name>
+        <name><surname>mjstevens777</surname></name>
+        <name><surname>Dektyarev</surname><given-names>Mikhail</given-names></name>
+        <name><surname>Rothberg</surname><given-names>Alex</given-names></name>
+        <name><surname>Plavin</surname><given-names>Alexander</given-names></name>
+        <name><surname>Panteleit</surname><given-names>Daniel</given-names></name>
+        <name><surname>Dill</surname><given-names>Fabian</given-names></name>
+        <name><surname>FichteFoll</surname></name>
+        <name><surname>Sturm</surname><given-names>Gregor</given-names></name>
+        <name><surname>HeoHeo</surname></name>
+        <name><surname>Kemenade</surname><given-names>Hugo van</given-names></name>
+        <name><surname>McCracken</surname><given-names>Jack</given-names></name>
+        <name><surname>MapleCCC</surname></name>
+        <name><surname>Nordlund</surname><given-names>Max</given-names></name>
+      </person-group>
+      <article-title>tqdm: A fast, Extensible Progress Bar for Python and CLI</article-title>
+      <publisher-name>Zenodo</publisher-name>
+      <year iso-8601-date="2023-03">2023</year><month>03</month>
+      <uri>https://doi.org/10.5281/zenodo.7697295</uri>
+      <pub-id pub-id-type="doi">10.5281/zenodo.7697295</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-HunterU003A2007">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Hunter</surname><given-names>J. D.</given-names></name>
+      </person-group>
+      <article-title>Matplotlib: A 2D graphics environment</article-title>
+      <source>Computing in Science &amp; Engineering</source>
+      <publisher-name>IEEE COMPUTER SOC</publisher-name>
+      <year iso-8601-date="2007">2007</year>
+      <volume>9</volume>
+      <issue>3</issue>
+      <pub-id pub-id-type="doi">10.1109/MCSE.2007.55</pub-id>
+      <fpage>90</fpage>
+      <lpage>95</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-HarrisU003A2020">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Harris</surname><given-names>Charles R.</given-names></name>
+        <name><surname>Millman</surname><given-names>K. Jarrod</given-names></name>
+        <name><surname>Walt</surname><given-names>Stéfan J. van der</given-names></name>
+        <name><surname>Gommers</surname><given-names>Ralf</given-names></name>
+        <name><surname>Virtanen</surname><given-names>Pauli</given-names></name>
+        <name><surname>Cournapeau</surname><given-names>David</given-names></name>
+        <name><surname>Wieser</surname><given-names>Eric</given-names></name>
+        <name><surname>Taylor</surname><given-names>Julian</given-names></name>
+        <name><surname>Berg</surname><given-names>Sebastian</given-names></name>
+        <name><surname>Smith</surname><given-names>Nathaniel J.</given-names></name>
+        <name><surname>Kern</surname><given-names>Robert</given-names></name>
+        <name><surname>Picus</surname><given-names>Matti</given-names></name>
+        <name><surname>Hoyer</surname><given-names>Stephan</given-names></name>
+        <name><surname>Kerkwijk</surname><given-names>Marten H. van</given-names></name>
+        <name><surname>Brett</surname><given-names>Matthew</given-names></name>
+        <name><surname>Haldane</surname><given-names>Allan</given-names></name>
+        <name><surname>Río</surname><given-names>Jaime Fernández del</given-names></name>
+        <name><surname>Wiebe</surname><given-names>Mark</given-names></name>
+        <name><surname>Peterson</surname><given-names>Pearu</given-names></name>
+        <name><surname>Gérard-Marchant</surname><given-names>Pierre</given-names></name>
+        <name><surname>Sheppard</surname><given-names>Kevin</given-names></name>
+        <name><surname>Reddy</surname><given-names>Tyler</given-names></name>
+        <name><surname>Weckesser</surname><given-names>Warren</given-names></name>
+        <name><surname>Abbasi</surname><given-names>Hameer</given-names></name>
+        <name><surname>Gohlke</surname><given-names>Christoph</given-names></name>
+        <name><surname>Oliphant</surname><given-names>Travis E.</given-names></name>
+      </person-group>
+      <article-title>Array programming with NumPy</article-title>
+      <source>Nature</source>
+      <publisher-name>Springer Science; Business Media LLC</publisher-name>
+      <year iso-8601-date="2020-09">2020</year><month>09</month>
+      <volume>585</volume>
+      <issue>7825</issue>
+      <uri>https://doi.org/10.1038/s41586-020-2649-2</uri>
+      <pub-id pub-id-type="doi">10.1038/s41586-020-2649-2</pub-id>
+      <fpage>357</fpage>
+      <lpage>362</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-corner">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Foreman-Mackey</surname><given-names>Daniel</given-names></name>
+      </person-group>
+      <article-title>Corner.py: Scatterplot matrices in python</article-title>
+      <source>The Journal of Open Source Software</source>
+      <publisher-name>The Open Journal</publisher-name>
+      <year iso-8601-date="2016-06">2016</year><month>06</month>
+      <volume>1</volume>
+      <issue>2</issue>
+      <uri>https://doi.org/10.21105/joss.00024</uri>
+      <pub-id pub-id-type="doi">10.21105/joss.00024</pub-id>
+      <fpage>24</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-astropyU003A2013">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <string-name>Astropy Collaboration</string-name>
+        <name><surname>Robitaille</surname><given-names>T. P.</given-names></name>
+        <name><surname>Tollerud</surname><given-names>E. J.</given-names></name>
+        <name><surname>Greenfield</surname><given-names>P.</given-names></name>
+        <name><surname>Droettboom</surname><given-names>M.</given-names></name>
+        <name><surname>Bray</surname><given-names>E.</given-names></name>
+        <name><surname>Aldcroft</surname><given-names>T.</given-names></name>
+        <name><surname>Davis</surname><given-names>M.</given-names></name>
+        <name><surname>Ginsburg</surname><given-names>A.</given-names></name>
+        <name><surname>Price-Whelan</surname><given-names>A. M.</given-names></name>
+        <name><surname>Kerzendorf</surname><given-names>W. E.</given-names></name>
+        <name><surname>Conley</surname><given-names>A.</given-names></name>
+        <name><surname>Crighton</surname><given-names>N.</given-names></name>
+        <name><surname>Barbary</surname><given-names>K.</given-names></name>
+        <name><surname>Muna</surname><given-names>D.</given-names></name>
+        <name><surname>Ferguson</surname><given-names>H.</given-names></name>
+        <name><surname>Grollier</surname><given-names>F.</given-names></name>
+        <name><surname>Parikh</surname><given-names>M. M.</given-names></name>
+        <name><surname>Nair</surname><given-names>P. H.</given-names></name>
+        <name><surname>Unther</surname><given-names>H. M.</given-names></name>
+        <name><surname>Deil</surname><given-names>C.</given-names></name>
+        <name><surname>Woillez</surname><given-names>J.</given-names></name>
+        <name><surname>Conseil</surname><given-names>S.</given-names></name>
+        <name><surname>Kramer</surname><given-names>R.</given-names></name>
+        <name><surname>Turner</surname><given-names>J. E. H.</given-names></name>
+        <name><surname>Singer</surname><given-names>L.</given-names></name>
+        <name><surname>Fox</surname><given-names>R.</given-names></name>
+        <name><surname>Weaver</surname><given-names>B. A.</given-names></name>
+        <name><surname>Zabalza</surname><given-names>V.</given-names></name>
+        <name><surname>Edwards</surname><given-names>Z. I.</given-names></name>
+        <name><surname>Azalee Bostroem</surname><given-names>K.</given-names></name>
+        <name><surname>Burke</surname><given-names>D. J.</given-names></name>
+        <name><surname>Casey</surname><given-names>A. R.</given-names></name>
+        <name><surname>Crawford</surname><given-names>S. M.</given-names></name>
+        <name><surname>Dencheva</surname><given-names>N.</given-names></name>
+        <name><surname>Ely</surname><given-names>J.</given-names></name>
+        <name><surname>Jenness</surname><given-names>T.</given-names></name>
+        <name><surname>Labrie</surname><given-names>K.</given-names></name>
+        <name><surname>Lim</surname><given-names>P. L.</given-names></name>
+        <name><surname>Pierfederici</surname><given-names>F.</given-names></name>
+        <name><surname>Pontzen</surname><given-names>A.</given-names></name>
+        <name><surname>Ptak</surname><given-names>A.</given-names></name>
+        <name><surname>Refsdal</surname><given-names>B.</given-names></name>
+        <name><surname>Servillat</surname><given-names>M.</given-names></name>
+        <name><surname>Streicher</surname><given-names>O.</given-names></name>
+      </person-group>
+      <article-title>Astropy: A community Python package for astronomy</article-title>
+      <source></source>
+      <year iso-8601-date="2013-10">2013</year><month>10</month>
+      <volume>558</volume>
+      <uri>https://arxiv.org/abs/1307.6212</uri>
+      <pub-id pub-id-type="doi">10.1051/0004-6361/201322068</pub-id>
+      <fpage>A33</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-astropyU003A2018">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <string-name>Astropy Collaboration</string-name>
+        <name><surname>Price-Whelan</surname><given-names>A. M.</given-names></name>
+        <name><surname>Sipőcz</surname><given-names>B. M.</given-names></name>
+        <name><surname>Günther</surname><given-names>H. M.</given-names></name>
+        <name><surname>Lim</surname><given-names>P. L.</given-names></name>
+        <name><surname>Crawford</surname><given-names>S. M.</given-names></name>
+        <name><surname>Conseil</surname><given-names>S.</given-names></name>
+        <name><surname>Shupe</surname><given-names>D. L.</given-names></name>
+        <name><surname>Craig</surname><given-names>M. W.</given-names></name>
+        <name><surname>Dencheva</surname><given-names>N.</given-names></name>
+        <name><surname>Ginsburg</surname><given-names>A.</given-names></name>
+        <name><surname>Vand erPlas</surname><given-names>J. T.</given-names></name>
+        <name><surname>Bradley</surname><given-names>L. D.</given-names></name>
+        <name><surname>Pérez-Suárez</surname><given-names>D.</given-names></name>
+        <name><surname>de Val-Borro</surname><given-names>M.</given-names></name>
+        <name><surname>Aldcroft</surname><given-names>T. L.</given-names></name>
+        <name><surname>Cruz</surname><given-names>K. L.</given-names></name>
+        <name><surname>Robitaille</surname><given-names>T. P.</given-names></name>
+        <name><surname>Tollerud</surname><given-names>E. J.</given-names></name>
+        <name><surname>Ardelean</surname><given-names>C.</given-names></name>
+        <name><surname>Babej</surname><given-names>T.</given-names></name>
+        <name><surname>Bach</surname><given-names>Y. P.</given-names></name>
+        <name><surname>Bachetti</surname><given-names>M.</given-names></name>
+        <name><surname>Bakanov</surname><given-names>A. V.</given-names></name>
+        <name><surname>Bamford</surname><given-names>S. P.</given-names></name>
+        <name><surname>Barentsen</surname><given-names>G.</given-names></name>
+        <name><surname>Barmby</surname><given-names>P.</given-names></name>
+        <name><surname>Baumbach</surname><given-names>A.</given-names></name>
+        <name><surname>Berry</surname><given-names>K. L.</given-names></name>
+        <name><surname>Biscani</surname><given-names>F.</given-names></name>
+        <name><surname>Boquien</surname><given-names>M.</given-names></name>
+        <name><surname>Bostroem</surname><given-names>K. A.</given-names></name>
+        <name><surname>Bouma</surname><given-names>L. G.</given-names></name>
+        <name><surname>Brammer</surname><given-names>G. B.</given-names></name>
+        <name><surname>Bray</surname><given-names>E. M.</given-names></name>
+        <name><surname>Breytenbach</surname><given-names>H.</given-names></name>
+        <name><surname>Buddelmeijer</surname><given-names>H.</given-names></name>
+        <name><surname>Burke</surname><given-names>D. J.</given-names></name>
+        <name><surname>Calderone</surname><given-names>G.</given-names></name>
+        <name><surname>Cano Rodrı́guez</surname><given-names>J. L.</given-names></name>
+        <name><surname>Cara</surname><given-names>M.</given-names></name>
+        <name><surname>Cardoso</surname><given-names>J. V. M.</given-names></name>
+        <name><surname>Cheedella</surname><given-names>S.</given-names></name>
+        <name><surname>Copin</surname><given-names>Y.</given-names></name>
+        <name><surname>Corrales</surname><given-names>L.</given-names></name>
+        <name><surname>Crichton</surname><given-names>D.</given-names></name>
+        <name><surname>D’Avella</surname><given-names>D.</given-names></name>
+        <name><surname>Deil</surname><given-names>C.</given-names></name>
+        <name><surname>Depagne</surname><given-names>É.</given-names></name>
+        <name><surname>Dietrich</surname><given-names>J. P.</given-names></name>
+        <name><surname>Donath</surname><given-names>A.</given-names></name>
+        <name><surname>Droettboom</surname><given-names>M.</given-names></name>
+        <name><surname>Earl</surname><given-names>N.</given-names></name>
+        <name><surname>Erben</surname><given-names>T.</given-names></name>
+        <name><surname>Fabbro</surname><given-names>S.</given-names></name>
+        <name><surname>Ferreira</surname><given-names>L. A.</given-names></name>
+        <name><surname>Finethy</surname><given-names>T.</given-names></name>
+        <name><surname>Fox</surname><given-names>R. T.</given-names></name>
+        <name><surname>Garrison</surname><given-names>L. H.</given-names></name>
+        <name><surname>Gibbons</surname><given-names>S. L. J.</given-names></name>
+        <name><surname>Goldstein</surname><given-names>D. A.</given-names></name>
+        <name><surname>Gommers</surname><given-names>R.</given-names></name>
+        <name><surname>Greco</surname><given-names>J. P.</given-names></name>
+        <name><surname>Greenfield</surname><given-names>P.</given-names></name>
+        <name><surname>Groener</surname><given-names>A. M.</given-names></name>
+        <name><surname>Grollier</surname><given-names>F.</given-names></name>
+        <name><surname>Hagen</surname><given-names>A.</given-names></name>
+        <name><surname>Hirst</surname><given-names>P.</given-names></name>
+        <name><surname>Homeier</surname><given-names>D.</given-names></name>
+        <name><surname>Horton</surname><given-names>A. J.</given-names></name>
+        <name><surname>Hosseinzadeh</surname><given-names>G.</given-names></name>
+        <name><surname>Hu</surname><given-names>L.</given-names></name>
+        <name><surname>Hunkeler</surname><given-names>J. S.</given-names></name>
+        <name><surname>Ivezić</surname><given-names>Ž.</given-names></name>
+        <name><surname>Jain</surname><given-names>A.</given-names></name>
+        <name><surname>Jenness</surname><given-names>T.</given-names></name>
+        <name><surname>Kanarek</surname><given-names>G.</given-names></name>
+        <name><surname>Kendrew</surname><given-names>S.</given-names></name>
+        <name><surname>Kern</surname><given-names>N. S.</given-names></name>
+        <name><surname>Kerzendorf</surname><given-names>W. E.</given-names></name>
+        <name><surname>Khvalko</surname><given-names>A.</given-names></name>
+        <name><surname>King</surname><given-names>J.</given-names></name>
+        <name><surname>Kirkby</surname><given-names>D.</given-names></name>
+        <name><surname>Kulkarni</surname><given-names>A. M.</given-names></name>
+        <name><surname>Kumar</surname><given-names>A.</given-names></name>
+        <name><surname>Lee</surname><given-names>A.</given-names></name>
+        <name><surname>Lenz</surname><given-names>D.</given-names></name>
+        <name><surname>Littlefair</surname><given-names>S. P.</given-names></name>
+        <name><surname>Ma</surname><given-names>Z.</given-names></name>
+        <name><surname>Macleod</surname><given-names>D. M.</given-names></name>
+        <name><surname>Mastropietro</surname><given-names>M.</given-names></name>
+        <name><surname>McCully</surname><given-names>C.</given-names></name>
+        <name><surname>Montagnac</surname><given-names>S.</given-names></name>
+        <name><surname>Morris</surname><given-names>B. M.</given-names></name>
+        <name><surname>Mueller</surname><given-names>M.</given-names></name>
+        <name><surname>Mumford</surname><given-names>S. J.</given-names></name>
+        <name><surname>Muna</surname><given-names>D.</given-names></name>
+        <name><surname>Murphy</surname><given-names>N. A.</given-names></name>
+        <name><surname>Nelson</surname><given-names>S.</given-names></name>
+        <name><surname>Nguyen</surname><given-names>G. H.</given-names></name>
+        <name><surname>Ninan</surname><given-names>J. P.</given-names></name>
+        <name><surname>Nöthe</surname><given-names>M.</given-names></name>
+        <name><surname>Ogaz</surname><given-names>S.</given-names></name>
+        <name><surname>Oh</surname><given-names>S.</given-names></name>
+        <name><surname>Parejko</surname><given-names>J. K.</given-names></name>
+        <name><surname>Parley</surname><given-names>N.</given-names></name>
+        <name><surname>Pascual</surname><given-names>S.</given-names></name>
+        <name><surname>Patil</surname><given-names>R.</given-names></name>
+        <name><surname>Patil</surname><given-names>A. A.</given-names></name>
+        <name><surname>Plunkett</surname><given-names>A. L.</given-names></name>
+        <name><surname>Prochaska</surname><given-names>J. X.</given-names></name>
+        <name><surname>Rastogi</surname><given-names>T.</given-names></name>
+        <name><surname>Reddy Janga</surname><given-names>V.</given-names></name>
+        <name><surname>Sabater</surname><given-names>J.</given-names></name>
+        <name><surname>Sakurikar</surname><given-names>P.</given-names></name>
+        <name><surname>Seifert</surname><given-names>M.</given-names></name>
+        <name><surname>Sherbert</surname><given-names>L. E.</given-names></name>
+        <name><surname>Sherwood-Taylor</surname><given-names>H.</given-names></name>
+        <name><surname>Shih</surname><given-names>A. Y.</given-names></name>
+        <name><surname>Sick</surname><given-names>J.</given-names></name>
+        <name><surname>Silbiger</surname><given-names>M. T.</given-names></name>
+        <name><surname>Singanamalla</surname><given-names>S.</given-names></name>
+        <name><surname>Singer</surname><given-names>L. P.</given-names></name>
+        <name><surname>Sladen</surname><given-names>P. H.</given-names></name>
+        <name><surname>Sooley</surname><given-names>K. A.</given-names></name>
+        <name><surname>Sornarajah</surname><given-names>S.</given-names></name>
+        <name><surname>Streicher</surname><given-names>O.</given-names></name>
+        <name><surname>Teuben</surname><given-names>P.</given-names></name>
+        <name><surname>Thomas</surname><given-names>S. W.</given-names></name>
+        <name><surname>Tremblay</surname><given-names>G. R.</given-names></name>
+        <name><surname>Turner</surname><given-names>J. E. H.</given-names></name>
+        <name><surname>Terrón</surname><given-names>V.</given-names></name>
+        <name><surname>van Kerkwijk</surname><given-names>M. H.</given-names></name>
+        <name><surname>de la Vega</surname><given-names>A.</given-names></name>
+        <name><surname>Watkins</surname><given-names>L. L.</given-names></name>
+        <name><surname>Weaver</surname><given-names>B. A.</given-names></name>
+        <name><surname>Whitmore</surname><given-names>J. B.</given-names></name>
+        <name><surname>Woillez</surname><given-names>J.</given-names></name>
+        <name><surname>Zabalza</surname><given-names>V.</given-names></name>
+        <string-name>Astropy Contributors</string-name>
+      </person-group>
+      <article-title>The Astropy Project: Building an Open-science Project and Status of the v2.0 Core Package</article-title>
+      <source></source>
+      <year iso-8601-date="2018-09">2018</year><month>09</month>
+      <volume>156</volume>
+      <issue>3</issue>
+      <uri>https://arxiv.org/abs/1801.02634</uri>
+      <pub-id pub-id-type="doi">10.3847/1538-3881/aabc4f</pub-id>
+      <fpage>123</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-astropyU003A2022">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <string-name>Astropy Collaboration</string-name>
+        <name><surname>Price-Whelan</surname><given-names>Adrian M.</given-names></name>
+        <name><surname>Lim</surname><given-names>Pey Lian</given-names></name>
+        <name><surname>Earl</surname><given-names>Nicholas</given-names></name>
+        <name><surname>Starkman</surname><given-names>Nathaniel</given-names></name>
+        <name><surname>Bradley</surname><given-names>Larry</given-names></name>
+        <name><surname>Shupe</surname><given-names>David L.</given-names></name>
+        <name><surname>Patil</surname><given-names>Aarya A.</given-names></name>
+        <name><surname>Corrales</surname><given-names>Lia</given-names></name>
+        <name><surname>Brasseur</surname><given-names>C. E.</given-names></name>
+        <name><surname>N&quot;othe</surname><given-names>Maximilian</given-names></name>
+        <name><surname>Donath</surname><given-names>Axel</given-names></name>
+        <name><surname>Tollerud</surname><given-names>Erik</given-names></name>
+        <name><surname>Morris</surname><given-names>Brett M.</given-names></name>
+        <name><surname>Ginsburg</surname><given-names>Adam</given-names></name>
+        <name><surname>Vaher</surname><given-names>Eero</given-names></name>
+        <name><surname>Weaver</surname><given-names>Benjamin A.</given-names></name>
+        <name><surname>Tocknell</surname><given-names>James</given-names></name>
+        <name><surname>Jamieson</surname><given-names>William</given-names></name>
+        <name><surname>van Kerkwijk</surname><given-names>Marten H.</given-names></name>
+        <name><surname>Robitaille</surname><given-names>Thomas P.</given-names></name>
+        <name><surname>Merry</surname><given-names>Bruce</given-names></name>
+        <name><surname>Bachetti</surname><given-names>Matteo</given-names></name>
+        <name><surname>G&quot;unther</surname><given-names>H. Moritz</given-names></name>
+        <name><surname>Aldcroft</surname><given-names>Thomas L.</given-names></name>
+        <name><surname>Alvarado-Montes</surname><given-names>Jaime A.</given-names></name>
+        <name><surname>Archibald</surname><given-names>Anne M.</given-names></name>
+        <name><surname>B’odi</surname><given-names>Attila</given-names></name>
+        <name><surname>Bapat</surname><given-names>Shreyas</given-names></name>
+        <name><surname>Barentsen</surname><given-names>Geert</given-names></name>
+        <name><surname>Baz’an</surname><given-names>Juanjo</given-names></name>
+        <name><surname>Biswas</surname><given-names>Manish</given-names></name>
+        <name><surname>Boquien</surname><given-names>M’ed’eric</given-names></name>
+        <name><surname>Burke</surname><given-names>D. J.</given-names></name>
+        <name><surname>Cara</surname><given-names>Daria</given-names></name>
+        <name><surname>Cara</surname><given-names>Mihai</given-names></name>
+        <name><surname>Conroy</surname><given-names>Kyle E.</given-names></name>
+        <name><surname>Conseil</surname><given-names>Simon</given-names></name>
+        <name><surname>Craig</surname><given-names>Matthew W.</given-names></name>
+        <name><surname>Cross</surname><given-names>Robert M.</given-names></name>
+        <name><surname>Cruz</surname><given-names>Kelle L.</given-names></name>
+        <name><surname>D’Eugenio</surname><given-names>Francesco</given-names></name>
+        <name><surname>Dencheva</surname><given-names>Nadia</given-names></name>
+        <name><surname>Devillepoix</surname><given-names>Hadrien A. R.</given-names></name>
+        <name><surname>Dietrich</surname><given-names>J&quot;org P.</given-names></name>
+        <name><surname>Eigenbrot</surname><given-names>Arthur Davis</given-names></name>
+        <name><surname>Erben</surname><given-names>Thomas</given-names></name>
+        <name><surname>Ferreira</surname><given-names>Leonardo</given-names></name>
+        <name><surname>Foreman-Mackey</surname><given-names>Daniel</given-names></name>
+        <name><surname>Fox</surname><given-names>Ryan</given-names></name>
+        <name><surname>Freij</surname><given-names>Nabil</given-names></name>
+        <name><surname>Garg</surname><given-names>Suyog</given-names></name>
+        <name><surname>Geda</surname><given-names>Robel</given-names></name>
+        <name><surname>Glattly</surname><given-names>Lauren</given-names></name>
+        <name><surname>Gondhalekar</surname><given-names>Yash</given-names></name>
+        <name><surname>Gordon</surname><given-names>Karl D.</given-names></name>
+        <name><surname>Grant</surname><given-names>David</given-names></name>
+        <name><surname>Greenfield</surname><given-names>Perry</given-names></name>
+        <name><surname>Groener</surname><given-names>Austen M.</given-names></name>
+        <name><surname>Guest</surname><given-names>Steve</given-names></name>
+        <name><surname>Gurovich</surname><given-names>Sebastian</given-names></name>
+        <name><surname>Handberg</surname><given-names>Rasmus</given-names></name>
+        <name><surname>Hart</surname><given-names>Akeem</given-names></name>
+        <name><surname>Hatfield-Dodds</surname><given-names>Zac</given-names></name>
+        <name><surname>Homeier</surname><given-names>Derek</given-names></name>
+        <name><surname>Hosseinzadeh</surname><given-names>Griffin</given-names></name>
+        <name><surname>Jenness</surname><given-names>Tim</given-names></name>
+        <name><surname>Jones</surname><given-names>Craig K.</given-names></name>
+        <name><surname>Joseph</surname><given-names>Prajwel</given-names></name>
+        <name><surname>Kalmbach</surname><given-names>J. Bryce</given-names></name>
+        <name><surname>Karamehmetoglu</surname><given-names>Emir</given-names></name>
+        <name><surname>Kaluszy’nski</surname><given-names>Mikolaj</given-names></name>
+        <name><surname>Kelley</surname><given-names>Michael S. P.</given-names></name>
+        <name><surname>Kern</surname><given-names>Nicholas</given-names></name>
+        <name><surname>Kerzendorf</surname><given-names>Wolfgang E.</given-names></name>
+        <name><surname>Koch</surname><given-names>Eric W.</given-names></name>
+        <name><surname>Kulumani</surname><given-names>Shankar</given-names></name>
+        <name><surname>Lee</surname><given-names>Antony</given-names></name>
+        <name><surname>Ly</surname><given-names>Chun</given-names></name>
+        <name><surname>Ma</surname><given-names>Zhiyuan</given-names></name>
+        <name><surname>MacBride</surname><given-names>Conor</given-names></name>
+        <name><surname>Maljaars</surname><given-names>Jakob M.</given-names></name>
+        <name><surname>Muna</surname><given-names>Demitri</given-names></name>
+        <name><surname>Murphy</surname><given-names>N. A.</given-names></name>
+        <name><surname>Norman</surname><given-names>Henrik</given-names></name>
+        <name><surname>O’Steen</surname><given-names>Richard</given-names></name>
+        <name><surname>Oman</surname><given-names>Kyle A.</given-names></name>
+        <name><surname>Pacifici</surname><given-names>Camilla</given-names></name>
+        <name><surname>Pascual</surname><given-names>Sergio</given-names></name>
+        <name><surname>Pascual-Granado</surname><given-names>J.</given-names></name>
+        <name><surname>Patil</surname><given-names>Rohit R.</given-names></name>
+        <name><surname>Perren</surname><given-names>Gabriel I.</given-names></name>
+        <name><surname>Pickering</surname><given-names>Timothy E.</given-names></name>
+        <name><surname>Rastogi</surname><given-names>Tanuj</given-names></name>
+        <name><surname>Roulston</surname><given-names>Benjamin R.</given-names></name>
+        <name><surname>Ryan</surname><given-names>Daniel F.</given-names></name>
+        <name><surname>Rykoff</surname><given-names>Eli S.</given-names></name>
+        <name><surname>Sabater</surname><given-names>Jose</given-names></name>
+        <name><surname>Sakurikar</surname><given-names>Parikshit</given-names></name>
+        <name><surname>Salgado</surname><given-names>Jes’us</given-names></name>
+        <name><surname>Sanghi</surname><given-names>Aniket</given-names></name>
+        <name><surname>Saunders</surname><given-names>Nicholas</given-names></name>
+        <name><surname>Savchenko</surname><given-names>Volodymyr</given-names></name>
+        <name><surname>Schwardt</surname><given-names>Ludwig</given-names></name>
+        <name><surname>Seifert-Eckert</surname><given-names>Michael</given-names></name>
+        <name><surname>Shih</surname><given-names>Albert Y.</given-names></name>
+        <name><surname>Jain</surname><given-names>Anany Shrey</given-names></name>
+        <name><surname>Shukla</surname><given-names>Gyanendra</given-names></name>
+        <name><surname>Sick</surname><given-names>Jonathan</given-names></name>
+        <name><surname>Simpson</surname><given-names>Chris</given-names></name>
+        <name><surname>Singanamalla</surname><given-names>Sudheesh</given-names></name>
+        <name><surname>Singer</surname><given-names>Leo P.</given-names></name>
+        <name><surname>Singhal</surname><given-names>Jaladh</given-names></name>
+        <name><surname>Sinha</surname><given-names>Manodeep</given-names></name>
+        <name><surname>SipHocz</surname><given-names>Brigitta M.</given-names></name>
+        <name><surname>Spitler</surname><given-names>Lee R.</given-names></name>
+        <name><surname>Stansby</surname><given-names>David</given-names></name>
+        <name><surname>Streicher</surname><given-names>Ole</given-names></name>
+        <name><surname>Sumak</surname><given-names>Jani</given-names></name>
+        <name><surname>Swinbank</surname><given-names>John D.</given-names></name>
+        <name><surname>Taranu</surname><given-names>Dan S.</given-names></name>
+        <name><surname>Tewary</surname><given-names>Nikita</given-names></name>
+        <name><surname>Tremblay</surname><given-names>Grant R.</given-names></name>
+        <name><surname>Val-Borro</surname><given-names>Miguel de</given-names></name>
+        <name><surname>Van Kooten</surname><given-names>Samuel J.</given-names></name>
+        <name><surname>Vasovi’c</surname><given-names>Zlatan</given-names></name>
+        <name><surname>Verma</surname><given-names>Shresth</given-names></name>
+        <name><surname>de Miranda Cardoso</surname><given-names>Jos’e Vin’icius</given-names></name>
+        <name><surname>Williams</surname><given-names>Peter K. G.</given-names></name>
+        <name><surname>Wilson</surname><given-names>Tom J.</given-names></name>
+        <name><surname>Winkel</surname><given-names>Benjamin</given-names></name>
+        <name><surname>Wood-Vasey</surname><given-names>W. M.</given-names></name>
+        <name><surname>Xue</surname><given-names>Rui</given-names></name>
+        <name><surname>Yoachim</surname><given-names>Peter</given-names></name>
+        <name><surname>Zhang</surname><given-names>Chen</given-names></name>
+        <name><surname>Zonca</surname><given-names>Andrea</given-names></name>
+        <string-name>Astropy Project Contributors</string-name>
+      </person-group>
+      <article-title>The Astropy Project: Sustaining and Growing a Community-oriented Open-source Project and the Latest Major Release (v5.0) of the Core Package</article-title>
+      <source>apj</source>
+      <year iso-8601-date="2022-08">2022</year><month>08</month>
+      <volume>935</volume>
+      <issue>2</issue>
+      <uri>https://arxiv.org/abs/2206.14220</uri>
+      <pub-id pub-id-type="doi">10.3847/1538-4357/ac7c74</pub-id>
+      <fpage>167</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-asdf">
+    <element-citation publication-type="software">
+      <person-group person-group-type="author">
+        <name><surname>D’Avella</surname><given-names>Dan</given-names></name>
+        <name><surname>Jamieson</surname><given-names>William</given-names></name>
+        <name><surname>Droettboom</surname><given-names>Michael</given-names></name>
+        <name><surname>Slavich</surname><given-names>Edward</given-names></name>
+        <name><surname>Graham</surname><given-names>Brett</given-names></name>
+        <name><surname>Robitaille</surname><given-names>Thomas</given-names></name>
+        <name><surname>Dencheva</surname><given-names>Nadia</given-names></name>
+        <name><surname>perrygreenfield</surname></name>
+        <name><surname>Simon</surname><given-names>Bernie</given-names></name>
+        <name><surname>MacDonald</surname><given-names>Ken</given-names></name>
+        <name><surname>Bray</surname><given-names>E. M.</given-names></name>
+        <name><surname>Burnett</surname><given-names>Zach</given-names></name>
+        <name><surname>Davies</surname><given-names>James</given-names></name>
+        <name><surname>Mumford</surname><given-names>Stuart</given-names></name>
+        <name><surname>Markovtsev</surname><given-names>Vadim</given-names></name>
+        <name><surname>Tollerud</surname><given-names>Erik</given-names></name>
+        <name><surname>Sipőcz</surname><given-names>Brigitta</given-names></name>
+        <name><surname>Bradley</surname><given-names>Larry</given-names></name>
+        <name><surname>Fabry</surname><given-names>Çağtay</given-names></name>
+        <name><surname>Garrison</surname><given-names>Lehman</given-names></name>
+        <name><surname>Greiner</surname><given-names>Ben</given-names></name>
+        <name><surname>Deil</surname><given-names>Christoph</given-names></name>
+        <name><surname>Craig</surname><given-names>Matt</given-names></name>
+        <name><surname>Lim</surname><given-names>P. L.</given-names></name>
+        <name><surname>Barbary</surname><given-names>Kyle</given-names></name>
+        <name><surname>Streicher</surname><given-names>Ole</given-names></name>
+        <name><surname>Ginsburg</surname><given-names>Adam</given-names></name>
+      </person-group>
+      <article-title>Asdf-format/asdf: 2.15.0</article-title>
+      <publisher-name>Zenodo</publisher-name>
+      <year iso-8601-date="2023-04">2023</year><month>04</month>
+      <uri>https://doi.org/10.5281/zenodo.7799772</uri>
+      <pub-id pub-id-type="doi">10.5281/zenodo.7799772</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-arvizU003A2019">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Kumar</surname><given-names>Ravin</given-names></name>
+        <name><surname>Carroll</surname><given-names>Colin</given-names></name>
+        <name><surname>Hartikainen</surname><given-names>Ari</given-names></name>
+        <name><surname>Martin</surname><given-names>Osvaldo</given-names></name>
+      </person-group>
+      <article-title>ArviZ a unified library for exploratory analysis of bayesian models in python</article-title>
+      <source>Journal of Open Source Software</source>
+      <publisher-name>The Open Journal</publisher-name>
+      <year iso-8601-date="2019">2019</year>
+      <volume>4</volume>
+      <issue>33</issue>
+      <uri>https://doi.org/10.21105/joss.01143</uri>
+      <pub-id pub-id-type="doi">10.21105/joss.01143</pub-id>
+      <fpage>1143</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
