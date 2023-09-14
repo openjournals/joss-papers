@@ -1,0 +1,1302 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">5620</article-id>
+<article-id pub-id-type="doi">10.21105/joss.05620</article-id>
+<title-group>
+<article-title>MLMOD: Machine Learning Methods for Data-Driven Modeling
+in LAMMPS</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0001-6806-8069</contrib-id>
+<name>
+<surname>Atzberger</surname>
+<given-names>Paul J.</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Paul J. Atzberger, Professor, University of California
+Santa Barbara</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2023-05-04">
+<day>4</day>
+<month>5</month>
+<year>2023</year>
+</pub-date>
+<volume>8</volume>
+<issue>89</issue>
+<fpage>5620</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2022</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>Python</kwd>
+<kwd>machine learning</kwd>
+<kwd>dynamics</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p><monospace>MLMOD</monospace> is a software package for
+  incorporating machine learning approaches and models into simulations
+  of microscale mechanics and molecular dynamics in LAMMPS. Recent
+  machine learning approaches provide promising data-driven approaches
+  for learning representations for system behaviors from experimental
+  data and high fidelity simulations. The package faciliates learning
+  and using data-driven models for (i) dynamics of the system at larger
+  spatial-temporal scales (ii) interactions between system components,
+  (iii) features yielding coarser degrees of freedom, and (iv) features
+  for new quantities of interest characterizing system behaviors.
+  <monospace>MLMOD</monospace> provides hooks in LAMMPS for (i) modeling
+  dynamics and time-step integration, (ii) modeling interactions, and
+  (iii) computing quantities of interest characterizing system states.
+  The package allows for use of machine learning methods with general
+  model classes including Neural Networks, Gaussian Process Regression,
+  Kernel Models, and other approaches. Here we discuss our prototype
+  C++/Python package, aims, and example usage. The package is integrated
+  currently with the mesocale and molecular dynamics simulation package
+  LAMMPS and PyTorch. The source code for this initial version 1.0 of
+  <monospace>MLMOD</monospace> has been archived to Zenodo
+  (<xref alt="P. J. Atzberger, 2023" rid="ref-zenodo" ref-type="bibr">P.
+  J. Atzberger, 2023</xref>). For related papers, examples, updates, and
+  additional information see
+  <ext-link ext-link-type="uri" xlink:href="https://github.com/atzberg/mlmod">https://github.com/atzberg/mlmod</ext-link>
+  and
+  <ext-link ext-link-type="uri" xlink:href="http://atzberger.org/">http://atzberger.org/</ext-link>.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of Need</title>
+  <p>A practical challenge in using machine learning methods for
+  simulations is the efforts required to incorporate learned system
+  features to augment existing models and simulation methods. Our
+  package <monospace>MLMOD</monospace> aims to address this aspect of
+  data-driven modeling by providing a general interface for
+  incorporating ML models using standardized representations and by
+  leveraging existing simulation frameworks such as LAMMPS
+  (<xref alt="Thompson et al., 2022" rid="ref-PlimptonU003A2022" ref-type="bibr">Thompson
+  et al., 2022</xref>). Our <monospace>MLMOD</monospace> package
+  provides hooks which are triggered during key parts of simulation
+  calculations. In this way standard machine learning frameworks can be
+  used to train ML models, such as PyTorch
+  (<xref alt="Paszke et al., 2019" rid="ref-PaszkeU003A2019" ref-type="bibr">Paszke
+  et al., 2019</xref>) and TensorFlow
+  (<xref alt="Abadi et al., 2015" rid="ref-AbadiU003A2015" ref-type="bibr">Abadi
+  et al., 2015</xref>), with the resulting models more amenable to being
+  translated into practical simulations. The models obtained from
+  learning can be accommodated in many forms, including Deep Neural
+  Networks (DNNs)
+  (<xref alt="Goodfellow et al., 2016" rid="ref-GoodfellowU003A2016" ref-type="bibr">Goodfellow
+  et al., 2016</xref>), Kernel Regression Models (KRM)
+  (<xref alt="Scholkopf &amp; Smola, 2001" rid="ref-ScholkopfU003A2001" ref-type="bibr">Scholkopf
+  &amp; Smola, 2001</xref>), Gaussian Process Regression (GPR)
+  (<xref alt="Rasmussen, 2004" rid="ref-RasmussenU003A2004" ref-type="bibr">Rasmussen,
+  2004</xref>), and others
+  (<xref alt="Hastie et al., 2001" rid="ref-HastieU003A2001" ref-type="bibr">Hastie
+  et al., 2001</xref>).</p>
+</sec>
+<sec id="data-driven-modeling">
+  <title>Data-Driven Modeling</title>
+  <p>Recent advances in machine learning, optimization, and available
+  computational resources are presenting new opportunities for
+  data-driven modeling and simulation in the natural sciences and
+  engineering. Empirical successes in deep learning suggest promising
+  non-linear techniques for learning representations for system
+  behaviors and other underlying features
+  (<xref alt="Goodfellow et al., 2016" rid="ref-GoodfellowU003A2016" ref-type="bibr">Goodfellow
+  et al., 2016</xref>;
+  <xref alt="Hinton &amp; Salakhutdinov, 2006" rid="ref-HintonU003A2006" ref-type="bibr">Hinton
+  &amp; Salakhutdinov, 2006</xref>). Many previous deep learning methods
+  have been developed for problems motivated by image analysis and
+  natural language processing. However, scientific computations and
+  associated dynamical systems present a unique set of challenges for
+  developing and employing recent machine learning approaches
+  (<xref alt="P. J. Atzberger, 2018" rid="ref-AtzbergerU003A2018" ref-type="bibr">P.
+  J. Atzberger, 2018</xref>;
+  <xref alt="Brunton et al., 2016" rid="ref-BruntonU003A2016" ref-type="bibr">Brunton
+  et al., 2016</xref>;
+  <xref alt="Schmidt &amp; Lipson, 2009" rid="ref-SchmidtU003A2009" ref-type="bibr">Schmidt
+  &amp; Lipson, 2009</xref>).</p>
+  <p>In scientific and engineering applications there are often
+  important constraints arising from physical principles required to
+  obtain plausible models and there is a need for results to be more
+  interpretable. In large-scale scientific computations, bottom-up
+  modeling efforts aim to start as close as possible to first principles
+  and perform computations to obtain insights into larger-scale emergent
+  behaviors. Examples include the rheological responses of soft
+  materials and complex fluids from microstructure interactions
+  (<xref alt="Paul J. Atzberger, 2013" rid="ref-AtzbergerU003A2013" ref-type="bibr">Paul
+  J. Atzberger, 2013</xref>;
+  <xref alt="Bird, 1987" rid="ref-BirdU003A1987" ref-type="bibr">Bird,
+  1987</xref>;
+  <xref alt="Kimura, 2009" rid="ref-KimuraU003A2009" ref-type="bibr">Kimura,
+  2009</xref>;
+  <xref alt="Lubensky, 1997" rid="ref-LubenskyU003A1997" ref-type="bibr">Lubensky,
+  1997</xref>), molecular dynamics modeling of protein structures and
+  functional domains from atomic level interactions
+  (<xref alt="Brooks et al., 1983" rid="ref-KarplusU003A1983" ref-type="bibr">Brooks
+  et al., 1983</xref>;
+  <xref alt="Karplus &amp; McCammon, 2002" rid="ref-KarplusU003A2002" ref-type="bibr">Karplus
+  &amp; McCammon, 2002</xref>;
+  <xref alt="McCammon &amp; Harvey, 1988" rid="ref-MccammonU003A1988" ref-type="bibr">McCammon
+  &amp; Harvey, 1988</xref>;
+  <xref alt="Thompson et al., 2022" rid="ref-PlimptonU003A2022" ref-type="bibr">Thompson
+  et al., 2022</xref>), and prediction of weather and climate phenomena
+  from detailed physical models, sensor data, and other measurements
+  (<xref alt="Bauer et al., 2015" rid="ref-BauerU003A2015" ref-type="bibr">Bauer
+  et al., 2015</xref>;
+  <xref alt="Richardson, 2007" rid="ref-RichardsonU003A2007" ref-type="bibr">Richardson,
+  2007</xref>). Obtaining observables and quantities of interest (QoI)
+  from simulations of such high fidelity detailed models can involve
+  significant computational resources
+  (<xref alt="Giessen et al., 2020" rid="ref-GiessenU003A2020" ref-type="bibr">Giessen
+  et al., 2020</xref>;
+  <xref alt="Lusk &amp; Mattsson, 2011" rid="ref-LuskU003A2011" ref-type="bibr">Lusk
+  &amp; Mattsson, 2011</xref>;
+  <xref alt="Murr, 2016" rid="ref-MurrU003A2016" ref-type="bibr">Murr,
+  2016</xref>;
+  <xref alt="Pan, 2021" rid="ref-PanU003A2021" ref-type="bibr">Pan,
+  2021</xref>;
+  <xref alt="Sanbonmatsu &amp; Tung, 2007" rid="ref-SanbonmatsuU003A2007" ref-type="bibr">Sanbonmatsu
+  &amp; Tung, 2007</xref>;
+  <xref alt="Washington et al., 2009" rid="ref-WashingtonU003A2009" ref-type="bibr">Washington
+  et al., 2009</xref>). Data-driven learning methods present
+  opportunities to formulate more simplified models, provide model
+  flexibility to accommodate subtle effects, or make predictions which
+  are less computationally expensive.</p>
+  <p>Data-driven modeling can take many forms. As a specific motivation
+  for the package and our initial implementations, we discuss a specific
+  case in detail, but our package also can be used more broadly. In
+  particular, we consider detailed molecular dynamics simulations of
+  large spherical colloidal particles within a bath of much smaller
+  solvent particles. A common problem is to infer interaction laws
+  between the colloidal particles given the surrounding environment
+  arising from the type of solution, charge, and other physical
+  conditions. There is extensive theoretical literature on colloidal
+  interactions and approximate models
+  (<xref alt="Derjaguin, 1941" rid="ref-DerjaguinU003A1941" ref-type="bibr">Derjaguin,
+  1941</xref>;
+  <xref alt="Doi, 2013" rid="ref-DoiU003A2013" ref-type="bibr">Doi,
+  2013</xref>;
+  <xref alt="Jones et al., 2002" rid="ref-JonesU003A2002" ref-type="bibr">Jones
+  et al., 2002</xref>). While analytic approaches have had success,
+  there are many settings where challenges remain which limit the
+  accuracy
+  (<xref alt="Jones et al., 2002" rid="ref-JonesU003A2002" ref-type="bibr">Jones
+  et al., 2002</xref>;
+  <xref alt="Sidhu et al., 2018" rid="ref-AtzbergerU003A2018b" ref-type="bibr">Sidhu
+  et al., 2018</xref>). Computational modeling and simulation provides
+  opportunities for capturing phenomena in more physical detail and with
+  better understanding of contributing effects.</p>
+  <p>While simulations of colloids including the solvent and other
+  environmental factors can be used for making predictions, such
+  computations can be expensive given the many degrees of freedom and
+  small time-scales of solvent-solvent interactions. Colloid
+  coarse-grained models are sought which utilize separation in scales,
+  such as the contrast in size with the solvent and dynamical
+  time-scales. In these circumstances, coarse-grained models aim to
+  capture the effective colloidal interactions and their dynamics.</p>
+  <fig>
+    <caption><p>Data-driven modeling from detailed molecular simulations
+    can be used to train machine learning (ML) models for performing
+    simulations at larger spatial-temporal scales. This can include
+    models for the dynamics, interactions, or for computing quantities
+    of interest (QoI) characterizing the system state. The colloidal
+    system for example could be modeled by dynamics at a larger scale
+    with a mobility <inline-formula><alternatives>
+    <tex-math><![CDATA[M]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>M</mml:mi></mml:math></alternatives></inline-formula>
+    obtained from training. In the <monospace>MLMOD</monospace> package,
+    the ML models can be represented by Deep Neural Networks, Kernel
+    Regression Models, or other model classes.</p></caption>
+    <graphic mimetype="image" mime-subtype="png" xlink:href="media/fig/data_driven_modeling2.png" />
+  </fig>
+  <p>Relative to detailed molecular dynamics simulations, this motivates
+  a simplified model for the effective colloid dynamics
+  <disp-formula><alternatives>
+  <tex-math><![CDATA[\frac{d\mathbf{X}}{dt} = \mathbf{M}(\mathbf{X})\mathbf{F} 
+  + k_B{T}\nabla_X \cdot \mathbf{M}(\mathbf{X}) + \mathbf{g}]]></tex-math>
+  <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mfrac><mml:mrow><mml:mi>d</mml:mi><mml:mi>𝐗</mml:mi></mml:mrow><mml:mrow><mml:mi>d</mml:mi><mml:mi>t</mml:mi></mml:mrow></mml:mfrac><mml:mo>=</mml:mo><mml:mi>𝐌</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>𝐗</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mi>𝐅</mml:mi><mml:mo>+</mml:mo><mml:msub><mml:mi>k</mml:mi><mml:mi>B</mml:mi></mml:msub><mml:mi>T</mml:mi><mml:msub><mml:mi>∇</mml:mi><mml:mi>X</mml:mi></mml:msub><mml:mo>⋅</mml:mo><mml:mi>𝐌</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>𝐗</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>+</mml:mo><mml:mi>𝐠</mml:mi></mml:mrow></mml:math></alternatives></disp-formula></p>
+  <p><disp-formula><alternatives>
+  <tex-math><![CDATA[< \mathbf{g}(s) \mathbf{g}(t)^T > = 2 k_B{T} \mathbf{M}(\mathbf{X}) \delta(t - s).]]></tex-math>
+  <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mo>&lt;</mml:mo><mml:mi>𝐠</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>s</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mi>𝐠</mml:mi><mml:msup><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>t</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mi>T</mml:mi></mml:msup><mml:mo>&gt;</mml:mo><mml:mo>=</mml:mo><mml:mn>2</mml:mn><mml:msub><mml:mi>k</mml:mi><mml:mi>B</mml:mi></mml:msub><mml:mi>T</mml:mi><mml:mi>𝐌</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>𝐗</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mi>δ</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>t</mml:mi><mml:mo>−</mml:mo><mml:mi>s</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mi>.</mml:mi></mml:mrow></mml:math></alternatives></disp-formula>
+  The <inline-formula><alternatives>
+  <tex-math><![CDATA[\mathbf{X} \in \mathbb{R}^{3n}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>𝐗</mml:mi><mml:mo>∈</mml:mo><mml:msup><mml:mi>ℝ</mml:mi><mml:mrow><mml:mn>3</mml:mn><mml:mi>n</mml:mi></mml:mrow></mml:msup></mml:mrow></mml:math></alternatives></inline-formula>
+  refers to the collective configuration of all
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[n]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>n</mml:mi></mml:math></alternatives></inline-formula>
+  colloids in these Smoluchowski dynamics
+  (<xref alt="Smoluchowski, 1906" rid="ref-SmoluchowskiU003A1906" ref-type="bibr">Smoluchowski,
+  1906</xref>). The <inline-formula><alternatives>
+  <tex-math><![CDATA[\mathbf{g}(t)]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>𝐠</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>t</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>
+  gives the thermal fluctuations for the temperature corresponding to
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[k_B{T}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>k</mml:mi><mml:mi>B</mml:mi></mml:msub><mml:mi>T</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>.
+  Here, the main objectives in this model are to determine (i) the
+  <italic>mobility tensor</italic> <inline-formula><alternatives>
+  <tex-math><![CDATA[M = M(\mathbf{X})]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>M</mml:mi><mml:mo>=</mml:mo><mml:mi>M</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>𝐗</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>
+  which captures the effective dynamic coupling between the colloidal
+  particles, and (ii) the <italic>interaction laws</italic>
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[\mathbf{F}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>𝐅</mml:mi></mml:math></alternatives></inline-formula>
+  for configurations <inline-formula><alternatives>
+  <tex-math><![CDATA[\mathbf{X}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>𝐗</mml:mi></mml:math></alternatives></inline-formula>.</p>
+  <p>Machine learning methods provide data-driven approaches for
+  learning representations and features for such modeling. Optimization
+  using appropriate loss functions and training protocols can be used to
+  identify system features underlying interactions, symmetries, and
+  other structures. In machine learning methods this is accomplished by
+  using a class of representations and by training with data to identify
+  models from this class. For making predictions in unobserved cases,
+  this allows for interpolation, and in some cases even extrapolation,
+  especially when using explicit low dimensional latent spaces or when
+  imposing other inductive biases
+  (<xref alt="Lopez &amp; Atzberger, 2022" rid="ref-AtzbergerU003A2022" ref-type="bibr">Lopez
+  &amp; Atzberger, 2022</xref>;
+  <xref alt="Stinis et al., 2023" rid="ref-AtzbergerU003A2023" ref-type="bibr">Stinis
+  et al., 2023</xref>). For example, consider the colloidal example in
+  the simplified case when we assume the interactions can be
+  approximated as pairwise. The problem reduces to a model
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[M = M(\mathbf{X}_1,\mathbf{X}_2)]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>M</mml:mi><mml:mo>=</mml:mo><mml:mi>M</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>𝐗</mml:mi><mml:mn>1</mml:mn></mml:msub><mml:mo>,</mml:mo><mml:msub><mml:mi>𝐗</mml:mi><mml:mn>2</mml:mn></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>
+  depending on six dimensions. This can be further constrained to learn
+  only symmetric positive semi-definite tensors, for example by learning
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[L = L(\mathbf{X}_1,\mathbf{X}_2)]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>L</mml:mi><mml:mo>=</mml:mo><mml:mi>L</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>𝐗</mml:mi><mml:mn>1</mml:mn></mml:msub><mml:mo>,</mml:mo><mml:msub><mml:mi>𝐗</mml:mi><mml:mn>2</mml:mn></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>
+  to generate <inline-formula><alternatives>
+  <tex-math><![CDATA[M = LL^T]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>M</mml:mi><mml:mo>=</mml:mo><mml:mi>L</mml:mi><mml:msup><mml:mi>L</mml:mi><mml:mi>T</mml:mi></mml:msup></mml:mrow></mml:math></alternatives></inline-formula>.</p>
+  <p>There are many ways we can obtain the model
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[M]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>M</mml:mi></mml:math></alternatives></inline-formula>.
+  For example, a common way to estimate mobility in fluid mechanics is
+  to apply active forces <inline-formula><alternatives>
+  <tex-math><![CDATA[\mathbf{F}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>𝐅</mml:mi></mml:math></alternatives></inline-formula>
+  and compute the velocity response <inline-formula><alternatives>
+  <tex-math><![CDATA[< \mathbf{V} > = < {d\mathbf{X}}/{dt} > \approx \tau^{-1}< \Delta_{\tau} \mathbf{X}(t)> \approx \mathbf{M}\mathbf{F}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mo>&lt;</mml:mo><mml:mi>𝐕</mml:mi><mml:mo>&gt;</mml:mo><mml:mo>=</mml:mo><mml:mo>&lt;</mml:mo><mml:mrow><mml:mi>d</mml:mi><mml:mi>𝐗</mml:mi></mml:mrow><mml:mi>/</mml:mi><mml:mrow><mml:mi>d</mml:mi><mml:mi>t</mml:mi></mml:mrow><mml:mo>&gt;</mml:mo><mml:mo>≈</mml:mo><mml:msup><mml:mi>τ</mml:mi><mml:mrow><mml:mo>−</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:msup><mml:mo>&lt;</mml:mo><mml:msub><mml:mi>Δ</mml:mi><mml:mi>τ</mml:mi></mml:msub><mml:mi>𝐗</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>t</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>&gt;</mml:mo><mml:mo>≈</mml:mo><mml:mi>𝐌</mml:mi><mml:mi>𝐅</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>.
+  The <inline-formula><alternatives>
+  <tex-math><![CDATA[\Delta_{\tau} \mathbf{X}(t) = \mathbf{X}(t + \tau) - \mathbf{X}(t)]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>Δ</mml:mi><mml:mi>τ</mml:mi></mml:msub><mml:mi>𝐗</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>t</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>=</mml:mo><mml:mi>𝐗</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>t</mml:mi><mml:mo>+</mml:mo><mml:mi>τ</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>−</mml:mo><mml:mi>𝐗</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>t</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>
+  for <inline-formula><alternatives>
+  <tex-math><![CDATA[\tau]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>τ</mml:mi></mml:math></alternatives></inline-formula>
+  chosen carefully. For large enough forces
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[\mathbf{F}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>𝐅</mml:mi></mml:math></alternatives></inline-formula>,
+  the thermal fluctuations can be averaged away readily by repeating
+  this measurement and taking the mean. In statistical mechanics,
+  another estimator is obtained when <inline-formula><alternatives>
+  <tex-math><![CDATA[\mathbf{F} = 0]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>𝐅</mml:mi><mml:mo>=</mml:mo><mml:mn>0</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>
+  by using the passive fluctuations of system. A moment-based estimator
+  commonly used is <inline-formula><alternatives>
+  <tex-math><![CDATA[M(\mathbf{X}) \approx ({2k_B{T}\tau)^{-1}} < \Delta_{\tau} \mathbf{X}(t)\Delta_{\tau} \mathbf{X}(t)^T >]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>M</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>𝐗</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>≈</mml:mo><mml:mo stretchy="false" form="prefix">(</mml:mo><mml:mrow><mml:mn>2</mml:mn><mml:msub><mml:mi>k</mml:mi><mml:mi>B</mml:mi></mml:msub><mml:mi>T</mml:mi><mml:mi>τ</mml:mi><mml:msup><mml:mo stretchy="false" form="postfix">)</mml:mo><mml:mrow><mml:mo>−</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:msup></mml:mrow><mml:mo>&lt;</mml:mo><mml:msub><mml:mi>Δ</mml:mi><mml:mi>τ</mml:mi></mml:msub><mml:mi>𝐗</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>t</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:msub><mml:mi>Δ</mml:mi><mml:mi>τ</mml:mi></mml:msub><mml:mi>𝐗</mml:mi><mml:msup><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>t</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mi>T</mml:mi></mml:msup><mml:mo>&gt;</mml:mo></mml:mrow></mml:math></alternatives></inline-formula>
+  for <inline-formula><alternatives>
+  <tex-math><![CDATA[\tau]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>τ</mml:mi></mml:math></alternatives></inline-formula>
+  chosen carefully. While theoretically each of these estimators give
+  information on <inline-formula><alternatives>
+  <tex-math><![CDATA[M]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>M</mml:mi></mml:math></alternatives></inline-formula>,
+  in practice there can be subtleties such as a good choice for
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[\tau]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>τ</mml:mi></mml:math></alternatives></inline-formula>,
+  magnitude for <inline-formula><alternatives>
+  <tex-math><![CDATA[\mathbf{F}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>𝐅</mml:mi></mml:math></alternatives></inline-formula>,
+  and role of fluctuations. Even for these more traditional estimators,
+  it could still be useful for storage efficiency and convenience to
+  train an ML model to provide a compressed representation and for
+  interpolation for evaluating <inline-formula><alternatives>
+  <tex-math><![CDATA[M(\mathbf{X})]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>M</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>𝐗</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>.</p>
+  <p>Machine learning methods also could be used to train more directly
+  from simulation data for sampled colloid trajectories
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[\mathbf{X}(t)]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>𝐗</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>t</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>
+  (<xref alt="Nielsen et al., 2000" rid="ref-NielsenU003A2000" ref-type="bibr">Nielsen
+  et al., 2000</xref>;
+  <xref alt="Stinis et al., 2023" rid="ref-AtzbergerU003A2023" ref-type="bibr">Stinis
+  et al., 2023</xref>). The training would select an ML model
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[M_\theta]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>M</mml:mi><mml:mi>θ</mml:mi></mml:msub></mml:math></alternatives></inline-formula>
+  over some class of models <inline-formula><alternatives>
+  <tex-math><![CDATA[H]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>H</mml:mi></mml:math></alternatives></inline-formula>
+  parameterized by <inline-formula><alternatives>
+  <tex-math><![CDATA[\theta]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>θ</mml:mi></mml:math></alternatives></inline-formula>,
+  such as the weights and biases of a Deep Neural Network. For instance,
+  this could be done by Maximum Likelihood Estimation (MLE) or other
+  losses from the trajectory data <inline-formula><alternatives>
+  <tex-math><![CDATA[\mathbf{X}(t)]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>𝐗</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>t</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>.
+  The MLE optimizes the objective <disp-formula><alternatives>
+  <tex-math><![CDATA[M_{\theta} = \arg\min_{M_\theta \in {H}} 
+  -\log\rho_\theta(\mathbf{X}(t_1),\mathbf{X}(t_2),\ldots,\mathbf{X}(t_m)).]]></tex-math>
+  <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>M</mml:mi><mml:mi>θ</mml:mi></mml:msub><mml:mo>=</mml:mo><mml:mo>arg</mml:mo><mml:munder><mml:mo>min</mml:mo><mml:mrow><mml:msub><mml:mi>M</mml:mi><mml:mi>θ</mml:mi></mml:msub><mml:mo>∈</mml:mo><mml:mi>H</mml:mi></mml:mrow></mml:munder><mml:mo>−</mml:mo><mml:mo>log</mml:mo><mml:msub><mml:mi>ρ</mml:mi><mml:mi>θ</mml:mi></mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>𝐗</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>t</mml:mi><mml:mn>1</mml:mn></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>,</mml:mo><mml:mi>𝐗</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>t</mml:mi><mml:mn>2</mml:mn></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>,</mml:mo><mml:mi>…</mml:mi><mml:mo>,</mml:mo><mml:mi>𝐗</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>t</mml:mi><mml:mi>m</mml:mi></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mi>.</mml:mi></mml:mrow></mml:math></alternatives></disp-formula>
+  The <inline-formula><alternatives>
+  <tex-math><![CDATA[\rho_\theta]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>ρ</mml:mi><mml:mi>θ</mml:mi></mml:msub></mml:math></alternatives></inline-formula>
+  denotes the likelihood probability density for the model with
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[M = M_\theta]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>M</mml:mi><mml:mo>=</mml:mo><mml:msub><mml:mi>M</mml:mi><mml:mi>θ</mml:mi></mml:msub></mml:mrow></mml:math></alternatives></inline-formula>
+  and observing the trajectory data <inline-formula><alternatives>
+  <tex-math><![CDATA[\{\mathbf{X}(t_i)\}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mo stretchy="false" form="prefix">{</mml:mo><mml:mi>𝐗</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>t</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo stretchy="false" form="postfix">}</mml:mo></mml:mrow></mml:math></alternatives></inline-formula>.
+  To obtain tractable and robust training algorithms, further
+  approximations and regularizations may be required to the MLE problem
+  or alternatives used. This could include using variational inference
+  approaches, further restrictions on the model architectures, priors,
+  or other information
+  (<xref alt="Blei et al., 2017" rid="ref-BleiU003A2017" ref-type="bibr">Blei
+  et al., 2017</xref>;
+  <xref alt="Kingma &amp; Welling, 2014" rid="ref-KingmaU003A2014" ref-type="bibr">Kingma
+  &amp; Welling, 2014</xref>;
+  <xref alt="Lopez &amp; Atzberger, 2020" rid="ref-AtzbergerU003A2020" ref-type="bibr">Lopez
+  &amp; Atzberger, 2020</xref>;
+  <xref alt="Stinis et al., 2023" rid="ref-AtzbergerU003A2023" ref-type="bibr">Stinis
+  et al., 2023</xref>). Combining such approximations with further
+  regularizations also could help facilitate learning, including of
+  possible symmetries and other features of trained models
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[M(\mathbf{X}) = M_\theta]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>M</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>𝐗</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>=</mml:mo><mml:msub><mml:mi>M</mml:mi><mml:mi>θ</mml:mi></mml:msub></mml:mrow></mml:math></alternatives></inline-formula>.</p>
+  <p>The <monospace>MLMOD</monospace> package provides ways for
+  transferring such learned models into practical simulations within
+  LAMMPS. We discussed here one example of a basic data-driven modeling
+  approach for colloids. The <monospace>MLMOD</monospace> package can be
+  used more generally and supports broad classes of models for
+  incorporating machine learning results into simulation components.
+  Components can include the dynamics, interactions, or computing
+  quantities of interest. The initial implementations we present
+  supports the basic mobility modeling framework as a proof-of-concept,
+  with longer-term aims to support more general classes of reduced
+  dynamics and interactions in future releases.</p>
+</sec>
+<sec id="structure-of-the-package-components">
+  <title>Structure of the Package Components</title>
+  <p>The package is organized as a module within LAMMPS that is called
+  each time-step and has the potential to serve multiple roles within
+  simulations. This includes (i) serving as a time-step integrator
+  updating the configuration of the system based on a specified learned
+  model, (ii) evaluating interactions between system components to
+  compute energy and forces, and (iii) computing quantities of interest
+  (QoI) that can be used as state information during simulations or in
+  statistics. The package is controlled by external XML files that
+  specify the mode of operation and source for pre-trained models and
+  other information, see the schematic in Figure 2.</p>
+  <fig>
+    <caption><p>The MLMOD Package is structured modularly with
+    subcomponents for providing ML models in simulations for the
+    dynamics, interactions, and computing quantities of interest (QoI)
+    characterizing the system state. The package makes use of
+    standardized data formats such as XML for inputs and export ML model
+    formats from machine learning frameworks.</p></caption>
+    <graphic mimetype="image" mime-subtype="png" xlink:href="media/fig/mlmod_schematic3.png" />
+  </fig>
+  <p>The <monospace>MLMOD</monospace> Package is incorporated into a
+  simulation by either using the LAMMPS scripting language or the python
+  interface. This is done using the “fix” command in LAMMPS
+  (<xref alt="Thompson et al., 2022" rid="ref-PlimptonU003A2022" ref-type="bibr">Thompson
+  et al., 2022</xref>), with this terminology historically motivated by
+  algorithms for “fixing” molecular bonds as rigid each time-step. For
+  our package the command to set up the triggers for our algorithms is
+  <monospace>fix m1 mlmod all filename.mlmod_params.</monospace> This
+  specifies the tag “m1” for this fix, particle groups controlled by the
+  package as “all”, and the XML file of parameters. The XML file
+  <monospace>filename.mlmod_params</monospace> specifies the
+  <monospace>MLMOD</monospace> simulation mode and where to find the
+  associated exported ML models. An example and more details are
+  discussed below in the section on package usage. The
+  <monospace>MLMOD</monospace> Package can evaluate machine learning
+  models using frameworks such as C++ PyTorch API. This allows both for
+  the possibility of doing on-the-fly learning and for using trained
+  models to augment simulations.</p>
+  <p>A common approach would be to learn ML models by training on
+  trajectory data from detailed high fidelity simulations using a
+  machine learning framework, such as PyTorch
+  (<xref alt="Paszke et al., 2019" rid="ref-PaszkeU003A2019" ref-type="bibr">Paszke
+  et al., 2019</xref>). Once the model is trained, it can be exported to
+  a portable format such as Torch
+  (<xref alt="Collobert et al., 2011" rid="ref-CollobertU003A2011" ref-type="bibr">Collobert
+  et al., 2011</xref>). The <monospace>MLMOD</monospace> package would
+  import these pre-trained models from Torch files such as
+  <monospace>trained_model.pt</monospace>. This allows for these models
+  to then be invoked by <monospace>MLMOD</monospace> to provide elements
+  for (i) performing time-step integration to model dynamics, (ii)
+  computing interactions between system components, and (iii) computing
+  quantities of interest (QoI) for further computations or as
+  statistics. This provides a modular and general way for data-driven
+  models obtained from training with machine learning methods to be used
+  to govern LAMMPS simulations.</p>
+</sec>
+<sec id="example-usage-of-the-package">
+  <title>Example Usage of the Package</title>
+  <p>We give one basic example usage of the package in the case for
+  modeling colloids using a mobility tensor
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[M]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>M</mml:mi></mml:math></alternatives></inline-formula>.
+  To set up the triggers for the <monospace>MLMOD</monospace> package
+  during LAMMPS simulations a typical command would look like</p>
+  <p><monospace>fix m1 c_group mlmod model.mlmod_params</monospace></p>
+  <p>The <monospace>m1</monospace> gives the tag for the fix,
+  <monospace>c_group</monospace> specifies the label for the group of
+  particles controlled by this instance of the
+  <monospace>MLMOD</monospace> package. The <monospace>mlmod</monospace>
+  specifies to use the <monospace>MLMOD</monospace> package with XML
+  parameter file <monospace>model.mlmod_params</monospace>. The XML
+  parameter file controls the package modes and the use of associated
+  exported ML models.</p>
+  <p>Multiple instances of <monospace>MLMOD</monospace> package are
+  permitted and can be used to control different groups of particles by
+  adjusting the <monospace>c_group</monospace>. The package is designed
+  with modularity so a <italic>mode</italic> is first defined in a
+  parameter file and then different sets of algorithms and parameters
+  can be used within the same simulation. For the mobility example, an
+  implementation is given by the <monospace>MLMOD</monospace> simulation
+  mode <monospace>dX_MF_ML1</monospace>. For this modeling mode, a
+  typical parameter file would look like the following.</p>
+  <preformat>&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?&gt; 
+&lt;MLMOD&gt; 
+  &lt;model_data type=&quot;dX_MF_ML1&quot;&gt; 
+    &lt;M_ii_filename value=&quot;M_ii_torch.pt&quot;/&gt; 
+    &lt;M_ij_filename value=&quot;M_ij_torch.pt&quot;/&gt;
+  &lt;/model_data&gt; 
+&lt;/MLMOD&gt; </preformat>
+  <p>This specifies for an assumed mobility tensor of pairwise
+  interactions the models for the self-mobility responses
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[M_{ii}(\mathbf{X})]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>M</mml:mi><mml:mrow><mml:mi>i</mml:mi><mml:mi>i</mml:mi></mml:mrow></mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>𝐗</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>
+  and the pairwise mobility response <inline-formula><alternatives>
+  <tex-math><![CDATA[M_{ij}(\mathbf{X}) = M_{ji}(\mathbf{X})]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>M</mml:mi><mml:mrow><mml:mi>i</mml:mi><mml:mi>j</mml:mi></mml:mrow></mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>𝐗</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>=</mml:mo><mml:msub><mml:mi>M</mml:mi><mml:mrow><mml:mi>j</mml:mi><mml:mi>i</mml:mi></mml:mrow></mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>𝐗</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>,
+  where <inline-formula><alternatives>
+  <tex-math><![CDATA[\mathbf{X} = (\mathbf{X}_{1},\mathbf{X}_{2})]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>𝐗</mml:mi><mml:mo>=</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>𝐗</mml:mi><mml:mn>1</mml:mn></mml:msub><mml:mo>,</mml:mo><mml:msub><mml:mi>𝐗</mml:mi><mml:mn>2</mml:mn></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>.
+  For example, a hydrodynamic model for interactions when the two
+  colloids of radius <inline-formula><alternatives>
+  <tex-math><![CDATA[a]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>a</mml:mi></mml:math></alternatives></inline-formula>
+  are not too close together is to use the Oseen Tensors
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[M_{ii} = (6\pi\eta a)^{-1}{I}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>M</mml:mi><mml:mrow><mml:mi>i</mml:mi><mml:mi>i</mml:mi></mml:mrow></mml:msub><mml:mo>=</mml:mo><mml:msup><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mn>6</mml:mn><mml:mi>π</mml:mi><mml:mi>η</mml:mi><mml:mi>a</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mrow><mml:mo>−</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:msup><mml:mi>I</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>
+  and <inline-formula><alternatives>
+  <tex-math><![CDATA[M_{ij} = (8\pi\eta r)^{-1}\left({I} + r^{-2}\mathbf{r}\mathbf{r}^T \right)]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>M</mml:mi><mml:mrow><mml:mi>i</mml:mi><mml:mi>j</mml:mi></mml:mrow></mml:msub><mml:mo>=</mml:mo><mml:msup><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mn>8</mml:mn><mml:mi>π</mml:mi><mml:mi>η</mml:mi><mml:mi>r</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mrow><mml:mo>−</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:msup><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>I</mml:mi><mml:mo>+</mml:mo><mml:msup><mml:mi>r</mml:mi><mml:mrow><mml:mo>−</mml:mo><mml:mn>2</mml:mn></mml:mrow></mml:msup><mml:mi>𝐫</mml:mi><mml:msup><mml:mi>𝐫</mml:mi><mml:mi>T</mml:mi></mml:msup><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>.
+  The <inline-formula><alternatives>
+  <tex-math><![CDATA[\eta]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>η</mml:mi></mml:math></alternatives></inline-formula>
+  is the fluid viscosity, <inline-formula><alternatives>
+  <tex-math><![CDATA[\mathbf{r} = \mathbf{X} _{i}(t) -\mathbf{X} _{j}(t)]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>𝐫</mml:mi><mml:mo>=</mml:mo><mml:msub><mml:mi>𝐗</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>t</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>−</mml:mo><mml:msub><mml:mi>𝐗</mml:mi><mml:mi>j</mml:mi></mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>t</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>
+  with <inline-formula><alternatives>
+  <tex-math><![CDATA[r = \|\mathbf{r}\|]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>r</mml:mi><mml:mo>=</mml:mo><mml:mo stretchy="false" form="postfix">∥</mml:mo><mml:mi>𝐫</mml:mi><mml:mo stretchy="false" form="postfix">∥</mml:mo></mml:mrow></mml:math></alternatives></inline-formula>
+  give the particle separation. The responses are
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[\mathbf{V} _{\ell} = M_{\ell m} \mathbf{F} _{m}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>𝐕</mml:mi><mml:mo>ℓ</mml:mo></mml:msub><mml:mo>=</mml:mo><mml:msub><mml:mi>M</mml:mi><mml:mrow><mml:mo>ℓ</mml:mo><mml:mi>m</mml:mi></mml:mrow></mml:msub><mml:msub><mml:mi>𝐅</mml:mi><mml:mi>m</mml:mi></mml:msub></mml:mrow></mml:math></alternatives></inline-formula>
+  with <inline-formula><alternatives>
+  <tex-math><![CDATA[\ell,m \in \{1,2\}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mo>ℓ</mml:mo><mml:mo>,</mml:mo><mml:mi>m</mml:mi><mml:mo>∈</mml:mo><mml:mo stretchy="false" form="prefix">{</mml:mo><mml:mn>1</mml:mn><mml:mo>,</mml:mo><mml:mn>2</mml:mn><mml:mo stretchy="false" form="postfix">}</mml:mo></mml:mrow></mml:math></alternatives></inline-formula>
+  and summation notation. For different environments surrounding the
+  colloids, these interactions would be learned from simulation
+  data.</p>
+  <p>The <monospace>dX_MF_ML1</monospace> mode indicates this type of
+  mobility model has interactions from learned ML models. The ML models
+  are given by the files <monospace>M_ii_torch.pt</monospace> and
+  <monospace>M_ij_torch.pt</monospace>. Related modes can also be
+  implemented to extend models to capture more complicated interactions
+  or near-field effects. For example, to allow for localized many-body
+  interactions with ML models giving contributions to mobility
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[M(\mathbf{X})]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>M</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>𝐗</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>.
+  In this way <monospace>MLMOD</monospace> can be used for hybrid
+  modeling combining ML models with more traditional modeling approaches
+  within a unified framework.</p>
+  <p>This gives one example, the ML interactions and integrators can be
+  more general using any exported model from the machine learning
+  framework. Currently, the implementation uses PyTorch and the export
+  format based on torch script with <monospace>.pt</monospace> files.
+  This allows for a variety of models to be used ranging from those
+  based on Deep Neural Networks, Kernel Regression Models, and
+  others.</p>
+</sec>
+<sec id="conclusion">
+  <title>Conclusion</title>
+  <p>The package <monospace>MLMOD</monospace> provides capabilities in
+  LAMMPS for incorporating into simulations data-driven models for
+  dynamics and interactions obtained from training with machine learning
+  methods. We describe here our initial implementation. For updates,
+  examples, and additional information please see
+  <ext-link ext-link-type="uri" xlink:href="https://github.com/atzberg/mlmod">https://github.com/atzberg/mlmod</ext-link>
+  and
+  <ext-link ext-link-type="uri" xlink:href="http://atzberger.org/">http://atzberger.org/</ext-link>.</p>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>Authors research supported by grants DOE Grant ASCR PHILMS
+  DE-SC0019246, NSF Grant DMS-1616353, and NSF Grant DMS-2306101.
+  Authors also acknowledge UCSB Center for Scientific Computing NSF
+  MRSEC (DMR1121053) and UCSB MRL NSF CNS-1725797. P.J.A. would also
+  like to acknowledge a hardware grant from Nvidia.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <ref id="ref-HintonU003A2006">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Hinton</surname><given-names>Geoffrey</given-names></name>
+        <name><surname>Salakhutdinov</surname><given-names>Ruslan</given-names></name>
+      </person-group>
+      <article-title>Reducing the dimensionality of data with neural networks</article-title>
+      <source>Science</source>
+      <year iso-8601-date="2006">2006</year>
+      <volume>313</volume>
+      <issue>5786</issue>
+      <uri>https://www.cs.toronto.edu/~hinton/science.pdf</uri>
+      <pub-id pub-id-type="doi">10.1126/science.1127647</pub-id>
+      <fpage>504</fpage>
+      <lpage>507</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-GoodfellowU003A2016">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Goodfellow</surname><given-names>Ian</given-names></name>
+        <name><surname>Bengio</surname><given-names>Yoshua</given-names></name>
+        <name><surname>Courville</surname><given-names>Aaron</given-names></name>
+      </person-group>
+      <source>Deep learning</source>
+      <publisher-name>The MIT Press</publisher-name>
+      <year iso-8601-date="2016">2016</year>
+      <isbn>0262035618</isbn>
+      <uri>https://www.deeplearningbook.org/</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-AtzbergerU003A2018">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Atzberger</surname><given-names>P. J.</given-names></name>
+      </person-group>
+      <article-title>Importance of the mathematical foundations of machine learning methods for scientific and engineering applications</article-title>
+      <source>SciML2018 Workshop, position paper</source>
+      <year iso-8601-date="2018">2018</year>
+      <uri>https://arxiv.org/abs/1808.02213</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-BruntonU003A2016">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Brunton</surname><given-names>Steven L.</given-names></name>
+        <name><surname>Proctor</surname><given-names>Joshua L.</given-names></name>
+        <name><surname>Kutz</surname><given-names>J. Nathan</given-names></name>
+      </person-group>
+      <article-title>Discovering governing equations from data by sparse identification of nonlinear dynamical systems</article-title>
+      <source>Proceedings of the National Academy of Sciences</source>
+      <publisher-name>National Academy of Sciences</publisher-name>
+      <year iso-8601-date="2016">2016</year>
+      <volume>113</volume>
+      <issue>15</issue>
+      <issn>0027-8424</issn>
+      <uri>https://www.pnas.org/content/113/15/3932</uri>
+      <pub-id pub-id-type="doi">10.1073/pnas.1517384113</pub-id>
+      <fpage>3932</fpage>
+      <lpage>3937</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-SchmidtU003A2009">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Schmidt</surname><given-names>Michael</given-names></name>
+        <name><surname>Lipson</surname><given-names>Hod</given-names></name>
+      </person-group>
+      <article-title>Distilling free-form natural laws from experimental data</article-title>
+      <year iso-8601-date="2009">2009</year>
+      <volume>324</volume>
+      <issn>0036-8075</issn>
+      <pub-id pub-id-type="doi">10.1126/science.1165893</pub-id>
+      <fpage>81</fpage>
+      <lpage>85</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-AtzbergerU003A2013">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Atzberger</surname><given-names>Paul J.</given-names></name>
+      </person-group>
+      <article-title>Incorporating shear into stochastic eulerian-lagrangian methods for rheological studies of complex fluids and soft materials</article-title>
+      <source>Physica D: Nonlinear Phenomena</source>
+      <year iso-8601-date="2013">2013</year>
+      <volume>265</volume>
+      <issn>0167-2789</issn>
+      <uri>https://doi.org/10.1016/j.physd.2013.09.002</uri>
+      <pub-id pub-id-type="doi">10.1016/j.physd.2013.09.002</pub-id>
+      <fpage>57</fpage>
+      <lpage>70</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-BirdU003A1987">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Bird</surname><given-names>Curtiss</given-names><suffix>R.B.</suffix></name>
+      </person-group>
+      <source>Dynamics of polymeric liquids : Volume II kinetic theory</source>
+      <publisher-name>Wiley-Interscience</publisher-name>
+      <year iso-8601-date="1987">1987</year>
+      <uri>https://www.wiley.com/en-us/Dynamics+of+Polymeric+Liquids,+Volume+2:+Kinetic+Theory,+2nd+Edition-p-9780471802440</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-LubenskyU003A1997">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Lubensky</surname><given-names>T. C.</given-names></name>
+      </person-group>
+      <article-title>Soft condensed matter physics</article-title>
+      <source>Solid State Communications</source>
+      <year iso-8601-date="1997">1997</year>
+      <volume>102</volume>
+      <issue>2-3</issue>
+      <issn>0038-1098</issn>
+      <uri>https://doi.org/10.1016/S0038-1098(96)00718-1</uri>
+      <pub-id pub-id-type="doi">10.1016/S0038-1098(96)00718-1</pub-id>
+      <fpage>187</fpage>
+      <lpage>197-</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-KimuraU003A2009">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Kimura</surname><given-names>Y.</given-names></name>
+      </person-group>
+      <article-title>Microrheology of soft matter</article-title>
+      <source>J. Phys. Soc. Jpn.</source>
+      <publisher-loc>Kyushu Univ, Dept Phys, Sch Sci, Higashi Ku, Fukuoka 8128581, Japan. Kimura, Y, Kyushu Univ, Dept Phys, Sch Sci, Higashi Ku, 6-10-1 Hakozaki, Fukuoka 8128581, Japan. kimura@phys.kyushu-u.ac.jp</publisher-loc>
+      <year iso-8601-date="2009">2009</year>
+      <volume>78</volume>
+      <issue>4</issue>
+      <issn>0031-9015</issn>
+      <uri>https://doi.org/10.1143/JPSJ.78.041005</uri>
+      <pub-id pub-id-type="doi">10.1143/JPSJ.78.041005</pub-id>
+      <fpage>8</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-MccammonU003A1988">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>McCammon</surname><given-names>J. A.</given-names></name>
+        <name><surname>Harvey</surname><given-names>S. C.</given-names></name>
+      </person-group>
+      <source>Dynamics of proteins and nucleic acids</source>
+      <publisher-name>Cambridge University Press</publisher-name>
+      <year iso-8601-date="1988">1988</year>
+      <isbn>9780521356527</isbn>
+      <uri>https://doi.org/10.1017/CBO9781139167864</uri>
+      <pub-id pub-id-type="doi">10.1017/CBO9781139167864</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-KarplusU003A2002">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Karplus</surname><given-names>Martin</given-names></name>
+        <name><surname>McCammon</surname><given-names>J. Andrew</given-names></name>
+      </person-group>
+      <article-title>Molecular dynamics simulations of biomolecules</article-title>
+      <source>Nature Structural Biology</source>
+      <year iso-8601-date="2002-09">2002</year><month>09</month>
+      <volume>9</volume>
+      <issue>9</issue>
+      <issn>1545-9985</issn>
+      <uri>https://doi.org/10.1038/nsb0902-646</uri>
+      <fpage>646</fpage>
+      <lpage>652</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-KarplusU003A1983">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Brooks</surname><given-names>Bernard R</given-names></name>
+        <name><surname>Bruccoleri</surname><given-names>Robert E</given-names></name>
+        <name><surname>Olafson</surname><given-names>Barry D</given-names></name>
+        <name><surname>States</surname><given-names>David J</given-names></name>
+        <name><surname>Swaminathan</surname><given-names>S a</given-names></name>
+        <name><surname>Karplus</surname><given-names>Martin</given-names></name>
+      </person-group>
+      <article-title>CHARMM: A program for macromolecular energy, minimization, and dynamics calculations</article-title>
+      <source>Journal of computational chemistry</source>
+      <publisher-name>Wiley Online Library</publisher-name>
+      <year iso-8601-date="1983">1983</year>
+      <volume>4</volume>
+      <issue>2</issue>
+      <pub-id pub-id-type="doi">10.1002/jcc.540040211</pub-id>
+      <fpage>187</fpage>
+      <lpage>217</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-RichardsonU003A2007">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Richardson</surname><given-names>Lewis Fry</given-names></name>
+      </person-group>
+      <source>Weather prediction by numerical process</source>
+      <publisher-name>Cambridge university press</publisher-name>
+      <year iso-8601-date="2007">2007</year>
+      <uri>https://archive.org/details/weatherpredictio00richrich</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-BauerU003A2015">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Bauer</surname><given-names>Peter</given-names></name>
+        <name><surname>Thorpe</surname><given-names>Alan</given-names></name>
+        <name><surname>Brunet</surname><given-names>Gilbert</given-names></name>
+      </person-group>
+      <article-title>The quiet revolution of numerical weather prediction</article-title>
+      <source>Nature</source>
+      <year iso-8601-date="2015-09">2015</year><month>09</month>
+      <volume>525</volume>
+      <issue>7567</issue>
+      <issn>1476-4687</issn>
+      <uri>https://doi.org/10.1038/nature14956</uri>
+      <pub-id pub-id-type="doi">10.1038/nature14956</pub-id>
+      <fpage>47</fpage>
+      <lpage>55</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-LuskU003A2011">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Lusk</surname><given-names>Mark T.</given-names></name>
+        <name><surname>Mattsson</surname><given-names>Ann E.</given-names></name>
+      </person-group>
+      <article-title>High-performance computing for materials design to advance energy science</article-title>
+      <source>MRS Bulletin</source>
+      <year iso-8601-date="2011-03">2011</year><month>03</month>
+      <volume>36</volume>
+      <issue>3</issue>
+      <issn>1938-1425</issn>
+      <uri>https://doi.org/10.1557/mrs.2011.30</uri>
+      <pub-id pub-id-type="doi">10.1557/mrs.2011.30</pub-id>
+      <fpage>169</fpage>
+      <lpage>174</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-SanbonmatsuU003A2007">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Sanbonmatsu</surname><given-names>KY</given-names></name>
+        <name><surname>Tung</surname><given-names>C-S</given-names></name>
+      </person-group>
+      <article-title>High performance computing in biology: Multimillion atom simulations of nanoscale systems</article-title>
+      <source>Journal of structural biology</source>
+      <publisher-name>Elsevier</publisher-name>
+      <year iso-8601-date="2007">2007</year>
+      <volume>157</volume>
+      <issue>3</issue>
+      <pub-id pub-id-type="doi">10.1016/j.jsb.2006.10.023</pub-id>
+      <fpage>470</fpage>
+      <lpage>480</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-WashingtonU003A2009">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Washington</surname><given-names>Warren M</given-names></name>
+        <name><surname>Buja</surname><given-names>Lawrence</given-names></name>
+        <name><surname>Craig</surname><given-names>Anthony</given-names></name>
+      </person-group>
+      <article-title>The computational future for climate and earth system models: On the path to petaflop and beyond</article-title>
+      <source>Philosophical Transactions of the Royal Society A: Mathematical, Physical and Engineering Sciences</source>
+      <year iso-8601-date="2009">2009</year>
+      <volume>367</volume>
+      <issue>1890</issue>
+      <uri>https://royalsocietypublishing.org/doi/abs/10.1098/
+                        rsta.2008.0219</uri>
+      <pub-id pub-id-type="doi">10.1098/rsta.2008.0219</pub-id>
+      <fpage>833</fpage>
+      <lpage>846</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-PanU003A2021">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Pan</surname><given-names>Jie</given-names></name>
+      </person-group>
+      <article-title>Scaling up system size in materials simulation</article-title>
+      <source>Nature Computational Science</source>
+      <year iso-8601-date="2021-02">2021</year><month>02</month>
+      <volume>1</volume>
+      <issue>2</issue>
+      <issn>2662-8457</issn>
+      <uri>https://doi.org/10.1038/s43588-021-00034-x</uri>
+      <pub-id pub-id-type="doi">10.1038/s43588-021-00034-x</pub-id>
+      <fpage>95</fpage>
+      <lpage>95</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-MurrU003A2016">
+    <element-citation publication-type="chapter">
+      <person-group person-group-type="author">
+        <name><surname>Murr</surname><given-names>Lawrence E.</given-names></name>
+      </person-group>
+      <article-title>Computer simulations in materials science and engineering</article-title>
+      <source>Handbook of materials structures, properties, processing and performance</source>
+      <publisher-name>Springer International Publishing</publisher-name>
+      <publisher-loc>Cham</publisher-loc>
+      <year iso-8601-date="2016">2016</year>
+      <isbn>978-3-319-01905-5</isbn>
+      <uri>https://doi.org/10.1007/978-3-319-01905-5_60-2</uri>
+      <pub-id pub-id-type="doi">10.1007/978-3-319-01905-5_60-2</pub-id>
+      <fpage>1</fpage>
+      <lpage>15</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-GiessenU003A2020">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Giessen</surname><given-names>Erik van der</given-names></name>
+        <name><surname>Schultz</surname><given-names>Peter A</given-names></name>
+        <name><surname>Bertin</surname><given-names>Nicolas</given-names></name>
+        <name><surname>Bulatov</surname><given-names>Vasily V</given-names></name>
+        <name><surname>Cai</surname><given-names>Wei</given-names></name>
+        <name><surname>Csányi</surname><given-names>Gábor</given-names></name>
+        <name><surname>Foiles</surname><given-names>Stephen M</given-names></name>
+        <name><surname>Geers</surname><given-names>M G D</given-names></name>
+        <name><surname>González</surname><given-names>Carlos</given-names></name>
+        <name><surname>Hütter</surname><given-names>Markus</given-names></name>
+        <name><surname>Kim</surname><given-names>Woo Kyun</given-names></name>
+        <name><surname>Kochmann</surname><given-names>Dennis M</given-names></name>
+        <name><surname>LLorca</surname><given-names>Javier</given-names></name>
+        <name><surname>Mattsson</surname><given-names>Ann E</given-names></name>
+        <name><surname>Rottler</surname><given-names>Jörg</given-names></name>
+        <name><surname>Shluger</surname><given-names>Alexander</given-names></name>
+        <name><surname>Sills</surname><given-names>Ryan B</given-names></name>
+        <name><surname>Steinbach</surname><given-names>Ingo</given-names></name>
+        <name><surname>Strachan</surname><given-names>Alejandro</given-names></name>
+        <name><surname>Tadmor</surname><given-names>Ellad B</given-names></name>
+      </person-group>
+      <article-title>Roadmap on multiscale materials modeling</article-title>
+      <source>Modelling and Simulation in Materials Science and Engineering</source>
+      <publisher-name>IOP Publishing</publisher-name>
+      <year iso-8601-date="2020-03">2020</year><month>03</month>
+      <volume>28</volume>
+      <issue>4</issue>
+      <uri>https://doi.org/10.1088/1361-651x/ab7150</uri>
+      <pub-id pub-id-type="doi">10.1088/1361-651x/ab7150</pub-id>
+      <fpage>043001</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-ScholkopfU003A2001">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Scholkopf</surname><given-names>Bernhard</given-names></name>
+        <name><surname>Smola</surname><given-names>Alexander J.</given-names></name>
+      </person-group>
+      <source>Learning with kernels: Support vector machines, regularization, optimization, and beyond</source>
+      <publisher-name>MIT Press</publisher-name>
+      <publisher-loc>Cambridge, MA, USA</publisher-loc>
+      <year iso-8601-date="2001">2001</year>
+      <isbn>0262194759</isbn>
+      <uri>https://vdoc.mx/documents/learning-with-kernels-support-vector-machines-regularization-optimization-and-beyond-14ipl8tqmq3o#</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-RasmussenU003A2004">
+    <element-citation publication-type="chapter">
+      <person-group person-group-type="author">
+        <name><surname>Rasmussen</surname><given-names>Carl Edward</given-names></name>
+      </person-group>
+      <article-title>Gaussian processes in machine learning</article-title>
+      <source>Advanced lectures on machine learning: ML summer schools 2003, canberra, australia, february 2 - 14, 2003, tübingen, germany, august 4 - 16, 2003, revised lectures</source>
+      <person-group person-group-type="editor">
+        <name><surname>Bousquet</surname><given-names>Olivier</given-names></name>
+        <name><surname>Luxburg</surname><given-names>Ulrike von</given-names></name>
+        <name><surname>Rätsch</surname><given-names>Gunnar</given-names></name>
+      </person-group>
+      <publisher-name>Springer Berlin Heidelberg</publisher-name>
+      <publisher-loc>Berlin, Heidelberg</publisher-loc>
+      <year iso-8601-date="2004">2004</year>
+      <isbn>978-3-540-28650-9</isbn>
+      <uri>https://doi.org/10.1007/978-3-540-28650-9_4</uri>
+      <pub-id pub-id-type="doi">10.1007/978-3-540-28650-9_4</pub-id>
+      <fpage>63</fpage>
+      <lpage>71</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-HastieU003A2001">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Hastie</surname><given-names>Trevor</given-names></name>
+        <name><surname>Tibshirani</surname><given-names>Robert</given-names></name>
+        <name><surname>Friedman</surname><given-names>Jerome</given-names></name>
+      </person-group>
+      <source>Elements of statistical learning</source>
+      <publisher-name>Springer New York Inc.</publisher-name>
+      <publisher-loc>New York, NY, USA</publisher-loc>
+      <year iso-8601-date="2001">2001</year>
+      <uri>https://link.springer.com/book/10.1007/978-0-387-84858-7</uri>
+      <pub-id pub-id-type="doi">10.1007/978-0-387-84858-7</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-PaszkeU003A2019">
+    <element-citation publication-type="chapter">
+      <person-group person-group-type="author">
+        <name><surname>Paszke</surname><given-names>Adam</given-names></name>
+        <name><surname>Gross</surname><given-names>Sam</given-names></name>
+        <name><surname>Massa</surname><given-names>Francisco</given-names></name>
+        <name><surname>Lerer</surname><given-names>Adam</given-names></name>
+        <name><surname>Bradbury</surname><given-names>James</given-names></name>
+        <name><surname>Chanan</surname><given-names>Gregory</given-names></name>
+        <name><surname>Killeen</surname><given-names>Trevor</given-names></name>
+        <name><surname>Lin</surname><given-names>Zeming</given-names></name>
+        <name><surname>Gimelshein</surname><given-names>Natalia</given-names></name>
+        <name><surname>Antiga</surname><given-names>Luca</given-names></name>
+        <name><surname>Desmaison</surname><given-names>Alban</given-names></name>
+        <name><surname>Kopf</surname><given-names>Andreas</given-names></name>
+        <name><surname>Yang</surname><given-names>Edward</given-names></name>
+        <name><surname>DeVito</surname><given-names>Zachary</given-names></name>
+        <name><surname>Raison</surname><given-names>Martin</given-names></name>
+        <name><surname>Tejani</surname><given-names>Alykhan</given-names></name>
+        <name><surname>Chilamkurthy</surname><given-names>Sasank</given-names></name>
+        <name><surname>Steiner</surname><given-names>Benoit</given-names></name>
+        <name><surname>Fang</surname><given-names>Lu</given-names></name>
+        <name><surname>Bai</surname><given-names>Junjie</given-names></name>
+        <name><surname>Chintala</surname><given-names>Soumith</given-names></name>
+      </person-group>
+      <article-title>PyTorch: An imperative style, high-performance deep learning library</article-title>
+      <source>Advances in neural information processing systems 32</source>
+      <person-group person-group-type="editor">
+        <name><surname>Wallach</surname><given-names>H.</given-names></name>
+        <name><surname>Larochelle</surname><given-names>H.</given-names></name>
+        <name><surname>Beygelzimer</surname><given-names>A.</given-names></name>
+        <name><surname>dAlché-Buc</surname><given-names>F.</given-names></name>
+        <name><surname>Fox</surname><given-names>E.</given-names></name>
+        <name><surname>Garnett</surname><given-names>R.</given-names></name>
+      </person-group>
+      <publisher-name>Curran Associates, Inc.</publisher-name>
+      <year iso-8601-date="2019">2019</year>
+      <uri>http://papers.neurips.cc/paper/9015-pytorch-an-imperative-
+                        style-high-performance-deep-learning-library.pdf</uri>
+      <fpage>8024</fpage>
+      <lpage>8035</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-AbadiU003A2015">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Abadi</surname><given-names>Martín</given-names></name>
+        <name><surname>Agarwal</surname><given-names>Ashish</given-names></name>
+        <name><surname>Barham</surname><given-names>Paul</given-names></name>
+        <name><surname>Brevdo</surname><given-names>Eugene</given-names></name>
+        <name><surname>Chen</surname><given-names>Zhifeng</given-names></name>
+        <name><surname>Citro</surname><given-names>Craig</given-names></name>
+        <name><surname>Corrado</surname><given-names>Greg S.</given-names></name>
+        <name><surname>Davis</surname><given-names>Andy</given-names></name>
+        <name><surname>Dean</surname><given-names>Jeffrey</given-names></name>
+        <name><surname>Devin</surname><given-names>Matthieu</given-names></name>
+        <name><surname>Ghemawat</surname><given-names>Sanjay</given-names></name>
+        <name><surname>Goodfellow</surname><given-names>Ian</given-names></name>
+        <name><surname>Harp</surname><given-names>Andrew</given-names></name>
+        <name><surname>Irving</surname><given-names>Geoffrey</given-names></name>
+        <name><surname>Isard</surname><given-names>Michael</given-names></name>
+        <name><surname>Jia</surname><given-names>Yangqing</given-names></name>
+        <name><surname>Jozefowicz</surname><given-names>Rafal</given-names></name>
+        <name><surname>Kaiser</surname><given-names>Lukasz</given-names></name>
+        <name><surname>Kudlur</surname><given-names>Manjunath</given-names></name>
+        <name><surname>Levenberg</surname><given-names>Josh</given-names></name>
+        <name><surname>Mané</surname><given-names>Dandelion</given-names></name>
+        <name><surname>Monga</surname><given-names>Rajat</given-names></name>
+        <name><surname>Moore</surname><given-names>Sherry</given-names></name>
+        <name><surname>Murray</surname><given-names>Derek</given-names></name>
+        <name><surname>Olah</surname><given-names>Chris</given-names></name>
+        <name><surname>Schuster</surname><given-names>Mike</given-names></name>
+        <name><surname>Shlens</surname><given-names>Jonathon</given-names></name>
+        <name><surname>Steiner</surname><given-names>Benoit</given-names></name>
+        <name><surname>Sutskever</surname><given-names>Ilya</given-names></name>
+        <name><surname>Talwar</surname><given-names>Kunal</given-names></name>
+        <name><surname>Tucker</surname><given-names>Paul</given-names></name>
+        <name><surname>Vanhoucke</surname><given-names>Vincent</given-names></name>
+        <name><surname>Vasudevan</surname><given-names>Vijay</given-names></name>
+        <name><surname>Viégas</surname><given-names>Fernanda</given-names></name>
+        <name><surname>Vinyals</surname><given-names>Oriol</given-names></name>
+        <name><surname>Warden</surname><given-names>Pete</given-names></name>
+        <name><surname>Wattenberg</surname><given-names>Martin</given-names></name>
+        <name><surname>Wicke</surname><given-names>Martin</given-names></name>
+        <name><surname>Yu</surname><given-names>Yuan</given-names></name>
+        <name><surname>Zheng</surname><given-names>Xiaoqiang</given-names></name>
+      </person-group>
+      <article-title>TensorFlow: Large-scale machine learning on heterogeneous systems</article-title>
+      <year iso-8601-date="2015">2015</year>
+      <uri>https://www.tensorflow.org/</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-DerjaguinU003A1941">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Derjaguin</surname><given-names>L.</given-names><suffix>B.; Landau</suffix></name>
+      </person-group>
+      <article-title>Theory of the stability of strongly charged lyophobic sols and of the adhesion of strongly charged particles in solutions of electrolytes</article-title>
+      <source>Acta Physico Chemica URSS</source>
+      <year iso-8601-date="1941">1941</year>
+      <volume>633</volume>
+      <issue>14</issue>
+      <pub-id pub-id-type="doi">10.1016/0079-6816(93)90013-l</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-DoiU003A2013">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Doi</surname><given-names>Masao</given-names></name>
+      </person-group>
+      <source>Soft matter physics</source>
+      <publisher-name>Oxford University Press</publisher-name>
+      <year iso-8601-date="2013">2013</year>
+      <uri>https://doi.org/10.1093/acprof:oso/9780199652952.001.0001</uri>
+      <pub-id pub-id-type="doi">10.1093/acprof:oso/9780199652952.001.0001</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-JonesU003A2002">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Jones</surname><given-names>R. A. L.</given-names></name>
+        <name><surname>Jones</surname><given-names>R. A. L.</given-names></name>
+        <name><surname>R Jones</surname><given-names>P.</given-names></name>
+      </person-group>
+      <source>Soft condensed matter</source>
+      <publisher-name>OUP Oxford</publisher-name>
+      <year iso-8601-date="2002">2002</year>
+      <isbn>9780198505891</isbn>
+      <uri>https://books.google.com/books?id=Hl\_HBPUvoNsC</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-AtzbergerU003A2018b">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Sidhu</surname><given-names>Inderbir</given-names></name>
+        <name><surname>Frischknecht</surname><given-names>Amalie L.</given-names></name>
+        <name><surname>Atzberger</surname><given-names>Paul J.</given-names></name>
+      </person-group>
+      <article-title>Electrostatics of nanoparticle-wall interactions within nanochannels: Role of double-layer structure and ion-ion correlations</article-title>
+      <source>ACS Omega</source>
+      <publisher-name>American Chemical Society</publisher-name>
+      <year iso-8601-date="2018-09">2018</year><month>09</month>
+      <volume>3</volume>
+      <issue>9</issue>
+      <issn>2470-1343</issn>
+      <uri>https://doi.org/10.1021/acsomega.8b01393</uri>
+      <pub-id pub-id-type="doi">10.1021/acsomega.8b01393</pub-id>
+      <fpage>11340</fpage>
+      <lpage>11353</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-SmoluchowskiU003A1906">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Smoluchowski</surname><given-names>VMV</given-names></name>
+      </person-group>
+      <article-title>Drei vorträge über diffusion, brownsche molekularbewegung und koagulation von kolloidteilchen</article-title>
+      <source>Ann. Phys</source>
+      <year iso-8601-date="1906">1906</year>
+      <volume>21</volume>
+      <uri>https://jbc.bj.uj.edu.pl/Content/387533/PDF/FIZART_SMOLUCHOWSKI_00093.pdf</uri>
+      <fpage>756</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-AtzbergerU003A2020">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Lopez</surname><given-names>Ryan</given-names></name>
+        <name><surname>Atzberger</surname><given-names>Paul J.</given-names></name>
+      </person-group>
+      <article-title>Variational autoencoders for learning nonlinear dynamics of physical systems</article-title>
+      <year iso-8601-date="2020">2020</year>
+      <uri>https://arxiv.org/abs/2012.03448</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-AtzbergerU003A2022">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Lopez</surname><given-names>Ryan</given-names></name>
+        <name><surname>Atzberger</surname><given-names>Paul J</given-names></name>
+      </person-group>
+      <article-title>GD-VAEs: Geometric dynamic variational autoencoders for learning nonlinear dynamics and dimension reductions</article-title>
+      <source>arXiv preprint arXiv:2206.05183</source>
+      <year iso-8601-date="2022">2022</year>
+      <uri>https://arxiv.org/abs/2206.05183</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-zenodo">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Atzberger</surname><given-names>P. J.</given-names></name>
+      </person-group>
+      <article-title>MLMOD package v1.0.1</article-title>
+      <source>Zenodo</source>
+      <publisher-name>Zenodo</publisher-name>
+      <year iso-8601-date="2023">2023</year>
+      <uri>https://doi.org/10.5281/zenodo.8327516</uri>
+      <pub-id pub-id-type="doi">10.5281/zenodo.8327516</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-KingmaU003A2014">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Kingma</surname><given-names>Diederik P.</given-names></name>
+        <name><surname>Welling</surname><given-names>Max</given-names></name>
+      </person-group>
+      <article-title>Auto-encoding variational bayes</article-title>
+      <source>2nd international conference on learning representations, ICLR 2014, banff, AB, canada, april 14-16, 2014, conference track proceedings</source>
+      <year iso-8601-date="2014">2014</year>
+      <uri>http://arxiv.org/abs/1312.6114</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-BleiU003A2017">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Blei</surname><given-names>David M.</given-names></name>
+        <name><surname>Kucukelbir</surname><given-names>Alp</given-names></name>
+        <name><surname>McAuliffe</surname><given-names>Jon D.</given-names></name>
+      </person-group>
+      <article-title>Variational inference: A review for statisticians</article-title>
+      <source>Journal of the American Statistical Association</source>
+      <publisher-name>Taylor &amp; Francis</publisher-name>
+      <year iso-8601-date="2017">2017</year>
+      <volume>112</volume>
+      <issue>518</issue>
+      <uri>https://doi.org/10.1080/01621459.2017.1285773</uri>
+      <pub-id pub-id-type="doi">10.1080/01621459.2017.1285773</pub-id>
+      <fpage>859</fpage>
+      <lpage>877</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-CollobertU003A2011">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Collobert</surname><given-names>R.</given-names></name>
+        <name><surname>Kavukcuoglu</surname><given-names>K.</given-names></name>
+        <name><surname>Farabet</surname><given-names>C.</given-names></name>
+      </person-group>
+      <article-title>Torch7: A matlab-like environment for machine learning</article-title>
+      <source>BigLearn, NIPS workshop</source>
+      <year iso-8601-date="2011">2011</year>
+      <uri>https://infoscience.epfl.ch/record/192376?ln=en</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-AtzbergerU003A2023">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Stinis</surname><given-names>Panos</given-names></name>
+        <name><surname>Daskalakis</surname><given-names>Constantinos</given-names></name>
+        <name><surname>Atzberger</surname><given-names>Paul J</given-names></name>
+      </person-group>
+      <article-title>SDYN-GANs: Adversarial learning methods for multistep generative models for general order stochastic dynamics</article-title>
+      <source>arXiv preprint arXiv:2302.03663</source>
+      <year iso-8601-date="2023">2023</year>
+      <uri>https://arxiv.org/abs/2302.03663</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-NielsenU003A2000">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Nielsen</surname><given-names>Jan Nygaard</given-names></name>
+        <name><surname>Madsen</surname><given-names>Henrik</given-names></name>
+        <name><surname>Young</surname><given-names>Peter C</given-names></name>
+      </person-group>
+      <article-title>Parameter estimation in stochastic differential equations: An overview</article-title>
+      <source>Annual Reviews in Control</source>
+      <publisher-name>Elsevier</publisher-name>
+      <year iso-8601-date="2000">2000</year>
+      <volume>24</volume>
+      <pub-id pub-id-type="doi">10.1016/S1367-5788(00)90017-8</pub-id>
+      <fpage>83</fpage>
+      <lpage>94</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-PlimptonU003A2022">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Thompson</surname><given-names>Aidan P.</given-names></name>
+        <name><surname>Aktulga</surname><given-names>H. Metin</given-names></name>
+        <name><surname>Berger</surname><given-names>Richard</given-names></name>
+        <name><surname>Bolintineanu</surname><given-names>Dan S.</given-names></name>
+        <name><surname>Brown</surname><given-names>W. Michael</given-names></name>
+        <name><surname>Crozier</surname><given-names>Paul S.</given-names></name>
+        <name><surname>in ’t Veld</surname><given-names>Pieter J.</given-names></name>
+        <name><surname>Kohlmeyer</surname><given-names>Axel</given-names></name>
+        <name><surname>Moore</surname><given-names>Stan G.</given-names></name>
+        <name><surname>Nguyen</surname><given-names>Trung Dac</given-names></name>
+        <name><surname>Shan</surname><given-names>Ray</given-names></name>
+        <name><surname>Stevens</surname><given-names>Mark J.</given-names></name>
+        <name><surname>Tranchida</surname><given-names>Julien</given-names></name>
+        <name><surname>Trott</surname><given-names>Christian</given-names></name>
+        <name><surname>Plimpton</surname><given-names>Steven J.</given-names></name>
+      </person-group>
+      <article-title>LAMMPS - a flexible simulation tool for particle-based materials modeling at the atomic, meso, and continuum scales</article-title>
+      <source>Computer Physics Communications</source>
+      <year iso-8601-date="2022">2022</year>
+      <volume>271</volume>
+      <issn>0010-4655</issn>
+      <uri>https://www.sciencedirect.com/science/article/pii/S0010465521002836</uri>
+      <pub-id pub-id-type="doi">10.1016/j.cpc.2021.108171</pub-id>
+      <fpage>108171</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
