@@ -1,0 +1,499 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">5621</article-id>
+<article-id pub-id-type="doi">10.21105/joss.05621</article-id>
+<title-group>
+<article-title>Simulated Diffusion in Realistic Imaging Features of
+Tissue (Sim-DRIFT)</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author" corresp="yes">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0002-4156-4094</contrib-id>
+<name>
+<surname>Blum</surname>
+<given-names>Jacob</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+<xref ref-type="corresp" rid="cor-1"><sup>*</sup></xref>
+</contrib>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0002-8555-9000</contrib-id>
+<name>
+<surname>Utt</surname>
+<given-names>Kainen L.</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Washington University in St. Louis, USA</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<author-notes>
+<corresp id="cor-1">* E-mail: <email></email></corresp>
+</author-notes>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2023-06-01">
+<day>1</day>
+<month>6</month>
+<year>2023</year>
+</pub-date>
+<volume>8</volume>
+<issue>89</issue>
+<fpage>5621</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2022</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>Python</kwd>
+<kwd>Diffusion MRI</kwd>
+<kwd>Diffusion Tensor Imaging</kwd>
+<kwd>Biophysics</kwd>
+<kwd>Monte-Carlo Simulation</kwd>
+<kwd>CUDA</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p>This library, <monospace>simDRIFT</monospace>, provides for rapid
+  and flexible Monte-Carlo simulations of Pulsed Gradient Spin Echo
+  (PGSE) Diffusion-Weighted Magnetic Resonance Imaging (DWI)
+  experiments, which we expect to be useful for DWI signal processing
+  model development and validation purposes. The primary focus of this
+  library is forward simulations of molecular self-diffusion processes
+  within an ensemble of nuclear magnetic resonance (NMR) active nuclei
+  (“spins”) residing in complex, biophysical tissue systems. To achieve
+  a large variety of tissue configurations,
+  <monospace>simDRIFT</monospace> provides support for
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[n]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>n</mml:mi></mml:math></alternatives></inline-formula>
+  fiber bundles (with user-defined radii, intrinsic diffusivities,
+  orientation angles, and densities) and <inline-formula><alternatives>
+  <tex-math><![CDATA[m]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>m</mml:mi></mml:math></alternatives></inline-formula>
+  cells (with user-defined radii and volume fractions).
+  <monospace>simDrift</monospace> is written in Python (Python Software
+  Foundation,
+  <xref alt="VanRossum &amp; Drake, 2010" rid="ref-VanRossum2010" ref-type="bibr">VanRossum
+  &amp; Drake, 2010</xref>) and supported by a Numba
+  (<xref alt="Lam et al., 2015" rid="ref-Lam2015" ref-type="bibr">Lam et
+  al., 2015</xref>) backend. Thus, <monospace>simDRIFT</monospace>
+  benefits from Numba’s CUDA API, allowing the simulation of individual
+  spin trajectories to be performed in parallel on single Graphics
+  Processing Unit (GPU) threads. The resulting performance gains support
+  <monospace>simDRIFT</monospace>’s aim to provide a customizable tool
+  for the rapid prototyping of diffusion models, ground-truth model
+  validation, and in silico phantom production.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p>Monte Carlo simulations are particularly effective at generating
+  synthetic diffusion MRI data from complex, biophysically accurate
+  imaging voxels with known ground-truth microstructural parameters.
+  Consequently, such simulations have proven useful for developing and
+  validating signal processing models
+  (<xref alt="Chiang et al., 2014" rid="ref-Chiang2014" ref-type="bibr">Chiang
+  et al., 2014</xref>;
+  <xref alt="Ye et al., 2020" rid="ref-Ye2020" ref-type="bibr">Ye et
+  al., 2020</xref>). Existing Monte Carlo simulators, such as CAMINO,
+  Disimpy, Realistic Microstructure Simulator, and others rely on meshes
+  to discretize the computational domain Rafael-Patino et al.
+  (<xref alt="2020" rid="ref-RafaelPatino2020" ref-type="bibr">2020</xref>).
+  While this approach does allow for the representation of complex and
+  finely detailed microstructural features, given the coarse graining of
+  such features (fiber bending, etc…) observed at experimentally
+  realistic diffusion times and voxel sizes
+  (<xref alt="Novikov et al., 2018" rid="ref-Novikov2018" ref-type="bibr">Novikov
+  et al., 2018</xref>), <monospace>simDRIFT</monospace> supplies a
+  reasonable approximation to the relevant self-diffusion processes by
+  parametrizing fibers as narrow cylinders, or “sticks”, and cells as
+  isotropic spheres, or “balls”
+  (<xref alt="Behrens et al., 2003" rid="ref-Behrens2003" ref-type="bibr">Behrens
+  et al., 2003</xref>). This way, users may readily simulate voxels
+  induced by multiple, oriented fiber bundles and cells without having
+  to re-discretize the computational domain with complex meshes, which
+  scale in size according to the desired feature resolution and size of
+  the simulated image voxel
+  (<xref alt="Panagiotaki et al., 2010" rid="ref-Panagiotaki2010" ref-type="bibr">Panagiotaki
+  et al., 2010</xref>).</p>
+  <p><monospace>simDRIFT</monospace>’s superior computational
+  performance represents an important advantage relative to other
+  available open-source software. Comparisons between simDRIFT and
+  Disimpy, a mesh based, CUDA enabled DWI forward simulator known to be
+  faster than CAMINO
+  (<xref alt="Kerkelä et al., 2020" rid="ref-Kerkelae2020" ref-type="bibr">Kerkelä
+  et al., 2020</xref>), on identical image voxel geometries featuring a
+  5 <inline-formula><alternatives>
+  <tex-math><![CDATA[\mu]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>μ</mml:mi></mml:math></alternatives></inline-formula>m
+  radius cell, reveals orders of magnitude improved performance,
+  particularly for large resident spin ensemble sizes. Thus,
+  <monospace>simDRIFT</monospace> is especially useful in a regime where
+  the computational cost of existing software may be cumbersome or even
+  prohibitive. In particular, <monospace>simDRIFT</monospace> is able to
+  perform large scale simulations very quickly, therefore benefiting
+  from favorable convergence properties with respect to the diffusion
+  weighted signal. In this context, using just desktop or even laptop
+  level GPU hardware, <monospace>simDRIFT</monospace> users are able to
+  quickly and easily generate large amounts of synthetic DWI data from a
+  wide variety of voxel geometries.</p>
+  <fig>
+    <caption><p>Runtime comparison between simDRIFT and Disimpy, another
+    DWI simulator that runs on the GPU. These simulations were performed
+    on a Windows 10 desktop with an Nvidia RTX 3090
+    GPU.<styled-content id="figU003Aperformance"></styled-content></p></caption>
+    <graphic mimetype="image" mime-subtype="png" xlink:href="media/figs/simDRIFT_vs_Disimpy.png" />
+  </fig>
+  <p>Therefore, the software encompassed by
+  <monospace>simDRIFT</monospace> fulfills a presently-unmet need by
+  allowing for mesh-free Monte Carlo simulations of DWI that unify
+  researchers’ needs for computational performance and biophysical
+  realism with easy-to-use and configurable open-source software.
+  <monospace>simDRIFT</monospace> was designed to be used by researchers
+  of all disciplines and focuses who are working with diffusion MRI.
+  Multiple scientific publications which utilize this library are
+  currently in production. The wide customizability, high computational
+  speed, and massively-parallel design will provide avenues for improved
+  model development pipelines and thorough inter-model comparisons,
+  among other potential applications.</p>
+</sec>
+<sec id="features">
+  <title>Features</title>
+  <p>The library allows users to construct voxel geometries described by
+  user-defined microstructural and scanning parameters. Specifically,
+  <monospace>simDRIFT</monospace> simulates the diffusion MRI signal
+  generated from the self-diffusion of water in an isotropic imaging
+  voxel of length <inline-formula><alternatives>
+  <tex-math><![CDATA[L_{\mathrm{voxel}}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>L</mml:mi><mml:mrow><mml:mi mathvariant="normal">v</mml:mi><mml:mi mathvariant="normal">o</mml:mi><mml:mi mathvariant="normal">x</mml:mi><mml:mi mathvariant="normal">e</mml:mi><mml:mi mathvariant="normal">l</mml:mi></mml:mrow></mml:msub></mml:math></alternatives></inline-formula>
+  that contains <inline-formula><alternatives>
+  <tex-math><![CDATA[n \in [0,4]]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>n</mml:mi><mml:mo>∈</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">[</mml:mo><mml:mn>0</mml:mn><mml:mo>,</mml:mo><mml:mn>4</mml:mn><mml:mo stretchy="true" form="postfix">]</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>
+  distinct fiber bundles and <inline-formula><alternatives>
+  <tex-math><![CDATA[m \in [0,2]]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>m</mml:mi><mml:mo>∈</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">[</mml:mo><mml:mn>0</mml:mn><mml:mo>,</mml:mo><mml:mn>2</mml:mn><mml:mo stretchy="true" form="postfix">]</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>
+  distinct cells types, according to the user’s selection of diffusion
+  imaging protocol, diffusion time (<inline-formula><alternatives>
+  <tex-math><![CDATA[\Delta]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>Δ</mml:mi></mml:math></alternatives></inline-formula>),
+  time-step size <inline-formula><alternatives>
+  <tex-math><![CDATA[\mathrm{d}t]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi mathvariant="normal">d</mml:mi><mml:mi>t</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>,
+  and desired free water diffusivity <inline-formula><alternatives>
+  <tex-math><![CDATA[D_{FW}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>D</mml:mi><mml:mrow><mml:mi>F</mml:mi><mml:mi>W</mml:mi></mml:mrow></mml:msub></mml:math></alternatives></inline-formula>.
+  Within each simulated voxel, the user also has control over the
+  properties of each fiber/cell type. For each fiber bundle, users
+  define the desired orientation (via the angle
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[\theta]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>θ</mml:mi></mml:math></alternatives></inline-formula>
+  formed between the bundle and the <inline-formula><alternatives>
+  <tex-math><![CDATA[z]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>z</mml:mi></mml:math></alternatives></inline-formula>
+  axis), intrinsic diffusivity (<inline-formula><alternatives>
+  <tex-math><![CDATA[D_{i}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>D</mml:mi><mml:mi>i</mml:mi></mml:msub></mml:math></alternatives></inline-formula>),
+  axonal radius (<inline-formula><alternatives>
+  <tex-math><![CDATA[R_{i}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>R</mml:mi><mml:mi>i</mml:mi></mml:msub></mml:math></alternatives></inline-formula>),
+  and voxel volume fraction <inline-formula><alternatives>
+  <tex-math><![CDATA[V_{i}/V_{\mathrm{vox}}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>V</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mi>/</mml:mi><mml:msub><mml:mi>V</mml:mi><mml:mrow><mml:mi mathvariant="normal">v</mml:mi><mml:mi mathvariant="normal">o</mml:mi><mml:mi mathvariant="normal">x</mml:mi></mml:mrow></mml:msub></mml:mrow></mml:math></alternatives></inline-formula>.
+  For each cell type, users similarly define the desired radius
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[R_{j}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>R</mml:mi><mml:mi>j</mml:mi></mml:msub></mml:math></alternatives></inline-formula>
+  and voxel volume fraction <inline-formula><alternatives>
+  <tex-math><![CDATA[V_{j}/V_{\mathrm{vox}}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>V</mml:mi><mml:mi>j</mml:mi></mml:msub><mml:mi>/</mml:mi><mml:msub><mml:mi>V</mml:mi><mml:mrow><mml:mi mathvariant="normal">v</mml:mi><mml:mi mathvariant="normal">o</mml:mi><mml:mi mathvariant="normal">x</mml:mi></mml:mrow></mml:msub></mml:mrow></mml:math></alternatives></inline-formula>.
+  Examples of such voxel configurations can be seen in
+  <xref alt="[fig:examples]" rid="figU003Aexamples">[fig:examples]</xref>.</p>
+  <fig>
+    <caption><p>Example simulated spin trajectories from an imaging
+    voxel featuring two fiber bundles (red, blue) with various
+    orientations (<inline-formula><alternatives>
+    <tex-math><![CDATA[\theta]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>θ</mml:mi></mml:math></alternatives></inline-formula>
+    = 0°, 30°, 60°, 90°), along with extra-fiber spins (purple)
+    .<styled-content id="figU003Aexamples"></styled-content></p></caption>
+    <graphic mimetype="image" mime-subtype="png" xlink:href="media/figs/joss_paper_figure.png" />
+  </fig>
+  <p>For each time step <inline-formula><alternatives>
+  <tex-math><![CDATA[\mathrm{d}t]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi mathvariant="normal">d</mml:mi><mml:mi>t</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>
+  in the simulation, each tissue compartment’s resident spins are
+  displaced along a randomly chosen direction with a
+  compartment-dependent distance <inline-formula><alternatives>
+  <tex-math><![CDATA[\mathrm{d}L = \sqrt{6D_{0}\mathrm{d}t}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi mathvariant="normal">d</mml:mi><mml:mi>L</mml:mi><mml:mo>=</mml:mo><mml:msqrt><mml:mrow><mml:mn>6</mml:mn><mml:msub><mml:mi>D</mml:mi><mml:mn>0</mml:mn></mml:msub><mml:mi mathvariant="normal">d</mml:mi><mml:mi>t</mml:mi></mml:mrow></mml:msqrt></mml:mrow></mml:math></alternatives></inline-formula>.
+  This process is repeated until the target diffusion time of
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[\Delta]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>Δ</mml:mi></mml:math></alternatives></inline-formula>
+  is reached. For diffusion times shorter than the expected pre-exchange
+  lifetime of intracellular water, it is safe to assume no exchange
+  between tissue microstructures. The inter-compartmental exchange of
+  water is computationally forbidden via within-timestep rejection of
+  proposed moves beyond the boundaries of each spin’s domain.</p>
+</sec>
+<sec id="acknowledgments">
+  <title>Acknowledgments</title>
+  <p>This work was funded in part via support from NIH NINDS R01 NS11691
+  and R01 NS047592. The authors would like to acknowledge the early
+  contributions of Chunyu Song and Anthony Wu. We are also immensely
+  grateful for the supportive and clarifying discussions with Professor
+  Sheng-Kwei Song, whose insight helped clarify this project’s
+  trajectory.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <ref id="ref-Lam2015">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Lam</surname><given-names>Siu Kwan</given-names></name>
+        <name><surname>Pitrou</surname><given-names>Antoine</given-names></name>
+        <name><surname>Seibert</surname><given-names>Stanley</given-names></name>
+      </person-group>
+      <article-title>Numba: A llvm-based python jit compiler</article-title>
+      <source>Proceedings of the second workshop on the llvm compiler infrastructure in hpc</source>
+      <year iso-8601-date="2015">2015</year>
+      <fpage>1</fpage>
+      <lpage>6</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-VanRossum2010">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>VanRossum</surname><given-names>Guido</given-names></name>
+        <name><surname>Drake</surname><given-names>Fred L.</given-names></name>
+      </person-group>
+      <source>Python language reference manual</source>
+      <publisher-name>Python software foundation Amsterdam, Netherlands</publisher-name>
+      <year iso-8601-date="2010">2010</year>
+    </element-citation>
+  </ref>
+  <ref id="ref-Chiang2014">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Chiang</surname><given-names>Chia-Wen</given-names></name>
+        <name><surname>Wang</surname><given-names>Yong</given-names></name>
+        <name><surname>Sun</surname><given-names>Peng</given-names></name>
+        <name><surname>Lin</surname><given-names>Tsen-Hsuan</given-names></name>
+        <name><surname>Trinkaus</surname><given-names>Kathryn</given-names></name>
+        <name><surname>Cross</surname><given-names>Anne H.</given-names></name>
+        <name><surname>Song</surname><given-names>Sheng-Kwei</given-names></name>
+      </person-group>
+      <article-title>Quantifying white matter tract diffusion parameters in the presence of increased extra-fiber cellularity and vasogenic edema</article-title>
+      <source>NeuroImage</source>
+      <publisher-name>Elsevier BV</publisher-name>
+      <year iso-8601-date="2014-11">2014</year><month>11</month>
+      <volume>101</volume>
+      <pub-id pub-id-type="doi">10.1016/j.neuroimage.2014.06.064</pub-id>
+      <fpage>310</fpage>
+      <lpage>319</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Ye2020">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Ye</surname><given-names>Zezhong</given-names></name>
+        <name><surname>Gary</surname><given-names>Sam E.</given-names></name>
+        <name><surname>Sun</surname><given-names>Peng</given-names></name>
+        <name><surname>Mustafi</surname><given-names>Sourajit Mitra</given-names></name>
+        <name><surname>Glenn</surname><given-names>George Russell</given-names></name>
+        <name><surname>Yeh</surname><given-names>Fang-Cheng</given-names></name>
+        <name><surname>Merisaari</surname><given-names>Harri</given-names></name>
+        <name><surname>Song</surname><given-names>Chunyu</given-names></name>
+        <name><surname>Yang</surname><given-names>Ruimeng</given-names></name>
+        <name><surname>Huang</surname><given-names>Guo-Shu</given-names></name>
+        <name><surname>Kao</surname><given-names>Hung-Wen</given-names></name>
+        <name><surname>Lin</surname><given-names>Chien-Yuan</given-names></name>
+        <name><surname>Wu</surname><given-names>Yu-Chien</given-names></name>
+        <name><surname>Jensen</surname><given-names>Jens H.</given-names></name>
+        <name><surname>Song</surname><given-names>Sheng-Kwei</given-names></name>
+      </person-group>
+      <article-title>The impact of edema and fiber crossing on diffusion mri metrics assessed in an ex vivo nerve phantom: Multi-tensor model vs. diffusion orientation distribution function</article-title>
+      <source>NMR in Biomedicine</source>
+      <publisher-name>Wiley</publisher-name>
+      <year iso-8601-date="2020">2020</year>
+      <volume>34</volume>
+      <issue>1</issue>
+      <pub-id pub-id-type="doi">10.1002/nbm.4414</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-Kerkelae2020">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Kerkelä</surname><given-names>Leevi</given-names></name>
+        <name><surname>Nery</surname><given-names>Fabio</given-names></name>
+        <name><surname>Hall</surname><given-names>Matt</given-names></name>
+        <name><surname>Clark</surname><given-names>Chris</given-names></name>
+      </person-group>
+      <article-title>Disimpy: A massively parallel monte carlo simulator for generating diffusion-weighted mri data in python</article-title>
+      <source>Journal of Open Source Software</source>
+      <publisher-name>The Open Journal</publisher-name>
+      <year iso-8601-date="2020-08">2020</year><month>08</month>
+      <volume>5</volume>
+      <issue>52</issue>
+      <pub-id pub-id-type="doi">10.21105/joss.02527</pub-id>
+      <fpage>2527</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Yeh2013">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Yeh</surname><given-names>Chun-Hung</given-names></name>
+        <name><surname>Schmitt</surname><given-names>Benoı̂t</given-names></name>
+        <name><surname>Bihan</surname><given-names>Denis Le</given-names></name>
+        <name><surname>Li-Schlittgen</surname><given-names>Jing-Rebecca</given-names></name>
+        <name><surname>Lin</surname><given-names>Ching-Po</given-names></name>
+        <name><surname>Poupon</surname><given-names>Cyril</given-names></name>
+      </person-group>
+      <article-title>Diffusion microscopist simulator: A general monte carlo simulation system for diffusion magnetic resonance imaging</article-title>
+      <source>PLoS ONE</source>
+      <person-group person-group-type="editor">
+        <name><surname>Zhan</surname><given-names>Wang</given-names></name>
+      </person-group>
+      <publisher-name>Public Library of Science (PLoS)</publisher-name>
+      <year iso-8601-date="2013">2013</year>
+      <volume>8</volume>
+      <issue>10</issue>
+      <pub-id pub-id-type="doi">10.1371/journal.pone.0076626</pub-id>
+      <fpage>e76626</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-RafaelPatino2020">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Rafael-Patino</surname><given-names>Jonathan</given-names></name>
+        <name><surname>Romascano</surname><given-names>David</given-names></name>
+        <name><surname>Ramirez-Manzanares</surname><given-names>Alonso</given-names></name>
+        <name><surname>Canales-Rodrı́guez</surname><given-names>Erick Jorge</given-names></name>
+        <name><surname>Girard</surname><given-names>Gabriel</given-names></name>
+        <name><surname>Thiran</surname><given-names>Jean-Philippe</given-names></name>
+      </person-group>
+      <article-title>Robust monte-carlo simulations in diffusion-mri: Effect of the substrate complexity and parameter choice on the reproducibility of results</article-title>
+      <source>Frontiers in Neuroinformatics</source>
+      <publisher-name>Frontiers Media SA</publisher-name>
+      <year iso-8601-date="2020-03">2020</year><month>03</month>
+      <volume>14</volume>
+      <pub-id pub-id-type="doi">10.3389/fninf.2020.00008</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-Panagiotaki2010">
+    <element-citation publication-type="chapter">
+      <person-group person-group-type="author">
+        <name><surname>Panagiotaki</surname><given-names>Eleftheria</given-names></name>
+        <name><surname>Hall</surname><given-names>Matt G.</given-names></name>
+        <name><surname>Zhang</surname><given-names>Hui</given-names></name>
+        <name><surname>Siow</surname><given-names>Bernard</given-names></name>
+        <name><surname>Lythgoe</surname><given-names>Mark F.</given-names></name>
+        <name><surname>Alexander</surname><given-names>Daniel C.</given-names></name>
+      </person-group>
+      <article-title>High-fidelity meshes from tissue samples for diffusion MRI simulations</article-title>
+      <source>Medical image computing and computer-assisted intervention  MICCAI 2010</source>
+      <publisher-name>Springer Berlin Heidelberg</publisher-name>
+      <year iso-8601-date="2010">2010</year>
+      <pub-id pub-id-type="doi">10.1007/978-3-642-15745-5_50</pub-id>
+      <fpage>404</fpage>
+      <lpage>411</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Ianus2016">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Ianuş</surname><given-names>Andrada</given-names></name>
+        <name><surname>Drobnjak</surname><given-names>Ivana</given-names></name>
+        <name><surname>Alexander</surname><given-names>Daniel C.</given-names></name>
+      </person-group>
+      <article-title>Model-based estimation of microscopic anisotropy using diffusion mri: A simulation study</article-title>
+      <source>NMR in Biomedicine</source>
+      <publisher-name>Wiley</publisher-name>
+      <year iso-8601-date="2016-03">2016</year><month>03</month>
+      <volume>29</volume>
+      <issue>5</issue>
+      <pub-id pub-id-type="doi">10.1002/nbm.3496</pub-id>
+      <fpage>672</fpage>
+      <lpage>685</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Novikov2018">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Novikov</surname><given-names>Dmitry S.</given-names></name>
+        <name><surname>Kiselev</surname><given-names>Valerij G.</given-names></name>
+        <name><surname>Jespersen</surname><given-names>Sune N.</given-names></name>
+      </person-group>
+      <article-title>On modeling</article-title>
+      <source>Magnetic Resonance in Medicine</source>
+      <publisher-name>Wiley</publisher-name>
+      <year iso-8601-date="2018-03">2018</year><month>03</month>
+      <volume>79</volume>
+      <issue>6</issue>
+      <pub-id pub-id-type="doi">10.1002/mrm.27101</pub-id>
+      <fpage>3172</fpage>
+      <lpage>3193</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Behrens2003">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Behrens</surname><given-names>T. E. J.</given-names></name>
+        <name><surname>Johansen-Berg</surname><given-names>H.</given-names></name>
+        <name><surname>Woolrich</surname><given-names>M. W.</given-names></name>
+        <name><surname>Smith</surname><given-names>S. M.</given-names></name>
+        <name><surname>Wheeler-Kingshott</surname><given-names>C. A. M.</given-names></name>
+        <name><surname>Boulby</surname><given-names>P. A.</given-names></name>
+        <name><surname>Barker</surname><given-names>G. J.</given-names></name>
+        <name><surname>Sillery</surname><given-names>E. L.</given-names></name>
+        <name><surname>Sheehan</surname><given-names>K.</given-names></name>
+        <name><surname>Ciccarelli</surname><given-names>O.</given-names></name>
+        <name><surname>Thompson</surname><given-names>A. J.</given-names></name>
+        <name><surname>Brady</surname><given-names>J. M.</given-names></name>
+        <name><surname>Matthews</surname><given-names>P. M.</given-names></name>
+      </person-group>
+      <article-title>Non-invasive mapping of connections between human thalamus and cortex using diffusion imaging</article-title>
+      <source>Nature Neuroscience</source>
+      <publisher-name>Springer Science; Business Media LLC</publisher-name>
+      <year iso-8601-date="2003">2003</year>
+      <volume>6</volume>
+      <issue>7</issue>
+      <pub-id pub-id-type="doi">10.1038/nn1075</pub-id>
+      <fpage>750</fpage>
+      <lpage>757</lpage>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
