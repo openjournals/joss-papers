@@ -11,9 +11,6 @@ on:
       issue_id:
         description: 'The issue number of the submission in the JOSS reviews repo'
         required: true
-      issue_title:
-        description: 'The issue title associated with the JOSS review'
-        required: true
 jobs:
   pdf-generation:
     name: ${{ format('PDF draft for issue {0}', github.event.inputs.issue_id) }}
@@ -22,11 +19,7 @@ jobs:
       GH_ACCESS_TOKEN: ${{ secrets.BOT_TOKEN }}
       GITHUB_TOKEN: ${{ secrets.BOT_TOKEN }}
       GH_REPO: openjournals/joss-reviews
-      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
     steps:
-      - name: Checkout code
-        id: checkout-code
-        uses: actions/checkout@v2
       - name: Compile Paper
         id: generate-files
         uses: xuanxu/paper-action@main
@@ -43,19 +36,11 @@ jobs:
           branch_prefix: joss
           issue_id: ${{ github.event.inputs.issue_id }}
           pdf_path: ${{ steps.generate-files.outputs.pdf_path}}
-      - name: Find most similar paper
-        if: steps.generate-files.outcome == 'success'
-          pdf_path: ${{ steps.generate-files.outputs.pdf_path}}
-          issue_title: ${{ github.event.inputs.issue_title }}
-      - name: Post recommendations
-        if: steps.find-similar-papers.outcome == 'success'
-        run: |
-          gh issue comment ${{ github.event.inputs.issue_id }} --body '${{ steps.find-similar-papers.outputs.recommendations}}'
       - name: Reply message
-        if: steps.generate-files.outcome == 'success'
+        if: ${{ success() }}
         run: |
           gh issue comment ${{ github.event.inputs.issue_id }} --body ":point_right::page_facing_up: [Download article proof](${{ steps.upload-pdf.outputs.pdf_download_url}}) :page_facing_up: [View article proof on GitHub](${{ steps.upload-pdf.outputs.pdf_html_url}}) :page_facing_up: :point_left:"
       - name: Error message
-        if: steps.generate-files.outcome == 'failure'
+        if: ${{ failure() }}
         run: |
           gh issue comment ${{ github.event.inputs.issue_id }} --body ":warning: [An error happened when generating the pdf](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}?check_suite_focus=true). ${{ env.CUSTOM_ERROR }}"
