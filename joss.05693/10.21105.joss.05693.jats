@@ -1,0 +1,579 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">5693</article-id>
+<article-id pub-id-type="doi">10.21105/joss.05693</article-id>
+<title-group>
+<article-title>Zoomerjoin: Superlatively-Fast Fuzzy
+Joins</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author" corresp="yes">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0009-0006-4501-597X</contrib-id>
+<name>
+<surname>Green</surname>
+<given-names>Beniamino</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+<xref ref-type="corresp" rid="cor-1"><sup>*</sup></xref>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Yale University, USA</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<author-notes>
+<corresp id="cor-1">* E-mail: <email></email></corresp>
+</author-notes>
+<volume>8</volume>
+<issue>89</issue>
+<fpage>5693</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2022</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>R</kwd>
+<kwd>Rust</kwd>
+<kwd>Record linkage</kwd>
+<kwd>Fuzzy-joining</kwd>
+<kwd>Tidy data manipulation</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p>Researchers often have to link large datasets without access to a
+  unique identifying key, or on the basis of a field that contains
+  misspellings, small errors, or is otherwise inconsistent. In these
+  cases, “fuzzy” matching techniques are employed, which are resilient
+  to minor corruptions in the fields meant to identify observations
+  between datasets. Most popular methods involve comparing all possible
+  pairs of matches between each dataset, incurring a computational cost
+  proportional to the product of the rows in each dataset
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[\mathcal{O}(mn)]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>𝒪</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>m</mml:mi><mml:mi>n</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>.
+  As such, these methods do not scale to large datasets.</p>
+  <p>Zoomerjoin is an R package that empowers users to fuzzily-join
+  massive datasets with millions of rows in seconds or minutes. Backed
+  by two performant, mutlithreaded Locality-Sensitive Hash algorithms
+  (<xref alt="Broder, 1997" rid="ref-Broder" ref-type="bibr">Broder,
+  1997</xref>;
+  <xref alt="Datar et al., 2004" rid="ref-Datar_2004" ref-type="bibr">Datar
+  et al., 2004</xref>), <monospace>zoomerjoin</monospace> saves time by
+  not comparing distant pairs of observations and typically runs in
+  linear (<inline-formula><alternatives>
+  <tex-math><![CDATA[\mathcal{O(m+n)}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>𝒪</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix" mathvariant="script">(</mml:mo><mml:mi>𝓂</mml:mi><mml:mo mathvariant="script">+</mml:mo><mml:mi>𝓃</mml:mi><mml:mo stretchy="true" form="postfix" mathvariant="script">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>)
+  time. The algorithmic details are technical but the results are
+  transformational; for the distance-metrics it supports,
+  <monospace>zoomerjoin</monospace> takes seconds or minutes to join
+  datasets that would have taken other matching packages hours or
+  years.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of Need</title>
+  <p>Fuzzy matching is typically taken to mean identifying all pairs of
+  observations between two datasets that have distance less than a
+  specified threshold. Existing fuzzy-joining methods in R do not scale
+  to large datasets as they exhaustively compare all possible pairs of
+  units and recording all matching pairs, incurring a quadratic
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[\mathcal{O}(mn)]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>𝒪</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>m</mml:mi><mml:mi>n</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>
+  time cost. Perhaps worse, the most widely-used software packages
+  typically also have a space complexity of
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[O(mn)]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>O</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>m</mml:mi><mml:mi>n</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>,
+  meaning that a patient user cannot simply wait for the join to
+  complete, as the memory of even large machines will be quickly
+  exhausted
+  (<xref alt="Robinson, 2020" rid="ref-fuzzyjoin" ref-type="bibr">Robinson,
+  2020</xref> ).</p>
+  <p>Zoomerjoin solves this problem by implementing two
+  Locality-Sensitive Hashing algorithms
+  (<xref alt="Broder, 1997" rid="ref-Broder" ref-type="bibr">Broder,
+  1997</xref>;
+  <xref alt="Datar et al., 2004" rid="ref-Datar_2004" ref-type="bibr">Datar
+  et al., 2004</xref>) which sort observations into buckets using a
+  bespoke hash function which assigns similar entries the same key with
+  high probability, while dissimilar items are unlikely to be assigned
+  the same key. After this initial sorting step, the algorithm checks
+  pairs of records in the same bucket to see if they are close enough to
+  be considered a match. Records in different buckets are never
+  compared, so the algorithm takes <inline-formula><alternatives>
+  <tex-math><![CDATA[O(\max_{ij}{m_i n_j})]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>O</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mo>max</mml:mo><mml:mrow><mml:mi>i</mml:mi><mml:mi>j</mml:mi></mml:mrow></mml:msub><mml:mrow><mml:msub><mml:mi>m</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:msub><mml:mi>n</mml:mi><mml:mi>j</mml:mi></mml:msub></mml:mrow><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>
+  time to run (time proportional to the size of the largest bucket). In
+  the ordinary case that each observation matches to few points in
+  another dataset, the running time is dominated by the hashing step,
+  and the program finishes in linear time using linear memory.</p>
+  <p>With this remarkable increase in speed comes two costs:
+  Locality-Sensitive hashing is a probabilistic algorithm, so there is
+  some probability that some true matches may be discarded by chance.
+  This said, the chance that any matches are discarded by chance can be
+  made arbitrarily low by changing parameters of the hash. Additionally,
+  the LSH algorithms are more complex to implement than exhaustive
+  searches; <monospace>zoomerjoin</monospace> only provides hashing
+  schemes for two common distances, the Jaccard distance (for strings
+  and other data that can be represented as a set) and the Euclidean
+  distance (for vectors or points in space).</p>
+  <sec id="implementation-details">
+    <title>Implementation Details:</title>
+    <p>Zoomerjoin allows users to fuzzily-join on the basis of two
+    distance measures, the Euclidean distance and the Jaccard distance.
+    The Jaccard similarity is defined over two sets,
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[\mathcal{A}]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>𝒜</mml:mi></mml:math></alternatives></inline-formula>
+    and <inline-formula><alternatives>
+    <tex-math><![CDATA[\mathcal{B}]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>ℬ</mml:mi></mml:math></alternatives></inline-formula>,
+    as the cardinality of their intersection over the cardinality of
+    their union. It can take values in the inverval [0,1].</p>
+    <p><disp-formula><alternatives>
+    <tex-math><![CDATA[sim(\mathcal{A},\mathcal{B}) = \frac{|\mathcal{A} \cap \mathcal{B}|}{|\mathcal{A} \cup \mathcal{B}|}]]></tex-math>
+    <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>s</mml:mi><mml:mi>i</mml:mi><mml:mi>m</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>𝒜</mml:mi><mml:mo>,</mml:mo><mml:mi>ℬ</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>=</mml:mo><mml:mfrac><mml:mrow><mml:mo stretchy="true" form="prefix">|</mml:mo><mml:mi>𝒜</mml:mi><mml:mo>∩</mml:mo><mml:mi>ℬ</mml:mi><mml:mo stretchy="true" form="postfix">|</mml:mo></mml:mrow><mml:mrow><mml:mo stretchy="true" form="prefix">|</mml:mo><mml:mi>𝒜</mml:mi><mml:mo>∪</mml:mo><mml:mi>ℬ</mml:mi><mml:mo stretchy="true" form="postfix">|</mml:mo></mml:mrow></mml:mfrac></mml:mrow></mml:math></alternatives></disp-formula></p>
+    <p>Two strings can be compared by transforming them into sets of
+    characters or sets of consecutive “shingles” of characters, then
+    comparing them using the Jaccard distance.</p>
+    <p>The Euclidean distance, defined over two vectors,
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[\overrightarrow{a}]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mover><mml:mi>a</mml:mi><mml:mo accent="true">⃗</mml:mo></mml:mover></mml:math></alternatives></inline-formula>,
+    and <inline-formula><alternatives>
+    <tex-math><![CDATA[\overrightarrow{b}]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mover><mml:mi>b</mml:mi><mml:mo accent="true">⃗</mml:mo></mml:mover></mml:math></alternatives></inline-formula>
+    is defined as the square root of the sum of squares of their
+    componentwise distances, and can take values in the interval
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[[0, \infty)]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mo stretchy="false" form="prefix">[</mml:mo><mml:mn>0</mml:mn><mml:mo>,</mml:mo><mml:mi>∞</mml:mi><mml:mo stretchy="false" form="postfix">)</mml:mo></mml:mrow></mml:math></alternatives></inline-formula>:</p>
+    <p><disp-formula><alternatives>
+    <tex-math><![CDATA[dist(\overrightarrow{a},\overrightarrow{b}) = ||\overrightarrow{a}-\overrightarrow{b}||_2]]></tex-math>
+    <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>d</mml:mi><mml:mi>i</mml:mi><mml:mi>s</mml:mi><mml:mi>t</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mover><mml:mi>a</mml:mi><mml:mo accent="true">⃗</mml:mo></mml:mover><mml:mo>,</mml:mo><mml:mover><mml:mi>b</mml:mi><mml:mo accent="true">⃗</mml:mo></mml:mover><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>=</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">|</mml:mo><mml:mo stretchy="true" form="postfix">|</mml:mo></mml:mrow><mml:mover><mml:mi>a</mml:mi><mml:mo accent="true">⃗</mml:mo></mml:mover><mml:mo>−</mml:mo><mml:mover><mml:mi>b</mml:mi><mml:mo accent="true">⃗</mml:mo></mml:mover><mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">|</mml:mo><mml:mo stretchy="true" form="postfix">|</mml:mo></mml:mrow><mml:mn>2</mml:mn></mml:msub></mml:mrow></mml:math></alternatives></disp-formula></p>
+    <p>Integration between R and rust is managed by the
+    <monospace>extendr</monospace> and <monospace>rextendr</monospace>
+    Rust and R packages
+    (<xref alt="Wilke et al., 2023" rid="ref-rextendr" ref-type="bibr">Wilke
+    et al., 2023</xref>). Instrumental to the package’s fast performance
+    is the relentlessly-optimized <monospace>dashmap</monospace> Rust
+    crate
+    (<xref alt="Wejdenstal, 2023" rid="ref-dashmap" ref-type="bibr">Wejdenstal,
+    2023</xref>), which provides a fast hash map that can be populated
+    by many threads working in parallel.
+    <monospace>Dashmap</monospace>’s concurrent hash maps are used to
+    quickly store the hashes associated with each observation and allow
+    multiple threads to compute hashes and write to the hash map at the
+    same time. Parallel computation of the hashes is scheduled using the
+    parallel iterators provided by the <monospace>rayon</monospace>
+    crate
+    (<xref alt="Matsakis &amp; Stone, 2023" rid="ref-rayon" ref-type="bibr">Matsakis
+    &amp; Stone, 2023</xref>). The Locality-Sensitive Hash
+    implementation for the Jaccard distance is modeled after the
+    textbook description by Leskovec et al.
+    (<xref alt="2014" rid="ref-massive" ref-type="bibr">2014</xref>),
+    including the technique of storing the hashes of the tokens rather
+    than the tokens themselves to save memory.</p>
+  </sec>
+  <sec id="benchmarks">
+    <title>Benchmarks</title>
+    <p>I show how the runtime and memory consumption of the programs
+    scale with the number of observations in the datasets being joined.
+    I choose to include the <monospace>fuzzyjoin</monospace> package as
+    a point of comparison as its superlative tidy syntax and fast
+    underlying implementation backed by the multithreaded
+    <monospace>stringdist</monospace> package
+    (<xref alt="Loo, 2014" rid="ref-stringdist" ref-type="bibr">Loo,
+    2014</xref>) make it the de-facto standard for fuzzy-matching in
+    R.</p>
+    <p>I compare both packages’ time and memory usage joining two
+    datasets using the Jaccard distance for strings and the Euclidean
+    distance for points.</p>
+    <p>For the Jaccard distance benchmarks, I use both R packages to
+    join rows of donor names from the Database on Ideology, Money in
+    Politics, and Elections (DIME)
+    (<xref alt="Bonica, 2016" rid="ref-DIME" ref-type="bibr">Bonica,
+    2016</xref>), a database of donors to interest groups, a dataset
+    used to benchmark other matching / joining algorithms
+    (<xref alt="Kaufman &amp; Klevs, 2021" rid="ref-Kaufman_2021" ref-type="bibr">Kaufman
+    &amp; Klevs, 2021</xref>).</p>
+    <p>For the Euclidean distance, I use the programs to link datasets
+    of points drawn from a multivariate gaussian with 50 dimensions to a
+    copy of this dataset with dataset with each observation shifted by
+    adding a small <inline-formula><alternatives>
+    <tex-math><![CDATA[\varepsilon]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>ε</mml:mi></mml:math></alternatives></inline-formula>
+    along each axis. The exact code to generate this dataset can be seen
+    below:</p>
+    <preformat># R Code to create synthetic dataset for Euclidean Joining
+n &lt;- 10^5
+p &lt;- 50
+X &lt;- matrix(rnorm(n * p), n, p)
+
+# First dataframe to join
+X_1 &lt;- as.data.frame(X)
+# Second dataframe to join
+X_2 &lt;- as.data.frame(X + .000000001)</preformat>
+    <p>For both types of joins, I adjust the hyperparameters until the
+    false-negative rate is less than .1%, meaning that fewer than .1% of
+    all matches are discarded by random chance. More details, including
+    the complete benchmarking code can be seen in the
+    <ext-link ext-link-type="uri" xlink:href="http://beniamino.org/zoomerjoin/articles/benchmarks.html">package’s
+    benchmarking vignette</ext-link>.</p>
+    <fig>
+      <caption><p>Memory Use and Runtime Comparison of Fuzzy-Joining
+      Methods in R</p></caption>
+      <graphic mimetype="image" mime-subtype="png" xlink:href="media/benchmarks.png" />
+    </fig>
+    <p>Zoomerjoin achieves almost linear scaling in both runtime and
+    memory, while <monospace>fuzzyjoin</monospace> scales quadratically
+    in both quantities. Even for datasets with 2500 rows,
+    <monospace>zoomerjoin</monospace> finishes in under a second. By
+    contrast, the Jaccard-distance joins implemented in
+    <monospace>fuzzyjoin</monospace> take over three minutes to join.
+    For the largest Euclidean datasets, <monospace>fuzzyjoin</monospace>
+    almost exhausts the 8GB memory capacity of the laptop used for
+    benchmarking, while <monospace>zoomerjoin</monospace>’s memory rises
+    above above 8 MB — a thousand-fold decrease.</p>
+  </sec>
+  <sec id="example-usage">
+    <title>Example Usage:</title>
+    <p>Zoomerjoin is designed to be easy to use for R users familiar
+    with the popular dplyr grammar of data manipulation
+    (<xref alt="Wickham et al., 2023" rid="ref-dplyr" ref-type="bibr">Wickham
+    et al., 2023</xref>). To give an example, I show how to use the
+    <monospace>euclidean_inner_join</monospace> function (the fuzzy
+    analogue of <monospace>dplyr</monospace>’s
+    <monospace>inner_join</monospace>) to join the two datasets from the
+    benchmarking example:</p>
+    <preformat>euclidean_inner_join(
+        X_1, X_2,
+        threshold = .1,
+        n_bands = 90,
+        band_width = 2,
+        r = .1
+        )</preformat>
+    <p>The first two arguments are exactly the same as those in the
+    corresponding <monospace>dplyr</monospace> function, and should be
+    familiar to most R users. The remaining arguments,
+    <monospace>threshold</monospace>, <monospace>n_bands</monospace>,
+    <monospace>band_width</monospace>, and <monospace>r</monospace> are
+    specific to zoomerjoin, and determine how close units must be to be
+    considered a match, as well as the performance / recall of the LSH
+    scheme. As with <monospace>dplyr</monospace>, the package also
+    allows users to perform other types of logical joins using the
+    <monospace>euclidean_(outer</monospace>|<monospace>left</monospace>|<monospace>right</monospace>|<monospace>full</monospace>)_<monospace>join</monospace>
+    family of functions functions. A corresponding family of functions
+    also exists for the fuzzy joins based on the Jaccard distance.</p>
+  </sec>
+  <sec id="state-of-the-field">
+    <title>State of the Field:</title>
+    <p>To the best of my knowledge, no other packages exist for
+    fuzzy-joining in sub-quadratic time in R. Two similar packages are
+    the aforementioned <monospace>fuzzyjoin,</monospace> which provides
+    fast, tidy joins for small to medium datasets, and the
+    <monospace>textreuse</monospace> package
+    (<xref alt="Mullen, 2020" rid="ref-textreuse" ref-type="bibr">Mullen,
+    2020</xref>) which implements Locality-Sensitive Hashing, but does
+    not offer a joining functionality, and is implimented mostly in
+    R.</p>
+    <p>Zoomerjoin draws from both packages, and aims to synthesize and
+    extend aspects of both to create a powerful joining toolset. The
+    package combines the functionality of the tidy, dplyr-style
+    <monospace>fuzzyjoin</monospace>s provided by
+    <monospace>fuzzyjoin</monospace> with the performance offered by a
+    Rust implimentation the same Locality-Sensitive Hashing algorithm
+    used in <monospace>textreuse</monospace>. The core of the package is
+    written in performant Rust code, which makes the package suitable
+    for datasets with hundreds of millions of observations.</p>
+  </sec>
+  <sec id="other-functionalities">
+    <title>Other Functionalities</title>
+    <p>The flagship feature of <monospace>zoomerjoin</monospace> is its
+    fast, dplyr-style joins, but it also implements two other algorithms
+    improved by locality-sensitive hashing: a fuzzy-string grouping
+    function which is backed by locality-sensitive hashing, and an
+    implementation of the probabilistic record-linkage algorithm based
+    on the Fellegi-Sunter model
+    (<xref alt="Fellegi &amp; Sunter, 1969" rid="ref-Fellegi_1969" ref-type="bibr">Fellegi
+    &amp; Sunter, 1969</xref>) developed by Enamorado et al.
+    (<xref alt="2018" rid="ref-Enamorado_2018" ref-type="bibr">2018</xref>).</p>
+    <p>The fuzzy-string-grouping algorithm provides a principled way to
+    correct misspellings in administrative datasets by combining similar
+    pairs of strings into groups with a standardized name. The
+    probabilistic record-linkage algorithm described by Enamorado et al.
+    (<xref alt="2018" rid="ref-Enamorado_2018" ref-type="bibr">2018</xref>)
+    provides a way to link entities between two datasets but involves
+    comparing all possible pairs between each datasets. A simple
+    pre-processing step with the Locality-Sensitive Hashing methods of
+    <monospace>zoomerjoin</monospace> can drastically decrease the
+    runtime by considering as potential matches units that have similar
+    values of the blocking fields. This allows the algorithm to scale
+    almost linearly with the size of the input datasets, at the cost of
+    discarding a small amount of true matches excluded by the blocking
+    scheme.</p>
+  </sec>
+  <sec id="limitations-and-future-work">
+    <title>Limitations and Future Work</title>
+    <p>Zoomerjoin currently provides locality-sensitive hashing
+    implementations for two distances: the Jaccard and the Euclidean
+    distance. While these distance metrics are suitable for many if not
+    most applications, researchers may wish to use other metrics, or
+    bespoke combinations of distance metrics. Further work could extend
+    the functionality of the package to also support LSH-backed joins
+    based on other notions of distance such as the edit distance
+    (<xref alt="Marçais et al., 2019" rid="ref-Marais_2019" ref-type="bibr">Marçais
+    et al., 2019</xref>) for strings, or the Manhattan distance for
+    points.</p>
+  </sec>
+  <sec id="acknowledgements">
+    <title>Acknowledgements</title>
+    <p>I thank Jack Green, Cleo Falvey, John Cho, Matthew Dahl, and
+    Amelia Malpas for their feedback and suggestions in designing the
+    package and revising this manuscript.</p>
+  </sec>
+</sec>
+</body>
+<back>
+<ref-list>
+  <ref id="ref-rextendr">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Wilke</surname><given-names>Claus O.</given-names></name>
+        <name><surname>Thomason</surname><given-names>Andy</given-names></name>
+        <name><surname>Reimert</surname><given-names>Mossa M.</given-names></name>
+        <name><surname>Kosenkov</surname><given-names>Ilia</given-names></name>
+        <name><surname>Yutani</surname><given-names>Hiroaki</given-names></name>
+        <name><surname>Barrett</surname><given-names>Malcolm</given-names></name>
+      </person-group>
+      <source>Rextendr: Call rust code from r using the ’extendr’ crate</source>
+      <year iso-8601-date="2023">2023</year>
+      <uri>https://CRAN.R-project.org/package=rextendr</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-rayon">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Matsakis</surname><given-names>Niko</given-names></name>
+        <name><surname>Stone</surname><given-names>Josh</given-names></name>
+      </person-group>
+      <article-title>Rayon: Simple work-stealing parallelism for rust</article-title>
+      <year iso-8601-date="2023">2023</year>
+      <uri>https://github.com/rayon-rs/rayon</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-Broder">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Broder</surname><given-names>A. Z.</given-names></name>
+      </person-group>
+      <article-title>On the resemblance and containment of documents</article-title>
+      <source>Proceedings. Compression and complexity of SEQUENCES 1997 (cat. no.97TB100171)</source>
+      <publisher-name>IEEE Comput. Soc</publisher-name>
+      <year iso-8601-date="1997">1997</year>
+      <uri>https://doi.org/10.1109%2Fsequen.1997.666900</uri>
+      <pub-id pub-id-type="doi">10.1109/sequen.1997.666900</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-massive">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Leskovec</surname><given-names>Jure</given-names></name>
+        <name><surname>Rajaraman</surname><given-names>Anand</given-names></name>
+        <name><surname>Ullman</surname><given-names>Jeffrey David</given-names></name>
+      </person-group>
+      <source>Mining of massive datasets</source>
+      <publisher-name>Cambridge University Press</publisher-name>
+      <year iso-8601-date="2014">2014</year>
+      <edition>2</edition>
+      <pub-id pub-id-type="doi">10.1017/CBO9781139924801</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-dashmap">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Wejdenstal</surname><given-names>Joel</given-names></name>
+      </person-group>
+      <article-title>Dashmap: Blazing fast concurrent HashMap for rust.</article-title>
+      <year iso-8601-date="2023">2023</year>
+      <uri>https://github.com/xacrimon/dashmap</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-fuzzyjoin">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Robinson</surname><given-names>David</given-names></name>
+      </person-group>
+      <source>Fuzzyjoin: Join tables together on inexact matching</source>
+      <year iso-8601-date="2020">2020</year>
+      <uri>https://CRAN.R-project.org/package=fuzzyjoin</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-textreuse">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Mullen</surname><given-names>Lincoln</given-names></name>
+      </person-group>
+      <source>Textreuse: Detect text reuse and document similarity</source>
+      <year iso-8601-date="2020">2020</year>
+      <uri>https://CRAN.R-project.org/package=textreuse</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-Marais_2019">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Marçais</surname><given-names>Guillaume</given-names></name>
+        <name><surname>DeBlasio</surname><given-names>Dan</given-names></name>
+        <name><surname>Pandey</surname><given-names>Prashant</given-names></name>
+        <name><surname>Kingsford</surname><given-names>Carl</given-names></name>
+      </person-group>
+      <article-title>Locality-sensitive hashing for the edit distance</article-title>
+      <source>Bioinformatics</source>
+      <publisher-name>Oxford University Press (OUP)</publisher-name>
+      <year iso-8601-date="2019-07">2019</year><month>07</month>
+      <volume>35</volume>
+      <issue>14</issue>
+      <uri>https://doi.org/10.1093%2Fbioinformatics%2Fbtz354</uri>
+      <pub-id pub-id-type="doi">10.1093/bioinformatics/btz354</pub-id>
+      <fpage>i127</fpage>
+      <lpage>i135</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-DIME">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Bonica</surname><given-names>Adam</given-names></name>
+      </person-group>
+      <article-title>Database on ideology, money in politics, and elections: Public version 2.0 [computer file]</article-title>
+      <publisher-name>Stanford University Libraries</publisher-name>
+      <year iso-8601-date="2016">2016</year>
+      <uri>https://data.stanford.edu/dime</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-Datar_2004">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Datar</surname><given-names>Mayur</given-names></name>
+        <name><surname>Immorlica</surname><given-names>Nicole</given-names></name>
+        <name><surname>Indyk</surname><given-names>Piotr</given-names></name>
+        <name><surname>Mirrokni</surname><given-names>Vahab S.</given-names></name>
+      </person-group>
+      <article-title>Locality-sensitive hashing scheme based on p-stable distributions</article-title>
+      <source>Proceedings of the twentieth annual symposium on computational geometry</source>
+      <publisher-name>ACM</publisher-name>
+      <year iso-8601-date="2004-06">2004</year><month>06</month>
+      <uri>https://doi.org/10.1145%2F997817.997857</uri>
+      <pub-id pub-id-type="doi">10.1145/997817.997857</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-Kaufman_2021">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Kaufman</surname><given-names>Aaron R.</given-names></name>
+        <name><surname>Klevs</surname><given-names>Aja</given-names></name>
+      </person-group>
+      <article-title>Adaptive fuzzy string matching: How to merge datasets with only one (messy) identifying field</article-title>
+      <source>Political Analysis</source>
+      <publisher-name>Cambridge University Press (CUP)</publisher-name>
+      <year iso-8601-date="2021-10">2021</year><month>10</month>
+      <volume>30</volume>
+      <issue>4</issue>
+      <uri>https://doi.org/10.1017%2Fpan.2021.38</uri>
+      <pub-id pub-id-type="doi">10.1017/pan.2021.38</pub-id>
+      <fpage>590</fpage>
+      <lpage>596</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-stringdist">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Loo</surname><given-names>Mark P. J. van der</given-names></name>
+      </person-group>
+      <article-title>The stringdist Package for Approximate String Matching</article-title>
+      <source>The R Journal</source>
+      <year iso-8601-date="2014">2014</year>
+      <volume>6</volume>
+      <issue>1</issue>
+      <uri>https://doi.org/10.32614/RJ-2014-011</uri>
+      <pub-id pub-id-type="doi">10.32614/RJ-2014-011</pub-id>
+      <fpage>111</fpage>
+      <lpage>122</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Enamorado_2018">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Enamorado</surname><given-names>Ted</given-names></name>
+        <name><surname>Fifield</surname><given-names>Benjamin</given-names></name>
+        <name><surname>Imai</surname><given-names>Kosuke</given-names></name>
+      </person-group>
+      <article-title>Using a probabilistic model to assist merging of large-scale administrative records</article-title>
+      <source>SSRN Electronic Journal</source>
+      <publisher-name>Elsevier BV</publisher-name>
+      <year iso-8601-date="2018">2018</year>
+      <uri>https://doi.org/10.2139%2Fssrn.3214172</uri>
+      <pub-id pub-id-type="doi">10.2139/ssrn.3214172</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-Fellegi_1969">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Fellegi</surname><given-names>Ivan P.</given-names></name>
+        <name><surname>Sunter</surname><given-names>Alan B.</given-names></name>
+      </person-group>
+      <article-title>A theory for record linkage</article-title>
+      <source>Journal of the American Statistical Association</source>
+      <publisher-name>Informa UK Limited</publisher-name>
+      <year iso-8601-date="1969-12">1969</year><month>12</month>
+      <volume>64</volume>
+      <issue>328</issue>
+      <uri>https://doi.org/10.1080%2F01621459.1969.10501049</uri>
+      <pub-id pub-id-type="doi">10.1080/01621459.1969.10501049</pub-id>
+      <fpage>1183</fpage>
+      <lpage>1210</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-dplyr">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Wickham</surname><given-names>Hadley</given-names></name>
+        <name><surname>François</surname><given-names>Romain</given-names></name>
+        <name><surname>Henry</surname><given-names>Lionel</given-names></name>
+        <name><surname>Müller</surname><given-names>Kirill</given-names></name>
+        <name><surname>Vaughan</surname><given-names>Davis</given-names></name>
+      </person-group>
+      <article-title>Dplyr: A grammar of data manipulation</article-title>
+      <year iso-8601-date="2023">2023</year>
+      <uri>https://CRAN.R-project.org/package=dplyr</uri>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
