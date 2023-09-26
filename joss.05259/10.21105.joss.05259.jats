@@ -1,0 +1,673 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">5259</article-id>
+<article-id pub-id-type="doi">10.21105/joss.05259</article-id>
+<title-group>
+<article-title>geocmeans: An R package for spatial fuzzy
+c-means</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0002-7114-2714</contrib-id>
+<name>
+<surname>Jeremy</surname>
+<given-names>Gelb</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Laboratoire d’Équité Environnemental, Institut National de
+la Recherche Scientifique (INRS)</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2022-01-30">
+<day>30</day>
+<month>1</month>
+<year>2022</year>
+</pub-date>
+<volume>8</volume>
+<issue>89</issue>
+<fpage>5259</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2022</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>R</kwd>
+<kwd>unsupervised classification</kwd>
+<kwd>cmeans</kwd>
+<kwd>spatial analysis</kwd>
+<kwd>fuzzy classification</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p>Unsupervised classification methods like <italic>k-means</italic>
+  or the <italic>Hierarchical Cluster Analysis</italic> (HCA) are widely
+  used in geography even though they are not well suited for spatial
+  data [Romary et al.
+  (<xref alt="2015" rid="ref-romary2015unsupervised" ref-type="bibr">2015</xref>);]
+  because they do not consider space. Yet, recent development has been
+  proposed to include the geographical dimension into clustering. As an
+  example, <monospace>ClustGeo</monospace>
+  (<xref alt="Chavent et al., 2018" rid="ref-chavent2018clustgeo" ref-type="bibr">Chavent
+  et al., 2018</xref>) is a spatial extension of the HAC, available in
+  the R package with the same name. We present here the R package
+  <monospace>geocmeans</monospace>, proposing several spatial extensions
+  of the <italic>Fuzzy C-Means</italic> (FCM) algorithm to complete this
+  growing toolbox with a fuzzy approach. The package provides also
+  several helper functions to assess and compare quality of
+  classifications, select appropriate hyperparameters, and interpret the
+  final groups.</p>
+  <fig>
+    <caption><p>geocmeans
+    logo.<styled-content id="figU003Alogo"></styled-content></p></caption>
+    <graphic mimetype="image" mime-subtype="png" xlink:href="media/a6d187124ab19c42230e54589608124c0cd5b335.png" />
+  </fig>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p>Traditional clustering algorithms do not account for the
+  geographical dimension of data causing two main concerns:</p>
+  <list list-type="bullet">
+    <list-item>
+      <p>First, an important part of the information related to
+      observations’ locations and geographical organization is
+      disregarded. Often, in social, environmental and economical
+      sciences, the geographical dimension is highly structuring and
+      displays positive spatial autocorrelation.</p>
+    </list-item>
+    <list-item>
+      <p>Second, in many applications (like the development of regional
+      policy), it is desirable that close observations are more likely
+      to belong to the same group. In this regard, it is common to
+      observe with traditional unsupervised classification algorithms
+      “holes”: observations attributed to a certain group and surrounded
+      by observations attributed to another. Often, the difference in
+      the attributes between those observations does not justify such
+      spatial inconsistency.</p>
+    </list-item>
+  </list>
+  <p>A first approach for spatial clustering explored from the 1990s was
+  to impose to the classification a spatial constraint based on
+  contiguity (also called aggregation based approach). The most probably
+  known methods are the <monospace>AZP</monospace>
+  (<xref alt="Openshaw, 1977" rid="ref-openshaw1977geographical" ref-type="bibr">Openshaw,
+  1977</xref>),
+  <monospace>SKATER</monospace>(<xref alt="Assunção et al., 2006" rid="ref-assunccao2006efficient" ref-type="bibr">Assunção
+  et al., 2006</xref>) and <monospace>AMOEBA</monospace>
+  (<xref alt="Aldstadt &amp; Getis, 2006" rid="ref-aldstadt2006using" ref-type="bibr">Aldstadt
+  &amp; Getis, 2006</xref>). However, this approach can only yield
+  spatially continuous groups and can be too strict to obtain meaningful
+  clusters. That is why a new approach has been proposed: including the
+  spatial dimension in the clustering process. In this approach, space
+  should not act as a constraint in the classification, but as
+  supplementary data.</p>
+  <p>The recent method <monospace>ClustGeo</monospace>
+  (<xref alt="Chavent et al., 2018" rid="ref-chavent2018clustgeo" ref-type="bibr">Chavent
+  et al., 2018</xref>) has received some attention from geographers.
+  However, it yields a hard clustering and may hide situations were
+  observations are located at the border of two groups. There is thus a
+  need for available unsupervised spatial fuzzy clustering methods.</p>
+  <p>Such methods have been discussed and applied in the brain imagery
+  segmentation field
+  (<xref alt="Cai et al., 2007" rid="ref-cai2007fast" ref-type="bibr">Cai
+  et al., 2007</xref>;
+  <xref alt="Zhao et al., 2013" rid="ref-zhao2013kernel" ref-type="bibr">Zhao
+  et al., 2013</xref>) leading to the development of the Spatial Fuzzy
+  C-means (SFCM) algorithm. The package <monospace>geocmeans</monospace>
+  is proposed to make this tool available to researchers and
+  professionals working with spatial datasets. A first application to
+  construct a socio-residential and environmental taxonomy in Lyon has
+  outlined the potential of the method
+  (<xref alt="Gelb &amp; Apparicio, 2021" rid="ref-gelb2021apport" ref-type="bibr">Gelb
+  &amp; Apparicio, 2021</xref>).</p>
+</sec>
+<sec id="core-functionality">
+  <title>Core functionality</title>
+  <p>The <monospace>geocmeans</monospace> package has been built to be
+  self-sufficient and minimize the coding need from users. Thus, several
+  helper functions are available along the main clustering algorithms to
+  asses classification quality, select hyper parameters, test cluster
+  robustness, and interpret results. It is also possible to use the
+  results from external clustering algorithm to build
+  <monospace>FCMres</monospace> objects and work with most of the
+  functions of <monospace>geocmeans</monospace>.</p>
+  <fig>
+    <caption><p>geocmeans
+    workflow.<styled-content id="figU003Aworkflow"></styled-content></p></caption>
+    <graphic mimetype="image" mime-subtype="png" xlink:href="media/9c6e413f767698496a28bae1915809b531a3fc00.png" />
+  </fig>
+  <sec id="main-algorithm">
+    <title>Main algorithm</title>
+    <p><monospace>geocmeans</monospace> provides four fuzzy unsupervised
+    classification algorithms:</p>
+    <list list-type="bullet">
+      <list-item>
+        <p><monospace>CMeans</monospace>, the original c-means
+        algorithm, requiring two hyper parameters, <italic>m</italic>
+        (fuzzyness degree) and <italic>k</italic> (number of
+        groups).</p>
+      </list-item>
+      <list-item>
+        <p><monospace>GFCMeans</monospace>, the so-called generalized
+        c-means algorithm. It is known to accelerate convergence and
+        yield less fuzzy result by adjusting the membership matrix at
+        each iteration. It requires an extra
+        <inline-formula><alternatives>
+        <tex-math><![CDATA[\beta]]></tex-math>
+        <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>β</mml:mi></mml:math></alternatives></inline-formula>
+        parameter controlling the strength of the modification. The
+        modification only affects the formula updating the membership
+        matrix.</p>
+      </list-item>
+    </list>
+    <p><disp-formula><alternatives>
+    <tex-math><![CDATA[u_{ik} = \frac{(||x_{k} - v{_i}||^{2} - \beta_k) ^{(-1/(m-1))}}{\sum_{j=1}^c(||x_{k} - v{_j}||^2 - \beta_k)^{(-1/(m-1))}}]]></tex-math>
+    <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>u</mml:mi><mml:mrow><mml:mi>i</mml:mi><mml:mi>k</mml:mi></mml:mrow></mml:msub><mml:mo>=</mml:mo><mml:mfrac><mml:msup><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">|</mml:mo><mml:mo stretchy="true" form="postfix">|</mml:mo></mml:mrow><mml:msub><mml:mi>x</mml:mi><mml:mi>k</mml:mi></mml:msub><mml:mo>−</mml:mo><mml:mi>v</mml:mi><mml:msub><mml:mi></mml:mi><mml:mi>i</mml:mi></mml:msub><mml:msup><mml:mrow><mml:mo stretchy="true" form="prefix">|</mml:mo><mml:mo stretchy="true" form="postfix">|</mml:mo></mml:mrow><mml:mn>2</mml:mn></mml:msup><mml:mo>−</mml:mo><mml:msub><mml:mi>β</mml:mi><mml:mi>k</mml:mi></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mo>−</mml:mo><mml:mn>1</mml:mn><mml:mi>/</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>m</mml:mi><mml:mo>−</mml:mo><mml:mn>1</mml:mn><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:msup><mml:mrow><mml:munderover><mml:mo>∑</mml:mo><mml:mrow><mml:mi>j</mml:mi><mml:mo>=</mml:mo><mml:mn>1</mml:mn></mml:mrow><mml:mi>c</mml:mi></mml:munderover><mml:msup><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">|</mml:mo><mml:mo stretchy="true" form="postfix">|</mml:mo></mml:mrow><mml:msub><mml:mi>x</mml:mi><mml:mi>k</mml:mi></mml:msub><mml:mo>−</mml:mo><mml:mi>v</mml:mi><mml:msub><mml:mi></mml:mi><mml:mi>j</mml:mi></mml:msub><mml:msup><mml:mrow><mml:mo stretchy="true" form="prefix">|</mml:mo><mml:mo stretchy="true" form="postfix">|</mml:mo></mml:mrow><mml:mn>2</mml:mn></mml:msup><mml:mo>−</mml:mo><mml:msub><mml:mi>β</mml:mi><mml:mi>k</mml:mi></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mo>−</mml:mo><mml:mn>1</mml:mn><mml:mi>/</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>m</mml:mi><mml:mo>−</mml:mo><mml:mn>1</mml:mn><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:msup></mml:mrow></mml:mfrac></mml:mrow></mml:math></alternatives></disp-formula></p>
+    <p>with:
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[\beta_k = min(||x_{k} - v||^2)]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>β</mml:mi><mml:mi>k</mml:mi></mml:msub><mml:mo>=</mml:mo><mml:mi>m</mml:mi><mml:mi>i</mml:mi><mml:mi>n</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">|</mml:mo><mml:mo stretchy="true" form="postfix">|</mml:mo></mml:mrow><mml:msub><mml:mi>x</mml:mi><mml:mi>k</mml:mi></mml:msub><mml:mo>−</mml:mo><mml:mi>v</mml:mi><mml:msup><mml:mrow><mml:mo stretchy="true" form="prefix">|</mml:mo><mml:mo stretchy="true" form="postfix">|</mml:mo></mml:mrow><mml:mn>2</mml:mn></mml:msup><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[0 \leq \beta \leq 1]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mn>0</mml:mn><mml:mo>≤</mml:mo><mml:mi>β</mml:mi><mml:mo>≤</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[u_{ik}]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>u</mml:mi><mml:mrow><mml:mi>i</mml:mi><mml:mi>k</mml:mi></mml:mrow></mml:msub></mml:math></alternatives></inline-formula>
+    the probability for observation <italic>k</italic> to belong to
+    cluster <italic>i</italic>
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[x_k]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>x</mml:mi><mml:mi>k</mml:mi></mml:msub></mml:math></alternatives></inline-formula>
+    the observation <italic>k</italic> in the dataset <italic>x</italic>
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[v_i]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>v</mml:mi><mml:mi>i</mml:mi></mml:msub></mml:math></alternatives></inline-formula>
+    the cluster <italic>i</italic>
+    <italic>m</italic> the fuzzyness parameter</p>
+    <list list-type="bullet">
+      <list-item>
+        <p><monospace>SFCMeans</monospace>, the <italic>SFCM</italic>
+        algorithm, requiring two more parameters <italic>W</italic> and
+        <inline-formula><alternatives>
+        <tex-math><![CDATA[\alpha]]></tex-math>
+        <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>α</mml:mi></mml:math></alternatives></inline-formula>.
+        <italic>W</italic> is a spatial weight matrix used to calculate
+        a spatially lagged version of the dataset <italic>x</italic>.
+        <inline-formula><alternatives>
+        <tex-math><![CDATA[\alpha]]></tex-math>
+        <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>α</mml:mi></mml:math></alternatives></inline-formula>
+        is used to control the weight of the spatially lagged dataset.
+        If <inline-formula><alternatives>
+        <tex-math><![CDATA[\alpha = 0]]></tex-math>
+        <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>α</mml:mi><mml:mo>=</mml:mo><mml:mn>0</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>
+        then <italic>SFCM</italic> becomes a simple FCM. If
+        <inline-formula><alternatives>
+        <tex-math><![CDATA[\alpha = 1]]></tex-math>
+        <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>α</mml:mi><mml:mo>=</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>
+        the same weight is given to the original and lagged dataset. If
+        <inline-formula><alternatives>
+        <tex-math><![CDATA[\alpha = 2]]></tex-math>
+        <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>α</mml:mi><mml:mo>=</mml:mo><mml:mn>2</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>
+        then the spatially lagged dataset has a weight doubled in
+        comparison with the original dataset, and so on… The integration
+        of the spatially lagged dataset modifies the formula updating
+        the membership matrix and the formula updating the centers of
+        clusters.</p>
+      </list-item>
+    </list>
+    <p><disp-formula><alternatives>
+    <tex-math><![CDATA[u_{ik} = \frac{(||x_{k} - v{_i}||^2 + \alpha||\bar{x_{k}} - v{_i}||^2)^{(-1/(m-1))}}{\sum_{j=1}^c(||x_{k} - v{_j}||^2 + \alpha||\bar{x_{k}} - v{_j}||^2)^{(-1/(m-1))}}]]></tex-math>
+    <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>u</mml:mi><mml:mrow><mml:mi>i</mml:mi><mml:mi>k</mml:mi></mml:mrow></mml:msub><mml:mo>=</mml:mo><mml:mfrac><mml:msup><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">|</mml:mo><mml:mo stretchy="true" form="postfix">|</mml:mo></mml:mrow><mml:msub><mml:mi>x</mml:mi><mml:mi>k</mml:mi></mml:msub><mml:mo>−</mml:mo><mml:mi>v</mml:mi><mml:msub><mml:mi></mml:mi><mml:mi>i</mml:mi></mml:msub><mml:msup><mml:mrow><mml:mo stretchy="true" form="prefix">|</mml:mo><mml:mo stretchy="true" form="postfix">|</mml:mo></mml:mrow><mml:mn>2</mml:mn></mml:msup><mml:mo>+</mml:mo><mml:mi>α</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">|</mml:mo><mml:mo stretchy="true" form="postfix">|</mml:mo></mml:mrow><mml:mover><mml:msub><mml:mi>x</mml:mi><mml:mi>k</mml:mi></mml:msub><mml:mo accent="true">‾</mml:mo></mml:mover><mml:mo>−</mml:mo><mml:mi>v</mml:mi><mml:msub><mml:mi></mml:mi><mml:mi>i</mml:mi></mml:msub><mml:msup><mml:mrow><mml:mo stretchy="true" form="prefix">|</mml:mo><mml:mo stretchy="true" form="postfix">|</mml:mo></mml:mrow><mml:mn>2</mml:mn></mml:msup><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mo>−</mml:mo><mml:mn>1</mml:mn><mml:mi>/</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>m</mml:mi><mml:mo>−</mml:mo><mml:mn>1</mml:mn><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:msup><mml:mrow><mml:munderover><mml:mo>∑</mml:mo><mml:mrow><mml:mi>j</mml:mi><mml:mo>=</mml:mo><mml:mn>1</mml:mn></mml:mrow><mml:mi>c</mml:mi></mml:munderover><mml:msup><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">|</mml:mo><mml:mo stretchy="true" form="postfix">|</mml:mo></mml:mrow><mml:msub><mml:mi>x</mml:mi><mml:mi>k</mml:mi></mml:msub><mml:mo>−</mml:mo><mml:mi>v</mml:mi><mml:msub><mml:mi></mml:mi><mml:mi>j</mml:mi></mml:msub><mml:msup><mml:mrow><mml:mo stretchy="true" form="prefix">|</mml:mo><mml:mo stretchy="true" form="postfix">|</mml:mo></mml:mrow><mml:mn>2</mml:mn></mml:msup><mml:mo>+</mml:mo><mml:mi>α</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">|</mml:mo><mml:mo stretchy="true" form="postfix">|</mml:mo></mml:mrow><mml:mover><mml:msub><mml:mi>x</mml:mi><mml:mi>k</mml:mi></mml:msub><mml:mo accent="true">‾</mml:mo></mml:mover><mml:mo>−</mml:mo><mml:mi>v</mml:mi><mml:msub><mml:mi></mml:mi><mml:mi>j</mml:mi></mml:msub><mml:msup><mml:mrow><mml:mo stretchy="true" form="prefix">|</mml:mo><mml:mo stretchy="true" form="postfix">|</mml:mo></mml:mrow><mml:mn>2</mml:mn></mml:msup><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mo>−</mml:mo><mml:mn>1</mml:mn><mml:mi>/</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>m</mml:mi><mml:mo>−</mml:mo><mml:mn>1</mml:mn><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:msup></mml:mrow></mml:mfrac></mml:mrow></mml:math></alternatives></disp-formula></p>
+    <p><disp-formula><alternatives>
+    <tex-math><![CDATA[v_{i} = \frac{\sum_{k=1}^N u_{ik}^m(x_{k} + \alpha\bar{x_{k}})}{(1 + \alpha)\sum_{k=1}^N u_{ik}^m}]]></tex-math>
+    <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>v</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mo>=</mml:mo><mml:mfrac><mml:mrow><mml:munderover><mml:mo>∑</mml:mo><mml:mrow><mml:mi>k</mml:mi><mml:mo>=</mml:mo><mml:mn>1</mml:mn></mml:mrow><mml:mi>N</mml:mi></mml:munderover><mml:msubsup><mml:mi>u</mml:mi><mml:mrow><mml:mi>i</mml:mi><mml:mi>k</mml:mi></mml:mrow><mml:mi>m</mml:mi></mml:msubsup><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>x</mml:mi><mml:mi>k</mml:mi></mml:msub><mml:mo>+</mml:mo><mml:mi>α</mml:mi><mml:mover><mml:msub><mml:mi>x</mml:mi><mml:mi>k</mml:mi></mml:msub><mml:mo accent="true">‾</mml:mo></mml:mover><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow><mml:mrow><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mn>1</mml:mn><mml:mo>+</mml:mo><mml:mi>α</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:munderover><mml:mo>∑</mml:mo><mml:mrow><mml:mi>k</mml:mi><mml:mo>=</mml:mo><mml:mn>1</mml:mn></mml:mrow><mml:mi>N</mml:mi></mml:munderover><mml:msubsup><mml:mi>u</mml:mi><mml:mrow><mml:mi>i</mml:mi><mml:mi>k</mml:mi></mml:mrow><mml:mi>m</mml:mi></mml:msubsup></mml:mrow></mml:mfrac></mml:mrow></mml:math></alternatives></disp-formula></p>
+    <p>with:</p>
+    <p><inline-formula><alternatives>
+    <tex-math><![CDATA[0 \leq \alpha \leq \infty]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mn>0</mml:mn><mml:mo>≤</mml:mo><mml:mi>α</mml:mi><mml:mo>≤</mml:mo><mml:mi>∞</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[v_i]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>v</mml:mi><mml:mi>i</mml:mi></mml:msub></mml:math></alternatives></inline-formula>
+    the cluster <italic>i</italic>
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[\bar{x}]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mover><mml:mi>x</mml:mi><mml:mo accent="true">‾</mml:mo></mml:mover></mml:math></alternatives></inline-formula>
+    the spatially lagged version of <italic>x</italic>
+    </p>
+    <p>As the formula suggests, the SFCM can be seen as a spatially
+    smoothed version of the FCM and <inline-formula><alternatives>
+    <tex-math><![CDATA[\alpha]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>α</mml:mi></mml:math></alternatives></inline-formula>
+    controls the degree of spatial smoothness. This smoothing can be
+    interpreted as an attempt to reduce spatial overfitting of the
+    FCM.</p>
+    <list list-type="bullet">
+      <list-item>
+        <p><monospace>SGFCMeans</monospace>, the <italic>SGFCM</italic>
+        algorithm, combining <italic>SFCM</italic> and
+        <italic>SGFCM</italic> and thus requiring the definition of
+        three extra parameters <italic>W</italic>,
+        <inline-formula><alternatives>
+        <tex-math><![CDATA[\alpha]]></tex-math>
+        <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>α</mml:mi></mml:math></alternatives></inline-formula>
+        and <inline-formula><alternatives>
+        <tex-math><![CDATA[\beta]]></tex-math>
+        <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>β</mml:mi></mml:math></alternatives></inline-formula>.
+        Only the formula to calculate the membership matrix is different
+        from the SFCM.</p>
+      </list-item>
+    </list>
+    <p><disp-formula><alternatives>
+    <tex-math><![CDATA[u_{ik} = \frac{(||x_{k} - v{_i}||^2 -\beta_k + \alpha||\bar{x_{k}} - v{_i}||^2)^{(-1/(m-1))}}{\sum_{j=1}^c(||x_{k} - v{_j}||^2 -\beta_k + \alpha||\bar{x_{k}} - v{_j}||^2)^{(-1/(m-1))}}]]></tex-math>
+    <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>u</mml:mi><mml:mrow><mml:mi>i</mml:mi><mml:mi>k</mml:mi></mml:mrow></mml:msub><mml:mo>=</mml:mo><mml:mfrac><mml:msup><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">|</mml:mo><mml:mo stretchy="true" form="postfix">|</mml:mo></mml:mrow><mml:msub><mml:mi>x</mml:mi><mml:mi>k</mml:mi></mml:msub><mml:mo>−</mml:mo><mml:mi>v</mml:mi><mml:msub><mml:mi></mml:mi><mml:mi>i</mml:mi></mml:msub><mml:msup><mml:mrow><mml:mo stretchy="true" form="prefix">|</mml:mo><mml:mo stretchy="true" form="postfix">|</mml:mo></mml:mrow><mml:mn>2</mml:mn></mml:msup><mml:mo>−</mml:mo><mml:msub><mml:mi>β</mml:mi><mml:mi>k</mml:mi></mml:msub><mml:mo>+</mml:mo><mml:mi>α</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">|</mml:mo><mml:mo stretchy="true" form="postfix">|</mml:mo></mml:mrow><mml:mover><mml:msub><mml:mi>x</mml:mi><mml:mi>k</mml:mi></mml:msub><mml:mo accent="true">‾</mml:mo></mml:mover><mml:mo>−</mml:mo><mml:mi>v</mml:mi><mml:msub><mml:mi></mml:mi><mml:mi>i</mml:mi></mml:msub><mml:msup><mml:mrow><mml:mo stretchy="true" form="prefix">|</mml:mo><mml:mo stretchy="true" form="postfix">|</mml:mo></mml:mrow><mml:mn>2</mml:mn></mml:msup><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mo>−</mml:mo><mml:mn>1</mml:mn><mml:mi>/</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>m</mml:mi><mml:mo>−</mml:mo><mml:mn>1</mml:mn><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:msup><mml:mrow><mml:munderover><mml:mo>∑</mml:mo><mml:mrow><mml:mi>j</mml:mi><mml:mo>=</mml:mo><mml:mn>1</mml:mn></mml:mrow><mml:mi>c</mml:mi></mml:munderover><mml:msup><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">|</mml:mo><mml:mo stretchy="true" form="postfix">|</mml:mo></mml:mrow><mml:msub><mml:mi>x</mml:mi><mml:mi>k</mml:mi></mml:msub><mml:mo>−</mml:mo><mml:mi>v</mml:mi><mml:msub><mml:mi></mml:mi><mml:mi>j</mml:mi></mml:msub><mml:msup><mml:mrow><mml:mo stretchy="true" form="prefix">|</mml:mo><mml:mo stretchy="true" form="postfix">|</mml:mo></mml:mrow><mml:mn>2</mml:mn></mml:msup><mml:mo>−</mml:mo><mml:msub><mml:mi>β</mml:mi><mml:mi>k</mml:mi></mml:msub><mml:mo>+</mml:mo><mml:mi>α</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">|</mml:mo><mml:mo stretchy="true" form="postfix">|</mml:mo></mml:mrow><mml:mover><mml:msub><mml:mi>x</mml:mi><mml:mi>k</mml:mi></mml:msub><mml:mo accent="true">‾</mml:mo></mml:mover><mml:mo>−</mml:mo><mml:mi>v</mml:mi><mml:msub><mml:mi></mml:mi><mml:mi>j</mml:mi></mml:msub><mml:msup><mml:mrow><mml:mo stretchy="true" form="prefix">|</mml:mo><mml:mo stretchy="true" form="postfix">|</mml:mo></mml:mrow><mml:mn>2</mml:mn></mml:msup><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mo>−</mml:mo><mml:mn>1</mml:mn><mml:mi>/</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>m</mml:mi><mml:mo>−</mml:mo><mml:mn>1</mml:mn><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:msup></mml:mrow></mml:mfrac></mml:mrow></mml:math></alternatives></disp-formula></p>
+  </sec>
+  <sec id="robust-versions">
+    <title>Robust versions</title>
+    <p><italic>FCM</italic>, <italic>GFCM</italic>,
+    <italic>SFCM</italic> and <italic>SGFCM</italic> can be modified to
+    use a “robust” version of the FCM
+    (<xref alt="Tsai &amp; Lin, 2011" rid="ref-tsai2011fuzzy" ref-type="bibr">Tsai
+    &amp; Lin, 2011</xref>)</p>
+    <p>The “robust” versions of the algorithms normalize the distances
+    between the data points and the centres of the clusters. This
+    modification improves the performance of the algorithms for clusters
+    with non-hyperspherical shapes and uneven densities.</p>
+    <p>For the <italic>FCM</italic> algorithm, the new formula to
+    calculate the membership matrix is the following:</p>
+    <p><disp-formula><alternatives>
+    <tex-math><![CDATA[u_{i k}=\left[\sum_{j=1}^c\left(\frac{\left\|x_i-v_k\right\|_A^2 / \sigma_k}{\left\|x_i-v_j\right\|_A^2 / \sigma_j}\right)^{\frac{1}{m-1}}\right]^{-1}]]></tex-math>
+    <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>u</mml:mi><mml:mrow><mml:mi>i</mml:mi><mml:mi>k</mml:mi></mml:mrow></mml:msub><mml:mo>=</mml:mo><mml:msup><mml:mrow><mml:mo stretchy="true" form="prefix">[</mml:mo><mml:munderover><mml:mo>∑</mml:mo><mml:mrow><mml:mi>j</mml:mi><mml:mo>=</mml:mo><mml:mn>1</mml:mn></mml:mrow><mml:mi>c</mml:mi></mml:munderover><mml:msup><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mfrac><mml:mrow><mml:msubsup><mml:mrow><mml:mo stretchy="true" form="prefix">∥</mml:mo><mml:msub><mml:mi>x</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mo>−</mml:mo><mml:msub><mml:mi>v</mml:mi><mml:mi>k</mml:mi></mml:msub><mml:mo stretchy="true" form="postfix">∥</mml:mo></mml:mrow><mml:mi>A</mml:mi><mml:mn>2</mml:mn></mml:msubsup><mml:mi>/</mml:mi><mml:msub><mml:mi>σ</mml:mi><mml:mi>k</mml:mi></mml:msub></mml:mrow><mml:mrow><mml:msubsup><mml:mrow><mml:mo stretchy="true" form="prefix">∥</mml:mo><mml:msub><mml:mi>x</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mo>−</mml:mo><mml:msub><mml:mi>v</mml:mi><mml:mi>j</mml:mi></mml:msub><mml:mo stretchy="true" form="postfix">∥</mml:mo></mml:mrow><mml:mi>A</mml:mi><mml:mn>2</mml:mn></mml:msubsup><mml:mi>/</mml:mi><mml:msub><mml:mi>σ</mml:mi><mml:mi>j</mml:mi></mml:msub></mml:mrow></mml:mfrac><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mfrac><mml:mn>1</mml:mn><mml:mrow><mml:mi>m</mml:mi><mml:mo>−</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:mfrac></mml:msup><mml:mo stretchy="true" form="postfix">]</mml:mo></mml:mrow><mml:mrow><mml:mo>−</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:msup></mml:mrow></mml:math></alternatives></disp-formula></p>
+    <p>With:</p>
+    <p><disp-formula><alternatives>
+    <tex-math><![CDATA[\sigma_j=\left(\frac{\sum_{i=1}^n u_{i j}^m\left\|x_i-v_j\right\|_A^2}{\sum_{i=1}^n u_{i j}^m}\right)^{\frac{l}{2}}]]></tex-math>
+    <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>σ</mml:mi><mml:mi>j</mml:mi></mml:msub><mml:mo>=</mml:mo><mml:msup><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mfrac><mml:mrow><mml:munderover><mml:mo>∑</mml:mo><mml:mrow><mml:mi>i</mml:mi><mml:mo>=</mml:mo><mml:mn>1</mml:mn></mml:mrow><mml:mi>n</mml:mi></mml:munderover><mml:msubsup><mml:mi>u</mml:mi><mml:mrow><mml:mi>i</mml:mi><mml:mi>j</mml:mi></mml:mrow><mml:mi>m</mml:mi></mml:msubsup><mml:msubsup><mml:mrow><mml:mo stretchy="true" form="prefix">∥</mml:mo><mml:msub><mml:mi>x</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mo>−</mml:mo><mml:msub><mml:mi>v</mml:mi><mml:mi>j</mml:mi></mml:msub><mml:mo stretchy="true" form="postfix">∥</mml:mo></mml:mrow><mml:mi>A</mml:mi><mml:mn>2</mml:mn></mml:msubsup></mml:mrow><mml:mrow><mml:munderover><mml:mo>∑</mml:mo><mml:mrow><mml:mi>i</mml:mi><mml:mo>=</mml:mo><mml:mn>1</mml:mn></mml:mrow><mml:mi>n</mml:mi></mml:munderover><mml:msubsup><mml:mi>u</mml:mi><mml:mrow><mml:mi>i</mml:mi><mml:mi>j</mml:mi></mml:mrow><mml:mi>m</mml:mi></mml:msubsup></mml:mrow></mml:mfrac><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mfrac><mml:mi>l</mml:mi><mml:mn>2</mml:mn></mml:mfrac></mml:msup></mml:mrow></mml:math></alternatives></disp-formula></p>
+    <p>For the <italic>SFCM</italic>, the same normalization is applied
+    on the distances calculated from the lagged dataset.</p>
+    <p><disp-formula><alternatives>
+    <tex-math><![CDATA[u_{ik} = \frac{(||x_{k} - v{_i}||^2 /\sigma_k + \alpha(||\bar{x_{k}} - v{_i}||^2/w\sigma_k))^{(-1/(m-1))}}{\sum_{j=1}^c(||x_{k} - v{_j}||^2 / \sigma_k + \alpha(||\bar{x_{k}} - v{_j}||^2/ w\sigma_k))^{(-1/(m-1))}}]]></tex-math>
+    <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>u</mml:mi><mml:mrow><mml:mi>i</mml:mi><mml:mi>k</mml:mi></mml:mrow></mml:msub><mml:mo>=</mml:mo><mml:mfrac><mml:msup><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">|</mml:mo><mml:mo stretchy="true" form="postfix">|</mml:mo></mml:mrow><mml:msub><mml:mi>x</mml:mi><mml:mi>k</mml:mi></mml:msub><mml:mo>−</mml:mo><mml:mi>v</mml:mi><mml:msub><mml:mi></mml:mi><mml:mi>i</mml:mi></mml:msub><mml:msup><mml:mrow><mml:mo stretchy="true" form="prefix">|</mml:mo><mml:mo stretchy="true" form="postfix">|</mml:mo></mml:mrow><mml:mn>2</mml:mn></mml:msup><mml:mi>/</mml:mi><mml:msub><mml:mi>σ</mml:mi><mml:mi>k</mml:mi></mml:msub><mml:mo>+</mml:mo><mml:mi>α</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">|</mml:mo><mml:mo stretchy="true" form="postfix">|</mml:mo></mml:mrow><mml:mover><mml:msub><mml:mi>x</mml:mi><mml:mi>k</mml:mi></mml:msub><mml:mo accent="true">‾</mml:mo></mml:mover><mml:mo>−</mml:mo><mml:mi>v</mml:mi><mml:msub><mml:mi></mml:mi><mml:mi>i</mml:mi></mml:msub><mml:msup><mml:mrow><mml:mo stretchy="true" form="prefix">|</mml:mo><mml:mo stretchy="true" form="postfix">|</mml:mo></mml:mrow><mml:mn>2</mml:mn></mml:msup><mml:mi>/</mml:mi><mml:mi>w</mml:mi><mml:msub><mml:mi>σ</mml:mi><mml:mi>k</mml:mi></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mo>−</mml:mo><mml:mn>1</mml:mn><mml:mi>/</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>m</mml:mi><mml:mo>−</mml:mo><mml:mn>1</mml:mn><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:msup><mml:mrow><mml:munderover><mml:mo>∑</mml:mo><mml:mrow><mml:mi>j</mml:mi><mml:mo>=</mml:mo><mml:mn>1</mml:mn></mml:mrow><mml:mi>c</mml:mi></mml:munderover><mml:msup><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">|</mml:mo><mml:mo stretchy="true" form="postfix">|</mml:mo></mml:mrow><mml:msub><mml:mi>x</mml:mi><mml:mi>k</mml:mi></mml:msub><mml:mo>−</mml:mo><mml:mi>v</mml:mi><mml:msub><mml:mi></mml:mi><mml:mi>j</mml:mi></mml:msub><mml:msup><mml:mrow><mml:mo stretchy="true" form="prefix">|</mml:mo><mml:mo stretchy="true" form="postfix">|</mml:mo></mml:mrow><mml:mn>2</mml:mn></mml:msup><mml:mi>/</mml:mi><mml:msub><mml:mi>σ</mml:mi><mml:mi>k</mml:mi></mml:msub><mml:mo>+</mml:mo><mml:mi>α</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">|</mml:mo><mml:mo stretchy="true" form="postfix">|</mml:mo></mml:mrow><mml:mover><mml:msub><mml:mi>x</mml:mi><mml:mi>k</mml:mi></mml:msub><mml:mo accent="true">‾</mml:mo></mml:mover><mml:mo>−</mml:mo><mml:mi>v</mml:mi><mml:msub><mml:mi></mml:mi><mml:mi>j</mml:mi></mml:msub><mml:msup><mml:mrow><mml:mo stretchy="true" form="prefix">|</mml:mo><mml:mo stretchy="true" form="postfix">|</mml:mo></mml:mrow><mml:mn>2</mml:mn></mml:msup><mml:mi>/</mml:mi><mml:mi>w</mml:mi><mml:msub><mml:mi>σ</mml:mi><mml:mi>k</mml:mi></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mo>−</mml:mo><mml:mn>1</mml:mn><mml:mi>/</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>m</mml:mi><mml:mo>−</mml:mo><mml:mn>1</mml:mn><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:msup></mml:mrow></mml:mfrac></mml:mrow></mml:math></alternatives></disp-formula></p>
+    <p>With:</p>
+    <p><disp-formula><alternatives>
+    <tex-math><![CDATA[w\sigma_j=\left(\frac{\sum_{i=1}^n u_{i j}^m\left\|\bar{x_i}-v_j\right\|_A^2}{\sum_{i=1}^n u_{i j}^m}\right)^{\frac{l}{2}}]]></tex-math>
+    <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>w</mml:mi><mml:msub><mml:mi>σ</mml:mi><mml:mi>j</mml:mi></mml:msub><mml:mo>=</mml:mo><mml:msup><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mfrac><mml:mrow><mml:munderover><mml:mo>∑</mml:mo><mml:mrow><mml:mi>i</mml:mi><mml:mo>=</mml:mo><mml:mn>1</mml:mn></mml:mrow><mml:mi>n</mml:mi></mml:munderover><mml:msubsup><mml:mi>u</mml:mi><mml:mrow><mml:mi>i</mml:mi><mml:mi>j</mml:mi></mml:mrow><mml:mi>m</mml:mi></mml:msubsup><mml:msubsup><mml:mrow><mml:mo stretchy="true" form="prefix">∥</mml:mo><mml:mover><mml:msub><mml:mi>x</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mo accent="true">‾</mml:mo></mml:mover><mml:mo>−</mml:mo><mml:msub><mml:mi>v</mml:mi><mml:mi>j</mml:mi></mml:msub><mml:mo stretchy="true" form="postfix">∥</mml:mo></mml:mrow><mml:mi>A</mml:mi><mml:mn>2</mml:mn></mml:msubsup></mml:mrow><mml:mrow><mml:munderover><mml:mo>∑</mml:mo><mml:mrow><mml:mi>i</mml:mi><mml:mo>=</mml:mo><mml:mn>1</mml:mn></mml:mrow><mml:mi>n</mml:mi></mml:munderover><mml:msubsup><mml:mi>u</mml:mi><mml:mrow><mml:mi>i</mml:mi><mml:mi>j</mml:mi></mml:mrow><mml:mi>m</mml:mi></mml:msubsup></mml:mrow></mml:mfrac><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mfrac><mml:mi>l</mml:mi><mml:mn>2</mml:mn></mml:mfrac></mml:msup></mml:mrow></mml:math></alternatives></disp-formula></p>
+  </sec>
+  <sec id="noise-cluster">
+    <title>Noise cluster</title>
+    <p>For each algorithm, it is possible to add a noise cluster. This
+    extra cluster does not have a centre and has the same distance
+    (<inline-formula><alternatives>
+    <tex-math><![CDATA[delta]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>d</mml:mi><mml:mi>e</mml:mi><mml:mi>l</mml:mi><mml:mi>t</mml:mi><mml:mi>a</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>)
+    to each data point
+    (<xref alt="Dave, 1991" rid="ref-dave1991characterization" ref-type="bibr">Dave,
+    1991</xref>). It is used to catch observations that are too far from
+    the clusters and could be identified as outliers.
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[delta]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>d</mml:mi><mml:mi>e</mml:mi><mml:mi>l</mml:mi><mml:mi>t</mml:mi><mml:mi>a</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>
+    is also a hyperparameter to be selected by the user.</p>
+  </sec>
+  <sec id="selecting-parameters">
+    <title>Selecting parameters</title>
+    <p>As stated above, up to five hyper parameters have to be selected
+    by the user (six if a noise cluster is added). Finding the best
+    combination is facilitated by the function
+    <monospace>selectParameters</monospace> calculating the
+    classifications for all the possible combinations of parameters in
+    specified ranges and returning several metrics of classification
+    quality. The documentation also provides an example of how to select
+    the hyperparameters with a multi-objective genetic algorithm.</p>
+  </sec>
+  <sec id="interpreting-the-results">
+    <title>Interpreting the results</title>
+    <p>To interpret the results, several functions are provided:</p>
+    <list list-type="bullet">
+      <list-item>
+        <p><monospace>summarizeClusters</monospace>: returning summary
+        statistics for each cluster for in-depth analysis.</p>
+      </list-item>
+      <list-item>
+        <p><monospace>spiderPlots</monospace>: plotting a spider chart
+        to quickly differentiate the clusters.</p>
+      </list-item>
+      <list-item>
+        <p><monospace>violinPlots</monospace>: plotting one violin plot
+        split by cluster for each variable in the dataset.</p>
+      </list-item>
+      <list-item>
+        <p><monospace>barPlots</monospace>: plotting a bar plot to
+        compare means or medians of each cluster.</p>
+      </list-item>
+      <list-item>
+        <p><monospace>mapClusters</monospace>: mapping the membership
+        matrix and the most likely cluster for the observations.</p>
+      </list-item>
+      <list-item>
+        <p><monospace>calcqualityIndexes</monospace>: returning several
+        quality indexes for a classification.</p>
+      </list-item>
+      <list-item>
+        <p><monospace>spatialDiag</monospace>: performing a complete
+        spatial diagnostic to determine if the inclusion of space in the
+        classification is justified.</p>
+      </list-item>
+    </list>
+    <p>The package includes a ShinyApp
+    (<monospace>sp_clust_explorer</monospace>) which can be used to
+    investigate the results interactively (mapping the clusters,
+    bivariate charts, uncertain observations, etc.).</p>
+    <p>Also, several methods using the R classical S3 object system are
+    available :</p>
+    <list list-type="bullet">
+      <list-item>
+        <p><monospace>summary</monospace>: same as
+        <monospace>summarizeClusters</monospace>.</p>
+      </list-item>
+      <list-item>
+        <p><monospace>plot</monospace>: wrapper around
+        <monospace>spiderPlots</monospace>,
+        <monospace>violinPlots</monospace>, and
+        <monospace>barPlots</monospace>.</p>
+      </list-item>
+      <list-item>
+        <p><monospace>print</monospace>: a generic function to display
+        the main attributes of a solution.</p>
+      </list-item>
+      <list-item>
+        <p><monospace>predict</monospace>: a function to predict the
+        membership of new data points.</p>
+      </list-item>
+    </list>
+  </sec>
+  <sec id="cluster-stability">
+    <title>Cluster stability</title>
+    <p>Considering the random initial state of each algorithm, its is
+    important to asses the robustness of the solution. The function
+    <monospace>boot_group_validation</monospace> uses a boostrap
+    approach to evaluate if the clusters of a solution are stable or
+    tend to dissolve. During a selected number of iterations (at least
+    1000), a sample of size <italic>n</italic> (with replacement) is
+    drawn from the original dataset. For each sample, the same
+    classification algorithm is applied and the results are compared
+    with the reference results. For each original group, the most
+    similar group is identified by calculating the Jaccard similarity
+    index between the columns of the two membership matrices. This index
+    is comprised between 0 (exact difference) and 1 (perfect similarity)
+    and a value is calculated for each group at each iteration. One can
+    investigate the values obtained to determine if the groups are
+    stable. Values under 0.5 are a concern and indicate that the group
+    is dissolving. Values between 0.6 and 0.75 indicate a pattern in the
+    data, but a significant uncertainty. Values above 0.8 indicate
+    strong groups. The values of the centres obtained at each iteration
+    are also returned, and can be used to ensure that they approximately
+    follow a normal distribution or are at least unimodal.</p>
+  </sec>
+  <sec id="raster-data">
+    <title>Raster data</title>
+    <p>Considering the important use of unsupervised classification
+    methods on aerial or satellite imagery,
+    <monospace>geocmeans</monospace> can also handle
+    <monospace>spaRast</monospace> objects from the package
+    <monospace>terra</monospace> and provides functions to build spatial
+    smoothing windows for <italic>SFCM</italic> and
+    <italic>SFGCM</italic>.</p>
+  </sec>
+</sec>
+<sec id="example">
+  <title>Example</title>
+  <p>The data used for the socio-residential and environmental taxonomy
+  in Lyon are included in the package. The following example uses this
+  data to demonstrate the basic functionality of the package. More
+  details are given in the vignettes of the package.</p>
+  <code language="r script">library(geocmeans)
+library(spdep)
+
+data(LyonIris)
+
+#selecting the columns for the analysis
+AnalysisFields &lt;- c(&quot;Lden&quot;,&quot;NO2&quot;,&quot;PM25&quot;,&quot;VegHautPrt&quot;,&quot;Pct0_14&quot;,
+                   &quot;Pct_65&quot;,&quot;Pct_Img&quot;,&quot;TxChom1564&quot;,&quot;Pct_brevet&quot;,&quot;NivVieMed&quot;)
+                   
+#creating a spatial weights matrix
+Neighbours &lt;- poly2nb(LyonIris,queen = TRUE)
+WMat &lt;- nb2listw(Neighbours,style=&quot;W&quot;,zero.policy = TRUE)
+
+#rescaling the columns
+Data &lt;- st_drop_geometry(LyonIris[AnalysisFields])
+for (Col in names(Data)){
+  Data[[Col]] &lt;- scale(Data[[Col]])
+}
+
+#considering k = 4 and m = 1.5, find an optimal value for alpha
+DFindices_SFCM &lt;- selectParameters(algo = &quot;SFCM&quot;, data = Data,
+            k = 4, m = 1.5, alpha = seq(0,2,0.05),
+            nblistw = WMat, standardize = FALSE,
+            tol = 0.0001, verbose = FALSE, seed = 456)
+
+#keeping alpha = 0.7
+SFCM_results &lt;- SFCMeans(Data, WMat, k = 4, m = 1.5, alpha = 0.7,
+                 tol = 0.0001, standardize = FALSE,
+                 verbose = FALSE, seed = 456)
+
+#calculating some quality indexes
+calcqualityIndexes(Data, SFCM_results$Belongings, m = 1.5)
+
+#mapping the results
+mapClusters(LyonIris, SFCM_results$Belongings)
+
+#ploting a radar chart
+spiderPlots(st_drop_geometry(LyonIris[AnalysisFields]),
+            belongmatrix = SFCM_results$Belongings)</code>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>We are grateful to Professor Philippe Apparicio for his comments
+  and suggestions on the package, its documentation and this
+  article.</p>
+  <p>The project was partially funded by the research chair of Canada on
+  environmental equity and the city (950-230813).</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <ref id="ref-gelb2021apport">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Gelb</surname><given-names>Jérémy</given-names></name>
+        <name><surname>Apparicio</surname><given-names>Philippe</given-names></name>
+      </person-group>
+      <article-title>Contribution of the spatial c-means fuzzy classification in geography: A socio-residential and environmental taxonomy in lyon</article-title>
+      <source>Cybergeo: European Journal of Geography</source>
+      <publisher-name>CNRS-UMR Géographie-cités 8504</publisher-name>
+      <year iso-8601-date="2021">2021</year>
+      <pub-id pub-id-type="doi">10.4000/cybergeo.36414</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-cai2007fast">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Cai</surname><given-names>Weiling</given-names></name>
+        <name><surname>Chen</surname><given-names>Songcan</given-names></name>
+        <name><surname>Zhang</surname><given-names>Daoqiang</given-names></name>
+      </person-group>
+      <article-title>Fast and robust fuzzy c-means clustering algorithms incorporating local information for image segmentation</article-title>
+      <source>Pattern recognition</source>
+      <publisher-name>Elsevier</publisher-name>
+      <year iso-8601-date="2007">2007</year>
+      <volume>40</volume>
+      <issue>3</issue>
+      <pub-id pub-id-type="doi">10.1016/j.patcog.2006.07.011</pub-id>
+      <fpage>825</fpage>
+      <lpage>838</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-zhao2013kernel">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Zhao</surname><given-names>Feng</given-names></name>
+        <name><surname>Jiao</surname><given-names>Licheng</given-names></name>
+        <name><surname>Liu</surname><given-names>Hanqiang</given-names></name>
+      </person-group>
+      <article-title>Kernel generalized fuzzy c-means clustering with spatial information for image segmentation</article-title>
+      <source>Digital Signal Processing</source>
+      <publisher-name>Elsevier</publisher-name>
+      <year iso-8601-date="2013">2013</year>
+      <volume>23</volume>
+      <issue>1</issue>
+      <pub-id pub-id-type="doi">10.1016/j.dsp.2012.09.016</pub-id>
+      <fpage>184</fpage>
+      <lpage>199</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-chavent2018clustgeo">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Chavent</surname><given-names>Marie</given-names></name>
+        <name><surname>Kuentz-Simonet</surname><given-names>Vanessa</given-names></name>
+        <name><surname>Labenne</surname><given-names>Amaury</given-names></name>
+        <name><surname>Saracco</surname><given-names>Jérôme</given-names></name>
+      </person-group>
+      <article-title>ClustGeo: An r package for hierarchical clustering with spatial constraints</article-title>
+      <source>Computational Statistics</source>
+      <publisher-name>Springer</publisher-name>
+      <year iso-8601-date="2018">2018</year>
+      <volume>33</volume>
+      <issue>4</issue>
+      <pub-id pub-id-type="doi">10.1007/s00180-018-0791-1</pub-id>
+      <fpage>1799</fpage>
+      <lpage>1822</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-openshaw1977geographical">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Openshaw</surname><given-names>Stan</given-names></name>
+      </person-group>
+      <article-title>A geographical solution to scale and aggregation problems in region-building, partitioning and spatial modelling</article-title>
+      <source>Transactions of the institute of british geographers</source>
+      <publisher-name>JSTOR</publisher-name>
+      <year iso-8601-date="1977">1977</year>
+      <pub-id pub-id-type="doi">10.2307/622300</pub-id>
+      <fpage>459</fpage>
+      <lpage>472</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-assunccao2006efficient">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Assunção</surname><given-names>Renato M</given-names></name>
+        <name><surname>Neves</surname><given-names>Marcos Corrêa</given-names></name>
+        <name><surname>Câmara</surname><given-names>Gilberto</given-names></name>
+        <name><surname>Costa Freitas</surname><given-names>Corina da</given-names></name>
+      </person-group>
+      <article-title>Efficient regionalization techniques for socio-economic geographical units using minimum spanning trees</article-title>
+      <source>International Journal of Geographical Information Science</source>
+      <publisher-name>Taylor &amp; Francis</publisher-name>
+      <year iso-8601-date="2006">2006</year>
+      <volume>20</volume>
+      <issue>7</issue>
+      <pub-id pub-id-type="doi">10.1080/13658810600665111</pub-id>
+      <fpage>797</fpage>
+      <lpage>811</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-aldstadt2006using">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Aldstadt</surname><given-names>Jared</given-names></name>
+        <name><surname>Getis</surname><given-names>Arthur</given-names></name>
+      </person-group>
+      <article-title>Using AMOEBA to create a spatial weights matrix and identify spatial clusters</article-title>
+      <source>Geographical analysis</source>
+      <publisher-name>Wiley Online Library</publisher-name>
+      <year iso-8601-date="2006">2006</year>
+      <volume>38</volume>
+      <issue>4</issue>
+      <pub-id pub-id-type="doi">10.1111/j.1538-4632.2006.00689.x</pub-id>
+      <fpage>327</fpage>
+      <lpage>343</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-romary2015unsupervised">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Romary</surname><given-names>Thomas</given-names></name>
+        <name><surname>Ors</surname><given-names>Fabien</given-names></name>
+        <name><surname>Rivoirard</surname><given-names>Jacques</given-names></name>
+        <name><surname>Deraisme</surname><given-names>Jacques</given-names></name>
+      </person-group>
+      <article-title>Unsupervised classification of multivariate geostatistical data: Two algorithms</article-title>
+      <source>Computers &amp; geosciences</source>
+      <publisher-name>Elsevier</publisher-name>
+      <year iso-8601-date="2015">2015</year>
+      <volume>85</volume>
+      <pub-id pub-id-type="doi">10.1016/j.cageo.2015.05.019</pub-id>
+      <fpage>96</fpage>
+      <lpage>103</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-tsai2011fuzzy">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Tsai</surname><given-names>Du-Ming</given-names></name>
+        <name><surname>Lin</surname><given-names>Chung-Chan</given-names></name>
+      </person-group>
+      <article-title>Fuzzy c-means based clustering for linearly and nonlinearly separable data</article-title>
+      <source>Pattern recognition</source>
+      <publisher-name>Elsevier</publisher-name>
+      <year iso-8601-date="2011">2011</year>
+      <volume>44</volume>
+      <issue>8</issue>
+      <pub-id pub-id-type="doi">10.1016/j.patcog.2011.02.009</pub-id>
+      <fpage>1750</fpage>
+      <lpage>1760</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-dave1991characterization">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Dave</surname><given-names>Rajesh N</given-names></name>
+      </person-group>
+      <article-title>Characterization and detection of noise in clustering</article-title>
+      <source>Pattern Recognition Letters</source>
+      <publisher-name>Elsevier</publisher-name>
+      <year iso-8601-date="1991">1991</year>
+      <volume>12</volume>
+      <issue>11</issue>
+      <pub-id pub-id-type="doi">10.1016/0167-8655(91)90002-4</pub-id>
+      <fpage>657</fpage>
+      <lpage>664</lpage>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
