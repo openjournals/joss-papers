@@ -24,9 +24,6 @@ jobs:
       GH_REPO: openjournals/joss-reviews
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
     steps:
-      - name: Checkout code
-        id: checkout-code
-        uses: actions/checkout@v4
       - name: Compile Paper
         id: generate-files
         uses: xuanxu/paper-action@main
@@ -43,19 +40,6 @@ jobs:
           branch_prefix: joss
           issue_id: ${{ github.event.inputs.issue_id }}
           pdf_path: ${{ steps.generate-files.outputs.pdf_path}}
-      - name: Find most similar paper
-        if: steps.generate-files.outcome == 'success'
-        id: find-similar-papers
-        continue-on-error: true
-        uses: openjournals/find-similar-papers@main
-        with:
-          pdf_path: ${{ steps.generate-files.outputs.pdf_path}}
-          issue_title: ${{ github.event.inputs.issue_title }}
-      - name: Post recommendations
-        if: steps.find-similar-papers.outcome == 'success'
-        continue-on-error: true
-        run: |
-          gh issue comment ${{ github.event.inputs.issue_id }} --body '${{ steps.find-similar-papers.outputs.recommendations}}'
       - name: Reply message
         if: steps.generate-files.outcome == 'success'
         run: |
@@ -64,3 +48,19 @@ jobs:
         if: steps.generate-files.outcome == 'failure'
         run: |
           gh issue comment ${{ github.event.inputs.issue_id }} --body ":warning: [An error happened when generating the pdf](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}?check_suite_focus=true). ${{ env.CUSTOM_ERROR }}"
+      - name: Checkout code
+        if: ${{ steps.generate-files.outcome == 'success' && startsWith(github.event.inputs.issue_title, '[PRE REVIEW]') }}
+        uses: actions/checkout@v4
+      - name: Find most similar paper
+        if: ${{ steps.generate-files.outcome == 'success' && startsWith(github.event.inputs.issue_title, '[PRE REVIEW]') }}
+        id: find-similar-papers
+        continue-on-error: true
+        uses: openjournals/find-similar-papers@main
+        with:
+          pdf_path: ${{ steps.generate-files.outputs.pdf_path}}
+          issue_title: ${{ github.event.inputs.issue_title }}
+      - name: Post recommendations
+        if: ${{ steps.find-similar-papers.outcome == 'success' && startsWith(github.event.inputs.issue_title, '[PRE REVIEW]') }}
+        continue-on-error: true
+        run: |
+          gh issue comment ${{ github.event.inputs.issue_id }} --body '${{ steps.find-similar-papers.outputs.recommendations}}'
