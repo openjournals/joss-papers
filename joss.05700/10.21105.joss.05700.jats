@@ -1,0 +1,881 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">5700</article-id>
+<article-id pub-id-type="doi">10.21105/joss.05700</article-id>
+<title-group>
+<article-title>TensorInference: A Julia package for tensor-based
+probabilistic inference</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author" equal-contrib="yes">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0009-0009-0291-503X</contrib-id>
+<name>
+<surname>Roa-Villescas</surname>
+<given-names>Martin</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<contrib contrib-type="author" equal-contrib="yes">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0003-1635-2679</contrib-id>
+<name>
+<surname>Liu</surname>
+<given-names>Jin-Guo</given-names>
+</name>
+<xref ref-type="aff" rid="aff-2"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Eindhoven University of Technology</institution>
+</institution-wrap>
+</aff>
+<aff id="aff-2">
+<institution-wrap>
+<institution>Hong Kong University of Science and Technology
+(Guangzhou)</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2023-07-18">
+<day>18</day>
+<month>7</month>
+<year>2023</year>
+</pub-date>
+<volume>8</volume>
+<issue>90</issue>
+<fpage>5700</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2022</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>Julia</kwd>
+<kwd>probabilistic graphical models</kwd>
+<kwd>tensor networks</kwd>
+<kwd>probabilistic inference</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p>A major challenge in developing intelligent systems is the ability
+  to reason under uncertainty, a challenge that appears in many
+  real-world problems across various domains, including artificial
+  intelligence, medical diagnosis, computer vision, computational
+  biology, and natural language processing. Reasoning under uncertainty
+  involves calculating the probabilities of relevant variables while
+  taking into account any information that is acquired. This process,
+  which can be thought of as drawing global insights from local
+  observations, is known as <italic>probabilistic
+  inference</italic>.</p>
+  <p><italic>Probabilistic graphical models</italic> (PGMs) provide a
+  unified framework to perform probabilistic inference. These models use
+  graphs to represent the joint probability distribution of complex
+  systems in a concise manner by exploiting the conditional independence
+  between variables in the model. Additionally, they form the foundation
+  for various algorithms that enable efficient probabilistic
+  inference.</p>
+  <p>However, even with the representational aid of PGMs, performing
+  probabilistic inference remains an intractable endeavor on many
+  real-world models. The reason is that performing probabilistic
+  inference involves complex combinatorial optimization problems in very
+  high dimensional spaces. To tackle these challenges, more efficient
+  and scalable inference algorithms are needed.</p>
+  <p>As an attempt to tackle the aforementioned challenges, we present
+  <monospace>TensorInference.jl</monospace>, a Julia package for
+  probabilistic inference that combines the representational
+  capabilities of PGMs with the computational power of tensor networks.
+  By harnessing the best of both worlds,
+  <monospace>TensorInference.jl</monospace> aims to enhance the
+  performance of probabilistic inference, thereby expanding the
+  tractability spectrum of exact inference for more complex, real-world
+  models.</p>
+</sec>
+<sec id="summary">
+  <title>Summary</title>
+  <p>Probabilistic inference entails the process of drawing conclusions
+  from observed data through the axioms of probability theory. Inference
+  algorithms fall into two broad categories: <italic>exact</italic> and
+  <italic>approximate</italic> methods. The main challenge in applying
+  exact inference to real-world problems is its NP-hard computational
+  complexity tied to the model’s <italic>treewidth</italic>, a metric of
+  network connectivity. This has prompted a research shift to
+  approximate methods like <italic>Markov chain Monte Carlo</italic> and
+  <italic>variational</italic> inference. Prominent examples of packages
+  that implement such algorithms include <monospace>Stan</monospace>
+  (<xref alt="Carpenter et al., 2017" rid="ref-carpenter2017stan" ref-type="bibr">Carpenter
+  et al., 2017</xref>), <monospace>PyMC3</monospace>
+  (<xref alt="Oriol et al., 2023" rid="ref-oriol2023pymc" ref-type="bibr">Oriol
+  et al., 2023</xref>), <monospace>Turing.jl</monospace>
+  (<xref alt="Ge et al., 2018" rid="ref-ge2018turing" ref-type="bibr">Ge
+  et al., 2018</xref>), and <monospace>RxInfer.jl</monospace>
+  (<xref alt="Bagaev et al., 2023" rid="ref-bagaev2023rxinfer" ref-type="bibr">Bagaev
+  et al., 2023</xref>). However, while these methods offer superior
+  scalability, they do not provide formal guarantees of accuracy — a
+  challenge that is, in itself, NP-hard to address. Consequently, exact
+  inference methods are gaining renewed interest for their promise of
+  higher accuracy.</p>
+  <p><monospace>TensorInference.jl</monospace> is a Julia
+  (<xref alt="Bezanson et al., 2017" rid="ref-bezanson2017julia" ref-type="bibr">Bezanson
+  et al., 2017</xref>) package designed for performing exact
+  probabilistic inference in discrete graphical models. Capitalizing on
+  the recent advances in the field of tensor networks
+  (<xref alt="Orús, 2014" rid="ref-orus2014practical" ref-type="bibr">Orús,
+  2014</xref>,
+  <xref alt="2019" rid="ref-orus2019tensor" ref-type="bibr">2019</xref>;
+  <xref alt="Robeva &amp; Seigal, 2019" rid="ref-robeva2019duality" ref-type="bibr">Robeva
+  &amp; Seigal, 2019</xref>), <monospace>TensorInference.jl</monospace>
+  offers high-performance solutions for prevalent inference problems.
+  Specifically, it provides methods to:</p>
+  <list list-type="order">
+    <list-item>
+      <p>calculate the partition function (also known as the probability
+      of evidence).</p>
+    </list-item>
+    <list-item>
+      <p>compute the marginal probability distribution over each
+      variable given evidence.</p>
+    </list-item>
+    <list-item>
+      <p>find the most likely assignment to all variables given
+      evidence.</p>
+    </list-item>
+    <list-item>
+      <p>find the most likely assignment to a set of query variables
+      after marginalizing out the remaining variables.</p>
+    </list-item>
+    <list-item>
+      <p>draw samples from the posterior distribution given evidence
+      (<xref alt="Cheng et al., 2019" rid="ref-cheng2019tree" ref-type="bibr">Cheng
+      et al., 2019</xref>;
+      <xref alt="Han et al., 2018" rid="ref-han2018unsupervised" ref-type="bibr">Han
+      et al., 2018</xref>).</p>
+    </list-item>
+  </list>
+  <p>A <italic>tensor</italic> is a mathematical object that generalizes
+  scalars, vectors, and matrices to higher dimensions. In essence, it is
+  a multi-dimensional array of numbers, often used for representing
+  complex data structures in physics, engineering, computer science, and
+  data analytics. A <italic>tensor network</italic> consists of a set of
+  tensors in which some or all indices are contracted according to a
+  specific pattern
+  (<xref alt="Jutho et al., 2023" rid="ref-Jutho2023" ref-type="bibr">Jutho
+  et al., 2023</xref>). The term <italic>contraction</italic> refers to
+  the summation over all the possible values along one or more
+  dimensions of a set of tensors. These networks excel at capturing the
+  correlations of different states in complex systems.</p>
+  <p>The order in which tensor indices are contracted plays a pivotal
+  role in computational efficiency. Different contraction sequences can
+  produce the same mathematical outcome, but the computational costs can
+  vary by orders of magnitude. Since tensor network methods frequently
+  involve multiple contractions, optimizing the contraction order
+  becomes crucial.</p>
+  <p>The use of a tensor network-based infrastructure
+  (<xref alt="Jutho et al., 2023" rid="ref-Jutho2023" ref-type="bibr">Jutho
+  et al., 2023</xref>) offers several advantages when dealing with
+  complex computational tasks. Firstly, it simplifies the process of
+  computing gradients by employing differentiable programming
+  (<xref alt="Liao et al., 2019" rid="ref-liao2019differentiable" ref-type="bibr">Liao
+  et al., 2019</xref>), a critical operation for the aforementioned
+  inference tasks. Secondly, it supports generic element types without a
+  significant compromise on performance. This feature enables the
+  solution of a variety of problems using the same tensor network
+  contraction algorithm, simply by varying the element types used. This
+  allowed us to seamlessly implement solutions for several of the
+  inference tasks described above
+  (<xref alt="Liu et al., 2021" rid="ref-liu2021tropical" ref-type="bibr">Liu
+  et al., 2021</xref>,
+  <xref alt="2022" rid="ref-liu2022computing" ref-type="bibr">2022</xref>).
+  Thirdly, it allows users to define a hyper-optimized contraction
+  order, which is known to have a significant impact on the
+  computational performance of contracting tensor networks
+  (<xref alt="Gao et al., 2021" rid="ref-gao2021limitations" ref-type="bibr">Gao
+  et al., 2021</xref>;
+  <xref alt="Markov &amp; Shi, 2008" rid="ref-markov2008simulating" ref-type="bibr">Markov
+  &amp; Shi, 2008</xref>;
+  <xref alt="Pan &amp; Zhang, 2022" rid="ref-Pan2022" ref-type="bibr">Pan
+  &amp; Zhang, 2022</xref>). <monospace>TensorInference.jl</monospace>
+  provides a predefined set of state-of-the-art contraction ordering
+  methods, each identified by a specific name for ease of reference.
+  These methods include a <italic>local search-based method</italic>,
+  denoted as <monospace>TreeSA</monospace>
+  (<xref alt="Kalachev et al., 2022" rid="ref-kalachev2022multitensor" ref-type="bibr">Kalachev
+  et al., 2022</xref>), two methods based on <italic>min-cut
+  algorithms</italic>, denoted as <monospace>SABipartite</monospace> and
+  <monospace>KaHyParBipartite</monospace>
+  (<xref alt="Gray &amp; Kourtis, 2021" rid="ref-gray2021hyper" ref-type="bibr">Gray
+  &amp; Kourtis, 2021</xref>); as well as a <italic>greedy
+  algorithm</italic>, denoted as <monospace>GreedyMethod</monospace>.
+  Lastly, <monospace>TensorInference.jl</monospace> leverages the
+  cutting-edge developments commonly found in tensor network libraries,
+  including a highly optimized set of BLAS routines
+  (<xref alt="Blackford et al., 2002" rid="ref-blackford2002updated" ref-type="bibr">Blackford
+  et al., 2002</xref>) and GPU technology.</p>
+  <p><monospace>TensorInference.jl</monospace> succeeds
+  <monospace>JunctionTrees.jl</monospace>
+  (<xref alt="Roa-Villescas et al., 2022" rid="ref-roa2022partial" ref-type="bibr">Roa-Villescas
+  et al., 2022</xref>,
+  <xref alt="2023" rid="ref-roa2023scaling" ref-type="bibr">2023</xref>),
+  a Julia package implementing the Junction Tree Algorithm (JTA)
+  (<xref alt="Jensen et al., 1990" rid="ref-jensen1990bayesian" ref-type="bibr">Jensen
+  et al., 1990</xref>;
+  <xref alt="Lauritzen &amp; Spiegelhalter, 1988" rid="ref-lauritzen1988local" ref-type="bibr">Lauritzen
+  &amp; Spiegelhalter, 1988</xref>). While the latter employs
+  tensor-based technology to optimize the computation of individual
+  sum-product messages within the JTA context,
+  <monospace>TensorInference.jl</monospace> takes a different route. It
+  adopts a holistic tensor network approach, which opens new doors for
+  optimization opportunities and significantly reduces the algorithm’s
+  complexity compared to the JTA. Other prominent examples of exact
+  inference packages for probabilistic inference include
+  <monospace>libDAI</monospace>
+  (<xref alt="Mooij, 2010" rid="ref-mooij2010libdai" ref-type="bibr">Mooij,
+  2010</xref>), <monospace>Merlin</monospace>
+  (<xref alt="Marinescu, 2022" rid="ref-marinescu2022merlin" ref-type="bibr">Marinescu,
+  2022</xref>), and <monospace>toulbar2</monospace>
+  (<xref alt="Hurley et al., 2016" rid="ref-hurley2016multi" ref-type="bibr">Hurley
+  et al., 2016</xref>). For a performance comparison of
+  <monospace>TensorInference.jl</monospace> against these alternatives,
+  please see the
+  <ext-link ext-link-type="uri" xlink:href="https://tensorbfs.github.io/TensorInference.jl/dev/performance-evaluation/">Performance
+  evaluation</ext-link> section in the documentation of
+  <monospace>TensorInference.jl</monospace>.</p>
+</sec>
+<sec id="usage-example">
+  <title>Usage example</title>
+  <p>The graph below corresponds to the <italic>ASIA network</italic>
+  (<xref alt="Lauritzen &amp; Spiegelhalter, 1988" rid="ref-lauritzen1988local" ref-type="bibr">Lauritzen
+  &amp; Spiegelhalter, 1988</xref>), a simple Bayesian network
+  (<xref alt="Pearl, 1985" rid="ref-pearl1985bayesian" ref-type="bibr">Pearl,
+  1985</xref>) used extensively in educational settings. It describes
+  the probabilistic relationships between different random variables
+  which correspond to possible diseases, symptoms, risk factors and test
+  results.</p>
+  <fig>
+    <caption><p>The ASIA network: a simplified example of a Bayesian
+    network from the context of medical diagnosis
+    (<xref alt="Lauritzen &amp; Spiegelhalter, 1988" rid="ref-lauritzen1988local" ref-type="bibr">Lauritzen
+    &amp; Spiegelhalter, 1988</xref>).</p></caption>
+    <graphic mimetype="application" mime-subtype="pdf" xlink:href="media/figures/asia-network/out/asia-network.pdf" />
+  </fig>
+  <p>In the example, a patient has recently visited Asia and is now
+  experiencing dyspnea. These conditions serve as the evidence for the
+  observed variables (<inline-formula><alternatives>
+  <tex-math><![CDATA[A]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>A</mml:mi></mml:math></alternatives></inline-formula>
+  and <inline-formula><alternatives>
+  <tex-math><![CDATA[D]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>D</mml:mi></mml:math></alternatives></inline-formula>).
+  The doctor’s task is to assess the likelihood of various diseases —
+  tuberculosis, lung cancer, and bronchitis — which constitute the query
+  variables in this scenario (<inline-formula><alternatives>
+  <tex-math><![CDATA[T]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>T</mml:mi></mml:math></alternatives></inline-formula>,
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[L]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>L</mml:mi></mml:math></alternatives></inline-formula>,
+  and <inline-formula><alternatives>
+  <tex-math><![CDATA[B]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>B</mml:mi></mml:math></alternatives></inline-formula>).</p>
+  <p>We now demonstrate how to use
+  <monospace>TensorInference.jl</monospace> for conducting a variety of
+  inference tasks on this toy example. Please note that as the API may
+  evolve, we recommend checking the
+  <ext-link ext-link-type="uri" xlink:href="https://github.com/TensorBFS/TensorInference.jl/tree/main/examples">examples</ext-link>
+  directory of the official <monospace>TensorInference.jl</monospace>
+  repository for the most up-to-date version of this example.</p>
+  <code language="julia"></code>
+  <boxed-text>
+    <boxed-text>
+      <p><styled-content style="color: 0.0, 0.0, 0.5">In [1]:
+      </styled-content></p>
+      <p><styled-content style="color: 0.545, 0.0, 0.0">Out [1]:
+      </styled-content></p>
+      <p><styled-content style="color: 0.0, 0.0, 0.5">In [2]:
+      </styled-content></p>
+      <p><styled-content style="color: 0.545, 0.0, 0.0">Out [2]:
+      </styled-content></p>
+      <p><styled-content style="color: 0.0, 0.0, 0.5">In [3]:
+      </styled-content></p>
+      <p><styled-content style="color: 0.545, 0.0, 0.0">Out [3]:
+      </styled-content></p>
+      <p><styled-content style="color: 0.0, 0.0, 0.5">In [4]:
+      </styled-content></p>
+      <p><styled-content style="color: 0.545, 0.0, 0.0">Out [4]:
+      </styled-content></p>
+      <p><styled-content style="color: 0.0, 0.0, 0.5">In [5]:
+      </styled-content></p>
+      <p><styled-content style="color: 0.545, 0.0, 0.0">Out [5]:
+      </styled-content></p>
+      <p><styled-content style="color: 0.0, 0.0, 0.5">In [6]:
+      </styled-content></p>
+      <p><styled-content style="color: 0.545, 0.0, 0.0">Out [6]:
+      </styled-content></p>
+      <p><styled-content style="color: 0.0, 0.0, 0.5">In [7]:
+      </styled-content></p>
+      <p><styled-content style="color: 0.545, 0.0, 0.0">Out [7]:
+      </styled-content></p>
+      <p><styled-content style="color: 0.0, 0.0, 0.5">In [8]:
+      </styled-content></p>
+      <p><styled-content style="color: 0.545, 0.0, 0.0">Out [8]:
+      </styled-content></p>
+      <p><styled-content style="color: 0.0, 0.0, 0.5">In [9]:
+      </styled-content></p>
+      <p><styled-content style="color: 0.545, 0.0, 0.0">Out [9]:
+      </styled-content></p>
+      <p><styled-content style="color: 0.0, 0.0, 0.5">In [10]:
+      </styled-content></p>
+      <p><styled-content style="color: 0.545, 0.0, 0.0">Out [10]:
+      </styled-content></p>
+    </boxed-text>
+  </boxed-text>
+</sec>
+<sec id="acknowledgments">
+  <title>Acknowledgments</title>
+  <p>This work is partially funded by the Netherlands Organization for
+  Scientific Research and the Guangzhou Municipal Science and Technology
+  Project (No. 2023A03J0003). We extend our gratitude to Madelyn Cain
+  and Patrick Wijnings for their insightful discussions on the
+  intersection of tensor networks and probabilistic graphical
+  models.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <ref id="ref-bezanson2017julia">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Bezanson</surname><given-names>J.</given-names></name>
+        <name><surname>Edelman</surname><given-names>A.</given-names></name>
+        <name><surname>Karpinski</surname><given-names>S.</given-names></name>
+        <name><surname>Shah</surname><given-names>V.</given-names></name>
+      </person-group>
+      <article-title>Julia: A fresh approach to numerical computing</article-title>
+      <source>SIAM Review</source>
+      <year iso-8601-date="2017-01">2017</year><month>01</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2018-04-10">2018</year><month>04</month><day>10</day></date-in-citation>
+      <volume>59</volume>
+      <issue>1</issue>
+      <issn>0036-1445</issn>
+      <uri>https://epubs.siam.org/doi/abs/10.1137/141000671</uri>
+      <pub-id pub-id-type="doi">10.1137/141000671</pub-id>
+      <fpage>65</fpage>
+      <lpage>98</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-pearl1985bayesian">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Pearl</surname><given-names>J.</given-names></name>
+      </person-group>
+      <article-title>Bayesian networks: A model of self-activated memory for evidential reasoning</article-title>
+      <source>Proc. Of cognitive science society (CSS-7)</source>
+      <year iso-8601-date="1985">1985</year>
+    </element-citation>
+  </ref>
+  <ref id="ref-lauritzen1988local">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Lauritzen</surname><given-names>S. L.</given-names></name>
+        <name><surname>Spiegelhalter</surname><given-names>D. J.</given-names></name>
+      </person-group>
+      <article-title>Local computations with probabilities on graphical structures and their application to expert systems</article-title>
+      <source>Journal of the Royal Statistical Society: Series B (Methodological)</source>
+      <year iso-8601-date="1988">1988</year>
+      <volume>50</volume>
+      <issue>2</issue>
+      <uri>https://rss.onlinelibrary.wiley.com/doi/abs/10.1111/j.2517-6161.1988.tb01721.x</uri>
+      <pub-id pub-id-type="doi">10.1111/j.2517-6161.1988.tb01721.x</pub-id>
+      <fpage>157</fpage>
+      <lpage>194</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-jensen1990bayesian">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Jensen</surname><given-names>Finn V.</given-names></name>
+        <name><surname>Lauritzen</surname><given-names>Steffen L.</given-names></name>
+        <name><surname>Olesen</surname><given-names>Kristian G.</given-names></name>
+      </person-group>
+      <article-title>Bayesian updating in causal probabilistic networks by local computations</article-title>
+      <source>Computational Statistics Quarterly</source>
+      <publisher-name>Physica-Verlag</publisher-name>
+      <year iso-8601-date="1990">1990</year>
+      <volume>4</volume>
+      <issn>0723-712X</issn>
+      <fpage>269</fpage>
+      <lpage>282</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-kalachev2022multitensor">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Kalachev</surname><given-names>Gleb</given-names></name>
+        <name><surname>Panteleev</surname><given-names>Pavel</given-names></name>
+        <name><surname>Yung</surname><given-names>Man-Hong</given-names></name>
+      </person-group>
+      <article-title>Multi-tensor contraction for XEB verification of quantum circuits</article-title>
+      <year iso-8601-date="2022">2022</year>
+      <uri>https://arxiv.org/abs/2108.05665</uri>
+      <pub-id pub-id-type="doi">10.48550/arXiv.2108.05665</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-gray2021hyper">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Gray</surname><given-names>Johnnie</given-names></name>
+        <name><surname>Kourtis</surname><given-names>Stefanos</given-names></name>
+      </person-group>
+      <article-title>Hyper-optimized tensor network contraction</article-title>
+      <source>Quantum</source>
+      <publisher-name>Verein zur Forderung des Open Access Publizierens in den Quantenwissenschaften</publisher-name>
+      <year iso-8601-date="2021-03">2021</year><month>03</month>
+      <volume>5</volume>
+      <issn>2521-327X</issn>
+      <uri>http://dx.doi.org/10.22331/q-2021-03-15-410</uri>
+      <pub-id pub-id-type="doi">10.22331/q-2021-03-15-410</pub-id>
+      <fpage>410</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Pan2022">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Pan</surname><given-names>Feng</given-names></name>
+        <name><surname>Zhang</surname><given-names>Pan</given-names></name>
+      </person-group>
+      <article-title>Simulation of quantum circuits using the big-batch tensor network method</article-title>
+      <source>Phys. Rev. Lett.</source>
+      <publisher-name>American Physical Society</publisher-name>
+      <year iso-8601-date="2022-01">2022</year><month>01</month>
+      <volume>128</volume>
+      <uri>https://link.aps.org/doi/10.1103/PhysRevLett.128.030501</uri>
+      <pub-id pub-id-type="doi">10.1103/PhysRevLett.128.030501</pub-id>
+      <fpage>030501</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-liu2022computing">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Liu</surname><given-names>Jin-Guo</given-names></name>
+        <name><surname>Gao</surname><given-names>Xun</given-names></name>
+        <name><surname>Cain</surname><given-names>Madelyn</given-names></name>
+        <name><surname>Lukin</surname><given-names>Mikhail D.</given-names></name>
+        <name><surname>Wang</surname><given-names>Sheng-Tao</given-names></name>
+      </person-group>
+      <article-title>Computing solution space properties of combinatorial optimization problems via generic tensor networks</article-title>
+      <publisher-name>arXiv</publisher-name>
+      <year iso-8601-date="2022">2022</year>
+      <uri>https://arxiv.org/abs/2205.03718</uri>
+      <pub-id pub-id-type="doi">10.48550/ARXIV.2205.03718</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-robeva2019duality">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Robeva</surname><given-names>Elina</given-names></name>
+        <name><surname>Seigal</surname><given-names>Anna</given-names></name>
+      </person-group>
+      <article-title>Duality of graphical models and tensor networks</article-title>
+      <source>Information and Inference: A Journal of the IMA</source>
+      <publisher-name>Oxford University Press</publisher-name>
+      <year iso-8601-date="2019">2019</year>
+      <volume>8</volume>
+      <issue>2</issue>
+      <pub-id pub-id-type="doi">10.1093/imaiai/iay009</pub-id>
+      <fpage>273</fpage>
+      <lpage>288</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-markov2008simulating">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Markov</surname><given-names>Igor L</given-names></name>
+        <name><surname>Shi</surname><given-names>Yaoyun</given-names></name>
+      </person-group>
+      <article-title>Simulating quantum computation by contracting tensor networks</article-title>
+      <source>SIAM Journal on Computing</source>
+      <publisher-name>SIAM</publisher-name>
+      <year iso-8601-date="2008">2008</year>
+      <volume>38</volume>
+      <issue>3</issue>
+      <pub-id pub-id-type="doi">10.1137/050644756</pub-id>
+      <fpage>963</fpage>
+      <lpage>981</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-orus2014practical">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Orús</surname><given-names>Román</given-names></name>
+      </person-group>
+      <article-title>A practical introduction to tensor networks: Matrix product states and projected entangled pair states</article-title>
+      <source>Annals of Physics</source>
+      <publisher-name>Elsevier BV</publisher-name>
+      <year iso-8601-date="2014-10">2014</year><month>10</month>
+      <volume>349</volume>
+      <pub-id pub-id-type="doi">10.1016/j.aop.2014.06.013</pub-id>
+      <fpage>117</fpage>
+      <lpage>158</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-orus2019tensor">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Orús</surname><given-names>Román</given-names></name>
+      </person-group>
+      <article-title>Tensor networks for complex quantum systems</article-title>
+      <source>Nature Reviews Physics</source>
+      <publisher-name>Nature Publishing Group UK London</publisher-name>
+      <year iso-8601-date="2019">2019</year>
+      <volume>1</volume>
+      <issue>9</issue>
+      <pub-id pub-id-type="doi">10.1038/s42254-019-0086-7</pub-id>
+      <fpage>538</fpage>
+      <lpage>550</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-roa2022partial">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Roa-Villescas</surname><given-names>Martin</given-names></name>
+        <name><surname>Wijnings</surname><given-names>Patrick W. A.</given-names></name>
+        <name><surname>Stuijk</surname><given-names>Sander</given-names></name>
+        <name><surname>Corporaal</surname><given-names>Henk</given-names></name>
+      </person-group>
+      <article-title>Partial evaluation in junction trees</article-title>
+      <source>2022 25th euromicro conference on digital system design (DSD)</source>
+      <year iso-8601-date="2022">2022</year>
+      <volume></volume>
+      <pub-id pub-id-type="doi">10.1109/DSD57027.2022.00064</pub-id>
+      <fpage>429</fpage>
+      <lpage>437</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-roa2023scaling">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Roa-Villescas</surname><given-names>Martin</given-names></name>
+        <name><surname>Liu</surname><given-names>Jin-Guo</given-names></name>
+        <name><surname>Wijnings</surname><given-names>Patrick W. A.</given-names></name>
+        <name><surname>Stuijk</surname><given-names>Sander</given-names></name>
+        <name><surname>Corporaal</surname><given-names>Henk</given-names></name>
+      </person-group>
+      <article-title>Scaling probabilistic inference through message contraction optimization</article-title>
+      <source>2023 congress in computer science, computer engineering, &amp; applied computing (CSCE)</source>
+      <year iso-8601-date="2023">2023</year>
+      <volume></volume>
+      <pub-id pub-id-type="doi"></pub-id>
+      <fpage></fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-blackford2002updated">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Blackford</surname><given-names>L Susan</given-names></name>
+        <name><surname>Petitet</surname><given-names>Antoine</given-names></name>
+        <name><surname>Pozo</surname><given-names>Roldan</given-names></name>
+        <name><surname>Remington</surname><given-names>Karin</given-names></name>
+        <name><surname>Whaley</surname><given-names>R Clint</given-names></name>
+        <name><surname>Demmel</surname><given-names>James</given-names></name>
+        <name><surname>Dongarra</surname><given-names>Jack</given-names></name>
+        <name><surname>Duff</surname><given-names>Iain</given-names></name>
+        <name><surname>Hammarling</surname><given-names>Sven</given-names></name>
+        <name><surname>Henry</surname><given-names>Greg</given-names></name>
+        <name><surname>others</surname></name>
+      </person-group>
+      <article-title>An updated set of basic linear algebra subprograms (BLAS)</article-title>
+      <source>ACM Transactions on Mathematical Software</source>
+      <year iso-8601-date="2002">2002</year>
+      <volume>28</volume>
+      <issue>2</issue>
+      <pub-id pub-id-type="doi">10.1145/567806.567807</pub-id>
+      <fpage>135</fpage>
+      <lpage>151</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-cheng2019tree">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Cheng</surname><given-names>Song</given-names></name>
+        <name><surname>Wang</surname><given-names>Lei</given-names></name>
+        <name><surname>Xiang</surname><given-names>Tao</given-names></name>
+        <name><surname>Zhang</surname><given-names>Pan</given-names></name>
+      </person-group>
+      <article-title>Tree tensor networks for generative modeling</article-title>
+      <source>Physical Review B</source>
+      <publisher-name>APS</publisher-name>
+      <year iso-8601-date="2019">2019</year>
+      <volume>99</volume>
+      <issue>15</issue>
+      <pub-id pub-id-type="doi">10.1103/PhysRevB.99.155131</pub-id>
+      <fpage>155131</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-han2018unsupervised">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Han</surname><given-names>Zhao-Yu</given-names></name>
+        <name><surname>Wang</surname><given-names>Jun</given-names></name>
+        <name><surname>Fan</surname><given-names>Heng</given-names></name>
+        <name><surname>Wang</surname><given-names>Lei</given-names></name>
+        <name><surname>Zhang</surname><given-names>Pan</given-names></name>
+      </person-group>
+      <article-title>Unsupervised generative modeling using matrix product states</article-title>
+      <source>Physical Review X</source>
+      <publisher-name>APS</publisher-name>
+      <year iso-8601-date="2018">2018</year>
+      <volume>8</volume>
+      <issue>3</issue>
+      <pub-id pub-id-type="doi">10.1103/PhysRevX.8.031012</pub-id>
+      <fpage>031012</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-gao2021limitations">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Gao</surname><given-names>Xun</given-names></name>
+        <name><surname>Kalinowski</surname><given-names>Marcin</given-names></name>
+        <name><surname>Chou</surname><given-names>Chi-Ning</given-names></name>
+        <name><surname>Lukin</surname><given-names>Mikhail D.</given-names></name>
+        <name><surname>Barak</surname><given-names>Boaz</given-names></name>
+        <name><surname>Choi</surname><given-names>Soonwon</given-names></name>
+      </person-group>
+      <article-title>Limitations of linear cross-entropy as a measure for quantum advantage</article-title>
+      <year iso-8601-date="2021">2021</year>
+      <uri>https://arxiv.org/abs/2112.01657</uri>
+      <pub-id pub-id-type="doi">10.48550/arXiv.2112.01657</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-liu2021tropical">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Liu</surname><given-names>Jin-Guo</given-names></name>
+        <name><surname>Wang</surname><given-names>Lei</given-names></name>
+        <name><surname>Zhang</surname><given-names>Pan</given-names></name>
+      </person-group>
+      <article-title>Tropical tensor network for ground states of spin glasses</article-title>
+      <source>Physical Review Letters</source>
+      <publisher-name>American Physical Society (APS)</publisher-name>
+      <year iso-8601-date="2021-03">2021</year><month>03</month>
+      <volume>126</volume>
+      <issue>9</issue>
+      <issn>1079-7114</issn>
+      <pub-id pub-id-type="doi">10.1103/physrevlett.126.090506</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-liao2019differentiable">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Liao</surname><given-names>Hai-Jun</given-names></name>
+        <name><surname>Liu</surname><given-names>Jin-Guo</given-names></name>
+        <name><surname>Wang</surname><given-names>Lei</given-names></name>
+        <name><surname>Xiang</surname><given-names>Tao</given-names></name>
+      </person-group>
+      <article-title>Differentiable programming tensor networks</article-title>
+      <source>Physical Review X</source>
+      <publisher-name>APS</publisher-name>
+      <year iso-8601-date="2019">2019</year>
+      <volume>9</volume>
+      <issue>3</issue>
+      <pub-id pub-id-type="doi">10.1103/PhysRevX.9.031041</pub-id>
+      <fpage>031041</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Jutho2023">
+    <element-citation publication-type="software">
+      <person-group person-group-type="author">
+        <name><surname>Jutho</surname></name>
+        <name><surname>Lukas</surname></name>
+        <name><surname>ho-oto</surname></name>
+        <name><surname>maartenvd</surname></name>
+        <name><surname>getzdan</surname></name>
+        <name><surname>Liu</surname><given-names>Jin-Guo</given-names></name>
+        <name><surname>Aluthge</surname><given-names>Dilum</given-names></name>
+        <name><surname>Florian</surname></name>
+        <name><surname>Lyon</surname><given-names>Spencer</given-names></name>
+        <name><surname>Morley</surname><given-names>Alexander</given-names></name>
+        <name><surname>Privett</surname><given-names>Austin</given-names></name>
+        <name><surname>Brann</surname><given-names>David</given-names></name>
+        <name><surname>Iouchtchenko</surname><given-names>Dmitri</given-names></name>
+        <name><surname>Saba</surname><given-names>Elliot</given-names></name>
+        <name><surname>Otto</surname><given-names>Frank</given-names></name>
+        <name><surname>Garrison</surname><given-names>Jim</given-names></name>
+        <name><surname>Bhattacharya</surname><given-names>Jishnu</given-names></name>
+        <name><surname>Feist</surname><given-names>Johannes</given-names></name>
+        <name><surname>TagBot</surname><given-names>Julia</given-names></name>
+        <name><surname>Hyatt</surname><given-names>Katharine</given-names></name>
+        <name><surname>S</surname><given-names>Marcus P</given-names></name>
+        <name><surname>Hauru</surname><given-names>Markus</given-names></name>
+        <name><surname>Protter</surname><given-names>Mason</given-names></name>
+        <name><surname>jemiryguo</surname></name>
+      </person-group>
+      <article-title>Jutho/TensorOperations.jl: v4.0.0</article-title>
+      <publisher-name>Zenodo</publisher-name>
+      <year iso-8601-date="2023-07">2023</year><month>07</month>
+      <uri>https://doi.org/10.5281/zenodo.8166121</uri>
+      <pub-id pub-id-type="doi">10.5281/zenodo.8166121</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-carpenter2017stan">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Carpenter</surname><given-names>Bob</given-names></name>
+        <name><surname>Gelman</surname><given-names>Andrew</given-names></name>
+        <name><surname>Hoffman</surname><given-names>Matthew D</given-names></name>
+        <name><surname>Lee</surname><given-names>Daniel</given-names></name>
+        <name><surname>Goodrich</surname><given-names>Ben</given-names></name>
+        <name><surname>Betancourt</surname><given-names>Michael</given-names></name>
+        <name><surname>Brubaker</surname><given-names>Marcus</given-names></name>
+        <name><surname>Guo</surname><given-names>Jiqiang</given-names></name>
+        <name><surname>Li</surname><given-names>Peter</given-names></name>
+        <name><surname>Riddell</surname><given-names>Allen</given-names></name>
+      </person-group>
+      <article-title>Stan: A probabilistic programming language</article-title>
+      <source>Journal of statistical software</source>
+      <publisher-name>Columbia Univ., New York, NY (United States); Harvard Univ., Cambridge, MA (United States)</publisher-name>
+      <year iso-8601-date="2017">2017</year>
+      <volume>76</volume>
+      <issue>1</issue>
+    </element-citation>
+  </ref>
+  <ref id="ref-oriol2023pymc">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Oriol</surname><given-names>Abril-Pla</given-names></name>
+        <name><surname>Virgile</surname><given-names>Andreani</given-names></name>
+        <name><surname>Colin</surname><given-names>Carroll</given-names></name>
+        <name><surname>Larry</surname><given-names>Dong</given-names></name>
+        <name><surname>J.</surname><given-names>Fonnesbeck Christopher</given-names></name>
+        <name><surname>Maxim</surname><given-names>Kochurov</given-names></name>
+        <name><surname>Ravin</surname><given-names>Kumar</given-names></name>
+        <name><surname>Jupeng</surname><given-names>Lao</given-names></name>
+        <name><surname>C.</surname><given-names>Luhmann Christian</given-names></name>
+        <name><surname>A.</surname><given-names>Martin Osvaldo</given-names></name>
+        <name><surname>Michael</surname><given-names>Osthege</given-names></name>
+        <name><surname>Ricardo</surname><given-names>Vieira</given-names></name>
+        <name><surname>Thomas</surname><given-names>Wiecki</given-names></name>
+        <name><surname>Robert</surname><given-names>Zinkov</given-names></name>
+      </person-group>
+      <article-title>PyMC: A modern and comprehensive probabilistic programming framework in Python</article-title>
+      <source>PeerJ Computer Science</source>
+      <publisher-name>PeerJ</publisher-name>
+      <year iso-8601-date="2023">2023</year>
+      <volume>9</volume>
+      <pub-id pub-id-type="doi">10.7717/peerj-cs.1516</pub-id>
+      <fpage>e1516</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-ge2018turing">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Ge</surname><given-names>Hong</given-names></name>
+        <name><surname>Xu</surname><given-names>Kai</given-names></name>
+        <name><surname>Ghahramani</surname><given-names>Zoubin</given-names></name>
+      </person-group>
+      <article-title>Turing: A language for flexible probabilistic inference</article-title>
+      <source>International conference on artificial intelligence and statistics, AISTATS 2018, 9-11 april 2018, playa blanca, lanzarote, canary islands, spain</source>
+      <year iso-8601-date="2018">2018</year>
+      <uri>http://proceedings.mlr.press/v84/ge18b.html</uri>
+      <fpage>1682</fpage>
+      <lpage>1690</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-bagaev2023rxinfer">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Bagaev</surname><given-names>Dmitry</given-names></name>
+        <name><surname>Podusenko</surname><given-names>Albert</given-names></name>
+        <name><surname>Vries</surname><given-names>Bert de</given-names></name>
+      </person-group>
+      <article-title>RxInfer: A Julia package for reactive real-time Bayesian inference</article-title>
+      <source>Journal of Open Source Software</source>
+      <publisher-name>The Open Journal</publisher-name>
+      <year iso-8601-date="2023">2023</year>
+      <volume>8</volume>
+      <issue>84</issue>
+      <uri>https://doi.org/10.21105/joss.05161</uri>
+      <pub-id pub-id-type="doi">10.21105/joss.05161</pub-id>
+      <fpage>5161</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-mooij2010libdai">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Mooij</surname><given-names>Joris M.</given-names></name>
+      </person-group>
+      <article-title>LibDAI: A free and open source C++ library for discrete approximate inference in graphical models</article-title>
+      <source>Journal of Machine Learning Research</source>
+      <year iso-8601-date="2010-08">2010</year><month>08</month>
+      <volume>11</volume>
+      <uri>http://www.jmlr.org/papers/volume11/mooij10a/mooij10a.pdf</uri>
+      <fpage>2169</fpage>
+      <lpage>2173</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-marinescu2022merlin">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Marinescu</surname><given-names>Radu</given-names></name>
+      </person-group>
+      <article-title>Merlin</article-title>
+      <year iso-8601-date="2022">2022</year>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2022-02-25">2022</year><month>02</month><day>25</day></date-in-citation>
+    </element-citation>
+  </ref>
+  <ref id="ref-hurley2016multi">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Hurley</surname><given-names>Barry</given-names></name>
+        <name><surname>O’Sullivan</surname><given-names>Barry</given-names></name>
+        <name><surname>Allouche</surname><given-names>David</given-names></name>
+        <name><surname>Katsirelos</surname><given-names>George</given-names></name>
+        <name><surname>Schiex</surname><given-names>Thomas</given-names></name>
+        <name><surname>Zytnicki</surname><given-names>Matthias</given-names></name>
+        <name><surname>Givry</surname><given-names>Simon de</given-names></name>
+      </person-group>
+      <article-title>Multi-language evaluation of exact solvers in graphical model discrete optimization</article-title>
+      <source>Constraints</source>
+      <publisher-name>Springer Verlag</publisher-name>
+      <year iso-8601-date="2016">2016</year>
+      <volume>21</volume>
+      <issue>3</issue>
+      <uri>https://hal.inrae.fr/hal-02633083</uri>
+      <pub-id pub-id-type="doi">10.1007/s10601-016-9245-y</pub-id>
+      <fpage>413</fpage>
+      <lpage>434</lpage>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
