@@ -1,0 +1,331 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">5649</article-id>
+<article-id pub-id-type="doi">10.21105/joss.05649</article-id>
+<title-group>
+<article-title>BoxKit: A Python library to manage analysis of
+block-structured simulation datasets</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0003-4997-321X</contrib-id>
+<name>
+<surname>Dhruv</surname>
+<given-names>Akash</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Argonne National Laboratory, USA</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2023-06-15">
+<day>15</day>
+<month>6</month>
+<year>2023</year>
+</pub-date>
+<volume>8</volume>
+<issue>92</issue>
+<fpage>5649</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2022</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>Python</kwd>
+<kwd>block structured datasets</kwd>
+<kwd>simulation analysis</kwd>
+<kwd>machine learning</kwd>
+<kwd>performance optimization</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p>BoxKit is a library that provides building blocks to parallelize
+  and scale data science, statistical analysis, and machine learning
+  applications for block-structured simulation datasets. Spatial data
+  from simulations can be accessed and managed using tools available in
+  this library to interface with packages like SciKit, PyTorch, and
+  OpticalFlow for post-processing and analysis.</p>
+  <p>The library provides a Python interface to efficiently access
+  Adaptive Mesh Refinement (AMR) data typical of simulation outputs, and
+  leverages multiprocessing libraries like JobLib and Dask to scale
+  analysis on Non-Uniform Memory Access (NUMA) and distributed computing
+  architectures.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p>Simulation sofware instruments like Flash-X
+  (<xref alt="Dubey et al., 2022" rid="ref-DUBEY2022" ref-type="bibr">Dubey
+  et al., 2022</xref>) store output in the form of Hierarchical Data
+  Format (HDF5) datasets. Each dataset is often gigabytes (GB) in size
+  and requires cache efficient techniques to enable its integration with
+  Python packages. BoxKit data structures act as a wrapper around
+  simulation output stored in HDF5 files and provide metadata for AMR
+  blocks that describe the simulation domain. The wrapper objects are
+  lightweight in nature and represent chunks of data stored on disk,
+  acting as array like input for Python functions/methods. This approach
+  allows for selective loading of data from disk to memory in form of
+  chunks/blocks which improves cache efficiency. The library also
+  enables creation of new datasets for data-intensive workflows, and can
+  be extended beyond its current application to numerical
+  simulations.</p>
+  <fig>
+    <caption><p>BoxKit is designed to integrate simulation software
+    instruments like Flash-X with Python-based machine learning and data
+    analysis packages. Large simulation datasets (~10 GB) can leverage
+    BoxKit to improve performance of offline training/analysis. This
+    mechanism is part of a broader workflow to integrate simulations
+    with machine learning using a Fortran-Python bridge shown with
+    dotted lines.
+    <styled-content id="figU003Aworkflow"></styled-content></p></caption>
+    <graphic mimetype="image" mime-subtype="png" xlink:href="media/79085694fe368f5975b6685c3be62d4d6289051f.png" />
+  </fig>
+  <p>Compared to existing data analysis packages like yt
+  (<xref alt="Turk et al., 2011" rid="ref-yt" ref-type="bibr">Turk et
+  al., 2011</xref>), BoxKit offers more intuitive abstraction layers
+  over AMR blocks through its metadata wrappers. This provides raw
+  access to simulation data allowing users to develop their own
+  low-level methods for spatio-temporal interpolation and stenciled
+  computations. We aim for this library to complement existing packages
+  rather than replace them.</p>
+  <p>BoxKit also offers wrappers to scale the process of deploying
+  workflows on NUMA and distributed computing architectures by providing
+  decorators that can parallelize Python operations over a single data
+  structure to operate over a list. This can be understood better using
+  the workflow described in
+  <xref alt="[fig:workflow]" rid="figU003Aworkflow">[fig:workflow]</xref>
+  that has been applied to data analysis and machine learning
+  applications in chemical and thermal science engineering
+  (<xref alt="Dhruv, 2023" rid="ref-DHRUV2023" ref-type="bibr">Dhruv,
+  2023</xref>;
+  <xref alt="Hassan et al., 2023" rid="ref-HASSAN2023" ref-type="bibr">Hassan
+  et al., 2023</xref>). Output from Flash-X boiling simulations is
+  created and stored on multinode clusters. Processing this output
+  through BoxKit allows for scaling a simple operation over block to a
+  list of blocks as shown below,</p>
+  <code language="python">
+# Decorate function on a block with desired configuration for parallelization
+@Action(num_procs, parallel_backend)
+def operation_on_block(block, *args):
+    pass
+
+# Call the function with list of blocks as the first argument
+dset = boxkit.read_datset(...)
+operation_on_block((block for block in dset.blocklist), *args)</code>
+  <p>The <monospace>Action</monospace> wrapper converts the function,
+  <monospace>operation_on_block</monospace>, into a parallel method
+  which can be deployed on a multinode cluster with the desired backend
+  (JobLib/Dask). BoxKit does not interfere with parallelization schema
+  of target applications like SciKit, OpticalFlow, and PyTorch which
+  function independently using available resources.</p>
+  <fig>
+    <caption><p>Preliminary performance analysis of BoxKit on a single
+    22 core IBM Power9 node (L1 cache - 32+32 kilobytes (KiB) per core,
+    L2 cache - 512 KiB per core) for operations involving calculation of
+    temporal mean across multiple datasets (left), and merging
+    block-structured AMR datasets into contiguous arrays (right).
+    <styled-content id="figU003Aperformance"></styled-content></p></caption>
+    <graphic mimetype="image" mime-subtype="png" xlink:href="media/7096b849abb2b69ba73382c1611704afecd26c8f.png" />
+  </fig>
+  <p><xref alt="[fig:performance]" rid="figU003Aperformance">[fig:performance]</xref>
+  provides results of performance tests performed on a single 22 core
+  node on Summit
+  (<xref alt="ORNL, 2023" rid="ref-summit" ref-type="bibr"><italic>ORNL</italic>,
+  2023</xref>) for two basic operations: (1) Calculation of temporal
+  mean of heat flux in Flash-X boiling simulations
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[q(x,y,z,t)]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>q</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>x</mml:mi><mml:mo>,</mml:mo><mml:mi>y</mml:mi><mml:mo>,</mml:mo><mml:mi>z</mml:mi><mml:mo>,</mml:mo><mml:mi>t</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>,
+  and (2) A block merger operations to convert AMR data into contiguous
+  arrays.</p>
+  <p>Calculation of temporal mean requires operation on data across
+  multiple datasets, with each dataset approximately 10 GB in size.
+  Following is the mathematical representation of the problem where
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[Nt]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>N</mml:mi><mml:mi>t</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>
+  represents the total number of datasets,</p>
+  <p><named-content id="eqU003Amean" content-type="equation"><disp-formula><alternatives>
+  <tex-math><![CDATA[
+  \overline q = \frac{\sum_{n=1}^{Nt} q(x,y,z,t)}{Nt}]]></tex-math>
+  <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mover><mml:mi>q</mml:mi><mml:mo accent="true">¯</mml:mo></mml:mover><mml:mo>=</mml:mo><mml:mfrac><mml:mrow><mml:munderover><mml:mo>∑</mml:mo><mml:mrow><mml:mi>n</mml:mi><mml:mo>=</mml:mo><mml:mn>1</mml:mn></mml:mrow><mml:mrow><mml:mi>N</mml:mi><mml:mi>t</mml:mi></mml:mrow></mml:munderover><mml:mi>q</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>x</mml:mi><mml:mo>,</mml:mo><mml:mi>y</mml:mi><mml:mo>,</mml:mo><mml:mi>z</mml:mi><mml:mo>,</mml:mo><mml:mi>t</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow><mml:mrow><mml:mi>N</mml:mi><mml:mi>t</mml:mi></mml:mrow></mml:mfrac></mml:mrow></mml:math></alternatives></disp-formula></named-content></p>
+  <p>Loading all the datasets into cache memory at the same time is very
+  inefficient for this problem and requires use of BoxKit’s metadata
+  wrappers to efficiently load data chunks from disk, operate locally in
+  space, and scale its computation across multiple threads. Based on the
+  graph in
+  <xref alt="[fig:performance]" rid="figU003Aperformance">[fig:performance]</xref>
+  the parallel performance scales better as
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[Nt]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>N</mml:mi><mml:mi>t</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>
+  increases.</p>
+  <p>Mapping of AMR data to contingous arrays becomes important for
+  applications where global operations in space are required. An example
+  of this is SciKit’s <monospace>skimage.measure</monospace> method,
+  which can be used to measure bubble shape and size for Flash-X boiling
+  simulations. BoxKit improves performance of this operation by ~5x.
+  Data for these performance studies along with corresponding IPython
+  notebooks can be found in
+  (<xref alt="BoxKit Performance, n.d." rid="ref-boxkit-performance" ref-type="bibr"><italic>BoxKit
+  Performance</italic>, n.d.</xref>).</p>
+</sec>
+<sec id="ongoing-work">
+  <title>Ongoing work</title>
+  <p>Our ongoing work focuses on developing BoxKit to improve
+  performance of Scientific Machine Learning (SciML) applications and
+  using it as part of a broader workflow that integrates Fortran/C++
+  based applications with state-of-art machine learning packages
+  available in Python as highlighted in
+  <xref alt="[fig:workflow]" rid="figU003Aworkflow">[fig:workflow]</xref>.</p>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>This material is based upon work supported by Laboratory Directed
+  Research and Development (LDRD) funding from Argonne National
+  Laboratory, provided by the Director, Office of Science, of the U.S.
+  Department of Energy under Contract No. DE-AC02-06CH11357.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <ref id="ref-DUBEY2022">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Dubey</surname><given-names>Anshu</given-names></name>
+        <name><surname>Weide</surname><given-names>Klaus</given-names></name>
+        <name><surname>O’Neal</surname><given-names>Jared</given-names></name>
+        <name><surname>Dhruv</surname><given-names>Akash</given-names></name>
+        <name><surname>Couch</surname><given-names>Sean</given-names></name>
+        <name><surname>Harris</surname><given-names>J. Austin</given-names></name>
+        <name><surname>Klosterman</surname><given-names>Tom</given-names></name>
+        <name><surname>Jain</surname><given-names>Rajeev</given-names></name>
+        <name><surname>Rudi</surname><given-names>Johann</given-names></name>
+        <name><surname>Messer</surname><given-names>Bronson</given-names></name>
+        <name><surname>Pajkos</surname><given-names>Michael</given-names></name>
+        <name><surname>Carlson</surname><given-names>Jared</given-names></name>
+        <name><surname>Chu</surname><given-names>Ran</given-names></name>
+        <name><surname>Wahib</surname><given-names>Mohamed</given-names></name>
+        <name><surname>Chawdhary</surname><given-names>Saurabh</given-names></name>
+        <name><surname>Ricker</surname><given-names>Paul M.</given-names></name>
+        <name><surname>Lee</surname><given-names>Dongwook</given-names></name>
+        <name><surname>Antypas</surname><given-names>Katie</given-names></name>
+        <name><surname>Riley</surname><given-names>Katherine M.</given-names></name>
+        <name><surname>Daley</surname><given-names>Christopher</given-names></name>
+        <name><surname>Ganapathy</surname><given-names>Murali</given-names></name>
+        <name><surname>Timmes</surname><given-names>Francis X.</given-names></name>
+        <name><surname>Townsley</surname><given-names>Dean M.</given-names></name>
+        <name><surname>Vanella</surname><given-names>Marcos</given-names></name>
+        <name><surname>Bachan</surname><given-names>John</given-names></name>
+        <name><surname>Rich</surname><given-names>Paul M.</given-names></name>
+        <name><surname>Kumar</surname><given-names>Shravan</given-names></name>
+        <name><surname>Endeve</surname><given-names>Eirik</given-names></name>
+        <name><surname>Hix</surname><given-names>W. Raphael</given-names></name>
+        <name><surname>Mezzacappa</surname><given-names>Anthony</given-names></name>
+        <name><surname>Papatheodore</surname><given-names>Thomas</given-names></name>
+      </person-group>
+      <article-title>Flash-X: A multiphysics simulation software instrument</article-title>
+      <source>SoftwareX</source>
+      <year iso-8601-date="2022">2022</year>
+      <volume>19</volume>
+      <issn>2352-7110</issn>
+      <uri>https://www.sciencedirect.com/science/article/pii/S2352711022001030</uri>
+      <pub-id pub-id-type="doi">10.1016/j.softx.2022.101168</pub-id>
+      <fpage>101168</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-DHRUV2023">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Dhruv</surname><given-names>Akash</given-names></name>
+      </person-group>
+      <article-title>A vortex damping outflow forcing for multiphase flows with sharp interfacial jumps</article-title>
+      <year iso-8601-date="2023">2023</year>
+      <uri>https://arxiv.org/abs/2306.10174</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-HASSAN2023">
+    <element-citation publication-type="dataset">
+      <person-group person-group-type="author">
+        <name><surname>Hassan</surname><given-names>Sheikh Md Shakeel</given-names></name>
+        <name><surname>Feeney</surname><given-names>Arthur</given-names></name>
+        <name><surname>Dhruv</surname><given-names>Akash</given-names></name>
+        <name><surname>Kim</surname><given-names>Jihoon</given-names></name>
+        <name><surname>Suh</surname><given-names>Youngjoon</given-names></name>
+        <name><surname>Ryu</surname><given-names>Jaiyoung</given-names></name>
+        <name><surname>Won</surname><given-names>Yoonjin</given-names></name>
+        <name><surname>Chandramowlishwaran</surname><given-names>Aparna</given-names></name>
+      </person-group>
+      <article-title>BubbleML: A Multi-Physics Dataset and Benchmarks for Machine Learning</article-title>
+      <publisher-name>Zenodo</publisher-name>
+      <year iso-8601-date="2023-06">2023</year><month>06</month>
+      <uri>https://doi.org/10.5281/zenodo.8039787</uri>
+      <pub-id pub-id-type="doi">10.5281/zenodo.8039787</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-yt">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Turk</surname><given-names>M. J.</given-names></name>
+        <name><surname>Smith</surname><given-names>B. D.</given-names></name>
+        <name><surname>Oishi</surname><given-names>J. S.</given-names></name>
+        <name><surname>Skory</surname><given-names>S.</given-names></name>
+        <name><surname>Skillman</surname><given-names>S. W.</given-names></name>
+        <name><surname>Abel</surname><given-names>T.</given-names></name>
+        <name><surname>Norman</surname><given-names>M. L.</given-names></name>
+      </person-group>
+      <article-title>yt: A Multi-code Analysis Toolkit for Astrophysical Simulation Data</article-title>
+      <source>The Astrophysical Journal Supplement Series</source>
+      <year iso-8601-date="2011-01">2011</year><month>01</month>
+      <volume>192</volume>
+      <uri>https://arxiv.org/abs/1011.3514</uri>
+      <pub-id pub-id-type="doi">10.1088/0067-0049/192/1/9</pub-id>
+      <fpage>9</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-summit">
+    <element-citation>
+      <article-title>ORNL</article-title>
+      <publisher-name>https://www.olcf.ornl.gov/summit/</publisher-name>
+      <year iso-8601-date="2023">2023</year>
+    </element-citation>
+  </ref>
+  <ref id="ref-boxkit-performance">
+    <element-citation>
+      <article-title>BoxKit Performance</article-title>
+      <publisher-name>https://github.com/akashdhruv/boxkit-performance</publisher-name>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
