@@ -1,0 +1,865 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">5194</article-id>
+<article-id pub-id-type="doi">10.21105/joss.05194</article-id>
+<title-group>
+<article-title>A C++ Implementation of a Cartesian Impedance Controller
+for Robotic Manipulators</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0002-8198-3154</contrib-id>
+<name>
+<surname>Mayr</surname>
+<given-names>Matthias</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+<xref ref-type="aff" rid="aff-2"/>
+</contrib>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0001-5256-8245</contrib-id>
+<name>
+<surname>Salt-Ducaju</surname>
+<given-names>Julian M.</given-names>
+</name>
+<xref ref-type="aff" rid="aff-2"/>
+<xref ref-type="aff" rid="aff-3"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Department of Computer Science, Faculty of Engineering
+(LTH), Lund University, Sweden</institution>
+</institution-wrap>
+</aff>
+<aff id="aff-2">
+<institution-wrap>
+<institution>Wallenberg AI, Autonomous Systems and Software Program
+(WASP), Sweden</institution>
+</institution-wrap>
+</aff>
+<aff id="aff-3">
+<institution-wrap>
+<institution>Department of Automatic Control, Faculty of Engineering
+(LTH), Lund University, Sweden</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2022-12-19">
+<day>19</day>
+<month>12</month>
+<year>2022</year>
+</pub-date>
+<volume>9</volume>
+<issue>93</issue>
+<fpage>5194</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2022</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>ROS</kwd>
+<kwd>Compliant Control</kwd>
+<kwd>Cartesian Impedance Controller</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p>A Cartesian impedance controller is a type of control strategy that
+  is used in robotics to regulate the motion of robot manipulators. This
+  type of controller is designed to provide a robot with the ability to
+  interact with its environment in a stable and compliant manner.
+  Impedance control increases the safety in contact-rich environments by
+  establishing a mass-spring-damper relationship between the external
+  forces acting on the robot and the variation from its reference
+  defined by a set of coordinates that describe the motion of a robot.
+  As a consequence, the controlled robot behaves in a compliant way with
+  respect to its external forces, which has the added benefit of
+  allowing a human operator to interact with the robot, such as manually
+  guiding it.</p>
+  <p>In this package, we provide a C++ implementation of a controller
+  that allows collaborative robots:</p>
+  <list list-type="order">
+    <list-item>
+      <p>To achieve compliance in its Cartesian task-frame
+      coordinates.</p>
+    </list-item>
+    <list-item>
+      <p>To allow for joint compliance in the nullspace of its
+      task-frame coordinates.</p>
+    </list-item>
+    <list-item>
+      <p>To be able to apply desired forces and torques to the
+      environment of the robot, <italic>e.g.</italic>, for direct force
+      control.</p>
+    </list-item>
+  </list>
+  <p>This package can be used in any torque-controlled robotic
+  manipulator. Its implementation in Robot Operating System (ROS)
+  integrates it into <monospace>ros_control</monospace>
+  (<xref alt="Chitta et al., 2017" rid="ref-ros_control" ref-type="bibr">Chitta
+  et al., 2017</xref>) and can automatically utilize the URDF
+  description of the robot’s geometry.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of Need</title>
+  <p>Modern robotics is moving more and more past the traditional robot
+  systems that have hard-coded paths and stiff manipulators. Many
+  use-cases require the robots to work in semi-structured environments.
+  These environments impose uncertainties that could cause collisions.
+  Furthermore, many advanced assembly, manufacturing and household
+  scenarios such as insertions or wiping motions require the robot to
+  excert a controlled force on the environment. Finally, the robot
+  workspace is becoming increasingly shared with human workers in order
+  to leverage both agents and allow them to complement each other.</p>
+  <p>An implementation of compliant control for robotic manipulators is
+  an attractive solution for robots in contact-rich environments. To
+  cover the wide variety of tasks and scenarios, we think that it needs
+  to fulfill the following criteria:</p>
+  <list list-type="order">
+    <list-item>
+      <p>Dynamically adapt the end-effector reference point.</p>
+    </list-item>
+    <list-item>
+      <p>Dynamically adjust the robot’s impedance
+      (<italic>i.e.</italic>, its ability to resist or comply with
+      external forces).</p>
+    </list-item>
+    <list-item>
+      <p>Apply commanded forces and torques (<italic>i.e.</italic>, a
+      wrench) with the end-effector of the robot.</p>
+    </list-item>
+    <list-item>
+      <p>Command a joint configuration and apply it in the nullspace of
+      the Cartesian robotic task.</p>
+    </list-item>
+    <list-item>
+      <p>Execute joint-space trajectories.</p>
+    </list-item>
+  </list>
+  <p>A complete implementation with respect to items 1-5 above of
+  compliance for torque-commanded robotic manipulators is not available,
+  and the existing solutions <monospace>franka_ros</monospace>
+  (<xref alt="Franka Emika, 2017a" rid="ref-franka_ros" ref-type="bibr">Franka
+  Emika, 2017a</xref>) and <monospace>libfranka</monospace>
+  (<xref alt="Franka Emika, 2017b" rid="ref-libfranka" ref-type="bibr">Franka
+  Emika, 2017b</xref>) as well as the <monospace>KUKA</monospace> FRI
+  Cartesian impedance controller can only be used for a single type of
+  robotic manipulator:</p>
+  <table-wrap>
+    <table>
+      <colgroup>
+        <col width="33%" />
+        <col width="24%" />
+        <col width="14%" />
+        <col width="13%" />
+        <col width="16%" />
+      </colgroup>
+      <thead>
+        <tr>
+          <th></th>
+          <th align="center">KUKA FRI controller</th>
+          <th align="center">franka_ros</th>
+          <th align="center">libfranka</th>
+          <th align="center"><bold>This package</bold></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Reference Pose Update</td>
+          <td align="center">(x)<xref ref-type="fn" rid="fn1">1</xref></td>
+          <td align="center">x</td>
+          <td align="center"></td>
+          <td align="center"><bold>x</bold></td>
+        </tr>
+        <tr>
+          <td>Cartesian Stiffness Update</td>
+          <td align="center"></td>
+          <td align="center">x</td>
+          <td align="center"></td>
+          <td align="center"><bold>x</bold></td>
+        </tr>
+        <tr>
+          <td>Cartesian Wrench Update</td>
+          <td align="center">(x)<sup><xref alt="1" rid="fri">1</xref></sup></td>
+          <td align="center"></td>
+          <td align="center"></td>
+          <td align="center"><bold>x</bold></td>
+        </tr>
+        <tr>
+          <td>Nullspace Control</td>
+          <td align="center">?</td>
+          <td align="center">x</td>
+          <td align="center"></td>
+          <td align="center"><bold>x</bold></td>
+        </tr>
+        <tr>
+          <td>Kinesthetic Teaching</td>
+          <td align="center">(x)<xref ref-type="fn" rid="fn2">2</xref><sup>,</sup><xref ref-type="fn" rid="fn3">3</xref></td>
+          <td align="center">x</td>
+          <td align="center">(x)<sup><xref alt="1" rid="stiffness">1</xref></sup></td>
+          <td align="center"><bold>x</bold></td>
+        </tr>
+        <tr>
+          <td>Trajectory Execution</td>
+          <td align="center"></td>
+          <td align="center"></td>
+          <td align="center"></td>
+          <td align="center"><bold>x</bold></td>
+        </tr>
+        <tr>
+          <td>Multi-Robot Support</td>
+          <td align="center"></td>
+          <td align="center"></td>
+          <td align="center"></td>
+          <td align="center"><bold>x</bold></td>
+        </tr>
+      </tbody>
+    </table>
+  </table-wrap>
+  <p>This implementation offers a base library that can easily be
+  integrated into other software and also implements a
+  <monospace>ros_control</monospace> controller on top of the base
+  library for the popular ROS middleware. The base library can be used
+  with simulation software such as DART
+  (<xref alt="Lee et al., 2018" rid="ref-Lee2018" ref-type="bibr">Lee et
+  al., 2018</xref>). It is used for contact-rich applications such as
+  wiping a surface Mayr et al.
+  (<xref alt="2023" rid="ref-mayr23wiping" ref-type="bibr">2023</xref>).
+  Furthermore it is utilized in several research papers such as Mayr,
+  Ahmad, et al.
+  (<xref alt="2022" rid="ref-mayr22skireil" ref-type="bibr">2022</xref>),
+  Mayr, Hvarfner, et al.
+  (<xref alt="2022" rid="ref-mayr22priors" ref-type="bibr">2022</xref>),
+  Ahmad et al.
+  (<xref alt="2022" rid="ref-ahmad2022generalizing" ref-type="bibr">2022</xref>)
+  and Ahmad et al.
+  (<xref alt="2023" rid="ref-ahmad23generalization" ref-type="bibr">2023</xref>)
+  that explore reinforcement learning as a strategy to accomplish
+  contact-rich industrial robot tasks.</p>
+  <p>The Robot Operating System (ROS) is an open-source middleware that
+  is widely used in the robotics community for the development of
+  robotic software systems
+  (<xref alt="Quigley et al., 2009" rid="ref-quigleyU003A2009" ref-type="bibr">Quigley
+  et al., 2009</xref>). Within ROS, an implementation of compliant
+  control is available for position-commanded and velocity-commanded
+  robotic manipulators with the
+  <monospace>cartesian_controllers</monospace> package
+  (<xref alt="Scherzinger et al., 2017" rid="ref-FDCC" ref-type="bibr">Scherzinger
+  et al., 2017</xref>). However, if a robotic manipulator supports
+  direct control of the joint torques, <italic>e.g.</italic>, the
+  <monospace>KUKA LBR iiwa</monospace> or the
+  <monospace>Franka Emika Robot (Panda)</monospace>, torque-commanded
+  Cartesian impedance control is often the preferred control strategy,
+  since a stable compliant behavior might not be achieved for
+  position-commanded and velocity-commanded robotic manipulators
+  (<xref alt="Lawrence, 1988" rid="ref-lawrenceU003A1988" ref-type="bibr">Lawrence,
+  1988</xref>).</p>
+</sec>
+<sec id="control-implementation">
+  <title>Control Implementation</title>
+  <p>The gravity-compensated rigid-body dynamics of the controlled robot
+  can be described, in the joint space of the robot
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[q\in \mathbb{R}^{n}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>q</mml:mi><mml:mo>∈</mml:mo><mml:msup><mml:mi>ℝ</mml:mi><mml:mi>n</mml:mi></mml:msup></mml:mrow></mml:math></alternatives></inline-formula>,
+  as
+  (<xref alt="Siciliano &amp; Khatib, 2016" rid="ref-springerU003A2016" ref-type="bibr">Siciliano
+  &amp; Khatib, 2016</xref>):
+  <named-content id="eqU003Arigbod_q" content-type="equation"><disp-formula><alternatives>
+  <tex-math><![CDATA[
+      M(q)\ddot{q} + C(q,\dot{q})\dot{q} = \tau_{\mathrm{c}} + \tau^{\mathrm{ext}}]]></tex-math>
+  <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>M</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>q</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mover><mml:mi>q</mml:mi><mml:mo accent="true">̈</mml:mo></mml:mover><mml:mo>+</mml:mo><mml:mi>C</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>q</mml:mi><mml:mo>,</mml:mo><mml:mover><mml:mi>q</mml:mi><mml:mo accent="true">̇</mml:mo></mml:mover><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mover><mml:mi>q</mml:mi><mml:mo accent="true">̇</mml:mo></mml:mover><mml:mo>=</mml:mo><mml:msub><mml:mi>τ</mml:mi><mml:mi mathvariant="normal">c</mml:mi></mml:msub><mml:mo>+</mml:mo><mml:msup><mml:mi>τ</mml:mi><mml:mrow><mml:mi mathvariant="normal">e</mml:mi><mml:mi mathvariant="normal">x</mml:mi><mml:mi mathvariant="normal">t</mml:mi></mml:mrow></mml:msup></mml:mrow></mml:math></alternatives></disp-formula></named-content>
+  where <inline-formula><alternatives>
+  <tex-math><![CDATA[M(q)\in \mathbb{R}^{n\times n}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>M</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>q</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>∈</mml:mo><mml:msup><mml:mi>ℝ</mml:mi><mml:mrow><mml:mi>n</mml:mi><mml:mo>×</mml:mo><mml:mi>n</mml:mi></mml:mrow></mml:msup></mml:mrow></mml:math></alternatives></inline-formula>
+  is the generalized inertia matrix, <inline-formula><alternatives>
+  <tex-math><![CDATA[C(q,\dot{q})\in \mathbb{R}^{n\times n}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>C</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>q</mml:mi><mml:mo>,</mml:mo><mml:mover><mml:mi>q</mml:mi><mml:mo accent="true">̇</mml:mo></mml:mover><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>∈</mml:mo><mml:msup><mml:mi>ℝ</mml:mi><mml:mrow><mml:mi>n</mml:mi><mml:mo>×</mml:mo><mml:mi>n</mml:mi></mml:mrow></mml:msup></mml:mrow></mml:math></alternatives></inline-formula>
+  captures the effects of Coriolis and centripetal forces,
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[\tau_{\mathrm{c}}\in \mathbb{R}^{n}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>τ</mml:mi><mml:mi mathvariant="normal">c</mml:mi></mml:msub><mml:mo>∈</mml:mo><mml:msup><mml:mi>ℝ</mml:mi><mml:mi>n</mml:mi></mml:msup></mml:mrow></mml:math></alternatives></inline-formula>
+  represents the input torques, and <inline-formula><alternatives>
+  <tex-math><![CDATA[\tau^{\mathrm{ext}}\in \mathbb{R}^{n}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msup><mml:mi>τ</mml:mi><mml:mrow><mml:mi mathvariant="normal">e</mml:mi><mml:mi mathvariant="normal">x</mml:mi><mml:mi mathvariant="normal">t</mml:mi></mml:mrow></mml:msup><mml:mo>∈</mml:mo><mml:msup><mml:mi>ℝ</mml:mi><mml:mi>n</mml:mi></mml:msup></mml:mrow></mml:math></alternatives></inline-formula>
+  represents the external torques, with <inline-formula><alternatives>
+  <tex-math><![CDATA[n]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>n</mml:mi></mml:math></alternatives></inline-formula>
+  being the number of joints of the robot. Since the proposed controller
+  was evaluated using robots that are automatically gravity-compensated
+  (<monospace>KUKA LBR iiwa</monospace> and
+  <monospace>Franka Emika Robot (Panda)</monospace>), the
+  gravity-induced torques have not been included in
+  (<xref alt="Equation 1" rid="eqU003Arigbod_q">Equation 1</xref>).
+  However, the proposed controller can be used in robots that are not
+  automatically gravity-compensated by adding a gravity-compensation
+  term to the commanded torque signal, <inline-formula><alternatives>
+  <tex-math><![CDATA[\tau_{\mathrm{c}}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>τ</mml:mi><mml:mi mathvariant="normal">c</mml:mi></mml:msub></mml:math></alternatives></inline-formula>.</p>
+  <p>Moreover, the torque signal commanded by the proposed controller to
+  the robot, <inline-formula><alternatives>
+  <tex-math><![CDATA[\tau_{\mathrm{c}}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>τ</mml:mi><mml:mi mathvariant="normal">c</mml:mi></mml:msub></mml:math></alternatives></inline-formula>
+  in (<xref alt="Equation 1" rid="eqU003Arigbod_q">Equation 1</xref>),
+  is composed by the superposition of three joint-torque signals:
+  <named-content id="eqU003Atau_c" content-type="equation"><disp-formula><alternatives>
+  <tex-math><![CDATA[
+      \tau_{\mathrm{c}} = \tau_{\mathrm{c}}^\mathrm{ca} + \tau_{\mathrm{c}}^\mathrm{ns} + \tau_{\mathrm{c}}^\mathrm{ext}]]></tex-math>
+  <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>τ</mml:mi><mml:mi mathvariant="normal">c</mml:mi></mml:msub><mml:mo>=</mml:mo><mml:msubsup><mml:mi>τ</mml:mi><mml:mi mathvariant="normal">c</mml:mi><mml:mrow><mml:mi mathvariant="normal">c</mml:mi><mml:mi mathvariant="normal">a</mml:mi></mml:mrow></mml:msubsup><mml:mo>+</mml:mo><mml:msubsup><mml:mi>τ</mml:mi><mml:mi mathvariant="normal">c</mml:mi><mml:mrow><mml:mi mathvariant="normal">n</mml:mi><mml:mi mathvariant="normal">s</mml:mi></mml:mrow></mml:msubsup><mml:mo>+</mml:mo><mml:msubsup><mml:mi>τ</mml:mi><mml:mi mathvariant="normal">c</mml:mi><mml:mrow><mml:mi mathvariant="normal">e</mml:mi><mml:mi mathvariant="normal">x</mml:mi><mml:mi mathvariant="normal">t</mml:mi></mml:mrow></mml:msubsup></mml:mrow></mml:math></alternatives></disp-formula></named-content>
+  where</p>
+  <list list-type="bullet">
+    <list-item>
+      <p><inline-formula><alternatives>
+      <tex-math><![CDATA[\tau_{\mathrm{c}}^\mathrm{ca}]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msubsup><mml:mi>τ</mml:mi><mml:mi mathvariant="normal">c</mml:mi><mml:mrow><mml:mi mathvariant="normal">c</mml:mi><mml:mi mathvariant="normal">a</mml:mi></mml:mrow></mml:msubsup></mml:math></alternatives></inline-formula>
+      is the torque commanded to achieve a Cartesian impedance behavior
+      (<xref alt="Hogan, 1985" rid="ref-hoganU003A1985" ref-type="bibr">Hogan,
+      1985</xref>) with respect to a Cartesian pose reference in the
+      <inline-formula><alternatives>
+      <tex-math><![CDATA[m]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>m</mml:mi></mml:math></alternatives></inline-formula>-dimensional
+      task space, <inline-formula><alternatives>
+      <tex-math><![CDATA[\xi^{\mathrm{D}}\in\mathbb{R}^{m}]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msup><mml:mi>ξ</mml:mi><mml:mi mathvariant="normal">D</mml:mi></mml:msup><mml:mo>∈</mml:mo><mml:msup><mml:mi>ℝ</mml:mi><mml:mi>m</mml:mi></mml:msup></mml:mrow></mml:math></alternatives></inline-formula>,
+      in the frame of the end-effector of the robot:
+      <named-content id="eqU003Atau_sup" content-type="equation"><disp-formula><alternatives>
+      <tex-math><![CDATA[
+           \tau_{\mathrm{c}}^\mathrm{ca} = J^{\mathrm{T}}(q)\left[-K^\mathrm{ca}\Delta \xi-D^\mathrm{ca}J(q) \dot{q}\right]]]></tex-math>
+      <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msubsup><mml:mi>τ</mml:mi><mml:mi mathvariant="normal">c</mml:mi><mml:mrow><mml:mi mathvariant="normal">c</mml:mi><mml:mi mathvariant="normal">a</mml:mi></mml:mrow></mml:msubsup><mml:mo>=</mml:mo><mml:msup><mml:mi>J</mml:mi><mml:mi mathvariant="normal">T</mml:mi></mml:msup><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>q</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mrow><mml:mo stretchy="true" form="prefix">[</mml:mo><mml:mo>−</mml:mo><mml:msup><mml:mi>K</mml:mi><mml:mrow><mml:mi mathvariant="normal">c</mml:mi><mml:mi mathvariant="normal">a</mml:mi></mml:mrow></mml:msup><mml:mi>Δ</mml:mi><mml:mi>ξ</mml:mi><mml:mo>−</mml:mo><mml:msup><mml:mi>D</mml:mi><mml:mrow><mml:mi mathvariant="normal">c</mml:mi><mml:mi mathvariant="normal">a</mml:mi></mml:mrow></mml:msup><mml:mi>J</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>q</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mover><mml:mi>q</mml:mi><mml:mo accent="true">̇</mml:mo></mml:mover><mml:mo stretchy="true" form="postfix">]</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></disp-formula></named-content>
+      with <inline-formula><alternatives>
+      <tex-math><![CDATA[J(q)\in \mathbb{R}^{m \times n}]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>J</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>q</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>∈</mml:mo><mml:msup><mml:mi>ℝ</mml:mi><mml:mrow><mml:mi>m</mml:mi><mml:mo>×</mml:mo><mml:mi>n</mml:mi></mml:mrow></mml:msup></mml:mrow></mml:math></alternatives></inline-formula>
+      being the Jacobian relative to the end-effector (task) frame of
+      the robot, and <inline-formula><alternatives>
+      <tex-math><![CDATA[K^\mathrm{ca}\in \mathbb{R}^{m \times m}]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msup><mml:mi>K</mml:mi><mml:mrow><mml:mi mathvariant="normal">c</mml:mi><mml:mi mathvariant="normal">a</mml:mi></mml:mrow></mml:msup><mml:mo>∈</mml:mo><mml:msup><mml:mi>ℝ</mml:mi><mml:mrow><mml:mi>m</mml:mi><mml:mo>×</mml:mo><mml:mi>m</mml:mi></mml:mrow></mml:msup></mml:mrow></mml:math></alternatives></inline-formula>
+      and <inline-formula><alternatives>
+      <tex-math><![CDATA[D^\mathrm{ca}\in \mathbb{R}^{m \times m}]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msup><mml:mi>D</mml:mi><mml:mrow><mml:mi mathvariant="normal">c</mml:mi><mml:mi mathvariant="normal">a</mml:mi></mml:mrow></mml:msup><mml:mo>∈</mml:mo><mml:msup><mml:mi>ℝ</mml:mi><mml:mrow><mml:mi>m</mml:mi><mml:mo>×</mml:mo><mml:mi>m</mml:mi></mml:mrow></mml:msup></mml:mrow></mml:math></alternatives></inline-formula>
+      being the virtual Cartesian stiffness and damping matrices,
+      respectively. Also, the Cartesian pose error,
+      <inline-formula><alternatives>
+      <tex-math><![CDATA[\Delta \xi]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>Δ</mml:mi><mml:mi>ξ</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>
+      in (<xref alt="Equation 3" rid="eqU003Atau_sup">Equation 3</xref>)
+      is defined as <inline-formula><alternatives>
+      <tex-math><![CDATA[\Delta \xi_{\mathrm{tr}} = \xi_{\mathrm{tr}}-\xi_{\mathrm{tr}}^{\mathrm{D}}]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>Δ</mml:mi><mml:msub><mml:mi>ξ</mml:mi><mml:mrow><mml:mi mathvariant="normal">t</mml:mi><mml:mi mathvariant="normal">r</mml:mi></mml:mrow></mml:msub><mml:mo>=</mml:mo><mml:msub><mml:mi>ξ</mml:mi><mml:mrow><mml:mi mathvariant="normal">t</mml:mi><mml:mi mathvariant="normal">r</mml:mi></mml:mrow></mml:msub><mml:mo>−</mml:mo><mml:msubsup><mml:mi>ξ</mml:mi><mml:mrow><mml:mi mathvariant="normal">t</mml:mi><mml:mi mathvariant="normal">r</mml:mi></mml:mrow><mml:mi mathvariant="normal">D</mml:mi></mml:msubsup></mml:mrow></mml:math></alternatives></inline-formula>
+      for the translational degrees of freedom of the Cartesian pose and
+      as <inline-formula><alternatives>
+      <tex-math><![CDATA[\Delta \xi_{\mathrm{ro}} = \xi_{\mathrm{ro}}\left(\xi_{\mathrm{ro}}^{\mathrm{D}}\right)^{-1}]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>Δ</mml:mi><mml:msub><mml:mi>ξ</mml:mi><mml:mrow><mml:mi mathvariant="normal">r</mml:mi><mml:mi mathvariant="normal">o</mml:mi></mml:mrow></mml:msub><mml:mo>=</mml:mo><mml:msub><mml:mi>ξ</mml:mi><mml:mrow><mml:mi mathvariant="normal">r</mml:mi><mml:mi mathvariant="normal">o</mml:mi></mml:mrow></mml:msub><mml:msup><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msubsup><mml:mi>ξ</mml:mi><mml:mrow><mml:mi mathvariant="normal">r</mml:mi><mml:mi mathvariant="normal">o</mml:mi></mml:mrow><mml:mi mathvariant="normal">D</mml:mi></mml:msubsup><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mrow><mml:mo>−</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:msup></mml:mrow></mml:math></alternatives></inline-formula>
+      for the rotational degrees of freedom.</p>
+    </list-item>
+    <list-item>
+      <p><inline-formula><alternatives>
+      <tex-math><![CDATA[\tau_{\mathrm{c}}^\mathrm{ns}]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msubsup><mml:mi>τ</mml:mi><mml:mi mathvariant="normal">c</mml:mi><mml:mrow><mml:mi mathvariant="normal">n</mml:mi><mml:mi mathvariant="normal">s</mml:mi></mml:mrow></mml:msubsup></mml:math></alternatives></inline-formula>
+      is the torque commanded to achieve a joint impedance behavior with
+      respect to a desired configuration and projected in the null-space
+      of the robot’s Jacobian, to not affect the Cartesian motion of the
+      robot’s end-effector
+      (<xref alt="Ott, 2008" rid="ref-ottU003A2008" ref-type="bibr">Ott,
+      2008</xref>):
+      <named-content id="eqU003Atau_ns" content-type="equation"><disp-formula><alternatives>
+      <tex-math><![CDATA[
+            \tau_{\mathrm{c}}^\mathrm{ns} = \left(I_n-J^{\mathrm{T}}(q)(J^{\mathrm{T}}(q))^\mathrm{\dagger}\right)\tau_0]]></tex-math>
+      <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msubsup><mml:mi>τ</mml:mi><mml:mi mathvariant="normal">c</mml:mi><mml:mrow><mml:mi mathvariant="normal">n</mml:mi><mml:mi mathvariant="normal">s</mml:mi></mml:mrow></mml:msubsup><mml:mo>=</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>I</mml:mi><mml:mi>n</mml:mi></mml:msub><mml:mo>−</mml:mo><mml:msup><mml:mi>J</mml:mi><mml:mi mathvariant="normal">T</mml:mi></mml:msup><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>q</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:msup><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msup><mml:mi>J</mml:mi><mml:mi mathvariant="normal">T</mml:mi></mml:msup><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>q</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo mathvariant="normal">†</mml:mo></mml:msup><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:msub><mml:mi>τ</mml:mi><mml:mn>0</mml:mn></mml:msub></mml:mrow></mml:math></alternatives></disp-formula></named-content>
+      with the superscript <inline-formula><alternatives>
+      <tex-math><![CDATA[^\mathrm{\dagger}]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msup><mml:mi></mml:mi><mml:mo mathvariant="normal">†</mml:mo></mml:msup></mml:math></alternatives></inline-formula>
+      denoting the Moore-Penrose pseudoinverse matrix
+      (<xref alt="Khatib, 1995" rid="ref-khatibU003A1995" ref-type="bibr">Khatib,
+      1995</xref>)<xref ref-type="fn" rid="fn4">4</xref> given by
+      <inline-formula><alternatives>
+      <tex-math><![CDATA[J^\dagger = (J^\mathrm{T}J)^{-1}J^\mathrm{T}]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msup><mml:mi>J</mml:mi><mml:mo>†</mml:mo></mml:msup><mml:mo>=</mml:mo><mml:msup><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msup><mml:mi>J</mml:mi><mml:mi mathvariant="normal">T</mml:mi></mml:msup><mml:mi>J</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mrow><mml:mo>−</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:msup><mml:msup><mml:mi>J</mml:mi><mml:mi mathvariant="normal">T</mml:mi></mml:msup></mml:mrow></mml:math></alternatives></inline-formula>
+      (<xref alt="Ben-Israel &amp; Greville, 2003" rid="ref-benU003A2003" ref-type="bibr">Ben-Israel
+      &amp; Greville, 2003</xref>), and <inline-formula><alternatives>
+      <tex-math><![CDATA[\tau_0]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>τ</mml:mi><mml:mn>0</mml:mn></mml:msub></mml:math></alternatives></inline-formula>
+      being an arbitrary joint torque formulated to achieve joint
+      compliance,
+      <named-content id="eqU003Atau_0" content-type="equation"><disp-formula><alternatives>
+      <tex-math><![CDATA[
+            \tau_0 = -K^\mathrm{ns}(q-q^{\mathrm{D}}) - D^\mathrm{ns} \dot{q}]]></tex-math>
+      <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>τ</mml:mi><mml:mn>0</mml:mn></mml:msub><mml:mo>=</mml:mo><mml:mo>−</mml:mo><mml:msup><mml:mi>K</mml:mi><mml:mrow><mml:mi mathvariant="normal">n</mml:mi><mml:mi mathvariant="normal">s</mml:mi></mml:mrow></mml:msup><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>q</mml:mi><mml:mo>−</mml:mo><mml:msup><mml:mi>q</mml:mi><mml:mi mathvariant="normal">D</mml:mi></mml:msup><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>−</mml:mo><mml:msup><mml:mi>D</mml:mi><mml:mrow><mml:mi mathvariant="normal">n</mml:mi><mml:mi mathvariant="normal">s</mml:mi></mml:mrow></mml:msup><mml:mover><mml:mi>q</mml:mi><mml:mo accent="true">̇</mml:mo></mml:mover></mml:mrow></mml:math></alternatives></disp-formula></named-content>
+      where <inline-formula><alternatives>
+      <tex-math><![CDATA[K^\mathrm{ns}\in \mathbb{R}^{n \times n}]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msup><mml:mi>K</mml:mi><mml:mrow><mml:mi mathvariant="normal">n</mml:mi><mml:mi mathvariant="normal">s</mml:mi></mml:mrow></mml:msup><mml:mo>∈</mml:mo><mml:msup><mml:mi>ℝ</mml:mi><mml:mrow><mml:mi>n</mml:mi><mml:mo>×</mml:mo><mml:mi>n</mml:mi></mml:mrow></mml:msup></mml:mrow></mml:math></alternatives></inline-formula>
+      and <inline-formula><alternatives>
+      <tex-math><![CDATA[D^\mathrm{ns}\in \mathbb{R}^{n \times n}]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msup><mml:mi>D</mml:mi><mml:mrow><mml:mi mathvariant="normal">n</mml:mi><mml:mi mathvariant="normal">s</mml:mi></mml:mrow></mml:msup><mml:mo>∈</mml:mo><mml:msup><mml:mi>ℝ</mml:mi><mml:mrow><mml:mi>n</mml:mi><mml:mo>×</mml:mo><mml:mi>n</mml:mi></mml:mrow></mml:msup></mml:mrow></mml:math></alternatives></inline-formula>
+      are the virtual joint stiffness and damping matrices,
+      respectively.</p>
+    </list-item>
+    <list-item>
+      <p><inline-formula><alternatives>
+      <tex-math><![CDATA[\tau_{\mathrm{c}}^\mathrm{ext}]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msubsup><mml:mi>τ</mml:mi><mml:mi mathvariant="normal">c</mml:mi><mml:mrow><mml:mi mathvariant="normal">e</mml:mi><mml:mi mathvariant="normal">x</mml:mi><mml:mi mathvariant="normal">t</mml:mi></mml:mrow></mml:msubsup></mml:math></alternatives></inline-formula>
+      is the torque commanded to achieve the desired external force
+      command in the frame of the end-effector of the robot,
+      <inline-formula><alternatives>
+      <tex-math><![CDATA[F_{\mathrm{c}}^\mathrm{ext}]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msubsup><mml:mi>F</mml:mi><mml:mi mathvariant="normal">c</mml:mi><mml:mrow><mml:mi mathvariant="normal">e</mml:mi><mml:mi mathvariant="normal">x</mml:mi><mml:mi mathvariant="normal">t</mml:mi></mml:mrow></mml:msubsup></mml:math></alternatives></inline-formula>:
+      <named-content id="eqU003Atau_ext" content-type="equation"><disp-formula><alternatives>
+      <tex-math><![CDATA[
+            \tau_{\mathrm{c}}^\mathrm{ext} = J^{\mathrm{T}}(q)F_{\mathrm{c}}^\mathrm{ext}]]></tex-math>
+      <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msubsup><mml:mi>τ</mml:mi><mml:mi mathvariant="normal">c</mml:mi><mml:mrow><mml:mi mathvariant="normal">e</mml:mi><mml:mi mathvariant="normal">x</mml:mi><mml:mi mathvariant="normal">t</mml:mi></mml:mrow></mml:msubsup><mml:mo>=</mml:mo><mml:msup><mml:mi>J</mml:mi><mml:mi mathvariant="normal">T</mml:mi></mml:msup><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>q</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:msubsup><mml:mi>F</mml:mi><mml:mi mathvariant="normal">c</mml:mi><mml:mrow><mml:mi mathvariant="normal">e</mml:mi><mml:mi mathvariant="normal">x</mml:mi><mml:mi mathvariant="normal">t</mml:mi></mml:mrow></mml:msubsup></mml:mrow></mml:math></alternatives></disp-formula></named-content></p>
+    </list-item>
+  </list>
+  <sec id="safety-measures">
+    <title>Safety Measures</title>
+    <p>As described in
+    <xref alt="[fig:flowchart]" rid="figU003Aflowchart">[fig:flowchart]</xref>,
+    there are several safety measures that have been implemented in the
+    controller to achieve a smooth behavior of the robot:</p>
+    <sec id="filtering">
+      <title>Filtering
+      <styled-content id="filt"></styled-content></title>
+      <p>The proposed controller allows the online modification of
+      relevant variables: <inline-formula><alternatives>
+      <tex-math><![CDATA[\xi^{\mathrm{D}}]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msup><mml:mi>ξ</mml:mi><mml:mi mathvariant="normal">D</mml:mi></mml:msup></mml:math></alternatives></inline-formula>,
+      <inline-formula><alternatives>
+      <tex-math><![CDATA[K^\mathrm{ca}]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msup><mml:mi>K</mml:mi><mml:mrow><mml:mi mathvariant="normal">c</mml:mi><mml:mi mathvariant="normal">a</mml:mi></mml:mrow></mml:msup></mml:math></alternatives></inline-formula>
+      and <inline-formula><alternatives>
+      <tex-math><![CDATA[D^\mathrm{ca}]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msup><mml:mi>D</mml:mi><mml:mrow><mml:mi mathvariant="normal">c</mml:mi><mml:mi mathvariant="normal">a</mml:mi></mml:mrow></mml:msup></mml:math></alternatives></inline-formula>
+      in
+      (<xref alt="Equation 3" rid="eqU003Atau_sup">Equation 3</xref>),
+      <inline-formula><alternatives>
+      <tex-math><![CDATA[K^\mathrm{ns}]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msup><mml:mi>K</mml:mi><mml:mrow><mml:mi mathvariant="normal">n</mml:mi><mml:mi mathvariant="normal">s</mml:mi></mml:mrow></mml:msup></mml:math></alternatives></inline-formula>
+      and <inline-formula><alternatives>
+      <tex-math><![CDATA[D^\mathrm{ns}]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msup><mml:mi>D</mml:mi><mml:mrow><mml:mi mathvariant="normal">n</mml:mi><mml:mi mathvariant="normal">s</mml:mi></mml:mrow></mml:msup></mml:math></alternatives></inline-formula>
+      in (<xref alt="Equation 5" rid="eqU003Atau_0">Equation 5</xref>),
+      and <inline-formula><alternatives>
+      <tex-math><![CDATA[F_{\mathrm{c}}^\mathrm{ext}]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msubsup><mml:mi>F</mml:mi><mml:mi mathvariant="normal">c</mml:mi><mml:mrow><mml:mi mathvariant="normal">e</mml:mi><mml:mi mathvariant="normal">x</mml:mi><mml:mi mathvariant="normal">t</mml:mi></mml:mrow></mml:msubsup></mml:math></alternatives></inline-formula>
+      in
+      (<xref alt="Equation 6" rid="eqU003Atau_ext">Equation 6</xref>).
+      However, for a smoother behavior of the controller, the values of
+      these variables are low-pass filtered. The update law at each
+      time-step <inline-formula><alternatives>
+      <tex-math><![CDATA[k]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>k</mml:mi></mml:math></alternatives></inline-formula>
+      is: <disp-formula><alternatives>
+      <tex-math><![CDATA[\alpha_{k+1} = (1-a)\alpha_k + a \alpha^\mathrm{D}]]></tex-math>
+      <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>α</mml:mi><mml:mrow><mml:mi>k</mml:mi><mml:mo>+</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:msub><mml:mo>=</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mn>1</mml:mn><mml:mo>−</mml:mo><mml:mi>a</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:msub><mml:mi>α</mml:mi><mml:mi>k</mml:mi></mml:msub><mml:mo>+</mml:mo><mml:mi>a</mml:mi><mml:msup><mml:mi>α</mml:mi><mml:mi mathvariant="normal">D</mml:mi></mml:msup></mml:mrow></mml:math></alternatives></disp-formula>
+      where <inline-formula><alternatives>
+      <tex-math><![CDATA[\alpha^\mathrm{D}]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msup><mml:mi>α</mml:mi><mml:mi mathvariant="normal">D</mml:mi></mml:msup></mml:math></alternatives></inline-formula>
+      is the desired new variable value and
+      <inline-formula><alternatives>
+      <tex-math><![CDATA[a\in(0,1]]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>a</mml:mi><mml:mo>∈</mml:mo><mml:mo stretchy="false" form="prefix">(</mml:mo><mml:mn>0</mml:mn><mml:mo>,</mml:mo><mml:mn>1</mml:mn><mml:mo stretchy="false" form="postfix">]</mml:mo></mml:mrow></mml:math></alternatives></inline-formula>
+      is defined in such a way that a user-defined percentage of the
+      difference between the desired value
+      <inline-formula><alternatives>
+      <tex-math><![CDATA[\alpha^\mathrm{D}]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msup><mml:mi>α</mml:mi><mml:mi mathvariant="normal">D</mml:mi></mml:msup></mml:math></alternatives></inline-formula>
+      and the variable value at the time of the online modification
+      instruction, <inline-formula><alternatives>
+      <tex-math><![CDATA[\alpha_0]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>α</mml:mi><mml:mn>0</mml:mn></mml:msub></mml:math></alternatives></inline-formula>,
+      is applied after a user-defined amount of time.</p>
+    </sec>
+    <sec id="saturation">
+      <title>Saturation</title>
+      <p>To increase safety in the controller, some of the filtered
+      variables (the stiffness and damping factors
+      <inline-formula><alternatives>
+      <tex-math><![CDATA[K^\mathrm{ca}]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msup><mml:mi>K</mml:mi><mml:mrow><mml:mi mathvariant="normal">c</mml:mi><mml:mi mathvariant="normal">a</mml:mi></mml:mrow></mml:msup></mml:math></alternatives></inline-formula>,
+      <inline-formula><alternatives>
+      <tex-math><![CDATA[D^\mathrm{ca}]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msup><mml:mi>D</mml:mi><mml:mrow><mml:mi mathvariant="normal">c</mml:mi><mml:mi mathvariant="normal">a</mml:mi></mml:mrow></mml:msup></mml:math></alternatives></inline-formula>,
+      <inline-formula><alternatives>
+      <tex-math><![CDATA[K^\mathrm{ns}]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msup><mml:mi>K</mml:mi><mml:mrow><mml:mi mathvariant="normal">n</mml:mi><mml:mi mathvariant="normal">s</mml:mi></mml:mrow></mml:msup></mml:math></alternatives></inline-formula>
+      and <inline-formula><alternatives>
+      <tex-math><![CDATA[D^\mathrm{ns}]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msup><mml:mi>D</mml:mi><mml:mrow><mml:mi mathvariant="normal">n</mml:mi><mml:mi mathvariant="normal">s</mml:mi></mml:mrow></mml:msup></mml:math></alternatives></inline-formula>,
+      and the desired external force command
+      <inline-formula><alternatives>
+      <tex-math><![CDATA[F_{\mathrm{c}}^\mathrm{ext}]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msubsup><mml:mi>F</mml:mi><mml:mi mathvariant="normal">c</mml:mi><mml:mrow><mml:mi mathvariant="normal">e</mml:mi><mml:mi mathvariant="normal">x</mml:mi><mml:mi mathvariant="normal">t</mml:mi></mml:mrow></mml:msubsup></mml:math></alternatives></inline-formula>)
+      can be saturated between user-defined maximum and minimum limits,
+      <italic>i.e.</italic>, for an example variable
+      <inline-formula><alternatives>
+      <tex-math><![CDATA[\alpha]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>α</mml:mi></mml:math></alternatives></inline-formula>:
+      <disp-formula><alternatives>
+      <tex-math><![CDATA[\alpha_\mathrm{min} \leq \alpha \leq \alpha_\mathrm{max}]]></tex-math>
+      <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>α</mml:mi><mml:mrow><mml:mi mathvariant="normal">m</mml:mi><mml:mi mathvariant="normal">i</mml:mi><mml:mi mathvariant="normal">n</mml:mi></mml:mrow></mml:msub><mml:mo>≤</mml:mo><mml:mi>α</mml:mi><mml:mo>≤</mml:mo><mml:msub><mml:mi>α</mml:mi><mml:mrow><mml:mi mathvariant="normal">m</mml:mi><mml:mi mathvariant="normal">a</mml:mi><mml:mi mathvariant="normal">x</mml:mi></mml:mrow></mml:msub></mml:mrow></mml:math></alternatives></disp-formula></p>
+    </sec>
+    <sec id="rate-limiter">
+      <title>Rate Limiter</title>
+      <p>The rate of the commanded torque,
+      <inline-formula><alternatives>
+      <tex-math><![CDATA[\tau_\mathrm{c}]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>τ</mml:mi><mml:mi mathvariant="normal">c</mml:mi></mml:msub></mml:math></alternatives></inline-formula>
+      in (<xref alt="Equation 2" rid="eqU003Atau_c">Equation 2</xref>),
+      can be limited. For two consecutive commands at times
+      <inline-formula><alternatives>
+      <tex-math><![CDATA[k]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>k</mml:mi></mml:math></alternatives></inline-formula>
+      and <inline-formula><alternatives>
+      <tex-math><![CDATA[k+1]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>k</mml:mi><mml:mo>+</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>:
+      <disp-formula><alternatives>
+      <tex-math><![CDATA[\Delta \tau_\mathrm{max} \geq \|\tau_{\mathrm{c},k+1} - \tau_{\mathrm{c},k}\|]]></tex-math>
+      <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>Δ</mml:mi><mml:msub><mml:mi>τ</mml:mi><mml:mrow><mml:mi mathvariant="normal">m</mml:mi><mml:mi mathvariant="normal">a</mml:mi><mml:mi mathvariant="normal">x</mml:mi></mml:mrow></mml:msub><mml:mo>≥</mml:mo><mml:mo stretchy="false" form="postfix">∥</mml:mo><mml:msub><mml:mi>τ</mml:mi><mml:mrow><mml:mi mathvariant="normal">c</mml:mi><mml:mo>,</mml:mo><mml:mi>k</mml:mi><mml:mo>+</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:msub><mml:mo>−</mml:mo><mml:msub><mml:mi>τ</mml:mi><mml:mrow><mml:mi mathvariant="normal">c</mml:mi><mml:mo>,</mml:mo><mml:mi>k</mml:mi></mml:mrow></mml:msub><mml:mo stretchy="false" form="postfix">∥</mml:mo></mml:mrow></mml:math></alternatives></disp-formula></p>
+    </sec>
+  </sec>
+</sec>
+<sec id="block-diagram">
+  <title>Block Diagram</title>
+  <fig>
+    <caption><p>Block diagram of the controller.
+    <styled-content id="figU003Aflowchart"></styled-content></p></caption>
+    <graphic mimetype="application" mime-subtype="pdf" xlink:href="media/flowchart.pdf" />
+  </fig>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>We thank Björn Olofsson and Anders Robertsson for the discussions
+  and feedback as well as Konstantinos Chatzilygeroudis for the
+  permission to use the <monospace>RBDyn</monospace> wrapper code.
+  Finally, we thank Oussama Chouman for his contributions during his
+  thesis project.</p>
+  <p>This work was partially supported by the Wallenberg AI, Autonomous
+  Systems and Software Program (WASP) funded by Knut and Alice
+  Wallenberg Foundation. The authors are members of the ELLIIT Strategic
+  Research Area at Lund University.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <ref id="ref-mayr22priors">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Mayr</surname><given-names>Matthias</given-names></name>
+        <name><surname>Hvarfner</surname><given-names>Carl</given-names></name>
+        <name><surname>Chatzilygeroudis</surname><given-names>Konstantinos</given-names></name>
+        <name><surname>Nardi</surname><given-names>Luigi</given-names></name>
+        <name><surname>Krueger</surname><given-names>Volker</given-names></name>
+      </person-group>
+      <article-title>Learning skill-based industrial robot tasks with user priors</article-title>
+      <source>2022 IEEE 18th international conference on automation science and engineering (CASE)</source>
+      <year iso-8601-date="2022">2022</year>
+      <volume></volume>
+      <pub-id pub-id-type="doi">10.1109/CASE49997.2022.9926713</pub-id>
+      <fpage>1485</fpage>
+      <lpage>1492</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-mayr23wiping">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Mayr</surname><given-names>Matthias</given-names></name>
+        <name><surname>Ahmad</surname><given-names>Faseeh</given-names></name>
+        <name><surname>Duerr</surname><given-names>Alexander</given-names></name>
+        <name><surname>Krueger</surname><given-names>Volker</given-names></name>
+      </person-group>
+      <article-title>Using knowledge representation and task planning for robot-agnostic skills on the example of contact-rich wiping tasks</article-title>
+      <source>2023 IEEE 19th international conference on automation science and engineering (CASE)</source>
+      <year iso-8601-date="2023">2023</year>
+      <volume></volume>
+      <pub-id pub-id-type="doi">10.1109/CASE56687.2023.10260413</pub-id>
+      <fpage>1</fpage>
+      <lpage>7</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-mayr22skireil">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Mayr</surname><given-names>Matthias</given-names></name>
+        <name><surname>Ahmad</surname><given-names>Faseeh</given-names></name>
+        <name><surname>Chatzilygeroudis</surname><given-names>Konstantinos</given-names></name>
+        <name><surname>Nardi</surname><given-names>Luigi</given-names></name>
+        <name><surname>Krueger</surname><given-names>Volker</given-names></name>
+      </person-group>
+      <article-title>Skill-based multi-objective reinforcement learning of industrial robot tasks with planning and knowledge integration</article-title>
+      <source>2022 IEEE international conference on robotics and biomimetics (ROBIO)</source>
+      <year iso-8601-date="2022">2022</year>
+      <volume></volume>
+      <pub-id pub-id-type="doi">10.1109/ROBIO55434.2022.10011996</pub-id>
+      <fpage>1995</fpage>
+      <lpage>2002</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-FDCC">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Scherzinger</surname><given-names>S.</given-names></name>
+        <name><surname>Roennau</surname><given-names>A.</given-names></name>
+        <name><surname>Dillmann</surname><given-names>R.</given-names></name>
+      </person-group>
+      <article-title>Forward dynamics compliance control (FDCC): A new approach to cartesian compliance for robotic manipulators</article-title>
+      <source>IEEE/RSJ international conference on intelligent robots and systems (IROS)</source>
+      <year iso-8601-date="2017">2017</year>
+      <pub-id pub-id-type="doi">10.1109/IROS.2017.8206325</pub-id>
+      <fpage>4568</fpage>
+      <lpage>4575</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-ahmad2022generalizing">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Ahmad</surname><given-names>Faseeh</given-names></name>
+        <name><surname>Mayr</surname><given-names>Matthias</given-names></name>
+        <name><surname>Topp</surname><given-names>Elin Anna</given-names></name>
+        <name><surname>Malec</surname><given-names>Jacek</given-names></name>
+        <name><surname>Krueger</surname><given-names>Volker</given-names></name>
+      </person-group>
+      <article-title>Generalizing behavior trees and motion-generator (BTMG) policy representation for robotic tasks over scenario parameters</article-title>
+      <source>2022 IJCAI planning and reinforcement learning workshop</source>
+      <year iso-8601-date="2022">2022</year>
+    </element-citation>
+  </ref>
+  <ref id="ref-ahmad23generalization">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Ahmad</surname><given-names>Faseeh</given-names></name>
+        <name><surname>Mayr</surname><given-names>Matthias</given-names></name>
+        <name><surname>Krueger</surname><given-names>Volker</given-names></name>
+      </person-group>
+      <article-title>Learning to adapt the parameters of behavior trees and motion generators (BTMGs) to task variations</article-title>
+      <source>2023 IEEE/RSJ international conference on intelligent robots and systems (IROS)</source>
+      <year iso-8601-date="2023">2023</year>
+      <volume></volume>
+      <pub-id pub-id-type="doi">10.1109/IROS55552.2023.10341636</pub-id>
+      <fpage>10133</fpage>
+      <lpage>10140</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-springerU003A2016">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Siciliano</surname><given-names>Bruno</given-names></name>
+        <name><surname>Khatib</surname><given-names>Oussama</given-names></name>
+      </person-group>
+      <source>Springer handbook of robotics</source>
+      <publisher-name>Springer, Berlin, Germany</publisher-name>
+      <year iso-8601-date="2016">2016</year>
+      <pub-id pub-id-type="doi">10.1007/978-3-319-32552-1</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-hoganU003A1985">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Hogan</surname><given-names>Neville</given-names></name>
+      </person-group>
+      <article-title>Impedance control: An approach to manipulation: Parts I–III</article-title>
+      <source>J. Dynamic Syst., Measurement, and Control</source>
+      <publisher-name>ASME International</publisher-name>
+      <year iso-8601-date="1985">1985</year>
+      <volume>107</volume>
+      <issue>1</issue>
+      <pub-id pub-id-type="doi">10.1115/1.3140702</pub-id>
+      <fpage>1</fpage>
+      <lpage>24</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-ottU003A2008">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Ott</surname><given-names>Christian</given-names></name>
+      </person-group>
+      <source>Cartesian impedance control of redundant and flexible-joint robots</source>
+      <publisher-name>Springer, Berlin, Germany</publisher-name>
+      <year iso-8601-date="2008">2008</year>
+    </element-citation>
+  </ref>
+  <ref id="ref-khatibU003A1995">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Khatib</surname><given-names>Oussama</given-names></name>
+      </person-group>
+      <article-title>Inertial properties in robotic manipulation: An object-level framework</article-title>
+      <source>The International Journal of Robotics Research</source>
+      <publisher-name>Sage Publications Sage CA: Thousand Oaks, CA</publisher-name>
+      <year iso-8601-date="1995">1995</year>
+      <volume>14</volume>
+      <issue>1</issue>
+      <pub-id pub-id-type="doi">10.1177/027836499501400103</pub-id>
+      <fpage>19</fpage>
+      <lpage>36</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-benU003A2003">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Ben-Israel</surname><given-names>Adi</given-names></name>
+        <name><surname>Greville</surname><given-names>Thomas NE</given-names></name>
+      </person-group>
+      <source>Generalized inverses: Theory and applications</source>
+      <publisher-name>Springer-Verlag, New York, USA</publisher-name>
+      <year iso-8601-date="2003">2003</year>
+      <pub-id pub-id-type="doi">10.1007/b97366</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-quigleyU003A2009">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Quigley</surname><given-names>Morgan</given-names></name>
+        <name><surname>Conley</surname><given-names>Ken</given-names></name>
+        <name><surname>Gerkey</surname><given-names>Brian</given-names></name>
+        <name><surname>Faust</surname><given-names>Josh</given-names></name>
+        <name><surname>Foote</surname><given-names>Tully</given-names></name>
+        <name><surname>Leibs</surname><given-names>Jeremy</given-names></name>
+        <name><surname>Wheeler</surname><given-names>Rob</given-names></name>
+        <name><surname>Ng</surname><given-names>Andrew Y</given-names></name>
+        <name><surname>others</surname></name>
+      </person-group>
+      <article-title>ROS: An open-source robot operating system</article-title>
+      <source>IEEE international conference on robotics and automation (ICRA): Workshop on open source software</source>
+      <publisher-loc>Kobe, Japan</publisher-loc>
+      <year iso-8601-date="2009">2009</year>
+    </element-citation>
+  </ref>
+  <ref id="ref-lawrenceU003A1988">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Lawrence</surname><given-names>Dale A</given-names></name>
+      </person-group>
+      <article-title>Impedance control stability properties in common implementations</article-title>
+      <source>IEEE international conference on robotics and automation (ICRA)</source>
+      <publisher-loc>Philadelphia, USA</publisher-loc>
+      <year iso-8601-date="1988">1988</year>
+      <pub-id pub-id-type="doi">10.1109/ROBOT.1988.12222</pub-id>
+      <fpage>1185</fpage>
+      <lpage>1190</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-ros_control">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Chitta</surname><given-names>Sachin</given-names></name>
+        <name><surname>Marder-Eppstein</surname><given-names>Eitan</given-names></name>
+        <name><surname>Meeussen</surname><given-names>Wim</given-names></name>
+        <name><surname>Pradeep</surname><given-names>Vijay</given-names></name>
+        <name><surname>Rodríguez Tsouroukdissian</surname><given-names>Adolfo</given-names></name>
+        <name><surname>Bohren</surname><given-names>Jonathan</given-names></name>
+        <name><surname>Coleman</surname><given-names>David</given-names></name>
+        <name><surname>Magyar</surname><given-names>Bence</given-names></name>
+        <name><surname>Raiola</surname><given-names>Gennaro</given-names></name>
+        <name><surname>Lüdtke</surname><given-names>Mathias</given-names></name>
+        <name><surname>Fernández Perdomo</surname><given-names>Enrique</given-names></name>
+      </person-group>
+      <article-title>Ros_control: A generic and simple control framework for ROS</article-title>
+      <source>The Journal of Open Source Software</source>
+      <year iso-8601-date="2017">2017</year>
+      <uri>http://www.theoj.org/joss-papers/joss.00456/10.21105.joss.00456.pdf</uri>
+      <pub-id pub-id-type="doi">10.21105/joss.00456</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-Lee2018">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Lee</surname><given-names>Jeongseok</given-names></name>
+        <name><surname>Grey</surname><given-names>Michael X.</given-names></name>
+        <name><surname>Ha</surname><given-names>Sehoon</given-names></name>
+        <name><surname>Kunz</surname><given-names>Tobias</given-names></name>
+        <name><surname>Jain</surname><given-names>Sumit</given-names></name>
+        <name><surname>Ye</surname><given-names>Yuting</given-names></name>
+        <name><surname>Srinivasa</surname><given-names>Siddhartha S.</given-names></name>
+        <name><surname>Stilman</surname><given-names>Mike</given-names></name>
+        <name><surname>Liu</surname><given-names>C. Karen</given-names></name>
+      </person-group>
+      <article-title>DART: Dynamic animation and robotics toolkit</article-title>
+      <source>The Journal of Open Source Software</source>
+      <publisher-name>The Open Journal</publisher-name>
+      <year iso-8601-date="2018-02">2018</year><month>02</month>
+      <volume>3</volume>
+      <issue>22</issue>
+      <uri>https://doi.org/10.21105/joss.00500</uri>
+      <pub-id pub-id-type="doi">10.21105/joss.00500</pub-id>
+      <fpage>500</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-franka_ros">
+    <element-citation>
+      <person-group person-group-type="author">
+        <string-name>Franka Emika</string-name>
+      </person-group>
+      <article-title>Franka Emika Panda – franka_ros Documentation</article-title>
+      <publisher-name>https://frankaemika.github.io/docs/franka_ros.html</publisher-name>
+      <year iso-8601-date="2017">2017</year>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2022-12-19">2022</year><month>12</month><day>19</day></date-in-citation>
+    </element-citation>
+  </ref>
+  <ref id="ref-libfranka">
+    <element-citation>
+      <person-group person-group-type="author">
+        <string-name>Franka Emika</string-name>
+      </person-group>
+      <article-title>Franka Emika Panda – libfranka Documentation</article-title>
+      <publisher-name>https://frankaemika.github.io/docs/libfranka.html</publisher-name>
+      <year iso-8601-date="2017">2017</year>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2022-12-19">2022</year><month>12</month><day>19</day></date-in-citation>
+    </element-citation>
+  </ref>
+</ref-list>
+<fn-group>
+  <fn id="fn1">
+    <label>1</label><p><styled-content id="fri"></styled-content>An FRI
+    connection can send either joint position updates or wrench
+    updates</p>
+  </fn>
+  <fn id="fn2">
+    <label>2</label><p>Reaching a joint limit triggers a safety stop</p>
+  </fn>
+  <fn id="fn3">
+    <label>3</label><p><styled-content id="stiffness"></styled-content>Can
+    be implemented by setting the Cartesian stiffness to zero</p>
+  </fn>
+  <fn id="fn4">
+    <label>4</label><p>The Moore-Penrose pseudoinverse is
+    computationally cheap and allows a null-space projection
+    disregarding the dynamics of the robot. However, not using the
+    dynamics of the robot to fomulate a pseudoinverse matrix for
+    null-space projection may cause that a non-zero arbitrary torque,
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[\tau_0]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>τ</mml:mi><mml:mn>0</mml:mn></mml:msub></mml:math></alternatives></inline-formula>
+    in (<xref alt="Equation 4" rid="eqU003Atau_ns">Equation 4</xref>),
+    generates interfering forces in the Cartesian space if the joint of
+    the robot are not in a static equilibrium
+    (<inline-formula><alternatives>
+    <tex-math><![CDATA[\dot{q} = \ddot{q} = 0]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mover><mml:mi>q</mml:mi><mml:mo accent="true">̇</mml:mo></mml:mover><mml:mo>=</mml:mo><mml:mover><mml:mi>q</mml:mi><mml:mo accent="true">̈</mml:mo></mml:mover><mml:mo>=</mml:mo><mml:mn>0</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>).</p>
+  </fn>
+</fn-group>
+</back>
+</article>
