@@ -1,0 +1,456 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">6306</article-id>
+<article-id pub-id-type="doi">10.21105/joss.06306</article-id>
+<title-group>
+<article-title>GTFS Segments: A Fast and Efficient Library to Generate
+Bus Stop Spacings</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author" equal-contrib="yes" corresp="yes">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0002-5911-4681</contrib-id>
+<name>
+<surname>Devunuri</surname>
+<given-names>Saipraneeth</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+<xref ref-type="corresp" rid="cor-1"><sup>*</sup></xref>
+</contrib>
+<contrib contrib-type="author" equal-contrib="yes">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0001-8029-1706</contrib-id>
+<name>
+<surname>Lehe</surname>
+<given-names>Lewis</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Department of Civil and Environmental Engineering,
+University of Illinois Urbana-Champaign</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<author-notes>
+<corresp id="cor-1">* E-mail: <email></email></corresp>
+</author-notes>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2023-09-25">
+<day>25</day>
+<month>9</month>
+<year>2023</year>
+</pub-date>
+<volume>9</volume>
+<issue>95</issue>
+<fpage>6306</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2022</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>Python</kwd>
+<kwd>GTFS</kwd>
+<kwd>Public Transit</kwd>
+<kwd>Stop Spacings</kwd>
+<kwd>Bus Stops</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p>The GTFS Segments (gtfs-segments) library is an open-source Python
+  toolkit for computing, visualizing and analyzing bus stop spacings:
+  the distance a transit bus travels between stops. The library reads
+  General Transit Feed Specification (GTFS) data, snaps bus stops to
+  points along routes, divides routes into segments (the pieces of
+  routes between two stops), and then produces a
+  <monospace>GeoDataFrame</monospace> containing information about each
+  segment. The library also features several functions that act on this
+  GeoDataFrame. It can produce summary statistics of the spacings for a
+  given network, using various weighting schemes (i.e., weighting by
+  frequency of service), as well as histograms of spacings that display
+  their full distribution. In addition to network-level statistics, the
+  package can also compute statistics for each route, such as its
+  length, headway, speed, and average stop spacing. It can draw maps of
+  networks, routes, or segments over a basemap—which allows the user to
+  manually validate data. The segments DataFrame can be exported to
+  <monospace>.csv</monospace> and <monospace>.geojson</monospace> file
+  formats. The package can fetch the most up-to-date GTFS data from
+  Mobility Data
+  (<xref alt="MobilityData, 2023" rid="ref-MobData2023" ref-type="bibr">MobilityData,
+  2023</xref>) repositories for user convenience.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p>The choice of bus stop spacing involves a tradeoff between
+  accessibility and speed: wider spacings mean passengers must travel
+  farther to/from stops, but they allow the bus to move faster
+  (<xref alt="Wu et al., 2022" rid="ref-Wu2022" ref-type="bibr">Wu et
+  al., 2022</xref>). Many US transit agencies have recently carried out
+  <italic>stop consolidation</italic> campaigns that systematically
+  remove stops, due partly to the perception US stop spacings are much
+  narrower than those abroad. However, there are no reliable data
+  sources to obtain current stop spacings despite the wide adoption of
+  General Transit Feed Specification (GTFS)
+  (<xref alt="Voulgaris &amp; Begwani, 2023" rid="ref-Voulgaris2023Predictors" ref-type="bibr">Voulgaris
+  &amp; Begwani, 2023</xref>), because GTFS does not include data on
+  stop spacings directly. Spacings must be computed from route shape
+  geometries, stop locations, and stop sequences. A challenge is that
+  stop locations are not placed on top of route shapes and therefore
+  must be somehow projected onto the route’s
+  <monospace>LINESTRING</monospace>. To make spacings available for
+  analysis, <monospace>gtfs-segments</monospace> use k-dimensional
+  spatial trees and k-nearest neighbor heuristics to snap stops to
+  routes and divide routes into segments for computation of spacings, as
+  described below.</p>
+  <p><monospace>gtfs-segments</monospace> was designed for researchers,
+  transit planners, students and anyone interested in bus networks. The
+  package has been used in several scholarly articles
+  (<xref alt="Devunuri et al., 2023" rid="ref-devunuri2023chatgpt" ref-type="bibr">Devunuri
+  et al., 2023</xref>,
+  <xref alt="2024" rid="ref-Devunuri2024" ref-type="bibr">2024</xref>;
+  <xref alt="Lehe &amp; Pandey, 2022" rid="ref-lehe4135394bus" ref-type="bibr">Lehe
+  &amp; Pandey, 2022</xref>) and to create databases of spacings for
+  over 550 agencies in the US
+  (<xref alt="Devunuri et al., 2022" rid="ref-DVNU002FSFBIVU_2022" ref-type="bibr">Devunuri
+  et al., 2022</xref>) and 80 agencies in Canada
+  (<xref alt="Devunuri, 2023" rid="ref-DVNU002FQFTAPM_2023" ref-type="bibr">Devunuri,
+  2023</xref>). Several transit agencies, such as Regional
+  Transportation District Denver (RTD-Denver), have used the package to
+  visualize the effects of their bus stop consolidation efforts.
+  Filtering functions allow the user to explore datasets, identify
+  errors and compute specialized statistics.</p>
+</sec>
+<sec id="functionality">
+  <title>Functionality</title>
+  <p><monospace>gtfs-segments</monospace> has four main functionalities:
+  (1) Downloading GTFS feeds (2) Computing segments (3) Visualizing stop
+  spacings (4) Calculating stop spacing summary statistics. Each is
+  further detailed below.</p>
+  <sec id="downloading-gtfs-feeds">
+    <title>Downloading GTFS feeds</title>
+    <p>The package permits the user to search and download recent GTFS
+    feeds from the Mobility Database Catalogs
+    (<xref alt="MobilityData, 2023" rid="ref-MobData2023" ref-type="bibr">MobilityData,
+    2023</xref>). It allows for keyword and fuzzy search of GTFS feeds
+    using location (e.g., <monospace>Minneapolis</monospace>,
+    <monospace>San Francisco</monospace>) or provider name (e.g.,
+    <monospace>WMATA</monospace>, <monospace>Capital Metro</monospace>)
+    as input.</p>
+  </sec>
+  <sec id="computing-segments">
+    <title>Computing segments</title>
+    <p>The fundamental unit of analysis used by
+    <monospace>gtfs-segments</monospace> is the
+    <italic>segment</italic>, which is a piece of a bus network defined
+    by three properties: (i) a start stop, (ii) an end stop and (iii)
+    the path that the bus travels along the route in between the two
+    consecutive stops. A segment’s <italic>spacing</italic> is the
+    distance of (iii). <monospace>gtfs-segments</monospace> produces
+    segments by efficiently and robustly snapping stop locations onto
+    route shapes.
+    <xref alt="[fig:snapping_difficulty]" rid="figU003Asnapping_difficulty">[fig:snapping_difficulty]</xref>
+    shows examples where a stop is equidistant from multiple route
+    coordinates. Here, projecting the stop onto the route or snapping to
+    the nearest geo-coordinate (lat, lon) may yield stops that are
+    out-of-order or snapped far from their locations. Also, the time
+    complexity of projection or snapping using brute force is
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[O(nm)]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>O</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>n</mml:mi><mml:mi>m</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>
+    for <monospace>n</monospace> stops and <monospace>m</monospace>
+    geo-coordinates that represent the route shape.</p>
+    <fig>
+      <caption><p>Example route shapes with stop locations that are
+      equidistant from multiple points along the
+      route.<styled-content id="figU003Asnapping_difficulty"></styled-content></p></caption>
+      <graphic mimetype="image" mime-subtype="jpeg" xlink:href="media/snapping_difficulty.jpg" />
+    </fig>
+    <p><monospace>gtfs-segments</monospace> overcomes these challenges
+    by increasing the route resolution (i.e., adding points in between
+    geo-coordinates), using spatial k-d trees, and using more than one
+    nearest neighbor. The increase in resolution allows stops to be
+    snapped to nearby points. Using k-d trees reduces the time
+    complexity to <inline-formula><alternatives>
+    <tex-math><![CDATA[O(nlog(m))]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>O</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>n</mml:mi><mml:mi>l</mml:mi><mml:mi>o</mml:mi><mml:mi>g</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>m</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>
+    and makes it possible to compare among several snapping points
+    without added computation.
+    <xref alt="[fig:interpolate]" rid="figU003Ainterpolate">[fig:interpolate]</xref>
+    shows an example where initially snapping to the nearest point
+    produces out-of-order stops (3/4/2) and stop 5 is snapped far away
+    from its location. Increasing the resolution (second panel) fixes
+    5’s location problem but the ordering problem persists. By using
+    <monospace>k=3</monospace> nearest neighbors, we find a proper
+    ordering (last panel). Once every stop has been snapped to a
+    geo-coordinate on the route shape, the shape is segmented between
+    stops and each segment’s geometry is stored in a GeoDataFrame.</p>
+    <fig>
+      <caption><p>Improvement in snapping due to an increase in
+      resolution and suing k-nearest
+      neighbors.<styled-content id="figU003Ainterpolate"></styled-content>.
+      Adapted from “Bus Stop Spacings Statistics: Theory and Evidence”
+      (<xref alt="Devunuri et al., 2024" rid="ref-Devunuri2024" ref-type="bibr">Devunuri
+      et al., 2024</xref>)</p></caption>
+      <graphic mimetype="image" mime-subtype="jpeg" xlink:href="media/interpolation.jpg" />
+    </fig>
+    <p>Packages such as <monospace>gtfs2gps</monospace>
+    (<xref alt="Pereira et al., 2023" rid="ref-pereira2023exploring" ref-type="bibr">Pereira
+    et al., 2023</xref>) and <monospace>gtfs_functions</monospace>
+    (<xref alt="Toso &amp; Oja, 2023" rid="ref-Toso2023" ref-type="bibr">Toso
+    &amp; Oja, 2023</xref>) also compute segments. In addition to its
+    snapping algorithm, visualization, download, and statistical
+    functionalities, <monospace>gtfs-segments</monospace> is
+    distinguished from those in two ways. First, it has a faster
+    processing rate<xref ref-type="fn" rid="fn1">1</xref> to compute
+    segments both with and without parallel processing (see Table 1).
+    Second, <monospace>gtfs-segments</monospace> is tolerant to
+    deviations from GTFS standards. For example, because the Chicago
+    Transit Authority does not have an agency_id in its routes.txt,
+    <monospace>gtfs2gps</monospace> fails to read it even though this
+    field is not needed for obtaining segments.</p>
+    <p><inline-graphic mimetype="application" mime-subtype="pdf" xlink:href="media/comparison_table.pdf">
+      <alt-text></alt-text>
+    </inline-graphic>
+    </p>
+  </sec>
+  <sec id="visualizing-stop-spacings">
+    <title>Visualizing stop spacings</title>
+    <p>The package can create maps of stops and segments (with basemap),
+    including interactive maps. See
+    <xref alt="[fig:heatmap]" rid="figU003Aheatmap">[fig:heatmap]</xref>a,
+    which colors segments by spacing. The package can also produce
+    histograms of stop spacings (see
+    <xref alt="[fig:heatmap]" rid="figU003Aheatmap">[fig:heatmap]</xref>b),
+    which can inform strategic decisions about network design.</p>
+    <fig>
+      <caption><p>Other visualization features in the package. SFMTA
+      GTFS feed was used to generate these.
+      <styled-content id="figU003Aheatmap"></styled-content></p></caption>
+      <graphic mimetype="application" mime-subtype="pdf" xlink:href="media/heatmap_and_histogram.pdf" />
+    </fig>
+  </sec>
+  <sec id="calculating-stop-spacing-summary-statistics">
+    <title>Calculating stop spacing summary statistics</title>
+    <p>Discussions about stop spacings, commonly include statistical
+    metrics such as means and medians, used to spacings between
+    different agencies or track changes within an agency over time.
+    <monospace>gtfs-segments</monospace> can produce weighted mean,
+    median, and standard deviations for an agency, using different
+    weighting systems (e.g., weighting segments by the number of times a
+    bus traverses it or the number of routes that include it) as
+    outlined by Devunuri et al.
+    (<xref alt="2024" rid="ref-Devunuri2024" ref-type="bibr">2024</xref>).
+    For each route, <monospace>gtfs-segments</monospace> can give
+    metrics such as mean spacing, headways, speeds, number of buses in
+    operation and route lengths.</p>
+  </sec>
+</sec>
+<sec id="acknowledgments">
+  <title>Acknowledgments</title>
+  <p>The <monospace>gtfs-segments</monospace> package draws its
+  inspiration from <monospace>gtfs_functions</monospace>
+  (<xref alt="Toso &amp; Oja, 2023" rid="ref-Toso2023" ref-type="bibr">Toso
+  &amp; Oja, 2023</xref>), <monospace>gtfs2gps</monospace>
+  (<xref alt="Pereira et al., 2023" rid="ref-pereira2023exploring" ref-type="bibr">Pereira
+  et al., 2023</xref>), and <monospace>partridge</monospace>
+  (<xref alt="Whalen, 2023" rid="ref-Whalen2023" ref-type="bibr">Whalen,
+  2023</xref>) repositories. We thank the contributors of these packages
+  for their excellent work. We also extend our thanks to Mobility Data
+  (<xref alt="MobilityData, 2023" rid="ref-MobData2023" ref-type="bibr">MobilityData,
+  2023</xref>) for compiling GTFS from around the globe and constantly
+  maintaining them.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <ref id="ref-Devunuri2024">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Devunuri</surname><given-names>Saipraneeth</given-names></name>
+        <name><surname>Lehe</surname><given-names>Lewis J.</given-names></name>
+        <name><surname>Qiam</surname><given-names>Shirin</given-names></name>
+        <name><surname>Pandey</surname><given-names>Ayush</given-names></name>
+        <name><surname>Monzer</surname><given-names>Dana</given-names></name>
+      </person-group>
+      <article-title>Bus stop spacing statistics: Theory and evidence</article-title>
+      <source>Journal of Public Transportation</source>
+      <year iso-8601-date="2024-01">2024</year><month>01</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2024-03-07">2024</year><month>03</month><day>07</day></date-in-citation>
+      <volume>26</volume>
+      <issn>1077-291X</issn>
+      <uri>https://www.sciencedirect.com/science/article/pii/S1077291X24000031</uri>
+      <pub-id pub-id-type="doi">10.1016/j.jpubtr.2024.100083</pub-id>
+      <fpage>100083</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-devunuri2023chatgpt">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Devunuri</surname><given-names>Saipraneeth</given-names></name>
+        <name><surname>Qiam</surname><given-names>Shirin</given-names></name>
+        <name><surname>Lehe</surname><given-names>Lewis</given-names></name>
+      </person-group>
+      <article-title>ChatGPT for GTFS: From Words to Information</article-title>
+      <year iso-8601-date="2023">2023</year>
+      <uri>https://arxiv.org/abs/2308.02618</uri>
+      <pub-id pub-id-type="doi">10.48550/arXiv.2308.02618</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-DVNU002FSFBIVU_2022">
+    <element-citation publication-type="dataset">
+      <person-group person-group-type="author">
+        <name><surname>Devunuri</surname><given-names>Saipraneeth</given-names></name>
+        <name><surname>Qiam</surname><given-names>Shirin</given-names></name>
+        <name><surname>Lehe</surname><given-names>Lewis</given-names></name>
+      </person-group>
+      <article-title>Bus Stop Spacings for Transit Providers in the US</article-title>
+      <publisher-name>Harvard Dataverse</publisher-name>
+      <year iso-8601-date="2022">2022</year>
+      <uri>10.7910/DVN/SFBIVU</uri>
+      <pub-id pub-id-type="doi">10.7910/DVN/SFBIVU</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-DVNU002FQFTAPM_2023">
+    <element-citation publication-type="dataset">
+      <person-group person-group-type="author">
+        <name><surname>Devunuri</surname><given-names>Saipraneeth</given-names></name>
+      </person-group>
+      <article-title>Bus Stop Spacings for Transit Providers in Canada</article-title>
+      <publisher-name>Harvard Dataverse</publisher-name>
+      <year iso-8601-date="2023">2023</year>
+      <uri>10.7910/DVN/QFTAPM</uri>
+      <pub-id pub-id-type="doi">10.7910/DVN/QFTAPM</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-pereira2023exploring">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Pereira</surname><given-names>Rafael HM</given-names></name>
+        <name><surname>Andrade</surname><given-names>Pedro R</given-names></name>
+        <name><surname>Vieira</surname><given-names>João Pedro Bazzo</given-names></name>
+      </person-group>
+      <article-title>Exploring the time geography of public transport networks with the gtfs2gps package</article-title>
+      <source>Journal of Geographical Systems</source>
+      <publisher-name>Springer</publisher-name>
+      <year iso-8601-date="2023">2023</year>
+      <volume>25</volume>
+      <issue>3</issue>
+      <pub-id pub-id-type="doi">10.31235/osf.io/qydr6</pub-id>
+      <fpage>453</fpage>
+      <lpage>466</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-lehe4135394bus">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Lehe</surname><given-names>Lewis</given-names></name>
+        <name><surname>Pandey</surname><given-names>Ayush</given-names></name>
+      </person-group>
+      <article-title>Bus stop spacing with heterogeneous trip lengths and elastic demand</article-title>
+      <source>Available at SSRN 4135394</source>
+      <year iso-8601-date="2022">2022</year>
+      <pub-id pub-id-type="doi">10.2139/ssrn.4135394</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-Toso2023">
+    <element-citation publication-type="software">
+      <person-group person-group-type="author">
+        <name><surname>Toso</surname><given-names>Santiago</given-names></name>
+        <name><surname>Oja</surname><given-names>Riku</given-names></name>
+      </person-group>
+      <article-title>Gtfs_functions: Package with useful functions to create geo-spatial visualizations from a GTFS.</article-title>
+      <publisher-name>GitHub</publisher-name>
+      <year iso-8601-date="2023">2023</year>
+      <uri>https://github.com/Bondify/gtfs_functions</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-Whalen2023">
+    <element-citation publication-type="software">
+      <person-group person-group-type="author">
+        <name><surname>Whalen</surname><given-names>Danny</given-names></name>
+      </person-group>
+      <article-title>Partridge: A fast, forgiving GTFS reader built on pandas DataFrames</article-title>
+      <publisher-name>GitHub</publisher-name>
+      <year iso-8601-date="2023">2023</year>
+      <uri>https://github.com/remix/partridge</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-MobData2023">
+    <element-citation>
+      <person-group person-group-type="author">
+        <string-name>MobilityData</string-name>
+      </person-group>
+      <article-title>Mobility Database</article-title>
+      <year iso-8601-date="2023">2023</year>
+      <uri>https://database.mobilitydata.org/</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-Voulgaris2023Predictors">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Voulgaris</surname><given-names>Carole Turley</given-names></name>
+        <name><surname>Begwani</surname><given-names>Charuvi</given-names></name>
+      </person-group>
+      <article-title>Predictors of early adoption of the general transit feed specification</article-title>
+      <source>Findings</source>
+      <publisher-name>Findings Press</publisher-name>
+      <year iso-8601-date="2023-01-06">2023</year><month>01</month><day>06</day>
+      <pub-id pub-id-type="doi">10.32866/001c.57722</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-Wu2022">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Wu</surname><given-names>Telan</given-names></name>
+        <name><surname>Jin</surname><given-names>Hui</given-names></name>
+        <name><surname>Yang</surname><given-names>Xiaoguang</given-names></name>
+      </person-group>
+      <article-title>To what extent may transit stop spacing be increased before driving away riders? Referring to evidence of the 2017 NHTS in the united states</article-title>
+      <source>Sustainability</source>
+      <year iso-8601-date="2022">2022</year>
+      <volume>14</volume>
+      <issue>10</issue>
+      <issn>2071-1050</issn>
+      <uri>https://www.mdpi.com/2071-1050/14/10/6148</uri>
+      <pub-id pub-id-type="doi">10.3390/su14106148</pub-id>
+    </element-citation>
+  </ref>
+</ref-list>
+<fn-group>
+  <fn id="fn1">
+    <label>1</label><p>The average processing rate is the average number
+    of trips processed per second, averaged over 3 independent runs. The
+    experiments were run with an
+    <monospace>Intel(R) Core(TM) i9-10920X</monospace> processor at
+    3.50GHz with 12 hyperthreaded CPU cores and 64 GB RAM, running on
+    Windows. The most recent GTFS feeds (as of February 2024) for the
+    respective agencies were used.</p>
+  </fn>
+</fn-group>
+</back>
+</article>
