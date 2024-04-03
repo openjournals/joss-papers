@@ -1,0 +1,668 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">6276</article-id>
+<article-id pub-id-type="doi">10.21105/joss.06276</article-id>
+<title-group>
+<article-title>pypfilt: a particle filter for Python</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0002-4568-2012</contrib-id>
+<name>
+<surname>Moss</surname>
+<given-names>Robert</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Melbourne School of Population and Global Health, The
+University of Melbourne, Australia</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2023-12-20">
+<day>20</day>
+<month>12</month>
+<year>2023</year>
+</pub-date>
+<volume>9</volume>
+<issue>96</issue>
+<fpage>6276</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2022</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>Python</kwd>
+<kwd>particle filter</kwd>
+<kwd>forecasting</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p>Mathematical models are used to simulate real-world systems in many
+  scientific fields. These models can be fitted to real-time data, and
+  used to generate <italic>probabilistic forecasts</italic> that
+  describe how the system will behave in the future and convey the
+  <italic>uncertainty</italic> in these predictions. Particle filters
+  are a class of Sequential Monte Carlo (SMC) methods
+  (<xref alt="Doucet et al., 2001" rid="ref-Doucet01" ref-type="bibr">Doucet
+  et al., 2001</xref>) that have been used in many scientific fields for
+  real-time forecasting, with the COVID-19 pandemic being one of the
+  most recent and high-profile examples. These methods can be used to
+  estimate model parameters and state as new data become available
+  (“online estimation”).</p>
+  <p><monospace>pypfilt</monospace> is a Python package for online
+  estimation and forecasting that implements several particle filters.
+  It was developed to enable real-time seasonal influenza forecasting in
+  Australia, for which we won two national innovation awards
+  (<xref alt="Pyne, 2018" rid="ref-CIVSEC18" ref-type="bibr">Pyne,
+  2018</xref>), and played a key role in generating forecasts that have
+  supported Australia’s COVID-19 response
+  (<xref alt="Moss et al., 2023" rid="ref-Moss23" ref-type="bibr">Moss
+  et al., 2023</xref>). The package is deliberately generic and readily
+  applicable to other domains.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p>Particle filters are provided by Python packages that implement a
+  range of inference methods, such as <monospace>PyMC</monospace>
+  (<xref alt="Abril-Pla et al., 2023" rid="ref-PyMC" ref-type="bibr">Abril-Pla
+  et al., 2023</xref>), <monospace>pyro</monospace>
+  (<xref alt="Bingham et al., 2019" rid="ref-Pyro" ref-type="bibr">Bingham
+  et al., 2019</xref>), and <monospace>stonesoup</monospace>
+  (<xref alt="Hiscocks et al., 2023" rid="ref-StoneSoup" ref-type="bibr">Hiscocks
+  et al., 2023</xref>); accompany textbooks, such as
+  <monospace>particles</monospace>
+  (<xref alt="Chopin &amp; Papaspiliopoulos, 2020" rid="ref-Chopin20" ref-type="bibr">Chopin
+  &amp; Papaspiliopoulos, 2020</xref>) and
+  <monospace>filterpy</monospace>
+  (<xref alt="Labbe, 2022" rid="ref-FilterPy" ref-type="bibr">Labbe,
+  2022</xref>); and focus on other applications, such as
+  <monospace>SMCPy</monospace>
+  (<xref alt="Leser &amp; Wang, 2023" rid="ref-SMCPy" ref-type="bibr">Leser
+  &amp; Wang, 2023</xref>). However, <monospace>pypfilt</monospace>
+  appears to be unique in supporting all of the following: (a) online
+  state estimation for time-series forecasting; (b) arbitrary
+  state-space models; (c) non-analytic likelihood functions; (d) control
+  over memory usage for large-scale applications; (e) a declarative
+  approach for defining and running forecasts; and (f) reproducible
+  results. In brief:</p>
+  <list list-type="bullet">
+    <list-item>
+      <p><italic>Forecasts are generated efficiently</italic>. Repeated
+      calculations are avoided when new data are received (online
+      estimation), even when previous data are updated or corrected, due
+      to a sophisticated caching system.</p>
+    </list-item>
+    <list-item>
+      <p><italic>Complex models are easily defined</italic>. Models only
+      need to define the state vector, with arbitrarily nested fields
+      and dimensions, and define an update rule for the state
+      vector.</p>
+    </list-item>
+    <list-item>
+      <p><italic>Likelihood functions are unconstrained</italic>. They
+      do not need to be differentiable, and can inspect both the current
+      state and any previous states.</p>
+    </list-item>
+    <list-item>
+      <p><italic>Memory usage is flexible</italic>. The particle filter
+      can retain only a sliding window of previous states, and only
+      record states at coarse intervals, so that forecasts with large
+      numbers of particles and/or very small time-steps do not exceed
+      available memory.</p>
+    </list-item>
+    <list-item>
+      <p><italic>Forecasts are simple to define and run</italic>.
+      Forecasts are defined in plain-text configuration files, enforcing
+      a clear separation between model implementation and experiment
+      (e.g., choice of prior distributions, input data, particle filter
+      settings).</p>
+    </list-item>
+    <list-item>
+      <p><italic>Reproducibility is ensured</italic>. Output files
+      include all data and metadata required to reproduce the original
+      results.</p>
+    </list-item>
+  </list>
+  <p>Additional features include supporting scalar and calendar time
+  scales, providing a range of resampling strategies
+  (<xref alt="Kitagawa, 1996" rid="ref-Kitaga96" ref-type="bibr">Kitagawa,
+  1996</xref>) and summary statistics, post-regularisation
+  (<xref alt="Musso et al., 2001" rid="ref-Musso01" ref-type="bibr">Musso
+  et al., 2001</xref>), and measuring forecast performance with
+  Continuous Ranked Probability Scores (CRPS)
+  (<xref alt="Hyndman &amp; Athanasopoulos, 2021" rid="ref-Hyndma21" ref-type="bibr">Hyndman
+  &amp; Athanasopoulos, 2021</xref>). It also supports <italic>scenario
+  modelling</italic> — simulating from multiple prior distributions and
+  comparing matching particles in each ensemble — which provides
+  additional decision-support capabilities beyond those provided by
+  real-time forecasts
+  (<xref alt="Moss et al., 2020" rid="ref-Moss20" ref-type="bibr">Moss
+  et al., 2020</xref>;
+  <xref alt="Shearer et al., 2020" rid="ref-Shearer20" ref-type="bibr">Shearer
+  et al., 2020</xref>).</p>
+  <p>A suite of almost 150
+  <ext-link ext-link-type="uri" xlink:href="https://bitbucket.org/robmoss/particle-filter-for-python/src/master/tests/">test
+  cases</ext-link> (comprising more than 6,000 lines of code) runs
+  automatically every time the code is updated. This includes tests
+  which verify that outputs are reproducible, and tests which verify
+  that outputs are identical whether or not the particle filter resumed
+  from a previously-cached state.</p>
+</sec>
+<sec id="availability-and-usage">
+  <title>Availability and usage</title>
+  <p>This is available as a Python package on
+  <ext-link ext-link-type="uri" xlink:href="https://pypi.org/project/pypfilt/">PyPI</ext-link>
+  and can be installed using <monospace>pip</monospace>. It deliberately
+  supports older versions of Python (<inline-formula><alternatives>
+  <tex-math><![CDATA[\ge 3.8]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mo>≥</mml:mo><mml:mn>3.8</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>),
+  NumPy (<inline-formula><alternatives>
+  <tex-math><![CDATA[\ge 1.17]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mo>≥</mml:mo><mml:mn>1.17</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>),
+  and SciPy (<inline-formula><alternatives>
+  <tex-math><![CDATA[\ge 1.4]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mo>≥</mml:mo><mml:mn>1.4</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>).
+  The documentation is available at
+  <ext-link ext-link-type="uri" xlink:href="https://pypfilt.readthedocs.io/">https://pypfilt.readthedocs.io/</ext-link>,
+  and includes a
+  <ext-link ext-link-type="uri" xlink:href="https://pypfilt.readthedocs.io/en/latest/getting-started/">Getting
+  Started tutorial</ext-link> that demonstrates how to construct a
+  model, fit it to data, and generate forecasts (see
+  <xref alt="[fig:example]" rid="figU003Aexample">[fig:example]</xref>).
+  In this tutorial we use the Lorenz-63 system of ordinary differential
+  equations (which has chaotic solutions) to show how
+  post-regularisation can greatly improve forecast performance (see
+  <xref alt="[fig:perf]" rid="figU003Aperf">[fig:perf]</xref>), and to
+  highlight how easy it is to define and run a suite of forecasts.</p>
+  <fig>
+    <caption><p>An example forecast at time
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[t = 20]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>t</mml:mi><mml:mo>=</mml:mo><mml:mn>20</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>
+    for the Lorenz-63 system. This figure was generated using the
+    <monospace>pypfilt.plot</monospace>
+    module.<styled-content id="figU003Aexample"></styled-content></p></caption>
+    <graphic mimetype="image" mime-subtype="png" xlink:href="media/lorenz63_forecast_regularised.png" />
+  </fig>
+</sec>
+<sec id="ongoing-research-projects">
+  <title>Ongoing research projects</title>
+  <p>Beginning in 2015, <monospace>pypfilt</monospace> was developed to
+  support real-time seasonal influenza forecasting in Australia
+  (<xref alt="Moss et al., 2016" rid="ref-Moss16" ref-type="bibr">Moss
+  et al., 2016</xref>,
+  <xref alt="2017" rid="ref-Moss16a" ref-type="bibr">2017</xref>,
+  <xref alt="2018" rid="ref-Moss18" ref-type="bibr">2018</xref>;
+  <xref alt="Moss, Zarebski, Carlson, et al., 2019" rid="ref-Moss19a" ref-type="bibr">Moss,
+  Zarebski, Carlson, et al., 2019</xref>;
+  <xref alt="Moss, Zarebski, Dawson, et al., 2019" rid="ref-Moss19b" ref-type="bibr">Moss,
+  Zarebski, Dawson, et al., 2019</xref>;
+  <xref alt="Zarebski et al., 2017" rid="ref-Zarebs17" ref-type="bibr">Zarebski
+  et al., 2017</xref>), and has been used to support the Australian
+  Government’s response to COVID-19
+  (<xref alt="Moss et al., 2023" rid="ref-Moss23" ref-type="bibr">Moss
+  et al., 2023</xref>;
+  <xref alt="Price et al., 2020" rid="ref-Price20" ref-type="bibr">Price
+  et al., 2020</xref>).</p>
+  <fig>
+    <caption><p>An example of using Continuous Ranked Probability Scores
+    (CPRS) to compare forecast performance. Post-regularisation improves
+    performance by 76.7% in this
+    example.<styled-content id="figU003Aperf"></styled-content></p></caption>
+    <graphic mimetype="image" mime-subtype="png" xlink:href="media/lorenz63_crps_comparison.png" />
+  </fig>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>Peter Dawson, James M. McCaw, David J. Price, and Alexander E.
+  Zarebski contributed helpful comments and suggestions. Package
+  development was supported by the Defence Science and Technology Group
+  project “Bioterrorism Preparedness Strategic Research Initiative
+  07/301”, and by Australian National Health and Medical Research
+  Council (NHMRC) Centres for Research Excellence (PRISM, 1078068;
+  APPRISE, 1116530; SPECTRUM, 1170960). RM was supported by an NHMRC
+  APPRISE Research Fellowship (1116530).</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <ref id="ref-Moss16">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Moss</surname><given-names>Robert</given-names></name>
+        <name><surname>Zarebski</surname><given-names>Alex</given-names></name>
+        <name><surname>Dawson</surname><given-names>Peter</given-names></name>
+        <name><surname>McCaw</surname><given-names>James M.</given-names></name>
+      </person-group>
+      <article-title>Forecasting influenza outbreak dynamics in Melbourne from Internet search query surveillance data</article-title>
+      <source>Influenza and Other Respiratory Viruses</source>
+      <year iso-8601-date="2016">2016</year>
+      <volume>10</volume>
+      <issue>4</issue>
+      <pub-id pub-id-type="doi">10.1111/irv.12376</pub-id>
+      <fpage>314</fpage>
+      <lpage>323</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Moss16a">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Moss</surname><given-names>Robert</given-names></name>
+        <name><surname>Zarebski</surname><given-names>Alex</given-names></name>
+        <name><surname>Dawson</surname><given-names>Peter</given-names></name>
+        <name><surname>McCaw</surname><given-names>James M.</given-names></name>
+      </person-group>
+      <article-title>Retrospective forecasting of the 2010–14 Melbourne influenza seasons using multiple surveillance systems</article-title>
+      <source>Epidemiology and Infection</source>
+      <year iso-8601-date="2017">2017</year>
+      <volume>145</volume>
+      <issue>1</issue>
+      <pub-id pub-id-type="doi">10.1017/S0950268816002053</pub-id>
+      <fpage>156</fpage>
+      <lpage>169</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Zarebs17">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Zarebski</surname><given-names>Alexander E.</given-names></name>
+        <name><surname>Dawson</surname><given-names>Peter</given-names></name>
+        <name><surname>McCaw</surname><given-names>James M.</given-names></name>
+        <name><surname>Moss</surname><given-names>Robert</given-names></name>
+      </person-group>
+      <article-title>Model selection for seasonal influenza forecasting</article-title>
+      <source>Infectious Disease Modelling</source>
+      <publisher-name>Elsevier BV</publisher-name>
+      <year iso-8601-date="2017-02">2017</year><month>02</month>
+      <volume>2</volume>
+      <issue>1</issue>
+      <issn>2468-0427</issn>
+      <pub-id pub-id-type="doi">10.1016/j.idm.2016.12.004</pub-id>
+      <fpage>56</fpage>
+      <lpage>70</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Moss18">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Moss</surname><given-names>Robert</given-names></name>
+        <name><surname>Fielding</surname><given-names>James E.</given-names></name>
+        <name><surname>Franklin</surname><given-names>Lucinda J.</given-names></name>
+        <name><surname>Stephens</surname><given-names>Nicola</given-names></name>
+        <name><surname>McVernon</surname><given-names>Jodie</given-names></name>
+        <name><surname>Dawson</surname><given-names>Peter</given-names></name>
+        <name><surname>McCaw.</surname><given-names>James M.</given-names></name>
+      </person-group>
+      <article-title>Epidemic forecasts as a tool for public health: Interpretation and (re)calibration</article-title>
+      <source>Australian and New Zealand Journal of Public Health</source>
+      <year iso-8601-date="2018">2018</year>
+      <volume>42</volume>
+      <issue>1</issue>
+      <pub-id pub-id-type="doi">10.1111/1753-6405.12750</pub-id>
+      <fpage>69</fpage>
+      <lpage>76</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-CIVSEC18">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Pyne</surname><given-names>Christopher</given-names></name>
+      </person-group>
+      <article-title>Disease forecasting system takes out National Innovation Awards</article-title>
+      <source>Media release</source>
+      <publisher-name>Australian Department of Defence</publisher-name>
+      <year iso-8601-date="2018">2018</year>
+      <uri>https://www.minister.defence.gov.au/media-releases/2018-05-11/disease-forecasting-system-takes-out-national-innovation-awards</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-Moss19a">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Moss</surname><given-names>Robert</given-names></name>
+        <name><surname>Zarebski</surname><given-names>Alexander E.</given-names></name>
+        <name><surname>Carlson</surname><given-names>Sandra J.</given-names></name>
+        <name><surname>McCaw.</surname><given-names>James M.</given-names></name>
+      </person-group>
+      <article-title>Accounting for healthcare-seeking behaviours and testing practices in real-time influenza forecasts</article-title>
+      <source>Tropical Medicine and Infectious Disease</source>
+      <year iso-8601-date="2019">2019</year>
+      <volume>4</volume>
+      <issue>1</issue>
+      <pub-id pub-id-type="doi">10.3390/tropicalmed4010012</pub-id>
+      <fpage>12</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Moss19b">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Moss</surname><given-names>Robert</given-names></name>
+        <name><surname>Zarebski</surname><given-names>Alexander E.</given-names></name>
+        <name><surname>Dawson</surname><given-names>Peter</given-names></name>
+        <name><surname>Franklin</surname><given-names>Lucinda J.</given-names></name>
+        <name><surname>Birrell</surname><given-names>Frances A.</given-names></name>
+        <name><surname>McCaw.</surname><given-names>James M.</given-names></name>
+      </person-group>
+      <article-title>Anatomy of a seasonal influenza epidemic forecast</article-title>
+      <source>Communicable Diseases Intelligence</source>
+      <year iso-8601-date="2019">2019</year>
+      <volume>43</volume>
+      <pub-id pub-id-type="doi">10.33321/cdi.2019.43.7</pub-id>
+      <fpage>1</fpage>
+      <lpage>14</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Price20">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Price</surname><given-names>David J.</given-names></name>
+        <name><surname>Shearer</surname><given-names>Freya M.</given-names></name>
+        <name><surname>Meehan</surname><given-names>Michael T.</given-names></name>
+        <name><surname>McBryde</surname><given-names>Emma S.</given-names></name>
+        <name><surname>Moss</surname><given-names>Robert</given-names></name>
+        <name><surname>Golding</surname><given-names>Nick</given-names></name>
+        <name><surname>Conway</surname><given-names>Eamon J.</given-names></name>
+        <name><surname>Dawson</surname><given-names>Peter</given-names></name>
+        <name><surname>Cromer</surname><given-names>Deborah</given-names></name>
+        <name><surname>Wood</surname><given-names>James</given-names></name>
+        <name><surname>Abbott</surname><given-names>Sam</given-names></name>
+        <name><surname>McVernon</surname><given-names>Jodie</given-names></name>
+        <name><surname>McCaw</surname><given-names>James M.</given-names></name>
+      </person-group>
+      <article-title>Early analysis of the Australian COVID-19 epidemic</article-title>
+      <source>eLife</source>
+      <year iso-8601-date="2020">2020</year>
+      <volume>9</volume>
+      <pub-id pub-id-type="doi">10.7554/eLife.58785</pub-id>
+      <fpage>e58785</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Shearer20">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Shearer</surname><given-names>Freya M.</given-names></name>
+        <name><surname>Moss</surname><given-names>Robert</given-names></name>
+        <name><surname>McVernon</surname><given-names>Jodie</given-names></name>
+        <name><surname>Ross</surname><given-names>Joshua V.</given-names></name>
+        <name><surname>McCaw</surname><given-names>James M.</given-names></name>
+      </person-group>
+      <article-title>Infectious disease pandemic planning and response: Incorporating decision analysis</article-title>
+      <source>PLOS Medicine</source>
+      <year iso-8601-date="2020">2020</year>
+      <volume>17</volume>
+      <pub-id pub-id-type="doi">10.1371/journal.pmed.1003018</pub-id>
+      <fpage>e1003018</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Moss20">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Moss</surname><given-names>Robert</given-names></name>
+        <name><surname>Wood</surname><given-names>James</given-names></name>
+        <name><surname>Brown</surname><given-names>Damien</given-names></name>
+        <name><surname>Shearer</surname><given-names>Freya M.</given-names></name>
+        <name><surname>Black</surname><given-names>Andrew J.</given-names></name>
+        <name><surname>Glass</surname><given-names>Kathryn</given-names></name>
+        <name><surname>Cheng</surname><given-names>Allen C.</given-names></name>
+        <name><surname>McCaw</surname><given-names>James M.</given-names></name>
+        <name><surname>McVernon</surname><given-names>Jodie</given-names></name>
+      </person-group>
+      <article-title>Coronavirus disease model to inform transmission-reducing measures and health system preparedness, Australia</article-title>
+      <source>Emerging Infectious Diseases</source>
+      <publisher-name>Centers for Disease Control; Prevention (CDC)</publisher-name>
+      <year iso-8601-date="2020-12">2020</year><month>12</month>
+      <volume>26</volume>
+      <issue>12</issue>
+      <uri>https://doi.org/10.3201/eid2612.202530</uri>
+      <pub-id pub-id-type="doi">10.3201/eid2612.202530</pub-id>
+      <fpage>2844</fpage>
+      <lpage>2853</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Moss23">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Moss</surname><given-names>Robert</given-names></name>
+        <name><surname>Price</surname><given-names>David J.</given-names></name>
+        <name><surname>Golding</surname><given-names>Nick</given-names></name>
+        <name><surname>Dawson</surname><given-names>Peter</given-names></name>
+        <name><surname>McVernon</surname><given-names>Jodie</given-names></name>
+        <name><surname>Hyndman</surname><given-names>Rob J.</given-names></name>
+        <name><surname>Shearer</surname><given-names>Freya M.</given-names></name>
+        <name><surname>McCaw</surname><given-names>James M.</given-names></name>
+      </person-group>
+      <article-title>Forecasting COVID-19 activity in Australia to support pandemic response: May to October 2020</article-title>
+      <source>Scientific Reports</source>
+      <publisher-name>Springer Science; Business Media LLC</publisher-name>
+      <year iso-8601-date="2023-05">2023</year><month>05</month>
+      <volume>13</volume>
+      <issue>1</issue>
+      <pub-id pub-id-type="doi">10.1038/s41598-023-35668-6</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-Kitaga96">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Kitagawa</surname><given-names>Genshiro</given-names></name>
+      </person-group>
+      <article-title>Monte Carlo filter and smoother for non-Gaussian nonlinear state space models</article-title>
+      <source>Journal of Computational and Graphical Statistics</source>
+      <year iso-8601-date="1996">1996</year>
+      <volume>5</volume>
+      <issue>1</issue>
+      <pub-id pub-id-type="doi">10.1080/10618600.1996.10474692</pub-id>
+      <fpage>1</fpage>
+      <lpage>25</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Doucet01">
+    <element-citation publication-type="book">
+      <source>Sequential Monte Carlo methods in practice</source>
+      <person-group person-group-type="editor">
+        <name><surname>Doucet</surname><given-names>Arnaud</given-names></name>
+        <name><surname>Freitas</surname><given-names>Nando de</given-names></name>
+        <name><surname>Gordon</surname><given-names>Neil</given-names></name>
+      </person-group>
+      <publisher-name>Springer</publisher-name>
+      <publisher-loc>New York</publisher-loc>
+      <year iso-8601-date="2001">2001</year>
+      <edition>1st</edition>
+      <isbn>978-1-4419-2887-0</isbn>
+      <pub-id pub-id-type="doi">10.1007/978-1-4757-3437-9</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-Musso01">
+    <element-citation publication-type="chapter">
+      <person-group person-group-type="author">
+        <name><surname>Musso</surname><given-names>Christian</given-names></name>
+        <name><surname>Oudjane</surname><given-names>Nadia</given-names></name>
+        <name><surname>Le Gland</surname><given-names>François</given-names></name>
+      </person-group>
+      <article-title>Improving regularised particle filters</article-title>
+      <source>Sequential Monte Carlo methods in practice</source>
+      <publisher-name>Springer</publisher-name>
+      <year iso-8601-date="2001">2001</year>
+      <pub-id pub-id-type="doi">10.1007/978-1-4757-3437-9_12</pub-id>
+      <fpage>247</fpage>
+      <lpage>271</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Chopin20">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Chopin</surname><given-names>Nicolas</given-names></name>
+        <name><surname>Papaspiliopoulos</surname><given-names>Omiros</given-names></name>
+      </person-group>
+      <source>An introduction to Sequential Monte Carlo</source>
+      <publisher-name>Springer</publisher-name>
+      <publisher-loc>Basel</publisher-loc>
+      <year iso-8601-date="2020">2020</year>
+      <pub-id pub-id-type="doi">10.1007/978-3-030-47845-2</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-Hyndma21">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Hyndman</surname><given-names>Rob J.</given-names></name>
+        <name><surname>Athanasopoulos</surname><given-names>George</given-names></name>
+      </person-group>
+      <source>Forecasting: Principles and practice</source>
+      <publisher-name>OTexts</publisher-name>
+      <publisher-loc>Melbourne, Australia</publisher-loc>
+      <year iso-8601-date="2021">2021</year>
+      <edition>3rd</edition>
+      <uri>https://otexts.com/fpp3</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-PyMC">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Abril-Pla</surname><given-names>Oriol</given-names></name>
+        <name><surname>Andreani</surname><given-names>Virgile</given-names></name>
+        <name><surname>Carroll</surname><given-names>Colin</given-names></name>
+        <name><surname>Dong</surname><given-names>Larry</given-names></name>
+        <name><surname>Fonnesbeck</surname><given-names>Christopher J.</given-names></name>
+        <name><surname>Kochurov</surname><given-names>Maxim</given-names></name>
+        <name><surname>Kumar</surname><given-names>Ravin</given-names></name>
+        <name><surname>Lao</surname><given-names>Junpeng</given-names></name>
+        <name><surname>Luhmann</surname><given-names>Christian C.</given-names></name>
+        <name><surname>Martin</surname><given-names>Osvaldo A.</given-names></name>
+        <name><surname>Osthege</surname><given-names>Michael</given-names></name>
+        <name><surname>Vieira</surname><given-names>Ricardo</given-names></name>
+        <name><surname>Wiecki</surname><given-names>Thomas</given-names></name>
+        <name><surname>Zinkov</surname><given-names>Robert</given-names></name>
+      </person-group>
+      <article-title>PyMC: A modern, and comprehensive probabilistic programming framework in Python</article-title>
+      <source>PeerJ Computer Science</source>
+      <publisher-name>PeerJ</publisher-name>
+      <year iso-8601-date="2023-09">2023</year><month>09</month>
+      <volume>9</volume>
+      <issn>2376-5992</issn>
+      <pub-id pub-id-type="doi">10.7717/peerj-cs.1516</pub-id>
+      <fpage>e1516</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Pyro">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Bingham</surname><given-names>Eli</given-names></name>
+        <name><surname>Chen</surname><given-names>Jonathan P.</given-names></name>
+        <name><surname>Jankowiak</surname><given-names>Martin</given-names></name>
+        <name><surname>Obermeyer</surname><given-names>Fritz</given-names></name>
+        <name><surname>Pradhan</surname><given-names>Neeraj</given-names></name>
+        <name><surname>Karaletsos</surname><given-names>Theofanis</given-names></name>
+        <name><surname>Singh</surname><given-names>Rohit</given-names></name>
+        <name><surname>Szerlip</surname><given-names>Paul A.</given-names></name>
+        <name><surname>Horsfall</surname><given-names>Paul</given-names></name>
+        <name><surname>Goodman</surname><given-names>Noah D.</given-names></name>
+      </person-group>
+      <article-title>Pyro: Deep universal probabilistic programming</article-title>
+      <source>Journal of Machine Learning Research</source>
+      <year iso-8601-date="2019">2019</year>
+      <volume>20</volume>
+      <uri>http://jmlr.org/papers/v20/18-403.html</uri>
+      <fpage>28:1</fpage>
+      <lpage>28:6</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-StoneSoup">
+    <element-citation publication-type="software">
+      <person-group person-group-type="author">
+        <name><surname>Hiscocks</surname><given-names>Steven</given-names></name>
+        <name><surname>Harrald</surname><given-names>Oliver</given-names></name>
+        <name><surname>Barr</surname><given-names>Jordi</given-names></name>
+        <name><surname>Perree</surname><given-names>Nicola</given-names></name>
+        <name><surname>Vladimirov</surname><given-names>Lyudmil</given-names></name>
+        <name><surname>Green</surname><given-names>Richard</given-names></name>
+        <name><surname>Rosoman</surname><given-names>Oliver</given-names></name>
+        <name><surname>etfrogers-dstl</surname></name>
+        <name><surname>idorrington-dstl</surname></name>
+        <name><surname>Glover</surname><given-names>Timothy</given-names></name>
+        <name><surname>Hunter</surname><given-names>Emily</given-names></name>
+        <name><surname>Wright</surname><given-names>James</given-names></name>
+        <name><surname>gawebb-dstl</surname></name>
+        <name><surname>Harris</surname><given-names>Michael</given-names></name>
+        <name><surname>Fraser</surname><given-names>Benjamin</given-names></name>
+        <name><surname>spike</surname></name>
+        <name><surname>Pritchett</surname><given-names>Henry</given-names></name>
+        <name><surname>jjosborne-dstl</surname></name>
+        <name><surname>Carniglia</surname><given-names>Peter</given-names></name>
+        <name><surname>cje20a</surname></name>
+        <name><surname>lflaherty-dstl</surname></name>
+        <name><surname>Kirkland</surname><given-names>David</given-names></name>
+        <name><surname>rg</surname></name>
+        <name><surname>Davies</surname><given-names>Richard</given-names></name>
+        <name><surname>snaylor20</surname></name>
+        <name><surname>Campbell</surname><given-names>Mark</given-names></name>
+        <name><surname>dcrew-dstl</surname></name>
+        <name><surname>dlast-dstl</surname></name>
+        <name><surname>Thomas</surname><given-names>Sam</given-names></name>
+        <name><surname>Hiles</surname><given-names>John</given-names></name>
+      </person-group>
+      <article-title>Dstl/stone-soup: v1.1 release</article-title>
+      <publisher-name>Zenodo</publisher-name>
+      <year iso-8601-date="2023-09">2023</year><month>09</month>
+      <uri>https://doi.org/10.5281/zenodo.8308177</uri>
+      <pub-id pub-id-type="doi">10.5281/zenodo.8308177</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-FilterPy">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Labbe</surname><given-names>Roger R.</given-names></name>
+      </person-group>
+      <article-title>FilterPy - Kalman filters and other optimal and non-optimal estimation filters in Python</article-title>
+      <source>GitHub repository</source>
+      <publisher-name>GitHub</publisher-name>
+      <year iso-8601-date="2022">2022</year>
+      <uri>https://github.com/rlabbe/filterpy</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-SMCPy">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Leser</surname><given-names>Patrick</given-names></name>
+        <name><surname>Wang</surname><given-names>Michael</given-names></name>
+      </person-group>
+      <article-title>SMCPy - Sequential Monte Carlo with Python</article-title>
+      <source>GitHub repository</source>
+      <publisher-name>GitHub</publisher-name>
+      <year iso-8601-date="2023">2023</year>
+      <uri>https://github.com/nasa/SMCPy</uri>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
