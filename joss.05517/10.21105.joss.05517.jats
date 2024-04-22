@@ -1,0 +1,781 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">5517</article-id>
+<article-id pub-id-type="doi">10.21105/joss.05517</article-id>
+<title-group>
+<article-title>udpPacketManager: An International LOFAR Station Data
+(Pre-)Processor</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author" corresp="yes">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0001-7185-1310</contrib-id>
+<name>
+<surname>McKenna</surname>
+<given-names>David J.</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+<xref ref-type="aff" rid="aff-2"/>
+<xref ref-type="corresp" rid="cor-1"><sup>*</sup></xref>
+</contrib>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0002-4553-655X</contrib-id>
+<name>
+<surname>Keane</surname>
+<given-names>Evan F.</given-names>
+</name>
+<xref ref-type="aff" rid="aff-2"/>
+</contrib>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0001-9745-0400</contrib-id>
+<name>
+<surname>Gallagher</surname>
+<given-names>Peter T.</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0003-4399-2233</contrib-id>
+<name>
+<surname>McCauley</surname>
+<given-names>Joe</given-names>
+</name>
+<xref ref-type="aff" rid="aff-2"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Dublin Institute for Advanced Studies,
+Ireland</institution>
+</institution-wrap>
+</aff>
+<aff id="aff-2">
+<institution-wrap>
+<institution>Trinity College Dublin, Ireland</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<author-notes>
+<corresp id="cor-1">* E-mail: <email></email></corresp>
+</author-notes>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2023-04-28">
+<day>28</day>
+<month>4</month>
+<year>2023</year>
+</pub-date>
+<volume>9</volume>
+<issue>96</issue>
+<fpage>5517</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2022</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>C</kwd>
+<kwd>LOFAR</kwd>
+<kwd>Radio Astronomy</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p>International LOFAR stations are powerful radio telescopes, however
+  they are delivered without the tooling necessary to convert their raw
+  data stream into standard data formats that can be used by common
+  processing pipelines, or science-ready data products.</p>
+  <p><monospace>udpPacketManager</monospace> is a
+  <monospace>C</monospace> and <monospace>C++</monospace> library that
+  was developed with the intent of providing a faster-than-realtime
+  software package for converting raw data into arbitrary data formats
+  based on the needs of observers working with the Irish LOFAR station
+  (I-LOFAR), and stations across Europe. It currently offers an
+  open-source solution for both offline and online (pre-)processing of
+  telescope data into a wide variety of formats.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p>International LOFAR stations
+  (<xref alt="van Haarlem et al., 2013" rid="ref-vanhaarlemLOFAR" ref-type="bibr">van
+  Haarlem et al., 2013</xref>) produce a 3 Gbps stream of UDP packets,
+  split across 4 separate ports. Each packet contains a standard header
+  with basic time and telescope hardware information, typically followed
+  by 7808 bytes of time-major beamformed voltage data, with 2 complex
+  samples per antenna polarisation, for 16 time samples across a
+  variable number of frequency samples
+  (<xref alt="Virtanen, 2018" rid="ref-cookbook" ref-type="bibr">Virtanen,
+  2018</xref>, Table 6). In order to convert these data into a usable
+  format, the 4 ports must be combined, data integrity issues (such as
+  packet loss) must be identified and mitigated, and the beamformed
+  samples must be unpacked and reordered following a set specification
+  in order to be processed efficiently.</p>
+  <p>Previous work in this regard includes the LOFAR und MPIfR Pulsare
+  (<monospace>LuMP</monospace>) Software
+  (<xref alt="Anderson, 2013" rid="ref-andersonLuMP" ref-type="bibr">Anderson,
+  2013</xref>), an open-source recorder that saves data to a
+  PUMA2-derived data format that can be parsed using the DSPSR
+  (<xref alt="van Straten &amp; Bailes, 2011" rid="ref-dspsr" ref-type="bibr">van
+  Straten &amp; Bailes, 2011</xref>) ecosystem, and the ARTEMIS system
+  (<xref alt="Serylak et al., 2012" rid="ref-artemis" ref-type="bibr">Serylak
+  et al., 2012</xref>), a hardware-software package for online transient
+  observations derived from the source-available
+  <monospace>PELICAN</monospace> LOFAR backend
+  (<xref alt="Mort et al., 2021" rid="ref-pelican" ref-type="bibr">Mort
+  et al., 2021</xref>). These were found not to be sufficiently flexible
+  to account for peculiar ways of utilising the telescope hardware, such
+  as supporting multi-mode observations
+  (<xref alt="McKay-Bukowski, 2013" rid="ref-mckb357" ref-type="bibr">McKay-Bukowski,
+  2013</xref>), nor work within some constraints of the REALTA compute
+  cluster
+  (<xref alt="Murphy et al., 2021" rid="ref-realta" ref-type="bibr">Murphy
+  et al., 2021</xref>). Consequently,
+  <monospace>udpPacketManager</monospace> was built to better facilitate
+  observations with the telescope.</p>
+  <p>The software has supported ongoing observations of the Sun, Pulsars
+  and Rotating Radio Transients
+  (<xref alt="McKenna et al., 2023" rid="ref-mckennaRRAT" ref-type="bibr">McKenna
+  et al., 2023</xref>;
+  <xref alt="Murphy et al., 2021" rid="ref-realta" ref-type="bibr">Murphy
+  et al., 2021</xref>) in Ireland since early 2020, alongside multi-site
+  work with Breakthrough Listen in the search for extraterrestrial life
+  (SETI) in coordination with the Swedish LOFAR station at Onsala since
+  2021
+  (<xref alt="Johnson et al., in prep." rid="ref-johnsonSETI" ref-type="bibr">Johnson
+  et al., in prep.</xref>) and observations of Jupiter in coordination
+  with the French LOFAR station and one of the German LOFAR stations, at
+  Postdam, in 2022
+  (<xref alt="Louis et al., 2022" rid="ref-louisJupiter" ref-type="bibr">Louis
+  et al., 2022</xref>).</p>
+</sec>
+<sec id="inputs-outputs-and-metadata">
+  <title>Inputs, Outputs and Metadata</title>
+  <p><monospace>udpPacketManager</monospace> contains a flexible
+  interface for handling multiple different data sources and sinks in a
+  semi-transparent manner, allowing for data to be read and written out
+  through normal files, FIFO named pipes,
+  <monospace>zstandard</monospace>
+  (<xref alt="Collet &amp; Kucherawy, 2021" rid="ref-zstd" ref-type="bibr">Collet
+  &amp; Kucherawy, 2021</xref>) compressed files (which allow for a
+  greater than two times space-saving when handling raw voltages from
+  LOFAR stations), <monospace>PSRDADA</monospace> ringbuffers for online
+  processing
+  (<xref alt="van Straten et al., 2021" rid="ref-psrdada" ref-type="bibr">van
+  Straten et al., 2021</xref>), and write-only to
+  <monospace>HDF5</monospace> files that conform to LOFAR ICD003
+  (<xref alt="Alexov et al., 2012" rid="ref-icd003" ref-type="bibr">Alexov
+  et al., 2012</xref>). These interfaces were also used to create the
+  associated <monospace>ILTDada</monospace> project
+  (<xref alt="McKenna, 2023" rid="ref-iltdada" ref-type="bibr">McKenna,
+  2023</xref>), a UDP packet capture software that writes data to a
+  <monospace>PSRDADA</monospace> ringbuffer for immediate processing
+  with this software.</p>
+  <p>Given that the header attached to the data itself contains minimal
+  metadata outside the start time of the data block, metadata is parsed
+  from an associated file that contains one or more commands to control
+  the telescope (<monospace>beamctl</monospace>,
+  <xref alt="Virtanen, 2018" rid="ref-cookbook" ref-type="bibr">Virtanen,
+  2018</xref>, Appendix A.2) and minimal other metadata, such as
+  observer and project identifiers. This is then processed to generate a
+  chosen output header, which can follow the
+  <monospace>GUPPI RAW</monospace>
+  (<xref alt="Lebofsky et al., 2019" rid="ref-guppi" ref-type="bibr">Lebofsky
+  et al., 2019</xref>), <monospace>SIGPROC</monospace>
+  (<xref alt="Lorimer, 2011" rid="ref-sigproc" ref-type="bibr">Lorimer,
+  2011</xref>), <monospace>PSRDADA</monospace>, or ICD003
+  specifications.</p>
+  <p>The library can reform the data to a number of output formats. For
+  raw voltages outputs, standard time-major and beamlet-major orders,
+  which can also be additionally split by antenna polarisation and
+  complex sample components are available. Partial or full Stokes
+  parameters are also generated in similar formats, with temporal
+  downsampling up to a factor of 16 available in the library itself. All
+  of these outputs can be calibrated to correct for interferometric beam
+  issues by applying, or generating for external use, Jones matrices
+  generated by <monospace>dreamBeam</monospace>
+  (<xref alt="Carozzi, 2016-" rid="ref-dreamBeam" ref-type="bibr">Carozzi,
+  2016-</xref>).</p>
+  <p>Two command-line-interfaces are provided alongside the library. The
+  first, <monospace>lofar_udp_extractor</monospace>, offers an easy
+  interface for accessing the normal functionality of the library for
+  observers, while the second,
+  <monospace>lofar_stokes_extractor</monospace>, utilises the output
+  voltages to perform additional processing for science-ready outputs,
+  such as channelisation of Stokes parameters through the
+  <monospace>FFTW</monospace> library
+  (<xref alt="Frigo &amp; Johnson, 2005" rid="ref-fftw" ref-type="bibr">Frigo
+  &amp; Johnson, 2005</xref>) and additional temporal downsampling
+  beyond the library’s factor of 16 limit. Both of these interfaces act
+  further act as examples of how to further utilise the library and its
+  outputs.</p>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>DMcK is receiving funding from the Irish Research Council’s
+  Government of Ireland Postgraduate Scholarship Program
+  (GOIPG/2019/2798). The Irish LOFAR Consortium is supported by funding
+  from Science Foundation Ireland and the Department of Further and
+  Higher Education, Research, Innovation and Science. The compute
+  servers of REALTA used for development of this software were funded by
+  Science Foundation Ireland.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <ref id="ref-andersonLuMP">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Anderson</surname><given-names>J. M.</given-names></name>
+      </person-group>
+      <article-title>LOFAR und MPIfR Pulsare</article-title>
+      <year iso-8601-date="2013">2013</year>
+      <uri>https://deki.mpifr-bonn.mpg.de/Cooperations/LOFAR/Software/LuMP/LuMP_version_2.0</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-artemis">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Serylak</surname><given-names>Maciej</given-names></name>
+        <name><surname>Karastergiou</surname><given-names>Aris</given-names></name>
+        <name><surname>Williams</surname><given-names>Chris</given-names></name>
+        <name><surname>Armour</surname><given-names>Wesley</given-names></name>
+        <name><surname>Giles</surname><given-names>Michael</given-names></name>
+        <name><surname>Group</surname><given-names>the LOFAR Pulsar Working</given-names></name>
+      </person-group>
+      <article-title>Observations of transients and pulsars with LOFAR international stations and the ARTEMIS backend</article-title>
+      <source>Proceedings of the International Astronomical Union</source>
+      <year iso-8601-date="2012-08">2012</year><month>08</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2023-04-27">2023</year><month>04</month><day>27</day></date-in-citation>
+      <volume>8</volume>
+      <issue>S291</issue>
+      <issn>1743-9213</issn>
+      <uri>https://arxiv.org/abs/1210.4318</uri>
+      <pub-id pub-id-type="doi">10.1017/S1743921312024623</pub-id>
+      <fpage>492</fpage>
+      <lpage>494</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-cookbook">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Virtanen</surname><given-names>I. I.</given-names></name>
+      </person-group>
+      <article-title>Station Data Cookbook</article-title>
+      <year iso-8601-date="2018">2018</year>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2021-02-26">2021</year><month>02</month><day>26</day></date-in-citation>
+      <uri>https://lofar.ie/wp-content/uploads/2018/03/station_data_cookbook_v1.2.pdf</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-dreamBeam">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Carozzi</surname><given-names>T. D.</given-names></name>
+      </person-group>
+      <article-title>dreamBeam</article-title>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2023-04-27">2023</year><month>04</month><day>27</day></date-in-citation>
+      <uri>https://github.com/2baOrNot2ba/dreamBeam</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-dspsr">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>van Straten</surname><given-names>Willem</given-names></name>
+        <name><surname>Bailes</surname><given-names>M.</given-names></name>
+      </person-group>
+      <article-title>DSPSR: Digital Signal Processing Software for Pulsar Astronomy</article-title>
+      <source>Publications of the Astronomical Society of Australia</source>
+      <year iso-8601-date="2011-01">2011</year><month>01</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2021-02-26">2021</year><month>02</month><day>26</day></date-in-citation>
+      <volume>28</volume>
+      <issn>1323-3580</issn>
+      <pub-id pub-id-type="doi">10.1071/AS10021</pub-id>
+      <fpage>1</fpage>
+      <lpage>14</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-fftw">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Frigo</surname><given-names>M.</given-names></name>
+        <name><surname>Johnson</surname><given-names>S. G.</given-names></name>
+      </person-group>
+      <article-title>The Design and Implementation of FFTW3</article-title>
+      <source>Proceedings of the IEEE</source>
+      <year iso-8601-date="2005-02">2005</year><month>02</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2023-04-27">2023</year><month>04</month><day>27</day></date-in-citation>
+      <volume>93</volume>
+      <issue>2</issue>
+      <issn>0018-9219</issn>
+      <pub-id pub-id-type="doi">10.1109/JPROC.2004.840301</pub-id>
+      <fpage>216</fpage>
+      <lpage>231</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-guppi">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Lebofsky</surname><given-names>Matthew</given-names></name>
+        <name><surname>Croft</surname><given-names>Steve</given-names></name>
+        <name><surname>Siemion</surname><given-names>Andrew P. V.</given-names></name>
+        <name><surname>Price</surname><given-names>Danny C.</given-names></name>
+        <name><surname>Enriquez</surname><given-names>J. Emilio</given-names></name>
+        <name><surname>Isaacson</surname><given-names>Howard</given-names></name>
+        <name><surname>MacMahon</surname><given-names>David H. E.</given-names></name>
+        <name><surname>Anderson</surname><given-names>David</given-names></name>
+        <name><surname>Brzycki</surname><given-names>Bryan</given-names></name>
+        <name><surname>Cobb</surname><given-names>Jeff</given-names></name>
+        <name><surname>Czech</surname><given-names>Daniel</given-names></name>
+        <name><surname>DeBoer</surname><given-names>David</given-names></name>
+        <name><surname>DeMarines</surname><given-names>Julia</given-names></name>
+        <name><surname>Drew</surname><given-names>Jamie</given-names></name>
+        <name><surname>Foster</surname><given-names>Griffin</given-names></name>
+        <name><surname>Gajjar</surname><given-names>Vishal</given-names></name>
+        <name><surname>Gizani</surname><given-names>Nectaria</given-names></name>
+        <name><surname>Hellbourg</surname><given-names>Greg</given-names></name>
+        <name><surname>Korpela</surname><given-names>Eric J.</given-names></name>
+        <name><surname>Lacki</surname><given-names>Brian</given-names></name>
+        <name><surname>Sheikh</surname><given-names>Sofia</given-names></name>
+        <name><surname>Werthimer</surname><given-names>Dan</given-names></name>
+        <name><surname>Worden</surname><given-names>Pete</given-names></name>
+        <name><surname>Yu</surname><given-names>Alex</given-names></name>
+        <name><surname>Zhang</surname><given-names>Yunfan Gerry</given-names></name>
+      </person-group>
+      <article-title>The Breakthrough Listen Search for Intelligent Life: Public Data, Formats, Reduction, and Archiving</article-title>
+      <source>Publications of the Astronomical Society of the Pacific</source>
+      <year iso-8601-date="2019-12">2019</year><month>12</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2023-04-27">2023</year><month>04</month><day>27</day></date-in-citation>
+      <volume>131</volume>
+      <issue>1006</issue>
+      <issn>0004-6280</issn>
+      <pub-id pub-id-type="doi">10.1088/1538-3873/ab3e82</pub-id>
+      <fpage>124505</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-icd003">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Alexov</surname><given-names>A.‘</given-names></name>
+        <name><surname>Anderson</surname><given-names>K.</given-names></name>
+        <name><surname>Bahren</surname><given-names>L.</given-names></name>
+        <name><surname>Grießmeier</surname><given-names>J-M</given-names></name>
+        <name><surname>Hessels</surname><given-names>J. W. T</given-names></name>
+        <name><surname>Masters</surname><given-names>J. S</given-names></name>
+        <name><surname>Stappers</surname><given-names>B. W.</given-names></name>
+      </person-group>
+      <article-title>LOFAR Data Format ICD Beam-Formed Data</article-title>
+      <year iso-8601-date="2012">2012</year>
+      <uri>https://www.astron.nl/lofarwiki/lib/exe/fetch.php?media=public:documents:lofar-usg-icd-003.pdf</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-iltdada">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>McKenna</surname><given-names>D. J.</given-names></name>
+      </person-group>
+      <article-title>David-McKenna/ILTDada: V0.1.0-dev</article-title>
+      <publisher-name>Zenodo</publisher-name>
+      <year iso-8601-date="2023-04">2023</year><month>04</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2023-04-27">2023</year><month>04</month><day>27</day></date-in-citation>
+      <pub-id pub-id-type="doi">10.5281/ZENODO.7871665</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-johnsonSETI">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Johnson</surname><given-names>O. A.</given-names></name>
+        <name><surname>Gajjar</surname><given-names>Vishal</given-names></name>
+        <name><surname>Keane</surname><given-names>Evan F.</given-names></name>
+        <name><surname>Giese</surname><given-names>Charles</given-names></name>
+        <name><surname>McKenna</surname><given-names>David</given-names></name>
+        <name><surname>McKeon</surname><given-names>Ben</given-names></name>
+        <name><surname>Carozzi</surname><given-names>Tobia D.</given-names></name>
+        <name><surname>Alcaria</surname><given-names>Cloe</given-names></name>
+        <name><surname>Brennan</surname><given-names>Aoife</given-names></name>
+        <name><surname>Gallagher</surname><given-names>Peter T.</given-names></name>
+        <name><surname>McCauley</surname><given-names>J.</given-names></name>
+        <name><surname>MacMahon</surname><given-names>David</given-names></name>
+        <name><surname>Lebofsky</surname><given-names>Matt</given-names></name>
+        <name><surname>Raeside</surname><given-names>Shauna Rose</given-names></name>
+        <name><surname>Croft</surname><given-names>Steve</given-names></name>
+        <name><surname>Siemion</surname><given-names>Andrew P. V.</given-names></name>
+      </person-group>
+      <article-title>Simultaneous dual-site SETI with LOFAR international stations</article-title>
+    </element-citation>
+  </ref>
+  <ref id="ref-louisJupiter">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Louis</surname><given-names>Corentin K</given-names></name>
+        <name><surname>Jackman</surname><given-names>C M</given-names></name>
+        <name><surname>Grießmeier</surname><given-names>J-M</given-names></name>
+        <name><surname>Wucknitz</surname><given-names>O</given-names></name>
+        <name><surname>McKenna</surname><given-names>D J</given-names></name>
+        <name><surname>Murphy</surname><given-names>P C</given-names></name>
+        <name><surname>Gallagher</surname><given-names>P T</given-names></name>
+        <name><surname>Carley</surname><given-names>E P</given-names></name>
+        <name><surname>Ó Fionnagáin</surname><given-names>D</given-names></name>
+        <name><surname>Golden</surname><given-names>A</given-names></name>
+        <name><surname>McCauley</surname><given-names>J</given-names></name>
+        <name><surname>Callanan</surname><given-names>P</given-names></name>
+        <name><surname>Redman</surname><given-names>M</given-names></name>
+        <name><surname>Vocks</surname><given-names>C</given-names></name>
+      </person-group>
+      <article-title>Method to observe Jupiter’s radio emissions at high resolution using multiple LOFAR stations: A first case study of the Io-decametric emission using the Irish IE613, French FR606, and German DE604 stations</article-title>
+      <source>RAS Techniques and Instruments</source>
+      <year iso-8601-date="2022-05">2022</year><month>05</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2023-04-27">2023</year><month>04</month><day>27</day></date-in-citation>
+      <volume>1</volume>
+      <issue>1</issue>
+      <issn>2752-8200</issn>
+      <pub-id pub-id-type="doi">10.1093/rasti/rzac005</pub-id>
+      <fpage>48</fpage>
+      <lpage>57</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-mckb357">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>McKay-Bukowski</surname><given-names>D.</given-names></name>
+      </person-group>
+      <article-title>Making Observations with Mode-357</article-title>
+      <publisher-name>https://www.lofar-uk.org/wiki/uploads/Main/kaira_mode357_obs210413.pdf</publisher-name>
+      <year iso-8601-date="2013">2013</year>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2023-04-27">2023</year><month>04</month><day>27</day></date-in-citation>
+      <uri>https://www.lofar-uk.org/wiki/uploads/Main/kaira_mode357_obs210413.pdf</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-mckennaRRAT">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>McKenna</surname><given-names>D. J.</given-names></name>
+        <name><surname>Keane</surname><given-names>E. F.</given-names></name>
+        <name><surname>Gallagher</surname><given-names>P. T.</given-names></name>
+        <name><surname>McCauley</surname><given-names>J.</given-names></name>
+      </person-group>
+      <article-title>A Census of Rotating Radio Transients at 150 MHz with the Irish LOFAR Station</article-title>
+      <publisher-name>arXiv</publisher-name>
+      <year iso-8601-date="2023">2023</year>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2023-04-27">2023</year><month>04</month><day>27</day></date-in-citation>
+      <pub-id pub-id-type="doi">10.48550/ARXIV.2302.12661</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-pelican">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Mort</surname><given-names>B.</given-names></name>
+        <name><surname>Dulwich</surname><given-names>F.</given-names></name>
+        <name><surname>Williams</surname><given-names>C.</given-names></name>
+        <name><surname>Salvini</surname><given-names>S.</given-names></name>
+        <name><surname>Chennamangalam</surname><given-names>J.</given-names></name>
+        <name><surname>Karastergiou</surname><given-names>A.</given-names></name>
+        <name><surname>Magro</surname><given-names>A.</given-names></name>
+        <name><surname>Baehren</surname><given-names>L.</given-names></name>
+      </person-group>
+      <article-title>Pelican/pelican-lofar</article-title>
+      <year iso-8601-date="2021-09">2021</year><month>09</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2023-04-27">2023</year><month>04</month><day>27</day></date-in-citation>
+    </element-citation>
+  </ref>
+  <ref id="ref-psrdada">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>van Straten</surname><given-names>Willem</given-names></name>
+        <name><surname>Jameson</surname><given-names>Andrew</given-names></name>
+        <name><surname>Osłowski</surname><given-names>Stefan</given-names></name>
+      </person-group>
+      <article-title>PSRDADA: Distributed Acquisition and Data Analysis for Radio Astronomy</article-title>
+      <source>Astrophysics Source Code Library</source>
+      <year iso-8601-date="2021-10">2021</year><month>10</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2023-04-27">2023</year><month>04</month><day>27</day></date-in-citation>
+      <fpage>ascl:2110.003</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-realta">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Murphy</surname><given-names>P. C.</given-names></name>
+        <name><surname>Callanan</surname><given-names>P.</given-names></name>
+        <name><surname>McCauley</surname><given-names>J.</given-names></name>
+        <name><surname>Gallagher</surname><given-names>P. T.</given-names></name>
+        <name><surname>Redman</surname><given-names>M. P.</given-names></name>
+        <name><surname>McKenna</surname><given-names>D. J.</given-names></name>
+        <name><surname>Al</surname><given-names>Et</given-names></name>
+      </person-group>
+      <article-title>First Results from the REALtime Transient Acquisition (REALTA) backend at the Irish LOFAR station</article-title>
+      <source>Astronomy &amp; Astrophysics</source>
+      <publisher-name>EDP Sciences</publisher-name>
+      <year iso-8601-date="2021-08">2021</year><month>08</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2021-10-14">2021</year><month>10</month><day>14</day></date-in-citation>
+      <issn>0004-6361</issn>
+      <pub-id pub-id-type="doi">10.1051/0004-6361/202140415</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-sigproc">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Lorimer</surname><given-names>D. R.</given-names></name>
+      </person-group>
+      <article-title>SIGPROC: Pulsar Signal Processing Programs</article-title>
+      <source>Astrophysics Source Code Library</source>
+      <year iso-8601-date="2011-07">2011</year><month>07</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2021-02-26">2021</year><month>02</month><day>26</day></date-in-citation>
+      <fpage>ascl:1107.016</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-vanhaarlemLOFAR">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>van Haarlem</surname><given-names>M. P.</given-names></name>
+        <name><surname>Wise</surname><given-names>M. W.</given-names></name>
+        <name><surname>Gunst</surname><given-names>A. W.</given-names></name>
+        <name><surname>Heald</surname><given-names>G.</given-names></name>
+        <name><surname>McKean</surname><given-names>J. P.</given-names></name>
+        <name><surname>Hessels</surname><given-names>J. W. T.</given-names></name>
+        <name><surname>de Bruyn</surname><given-names>A. G.</given-names></name>
+        <name><surname>Nijboer</surname><given-names>R.</given-names></name>
+        <name><surname>Swinbank</surname><given-names>J.</given-names></name>
+        <name><surname>Fallows</surname><given-names>R.</given-names></name>
+        <name><surname>Brentjens</surname><given-names>M.</given-names></name>
+        <name><surname>Nelles</surname><given-names>A.</given-names></name>
+        <name><surname>Beck</surname><given-names>R.</given-names></name>
+        <name><surname>Falcke</surname><given-names>H.</given-names></name>
+        <name><surname>Fender</surname><given-names>R.</given-names></name>
+        <name><surname>Hörandel</surname><given-names>J.</given-names></name>
+        <name><surname>Koopmans</surname><given-names>L. V. E.</given-names></name>
+        <name><surname>Mann</surname><given-names>G.</given-names></name>
+        <name><surname>Miley</surname><given-names>G.</given-names></name>
+        <name><surname>Röttgering</surname><given-names>H.</given-names></name>
+        <name><surname>Stappers</surname><given-names>B. W.</given-names></name>
+        <name><surname>Wijers</surname><given-names>R. A. M. J.</given-names></name>
+        <name><surname>Zaroubi</surname><given-names>S.</given-names></name>
+        <name><surname>Akker</surname><given-names>M. van den</given-names></name>
+        <name><surname>Alexov</surname><given-names>A.</given-names></name>
+        <name><surname>Anderson</surname><given-names>J.</given-names></name>
+        <name><surname>Anderson</surname><given-names>K.</given-names></name>
+        <name><surname>van Ardenne</surname><given-names>A.</given-names></name>
+        <name><surname>Arts</surname><given-names>M.</given-names></name>
+        <name><surname>Asgekar</surname><given-names>A.</given-names></name>
+        <name><surname>Avruch</surname><given-names>I. M.</given-names></name>
+        <name><surname>Batejat</surname><given-names>F.</given-names></name>
+        <name><surname>Bähren</surname><given-names>L.</given-names></name>
+        <name><surname>Bell</surname><given-names>M. E.</given-names></name>
+        <name><surname>Bell</surname><given-names>M. R.</given-names></name>
+        <name><surname>van Bemmel</surname><given-names>I.</given-names></name>
+        <name><surname>Bennema</surname><given-names>P.</given-names></name>
+        <name><surname>Bentum</surname><given-names>M. J.</given-names></name>
+        <name><surname>Bernardi</surname><given-names>G.</given-names></name>
+        <name><surname>Best</surname><given-names>P.</given-names></name>
+        <name><surname>Bîrzan</surname><given-names>L.</given-names></name>
+        <name><surname>Bonafede</surname><given-names>A.</given-names></name>
+        <name><surname>Boonstra</surname><given-names>A.-J.</given-names></name>
+        <name><surname>Braun</surname><given-names>R.</given-names></name>
+        <name><surname>Bregman</surname><given-names>J.</given-names></name>
+        <name><surname>Breitling</surname><given-names>F.</given-names></name>
+        <name><surname>van de Brink</surname><given-names>R. H.</given-names></name>
+        <name><surname>Broderick</surname><given-names>J.</given-names></name>
+        <name><surname>Broekema</surname><given-names>P. C.</given-names></name>
+        <name><surname>Brouw</surname><given-names>W. N.</given-names></name>
+        <name><surname>Brüggen</surname><given-names>M.</given-names></name>
+        <name><surname>Butcher</surname><given-names>H. R.</given-names></name>
+        <name><surname>van Cappellen</surname><given-names>W.</given-names></name>
+        <name><surname>Ciardi</surname><given-names>B.</given-names></name>
+        <name><surname>Coenen</surname><given-names>T.</given-names></name>
+        <name><surname>Conway</surname><given-names>J.</given-names></name>
+        <name><surname>Coolen</surname><given-names>A.</given-names></name>
+        <name><surname>Corstanje</surname><given-names>A.</given-names></name>
+        <name><surname>Damstra</surname><given-names>S.</given-names></name>
+        <name><surname>Davies</surname><given-names>O.</given-names></name>
+        <name><surname>Deller</surname><given-names>A. T.</given-names></name>
+        <name><surname>Dettmar</surname><given-names>R.-J.</given-names></name>
+        <name><surname>van Diepen</surname><given-names>G.</given-names></name>
+        <name><surname>Dijkstra</surname><given-names>K.</given-names></name>
+        <name><surname>Donker</surname><given-names>P.</given-names></name>
+        <name><surname>Doorduin</surname><given-names>A.</given-names></name>
+        <name><surname>Dromer</surname><given-names>J.</given-names></name>
+        <name><surname>Drost</surname><given-names>M.</given-names></name>
+        <name><surname>van Duin</surname><given-names>A.</given-names></name>
+        <name><surname>Eislöffel</surname><given-names>J.</given-names></name>
+        <name><surname>van Enst</surname><given-names>J.</given-names></name>
+        <name><surname>Ferrari</surname><given-names>C.</given-names></name>
+        <name><surname>Frieswijk</surname><given-names>W.</given-names></name>
+        <name><surname>Gankema</surname><given-names>H.</given-names></name>
+        <name><surname>Garrett</surname><given-names>M. A.</given-names></name>
+        <name><surname>de Gasperin</surname><given-names>F.</given-names></name>
+        <name><surname>Gerbers</surname><given-names>M.</given-names></name>
+        <name><surname>de Geus</surname><given-names>E.</given-names></name>
+        <name><surname>Grießmeier</surname><given-names>J.-M.</given-names></name>
+        <name><surname>Grit</surname><given-names>T.</given-names></name>
+        <name><surname>Gruppen</surname><given-names>P.</given-names></name>
+        <name><surname>Hamaker</surname><given-names>J. P.</given-names></name>
+        <name><surname>Hassall</surname><given-names>T.</given-names></name>
+        <name><surname>Hoeft</surname><given-names>M.</given-names></name>
+        <name><surname>Holties</surname><given-names>H.</given-names></name>
+        <name><surname>Horneffer</surname><given-names>A.</given-names></name>
+        <name><surname>van der Horst</surname><given-names>A.</given-names></name>
+        <name><surname>van Houwelingen</surname><given-names>A.</given-names></name>
+        <name><surname>Huijgen</surname><given-names>A.</given-names></name>
+        <name><surname>Iacobelli</surname><given-names>M.</given-names></name>
+        <name><surname>Intema</surname><given-names>H.</given-names></name>
+        <name><surname>Jackson</surname><given-names>N.</given-names></name>
+        <name><surname>Jelic</surname><given-names>V.</given-names></name>
+        <name><surname>de Jong</surname><given-names>A.</given-names></name>
+        <name><surname>Juette</surname><given-names>E.</given-names></name>
+        <name><surname>Kant</surname><given-names>D.</given-names></name>
+        <name><surname>Karastergiou</surname><given-names>A.</given-names></name>
+        <name><surname>Koers</surname><given-names>A.</given-names></name>
+        <name><surname>Kollen</surname><given-names>H.</given-names></name>
+        <name><surname>Kondratiev</surname><given-names>V. I.</given-names></name>
+        <name><surname>Kooistra</surname><given-names>E.</given-names></name>
+        <name><surname>Koopman</surname><given-names>Y.</given-names></name>
+        <name><surname>Koster</surname><given-names>A.</given-names></name>
+        <name><surname>Kuniyoshi</surname><given-names>M.</given-names></name>
+        <name><surname>Kramer</surname><given-names>M.</given-names></name>
+        <name><surname>Kuper</surname><given-names>G.</given-names></name>
+        <name><surname>Lambropoulos</surname><given-names>P.</given-names></name>
+        <name><surname>Law</surname><given-names>C.</given-names></name>
+        <name><surname>van Leeuwen</surname><given-names>J.</given-names></name>
+        <name><surname>Lemaitre</surname><given-names>J.</given-names></name>
+        <name><surname>Loose</surname><given-names>M.</given-names></name>
+        <name><surname>Maat</surname><given-names>P.</given-names></name>
+        <name><surname>Macario</surname><given-names>G.</given-names></name>
+        <name><surname>Markoff</surname><given-names>S.</given-names></name>
+        <name><surname>Masters</surname><given-names>J.</given-names></name>
+        <name><surname>McKay-Bukowski</surname><given-names>D.</given-names></name>
+        <name><surname>Meijering</surname><given-names>H.</given-names></name>
+        <name><surname>Meulman</surname><given-names>H.</given-names></name>
+        <name><surname>Mevius</surname><given-names>M.</given-names></name>
+        <name><surname>Middelberg</surname><given-names>E.</given-names></name>
+        <name><surname>Millenaar</surname><given-names>R.</given-names></name>
+        <name><surname>Miller-Jones</surname><given-names>J. C. A.</given-names></name>
+        <name><surname>Mohan</surname><given-names>R. N.</given-names></name>
+        <name><surname>Mol</surname><given-names>J. D.</given-names></name>
+        <name><surname>Morawietz</surname><given-names>J.</given-names></name>
+        <name><surname>Morganti</surname><given-names>R.</given-names></name>
+        <name><surname>Mulcahy</surname><given-names>D. D.</given-names></name>
+        <name><surname>Mulder</surname><given-names>E.</given-names></name>
+        <name><surname>Munk</surname><given-names>H.</given-names></name>
+        <name><surname>Nieuwenhuis</surname><given-names>L.</given-names></name>
+        <name><surname>van Nieuwpoort</surname><given-names>R.</given-names></name>
+        <name><surname>Noordam</surname><given-names>J. E.</given-names></name>
+        <name><surname>Norden</surname><given-names>M.</given-names></name>
+        <name><surname>Noutsos</surname><given-names>A.</given-names></name>
+        <name><surname>Offringa</surname><given-names>A. R.</given-names></name>
+        <name><surname>Olofsson</surname><given-names>H.</given-names></name>
+        <name><surname>Omar</surname><given-names>A.</given-names></name>
+        <name><surname>Orrú</surname><given-names>E.</given-names></name>
+        <name><surname>Overeem</surname><given-names>R.</given-names></name>
+        <name><surname>Paas</surname><given-names>H.</given-names></name>
+        <name><surname>Pandey-Pommier</surname><given-names>M.</given-names></name>
+        <name><surname>Pandey</surname><given-names>V. N.</given-names></name>
+        <name><surname>Pizzo</surname><given-names>R.</given-names></name>
+        <name><surname>Polatidis</surname><given-names>A.</given-names></name>
+        <name><surname>Rafferty</surname><given-names>D.</given-names></name>
+        <name><surname>Rawlings</surname><given-names>S.</given-names></name>
+        <name><surname>Reich</surname><given-names>W.</given-names></name>
+        <name><surname>de Reijer</surname><given-names>J.-P.</given-names></name>
+        <name><surname>Reitsma</surname><given-names>J.</given-names></name>
+        <name><surname>Renting</surname><given-names>A.</given-names></name>
+        <name><surname>Riemers</surname><given-names>P.</given-names></name>
+        <name><surname>Rol</surname><given-names>E.</given-names></name>
+        <name><surname>Romein</surname><given-names>J. W.</given-names></name>
+        <name><surname>Roosjen</surname><given-names>J.</given-names></name>
+        <name><surname>Ruiter</surname><given-names>M.</given-names></name>
+        <name><surname>Scaife</surname><given-names>A.</given-names></name>
+        <name><surname>van der Schaaf</surname><given-names>K.</given-names></name>
+        <name><surname>Scheers</surname><given-names>B.</given-names></name>
+        <name><surname>Schellart</surname><given-names>P.</given-names></name>
+        <name><surname>Schoenmakers</surname><given-names>A.</given-names></name>
+        <name><surname>Schoonderbeek</surname><given-names>G.</given-names></name>
+        <name><surname>Serylak</surname><given-names>M.</given-names></name>
+        <name><surname>Shulevski</surname><given-names>A.</given-names></name>
+        <name><surname>Sluman</surname><given-names>J.</given-names></name>
+        <name><surname>Smirnov</surname><given-names>O.</given-names></name>
+        <name><surname>Sobey</surname><given-names>C.</given-names></name>
+        <name><surname>Spreeuw</surname><given-names>H.</given-names></name>
+        <name><surname>Steinmetz</surname><given-names>M.</given-names></name>
+        <name><surname>Sterks</surname><given-names>C. G. M.</given-names></name>
+        <name><surname>Stiepel</surname><given-names>H.-J.</given-names></name>
+        <name><surname>Stuurwold</surname><given-names>K.</given-names></name>
+        <name><surname>Tagger</surname><given-names>M.</given-names></name>
+        <name><surname>Tang</surname><given-names>Y.</given-names></name>
+        <name><surname>Tasse</surname><given-names>C.</given-names></name>
+        <name><surname>Thomas</surname><given-names>I.</given-names></name>
+        <name><surname>Thoudam</surname><given-names>S.</given-names></name>
+        <name><surname>Toribio</surname><given-names>M. C.</given-names></name>
+        <name><surname>van der Tol</surname><given-names>B.</given-names></name>
+        <name><surname>Usov</surname><given-names>O.</given-names></name>
+        <name><surname>van Veelen</surname><given-names>M.</given-names></name>
+        <name><surname>van der Veen</surname><given-names>A.-J.</given-names></name>
+        <name><surname>ter Veen</surname><given-names>S.</given-names></name>
+        <name><surname>Verbiest</surname><given-names>J. P. W.</given-names></name>
+        <name><surname>Vermeulen</surname><given-names>R.</given-names></name>
+        <name><surname>Vermaas</surname><given-names>N.</given-names></name>
+        <name><surname>Vocks</surname><given-names>C.</given-names></name>
+        <name><surname>Vogt</surname><given-names>C.</given-names></name>
+        <name><surname>de Vos</surname><given-names>M.</given-names></name>
+        <name><surname>van der Wal</surname><given-names>E.</given-names></name>
+        <name><surname>van Weeren</surname><given-names>R.</given-names></name>
+        <name><surname>Weggemans</surname><given-names>H.</given-names></name>
+        <name><surname>Weltevrede</surname><given-names>P.</given-names></name>
+        <name><surname>White</surname><given-names>S.</given-names></name>
+        <name><surname>Wijnholds</surname><given-names>S. J.</given-names></name>
+        <name><surname>Wilhelmsson</surname><given-names>T.</given-names></name>
+        <name><surname>Wucknitz</surname><given-names>O.</given-names></name>
+        <name><surname>Yatawatta</surname><given-names>S.</given-names></name>
+        <name><surname>Zarka</surname><given-names>P.</given-names></name>
+        <name><surname>Zensus</surname><given-names>A.</given-names></name>
+        <name><surname>van Zwieten</surname><given-names>J.</given-names></name>
+      </person-group>
+      <article-title>LOFAR: The LOw-Frequency ARray</article-title>
+      <source>Astronomy &amp; Astrophysics</source>
+      <year iso-8601-date="2013-08">2013</year><month>08</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2018-01-19">2018</year><month>01</month><day>19</day></date-in-citation>
+      <volume>556</volume>
+      <issn>0004-6361</issn>
+      <uri>https://arxiv.org/abs/1305.3550</uri>
+      <pub-id pub-id-type="doi">10.1051/0004-6361/201220873</pub-id>
+      <fpage>A2</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-zstd">
+    <element-citation publication-type="report">
+      <person-group person-group-type="author">
+        <name><surname>Collet</surname><given-names>Y.</given-names></name>
+        <name><surname>Kucherawy</surname><given-names>M.</given-names></name>
+      </person-group>
+      <article-title>Zstandard Compression and the ’application/zstd’ Media Type</article-title>
+      <publisher-name>RFC Editor</publisher-name>
+      <year iso-8601-date="2021-02">2021</year><month>02</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2023-04-27">2023</year><month>04</month><day>27</day></date-in-citation>
+      <pub-id pub-id-type="doi">10.17487/RFC8878</pub-id>
+      <fpage>RFC8878</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
