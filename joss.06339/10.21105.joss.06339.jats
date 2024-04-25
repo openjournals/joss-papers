@@ -1,0 +1,603 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">6339</article-id>
+<article-id pub-id-type="doi">10.21105/joss.06339</article-id>
+<title-group>
+<article-title>EllipticForest: A Direct Solver Library for Elliptic
+Partial Differential Equations on Adaptive Meshes</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author" corresp="yes">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0001-6600-3720</contrib-id>
+<name>
+<surname>Chipman</surname>
+<given-names>Damyn</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+<xref ref-type="corresp" rid="cor-1"><sup>*</sup></xref>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Boise State University, USA</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<author-notes>
+<corresp id="cor-1">* E-mail: <email></email></corresp>
+</author-notes>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2024-01-01">
+<day>1</day>
+<month>1</month>
+<year>2024</year>
+</pub-date>
+<volume>9</volume>
+<issue>96</issue>
+<fpage>6339</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2022</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>C++</kwd>
+<kwd>numerical linear algebra</kwd>
+<kwd>partial differential equations</kwd>
+<kwd>adaptive mesh refinement</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p>EllipticForest is a software library with utilities to solve
+  elliptic partial differential equations (PDEs) with adaptive mesh
+  refinement (AMR) using a direct matrix factorization. It implements a
+  quadtree-adaptive variation of the Hierarchical Poincaré-Steklov (HPS)
+  method
+  (<xref alt="A. Gillman &amp; Martinsson, 2014" rid="ref-gillman2014direct" ref-type="bibr">A.
+  Gillman &amp; Martinsson, 2014</xref>). The HPS method is a direct
+  method for solving elliptic PDEs based on the recursive merging of
+  Poincaré-Steklov operators
+  (<xref alt="Quarteroni &amp; Valli, 1991" rid="ref-quarteroni1991theory" ref-type="bibr">Quarteroni
+  &amp; Valli, 1991</xref>). EllipticForest is built on top of the
+  parallel and highly efficient mesh library
+  <monospace>p4est</monospace>
+  (<xref alt="Burstedde et al., 2011" rid="ref-burstedde2011p4est" ref-type="bibr">Burstedde
+  et al., 2011</xref>) for mesh adaptivity and mesh management.
+  Distributed memory parallelism is implemented through the Message
+  Passing Interface (MPI)
+  (<xref alt="Message Passing Interface Forum, 2023" rid="ref-mpi41" ref-type="bibr">Message
+  Passing Interface Forum, 2023</xref>). EllipticForest wraps the fast,
+  cyclic-reduction methods found in the FISHPACK
+  (<xref alt="Swarztrauber et al., 1999" rid="ref-swarztrauber1999fishpack" ref-type="bibr">Swarztrauber
+  et al., 1999</xref>) library and updated in the FISHPACK90
+  (<xref alt="Adams et al., 2016" rid="ref-adams2016fishpack90" ref-type="bibr">Adams
+  et al., 2016</xref>) library at the lowest grid level (called leaf
+  patches). In addition, for more general elliptic problems,
+  EllipticForest wraps solvers from the PDE solver library PETSc
+  (<xref alt="Balay et al., 2024" rid="ref-anl2023petsc" ref-type="bibr">Balay
+  et al., 2024</xref>). The numerical methods used in EllipticForest are
+  detailed in
+  (<xref alt="Chipman et al., 2024" rid="ref-chipman2024fast" ref-type="bibr">Chipman
+  et al., 2024</xref>). A key feature of EllipticForest is the ability
+  for users to extend the solver interface classes to implement custom
+  solvers on leaf patches. EllipticForest is an implementation of the
+  HPS method to be used as a software library, either as a standalone to
+  solve elliptic PDEs or for coupling with other scientific libraries
+  for broader applications.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of Need</title>
+  <p>Elliptic PDEs arise in a wide-range of physics and engineering
+  applications, including fluid modeling, electromagnetism,
+  astrophysics, heat transfer, and more. Solving elliptic PDEs is often
+  one of the most computationally expensive steps in numerical
+  algorithms due to the need to solve large systems of equations.
+  Parallel algorithms are desirable in order solve larger systems at
+  scale on small to large computing clusters. Communication patterns for
+  elliptic solvers make implementing parallel solvers difficult due to
+  to the global nature of the underlying mathematics. In addition,
+  adaptive mesh refinement adds coarse-fine interfaces and more complex
+  meshes that make development and scalability difficult. The solvers
+  implemented in EllipticForest address these complexities through
+  proven numerical methods and efficient software implementations.</p>
+  <p>The general form of elliptic PDEs that EllipticForest is tailored
+  to solve is the following:</p>
+  <p><disp-formula><alternatives>
+  <tex-math><![CDATA[
+  \alpha(x,y) \nabla \cdot \Big[ \beta(x,y) \nabla u(x,y) \Big] + \lambda(x,y) u(x,y) = f(x,y)
+  ]]></tex-math>
+  <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>α</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>x</mml:mi><mml:mo>,</mml:mo><mml:mi>y</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mi>∇</mml:mi><mml:mo>⋅</mml:mo><mml:mo minsize="1.8" maxsize="1.8" stretchy="false" form="prefix">[</mml:mo><mml:mi>β</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>x</mml:mi><mml:mo>,</mml:mo><mml:mi>y</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mi>∇</mml:mi><mml:mi>u</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>x</mml:mi><mml:mo>,</mml:mo><mml:mi>y</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo minsize="1.8" maxsize="1.8" stretchy="false" form="postfix">]</mml:mo><mml:mo>+</mml:mo><mml:mi>λ</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>x</mml:mi><mml:mo>,</mml:mo><mml:mi>y</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mi>u</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>x</mml:mi><mml:mo>,</mml:mo><mml:mi>y</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>=</mml:mo><mml:mi>f</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>x</mml:mi><mml:mo>,</mml:mo><mml:mi>y</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></disp-formula></p>
+  <p>where <inline-formula><alternatives>
+  <tex-math><![CDATA[\alpha(x,y)]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>α</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>x</mml:mi><mml:mo>,</mml:mo><mml:mi>y</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>,
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[\beta(x,y)]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>β</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>x</mml:mi><mml:mo>,</mml:mo><mml:mi>y</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>,
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[\lambda(x,y)]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>λ</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>x</mml:mi><mml:mo>,</mml:mo><mml:mi>y</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>,
+  and <inline-formula><alternatives>
+  <tex-math><![CDATA[f(x,y)]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>f</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>x</mml:mi><mml:mo>,</mml:mo><mml:mi>y</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>
+  are known functions in <inline-formula><alternatives>
+  <tex-math><![CDATA[x]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>x</mml:mi></mml:math></alternatives></inline-formula>
+  and <inline-formula><alternatives>
+  <tex-math><![CDATA[y]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>y</mml:mi></mml:math></alternatives></inline-formula>
+  and the goal is to solve for <inline-formula><alternatives>
+  <tex-math><![CDATA[u(x,y)]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>u</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>x</mml:mi><mml:mo>,</mml:mo><mml:mi>y</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>.
+  Currently, EllipticForest solves the above problem in a rectangular
+  domain <inline-formula><alternatives>
+  <tex-math><![CDATA[\Omega = [x_L, x_U] \times [y_L, y_U]]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>Ω</mml:mi><mml:mo>=</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">[</mml:mo><mml:msub><mml:mi>x</mml:mi><mml:mi>L</mml:mi></mml:msub><mml:mo>,</mml:mo><mml:msub><mml:mi>x</mml:mi><mml:mi>U</mml:mi></mml:msub><mml:mo stretchy="true" form="postfix">]</mml:mo></mml:mrow><mml:mo>×</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">[</mml:mo><mml:msub><mml:mi>y</mml:mi><mml:mi>L</mml:mi></mml:msub><mml:mo>,</mml:mo><mml:msub><mml:mi>y</mml:mi><mml:mi>U</mml:mi></mml:msub><mml:mo stretchy="true" form="postfix">]</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>.
+  The above PDE is discretized using a finite-volume approach using a
+  standard five-point stencil yielding a second-order accurate solution.
+  This leads to a standard linear system of equations of the form</p>
+  <p><disp-formula><alternatives>
+  <tex-math><![CDATA[
+  \textbf{A} \textbf{u} = \textbf{f}
+  ]]></tex-math>
+  <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mtext mathvariant="bold">𝐀</mml:mtext><mml:mtext mathvariant="bold">𝐮</mml:mtext><mml:mo>=</mml:mo><mml:mtext mathvariant="bold">𝐟</mml:mtext></mml:mrow></mml:math></alternatives></disp-formula></p>
+  <p>which is solved via the HPS method, a direct matrix factorization
+  method.</p>
+  <p>Similar to other direct methods, the HPS method is comprised of two
+  stages: a build stage and a solve stage. In the build stage, a set of
+  solution operators are formed that act as the factorization of the
+  system matrix corresponding to the discretization stencil. This is
+  done with <inline-formula><alternatives>
+  <tex-math><![CDATA[\mathcal{O}(N^{3/2})]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>𝒪</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msup><mml:mi>N</mml:mi><mml:mrow><mml:mn>3</mml:mn><mml:mi>/</mml:mi><mml:mn>2</mml:mn></mml:mrow></mml:msup><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>
+  complexity, where <inline-formula><alternatives>
+  <tex-math><![CDATA[N]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>N</mml:mi></mml:math></alternatives></inline-formula>
+  is the size of the system matrix. In the solve stage, the
+  factorization is applied to boundary and non-homogeneous data to solve
+  for the solution vector with linear complexity
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[\mathcal{O}(N)]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>𝒪</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>N</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>.
+  The build and the solve stages are recursive applications of a merge
+  and a split algorithm, respectively. The advantages of this approach
+  over iterative methods such as conjugate gradient and multi-grid
+  methods include the ability to apply the factorization to multiple
+  right-hand side vectors.</p>
+  <p>In addition, another advantage of the quadtree-adaptive HPS method
+  as implemented in EllipticForest is the ability to adapt the matrix
+  factorization to a changing grid. When the mesh changes due to a
+  refining/coarsening criteria, traditional matrix factorizations must
+  be recomputed. The quadtree-adaptive HPS method can adapt the
+  factorization locally, eliminating the need to recompute the
+  factorization. This works as the HPS method builds a set of solution
+  operators that act like a global solution operator. When the mesh
+  changes, the set can be updated by locally applying the merging and
+  splitting algorithms. This is especially practical for implicit
+  time-dependent problems that require a full linear solve each time
+  step.</p>
+  <p>EllipticForest builds upon the <monospace>p4est</monospace> mesh
+  library
+  (<xref alt="Burstedde et al., 2011" rid="ref-burstedde2011p4est" ref-type="bibr">Burstedde
+  et al., 2011</xref>). The quadtree-adaptive HPS method is uniquely
+  suited for quadtree meshes. <monospace>p4est</monospace>, as a
+  parallel and highly efficient mesh library, provides routines for
+  creating, adapting, and iterating over quadtree meshes. The routines
+  in EllipticForest wrap or extend the capabilities in
+  <monospace>p4est</monospace>. A primary extension is the development
+  of a <italic>path-indexed</italic> quadtree. This is in contrast to
+  the <italic>leaf-indexed</italic> quadtree implemented in
+  <monospace>p4est</monospace>. A <italic>path-indexed</italic> quadtree
+  is a data structure that stores data at all nodes in a quadtree, as
+  opposed to just the leaf nodes (see
+  <xref alt="[fig:parallel_quadtree]" rid="figU003Aparallel_quadtree">[fig:parallel_quadtree]</xref>).
+  The <italic>path-indexed</italic> quadtree data structure is designed
+  to store the various data and operators required in the
+  quadtree-adaptive HPS method.</p>
+  <p>The novelty of EllipticForest as software is the implementation of
+  the HPS method for coupling with other scientific software as well as
+  user extension. Currently, other implementations of the HPS method are
+  MATLAB or Python codes designed by research groups and used in-house
+  for solving specific problems
+  (<xref alt="Fortunato et al., 2022" rid="ref-ultraSEM" ref-type="bibr">Fortunato
+  et al., 2022</xref>;
+  <xref alt="A. Gillman, 2023" rid="ref-HPS_Demos" ref-type="bibr">A.
+  Gillman, 2023</xref>;
+  <xref alt="Semenov, 2023" rid="ref-Streamer_HPS" ref-type="bibr">Semenov,
+  2023</xref>). EllipticForest is designed to be extended and coupled
+  with external libraries. This paper highlights the software details
+  including the user-friendly interface to the HPS method and the
+  ability for users to extend the solver interface using modern
+  object-oriented programming (OOP) paradigms.</p>
+</sec>
+<sec id="software-overview">
+  <title>Software Overview</title>
+  <p>Below, we outline various components of the software implemented in
+  EllipticForest. These classes and utilities allow the user to create
+  and refine meshes tailored for their use case, initialize the solver
+  for the elliptic PDE, and visualize the output solution. A user may
+  also extend the functionality of EllipticForest through inheritance of
+  the <monospace>Patch</monospace> classes for user-defined solvers at
+  the leaf level.</p>
+  <sec id="quadtree">
+    <title>Quadtree</title>
+    <p>The underlying data structure that encodes the mesh is a
+    path-indexed quadtree. The <monospace>Quadtree</monospace> object is
+    a class that implements a path-indexed quadtree using a
+    <monospace>NodeMap</monospace>, which is equivalent to
+    <monospace>std::map&lt;std::string, Node&lt;T&gt;*&gt;</monospace>.
+    The template parameter <monospace>T</monospace> refers to the type
+    of data that is stored on quadtree nodes. The
+    <monospace>Quadtree</monospace> implemented in EllipticForest wraps
+    the <monospace>p4est</monospace> leaf-indexed quadtree to create,
+    iterate, and operate on the path-indexed quadtree. Functions to
+    iterate over the quadtree include
+    <monospace>traversePreOrder</monospace>,
+    <monospace>traversePostOrder</monospace>,
+    <monospace>merge</monospace>, and <monospace>split</monospace>. The
+    <monospace>traversePreOrder</monospace> and
+    <monospace>traversePostOrder</monospace> functions iterate over the
+    tree in a pre- and post-order fashion, respectively, and provide the
+    user with access to the node or node data via a provided callback
+    function. The <monospace>merge</monospace> and
+    <monospace>split</monospace> functions iterate over the tree in a
+    post- and pre-order fashion, respectively, and provide the user with
+    access to a family of nodes, or a group of four siblings and their
+    parent node.</p>
+    <fig>
+      <caption><p>A path-indexed quadtree representation of a mesh.
+      Colors indicate which rank owns that node. The nodes colored by
+      gradient indicate they are owned by multiple
+      ranks.<styled-content id="figU003Aparallel_quadtree"></styled-content></p></caption>
+      <graphic mimetype="image" mime-subtype="png" xlink:href="media/assets/parallel_path_indexed_tree.png" />
+    </fig>
+  </sec>
+  <sec id="mesh">
+    <title>Mesh</title>
+    <p>The user interfaces with the domain discretization through the
+    <monospace>Mesh</monospace> class. The <monospace>Mesh</monospace>
+    class has an instance of the <monospace>Quadtree</monospace>
+    detailed above. <monospace>Mesh</monospace> provides functions to
+    iterate over patches or cells via
+    <monospace>iteratePatches</monospace> or
+    <monospace>iterateCells</monospace>.</p>
+    <p><monospace>Mesh</monospace> also provides the user with an
+    interface to the visualization features of EllipticForest. A user
+    may add mesh functions via <monospace>addMeshFunction</monospace>,
+    which are functions in <inline-formula><alternatives>
+    <tex-math><![CDATA[x]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>x</mml:mi></mml:math></alternatives></inline-formula>
+    and <inline-formula><alternatives>
+    <tex-math><![CDATA[y]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>y</mml:mi></mml:math></alternatives></inline-formula>
+    that are defined over the entire mesh. This can either be a
+    mathematical function <inline-formula><alternatives>
+    <tex-math><![CDATA[f(x,y)]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>f</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>x</mml:mi><mml:mo>,</mml:mo><mml:mi>y</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>
+    that is provided via a
+    <monospace>std::function&lt;double(double x, double y)&gt;</monospace>,
+    or as a <monospace>Vector&lt;double&gt;</monospace> that has the
+    value of <inline-formula><alternatives>
+    <tex-math><![CDATA[f(x,y)]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>f</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>x</mml:mi><mml:mo>,</mml:mo><mml:mi>y</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>
+    at each cell in the domain, ordered by patch and then by the
+    ordering of patch grid. Once a mesh function is added to the mesh,
+    the user may call <monospace>toVTK</monospace>, which writes the
+    mesh to a parallel, unstructured VTK file format. See the section
+    below on output and visualization for more information.</p>
+  </sec>
+  <sec id="patches">
+    <title>Patches</title>
+    <p>The fundamental building block of the mesh and quadtree
+    structures are the patches. A <monospace>Patch</monospace> is a
+    class that contains data matrices and vectors that store the
+    solution data and operators needed in the HPS method. A
+    <monospace>Patch</monospace> also has an instance of a
+    <monospace>PatchGrid</monospace> which represents the discretization
+    of the problem. Each node in the path-indexed quadtree stores a
+    pointer to a <monospace>Patch</monospace>.</p>
+    <p>In EllipticForest, the patch, patch grid, patch solver, and patch
+    node factory interfaces are implemented as a pure virtual interface
+    for the user to extend. Internally, EllipticForest uses these
+    interfaces to call the implemented solver or discretization. By
+    default, EllipticForest implements a 2nd-order, finite volume
+    discretization and solver. This implementation is found under
+    <monospace>src/Patches/FiniteVolume</monospace> and each class
+    therein implements the pure virtual interface of the
+    <monospace>Patch</monospace>, <monospace>PatchGrid</monospace>,
+    <monospace>PatchSolver</monospace>, and
+    <monospace>AbstractNodeFactory</monospace> classes. Users may use
+    the finite volume implementation shipped with EllipticForest, or
+    they may implement different solvers to be used in the HPS
+    method.</p>
+  </sec>
+  <sec id="hps-solver">
+    <title>HPS Solver</title>
+    <p>Once the mesh has been created and refined, and the patch solver
+    has been initialized, solving the elliptic problem on the input mesh
+    is done by creating an instance of the
+    <monospace>HPSAlgorithm</monospace> class. The
+    <monospace>HPSAlgorithm</monospace> class has member functions that
+    perform the setup, build, upwards, and solve stages of the HPS
+    method. As the HPS method is a direct method, once the build stage
+    has been completed, the upwards and solve stages can be called
+    without rebuilding the matrix factorization.</p>
+  </sec>
+  <sec id="output-and-visualization">
+    <title>Output and Visualization</title>
+    <p>Once the problem has been solved over the entire mesh, each leaf
+    patch in the mesh has the solution stored in one of its data
+    vectors, <monospace>vectorU</monospace>. This is a discrete
+    representation of the solution to the PDE.</p>
+    <p>The user may choose to output the mesh and solution in an
+    unstructured PVTK format using the VTK functionality built-in. To
+    output to VTK files, the user first adds mesh functions to the mesh.
+    This includes the solution stored in <monospace>vectorU</monospace>
+    after the HPS solve. Then, the user calls the
+    <monospace>toVTK</monospace> member function of the
+    <monospace>Mesh</monospace> class. This will write a
+    <monospace>.pvtu</monospace> file for the mesh and a
+    <monospace>.pvtu</monospace> file for the quadtree. An example of
+    this output for a Poisson equation is shown in
+    <xref alt="[fig:poisson_solution]" rid="figU003Apoisson_solution">[fig:poisson_solution]</xref>.</p>
+    <fig>
+      <caption><p>Solution of Poisson equation on a quadtree mesh using
+      EllipticForest. The mesh and data are output in an unstructured
+      PVTK format and visualized with VisIt
+      (<xref alt="Childs et al., 2012" rid="ref-HPVU003AVisIt" ref-type="bibr">Childs
+      et al.,
+      2012</xref>).<styled-content id="figU003Apoisson_solution"></styled-content></p></caption>
+      <graphic mimetype="image" mime-subtype="png" xlink:href="media/examples/elliptic-single/output.png" />
+    </fig>
+  </sec>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>The development of EllipticForest has been funded by the National
+  Science Foundation (NSF-DMS #1819257) and the Boise State University
+  School of Computing. The author acknowledges the assistance and
+  guidance of Dr. Donna Calhoun and Dr. Carsten Burstedde through
+  discussions and direction.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <ref id="ref-chipman2024fast">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Chipman</surname><given-names>D</given-names></name>
+        <name><surname>Calhoun</surname><given-names>D</given-names></name>
+        <name><surname>Burstedde</surname><given-names>C</given-names></name>
+      </person-group>
+      <article-title>A fast direct solver for elliptic PDEs on a hierarchy of adaptively refined quadtrees</article-title>
+      <source>arXiv preprint arXiv:2402.14936</source>
+      <year iso-8601-date="2024">2024</year>
+      <pub-id pub-id-type="doi">10.48550/arXiv.2402.14936</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-gillman2014direct">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Gillman</surname><given-names>A.</given-names></name>
+        <name><surname>Martinsson</surname><given-names>P. G.</given-names></name>
+      </person-group>
+      <article-title>A Direct Solver with O(N) Complexity for Variable Coefficient Elliptic PDEs Discretized via a High-Order Composite Spectral Collocation Method</article-title>
+      <source>SIAM Journal on Scientific Computing</source>
+      <year iso-8601-date="2014">2014</year>
+      <volume>36</volume>
+      <issue>4</issue>
+      <uri>https://doi.org/10.1137/130918988</uri>
+      <pub-id pub-id-type="doi">10.1137/130918988</pub-id>
+      <fpage>A2023</fpage>
+      <lpage>A2046</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-swarztrauber1999fishpack">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Swarztrauber</surname><given-names>P</given-names></name>
+        <name><surname>Sweet</surname><given-names>R</given-names></name>
+        <name><surname>Adams</surname><given-names>J</given-names></name>
+      </person-group>
+      <article-title>FISHPACK: Efficient FORTRAN subprograms for the solution of elliptic partial differential equations</article-title>
+      <source>UCAR Publication, July</source>
+      <year iso-8601-date="1999">1999</year>
+      <pub-id pub-id-type="doi">10.1145/800207.806417</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-adams2016fishpack90">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Adams</surname><given-names>J C</given-names></name>
+        <name><surname>Swarztrauber</surname><given-names>P</given-names></name>
+        <name><surname>Sweet</surname><given-names>R</given-names></name>
+      </person-group>
+      <article-title>FISHPACK90: Efficient fortran subprograms for the solution of separable elliptic partial differential equations</article-title>
+      <source>Astrophysics Source Code Library</source>
+      <year iso-8601-date="2016">2016</year>
+      <uri>https://ui.adsabs.harvard.edu/abs/2016ascl.soft09005A/abstract</uri>
+      <fpage>ascl</fpage>
+      <lpage>1609</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-mpi41">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <string-name>Message Passing Interface Forum</string-name>
+      </person-group>
+      <source>MPI: A message-passing interface standard version 4.1</source>
+      <year iso-8601-date="2023-11">2023</year><month>11</month>
+      <uri>https://www.mpi-forum.org/docs/mpi-4.1/mpi41-report.pdf</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-burstedde2011p4est">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Burstedde</surname><given-names>C</given-names></name>
+        <name><surname>Wilcox</surname><given-names>L</given-names></name>
+        <name><surname>Ghattas</surname><given-names>O</given-names></name>
+      </person-group>
+      <article-title>p4est: Scalable algorithms for parallel adaptive mesh refinement on forests of octrees</article-title>
+      <source>SIAM Journal on Scientific Computing</source>
+      <year iso-8601-date="2011">2011</year>
+      <volume>33</volume>
+      <issue>3</issue>
+      <pub-id pub-id-type="doi">10.1137/100791634</pub-id>
+      <fpage>1103</fpage>
+      <lpage>1133</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-anl2023petsc">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Balay</surname><given-names>Satish</given-names></name>
+        <name><surname>Abhyankar</surname><given-names>Shrirang</given-names></name>
+        <name><surname>Adams</surname><given-names>Mark F.</given-names></name>
+        <name><surname>Benson</surname><given-names>Steven</given-names></name>
+        <name><surname>Brown</surname><given-names>Jed</given-names></name>
+        <name><surname>Brune</surname><given-names>Peter</given-names></name>
+        <name><surname>Buschelman</surname><given-names>Kris</given-names></name>
+        <name><surname>Constantinescu</surname><given-names>Emil M.</given-names></name>
+        <name><surname>Dalcin</surname><given-names>Lisandro</given-names></name>
+        <name><surname>Dener</surname><given-names>Alp</given-names></name>
+        <name><surname>Eijkhout</surname><given-names>Victor</given-names></name>
+        <name><surname>Faibussowitsch</surname><given-names>Jacob</given-names></name>
+        <name><surname>Gropp</surname><given-names>William D.</given-names></name>
+        <name><surname>Hapla</surname><given-names>Václav</given-names></name>
+        <name><surname>Isaac</surname><given-names>Tobin</given-names></name>
+        <name><surname>Jolivet</surname><given-names>Pierre</given-names></name>
+        <name><surname>Karpeev</surname><given-names>Dmitry</given-names></name>
+        <name><surname>Kaushik</surname><given-names>Dinesh</given-names></name>
+        <name><surname>Knepley</surname><given-names>Matthew G.</given-names></name>
+        <name><surname>Kong</surname><given-names>Fande</given-names></name>
+        <name><surname>Kruger</surname><given-names>Scott</given-names></name>
+        <name><surname>May</surname><given-names>Dave A.</given-names></name>
+        <name><surname>McInnes</surname><given-names>Lois Curfman</given-names></name>
+        <name><surname>Mills</surname><given-names>Richard Tran</given-names></name>
+        <name><surname>Mitchell</surname><given-names>Lawrence</given-names></name>
+        <name><surname>Munson</surname><given-names>Todd</given-names></name>
+        <name><surname>Roman</surname><given-names>Jose E.</given-names></name>
+        <name><surname>Rupp</surname><given-names>Karl</given-names></name>
+        <name><surname>Sanan</surname><given-names>Patrick</given-names></name>
+        <name><surname>Sarich</surname><given-names>Jason</given-names></name>
+        <name><surname>Smith</surname><given-names>Barry F.</given-names></name>
+        <name><surname>Zampini</surname><given-names>Stefano</given-names></name>
+        <name><surname>Zhang</surname><given-names>Hong</given-names></name>
+        <name><surname>Zhang</surname><given-names>Hong</given-names></name>
+        <name><surname>Zhang</surname><given-names>Junchao</given-names></name>
+      </person-group>
+      <article-title>PETSc Web page</article-title>
+      <year iso-8601-date="2024">2024</year>
+      <uri>https://petsc.org/</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-quarteroni1991theory">
+    <element-citation publication-type="chapter">
+      <person-group person-group-type="author">
+        <name><surname>Quarteroni</surname><given-names>A</given-names></name>
+        <name><surname>Valli</surname><given-names>A</given-names></name>
+      </person-group>
+      <article-title>Theory and application of Steklov-Poincaré operators for boundary-value problems</article-title>
+      <source>Applied and industrial mathematics</source>
+      <publisher-name>Springer</publisher-name>
+      <year iso-8601-date="1991">1991</year>
+      <pub-id pub-id-type="doi">10.1007/978-94-009-1908-2_14</pub-id>
+      <fpage>179</fpage>
+      <lpage>203</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-HPVU003AVisIt">
+    <element-citation publication-type="chapter">
+      <person-group person-group-type="author">
+        <name><surname>Childs</surname><given-names>Hank</given-names></name>
+        <name><surname>Brugger</surname><given-names>Eric</given-names></name>
+        <name><surname>Whitlock</surname><given-names>Brad</given-names></name>
+        <name><surname>Meredith</surname><given-names>Jeremy</given-names></name>
+        <name><surname>Ahern</surname><given-names>Sean</given-names></name>
+        <name><surname>Pugmire</surname><given-names>David</given-names></name>
+        <name><surname>Biagas</surname><given-names>Kathleen</given-names></name>
+        <name><surname>Miller</surname><given-names>Mark</given-names></name>
+        <name><surname>Harrison</surname><given-names>Cyrus</given-names></name>
+        <name><surname>Weber</surname><given-names>Gunther H.</given-names></name>
+        <name><surname>Krishnan</surname><given-names>Hari</given-names></name>
+        <name><surname>Fogal</surname><given-names>Thomas</given-names></name>
+        <name><surname>Sanderson</surname><given-names>Allen</given-names></name>
+        <name><surname>Garth</surname><given-names>Christoph</given-names></name>
+        <name><surname>Bethel</surname><given-names>E. Wes</given-names></name>
+        <name><surname>Camp</surname><given-names>David</given-names></name>
+        <name><surname>Rübel</surname><given-names>Oliver</given-names></name>
+        <name><surname>Durant</surname><given-names>Marc</given-names></name>
+        <name><surname>Favre</surname><given-names>Jean M.</given-names></name>
+        <name><surname>Navrátil</surname><given-names>Paul</given-names></name>
+      </person-group>
+      <article-title>VisIt: An end-user tool for visualizing and analyzing very large data</article-title>
+      <source>High performance visualization–enabling extreme-scale scientific insight</source>
+      <year iso-8601-date="2012">2012</year>
+      <pub-id pub-id-type="doi">10.1201/b12985-29</pub-id>
+      <fpage>357</fpage>
+      <lpage>372</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-ultraSEM">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Fortunato</surname><given-names>D</given-names></name>
+        <name><surname>Hale</surname><given-names>N</given-names></name>
+        <name><surname>Townsend</surname><given-names>A</given-names></name>
+      </person-group>
+      <article-title>ultraSEM: The ultraspherical spectral element method</article-title>
+      <source>GitHub repository</source>
+      <publisher-name>GitHub</publisher-name>
+      <year iso-8601-date="2022">2022</year>
+      <uri>https://github.com/danfortunato/ultraSEM</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-HPS_Demos">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Gillman</surname><given-names>A</given-names></name>
+      </person-group>
+      <article-title>HPS_demos: A collection of codes applying the HPS method</article-title>
+      <source>GitHub repository</source>
+      <publisher-name>GitHub</publisher-name>
+      <year iso-8601-date="2023">2023</year>
+      <uri>https://github.com/agillman20/HPS_Demos</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-Streamer_HPS">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Semenov</surname><given-names>I</given-names></name>
+      </person-group>
+      <article-title>Streamer_HPS_DGSEM: Implementation of the spectral element method for modelling streamer discharges</article-title>
+      <source>GitHub repository</source>
+      <publisher-name>GitHub</publisher-name>
+      <year iso-8601-date="2023">2023</year>
+      <uri>https://github.com/igsemenov/Streamer_HPS_DGSEM</uri>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
