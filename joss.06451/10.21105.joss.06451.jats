@@ -1,0 +1,371 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">6451</article-id>
+<article-id pub-id-type="doi">10.21105/joss.06451</article-id>
+<title-group>
+<article-title>ADIOS4DOLFINx: A framework for checkpointing in
+FEniCS</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author" corresp="yes">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0001-6489-8858</contrib-id>
+<name>
+<surname>Dokken</surname>
+<given-names>Jørgen Schartum</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+<xref ref-type="corresp" rid="cor-1"><sup>*</sup></xref>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Simula Research Laboratory, Oslo, Norway</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<author-notes>
+<corresp id="cor-1">* E-mail: <email></email></corresp>
+</author-notes>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2024-04-30">
+<day>30</day>
+<month>4</month>
+<year>2024</year>
+</pub-date>
+<volume>9</volume>
+<issue>96</issue>
+<fpage>6451</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2022</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>Python</kwd>
+<kwd>finite element simulations</kwd>
+<kwd>checkpointing</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p>We introduce ADIOS4DOLFINx, a checkpointing framework for the
+  latest version of the FEniCS project, known as DOLFINx. DOLFINx is a
+  general framework for solving partial differential equations using the
+  finite element method. The input to simulations using the finite
+  element method is the computational domain (mesh), mesh markers,
+  initial conditions, and boundary conditions. To be able to restart a
+  simulation at any point, one has to have the capability to read in all
+  of the aforementioned variables. The adios4dolfinx package implements
+  all of these operations, using the Message Passing Interface (MPI) for
+  communication across multiple processes and ADIOS2 for writing/reading
+  data to/from file. In particular, the functionality of adios4dolfinx
+  includes <italic>N-to-M</italic>-checkpointing, which means that one
+  can store a result of a simulation that was generated with N number of
+  processes, and read it into a program running on M processes.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p>The ability to start, stop, and resume simulations is becoming
+  increasingly important with the growing use of supercomputers for
+  solving scientific and engineering problems. A rising number of
+  large-scale problems are deployed on high-performance,
+  distributed-memory computing systems and users tend to run more
+  demanding simulations. These are often non-linear and time-dependent,
+  which typically amounts to thousands of CPU hours. As it might uncover
+  bugs and unphysical solutions, the ability to run parts of the
+  simulation, inspect the result, and then resume simulation becomes a
+  key factor to enable efficient development. If this is discovered
+  early on, the simulation can be terminated, saving the developer time,
+  money and energy usage.</p>
+  <p>ADIOS4DOLFINx enables users of the FEniCS project
+  (<xref alt="Baratta et al., 2023" rid="ref-BarattaU003A2023" ref-type="bibr">Baratta
+  et al., 2023</xref>) to store solutions during simulation, and read
+  them in at their convenience to resume simulations at a later stage.
+  Several checkpointing methods are implemented, including
+  <italic>N-to-M</italic> checkpointing, which means saving data from a
+  program executed with N processes, and loading it back in on M
+  processes.</p>
+  <p>Functionality for <italic>N-to-M</italic> checkpointing was
+  implemented for the old version of DOLFIN by Habera et al.
+  (<xref alt="2018" rid="ref-HaberaU003A2018" ref-type="bibr">2018</xref>).
+  However, this functionality is not present in the newest version of
+  the FEniCS Project
+  (<xref alt="Baratta et al., 2023" rid="ref-BarattaU003A2023" ref-type="bibr">Baratta
+  et al., 2023</xref>). The storage principles in the ADIOS4DOLFINx are
+  based on the ideas present in this implementation. However, the
+  implementation for non-Lagrangian finite element spaces vastly
+  differs, due to the usage of dof-permutations
+  (<xref alt="Scroggs et al., 2022" rid="ref-ScroggsU003A2022" ref-type="bibr">Scroggs
+  et al., 2022</xref>). Additionally, all global MPI calls in the old
+  implementation have been reimplemented with scalable MPI communication
+  using the MPI-3 Neighborhood Collectives
+  (<xref alt="MPI-Forum, 2012" rid="ref-MPI-ForumU003A2012" ref-type="bibr">MPI-Forum,
+  2012</xref>).</p>
+  <p>The framework introduces several new methods for storing
+  partitioning information for <italic>N-to-N</italic> checkpointing
+  with arbitrary ghosting, as well as very lightweight snapshot
+  checkpoints. A similar framework for <italic>N-to-M</italic>
+  checkpointing was implemented by Ham et al.
+  (<xref alt="2024" rid="ref-HamU003A2024" ref-type="bibr">2024</xref>)
+  for the finite element framework Firedrake
+  (<xref alt="Rathgeber et al., 2016" rid="ref-RathgeberU003A2016" ref-type="bibr">Rathgeber
+  et al., 2016</xref>). This frameworks differs from the one used in
+  ADIOS4DOLFINx in several ways due to the different internal structures
+  of DOLFINx and Firedrake.</p>
+</sec>
+<sec id="functionality">
+  <title>Functionality</title>
+  <p>The software is written as a Python-extension to DOLFINx, which can
+  be installed using the Python Package installer
+  <monospace>pip</monospace> directly from the GitHub repository or
+  using the
+  <ext-link ext-link-type="uri" xlink:href="https://pypi.org/project/adios4dolfinx/">ADIOS4DOLFINx</ext-link>
+  from the Python Package Index (PyPI). The following features are
+  supported:</p>
+  <list list-type="bullet">
+    <list-item>
+      <p>Snapshot checkpointing</p>
+    </list-item>
+    <list-item>
+      <p><italic>N-to-M</italic> checkpointing with mesh storage</p>
+    </list-item>
+    <list-item>
+      <p><italic>N-to-M</italic> checkpointing without mesh storage</p>
+    </list-item>
+    <list-item>
+      <p><italic>N-to-N</italic> checkpointing storing partitioning
+      information</p>
+    </list-item>
+  </list>
+  <p>A <italic>snapshot checkpoint</italic> is a checkpoint that is only
+  valid during the run of a simulation. It is lightweight (only storing
+  the local portion of the global dof array to file), and is stored
+  using the <italic>Local Array</italic> feature in ADIOS2
+  (<xref alt="Godoy et al., 2020" rid="ref-GodoyU003A2020" ref-type="bibr">Godoy
+  et al., 2020</xref>) to store data local to the MPI process. This
+  feature is intended for use cases where many solutions have to be
+  aggregated to the end of a simulation to some post-processing step, or
+  as a fall-back mechanism when restarting a diverging iterative
+  solver.</p>
+  <p>A <italic>N-to-M</italic> checkpoint is a checkpoint that can be
+  written with N processes and read back in with M processes. Two
+  versions of this checkpoint are supported: one where storage of the
+  mesh is required and one without mesh storage. The reasoning for such
+  a split is that when a mesh is read into DOLFINx and passed to an
+  appropriate partitioner, the ordering mesh nodes (coordinates) and
+  connectivity (cells) is changed. Writing these back into
+  <italic>global arrays</italic> requires MPI communication to ensure
+  contiguous writing of data.</p>
+  <p>The <italic>N-to-M</italic> checkpoint with mesh storage
+  exclusively writes contiguous chunks of data owned by the current
+  process to an ADIOS2 <italic>Global Array</italic> that can be read in
+  with a different number of processes at a later stage. This operation
+  requires no MPI communication.</p>
+  <p>In many cases, the input mesh might stem from an external mesh
+  generator and is stored together with mesh entity markers in an
+  external file, for instance an XDMF file. To avoid duplication of this
+  mesh data, a standalone file that can be associated with the XDMF file
+  for a later restart can be created. This method requires some MPI
+  neighborhood collective calls to move data from the process that
+  currently owns it to the relevant process for that stores it as a
+  <italic>Global Array</italic> in contiguous chunks. Both
+  <italic>N-to-M</italic> checkpoint routines use the same API to read
+  in checkpoints at a later instance.</p>
+  <p>In certain scenarios, mesh partitioning might be time consuming, as
+  a developer is running the same problem over and over again with the
+  same number of processes. As DOLFINx supports custom partitioning
+  (<xref alt="Baratta et al., 2023" rid="ref-BarattaU003A2023" ref-type="bibr">Baratta
+  et al., 2023</xref>), we use this feature to read in partition data
+  from a previous run. As opposed to the checkpoints in the old version
+  of DOLFIN, these checkpoints handle any ghosting, that being a custom
+  ghosting provided by the user, or the shared-facet mode provided by
+  DOLFINx.</p>
+</sec>
+<sec id="examples">
+  <title>Examples</title>
+  <p>A large variety of examples covering all the functions in
+  ADIOS4DOLFINx is available at
+  <ext-link ext-link-type="uri" xlink:href="https://jorgensd.github.io/adios4dolfinx">https://jorgensd.github.io/adios4dolfinx</ext-link>.</p>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>We acknowledge the valuable feedback on the documentation and
+  manuscript by Thomas M. Surowiec and Halvor Herlyng and packaging
+  support by Min Ragan-Kelley. Additionally, we acknowledge the
+  scientific discussion regarding feature development and code
+  contributions by Francesco Ballarin, Henrik N. Finsberg, and Nathan
+  Sime.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <ref id="ref-BarattaU003A2023">
+    <element-citation publication-type="manuscript">
+      <person-group person-group-type="author">
+        <name><surname>Baratta</surname><given-names>Igor A.</given-names></name>
+        <name><surname>Dean</surname><given-names>Joseph P.</given-names></name>
+        <name><surname>Dokken</surname><given-names>Jørgen S.</given-names></name>
+        <name><surname>Habera</surname><given-names>Michal</given-names></name>
+        <name><surname>Hale</surname><given-names>Jack</given-names></name>
+        <name><surname>Richardson</surname><given-names>Chris N.</given-names></name>
+        <name><surname>Rognes</surname><given-names>Marie E.</given-names></name>
+        <name><surname>Scroggs</surname><given-names>Matthew W.</given-names></name>
+        <name><surname>Sime</surname><given-names>Nathan</given-names></name>
+        <name><surname>Wells</surname><given-names>Garth N.</given-names></name>
+      </person-group>
+      <article-title>DOLFINx: The next generation FEniCS problem solving environment</article-title>
+      <year iso-8601-date="2023">2023</year>
+      <pub-id pub-id-type="doi">10.5281/zenodo.10447666</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-GodoyU003A2020">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Godoy</surname><given-names>William F.</given-names></name>
+        <name><surname>Podhorszki</surname><given-names>Norbert</given-names></name>
+        <name><surname>Wang</surname><given-names>Ruonan</given-names></name>
+        <name><surname>Atkins</surname><given-names>Chuck</given-names></name>
+        <name><surname>Eisenhauer</surname><given-names>Greg</given-names></name>
+        <name><surname>Gu</surname><given-names>Junmin</given-names></name>
+        <name><surname>Davis</surname><given-names>Philip</given-names></name>
+        <name><surname>Choi</surname><given-names>Jong</given-names></name>
+        <name><surname>Germaschewski</surname><given-names>Kai</given-names></name>
+        <name><surname>Huck</surname><given-names>Kevin</given-names></name>
+        <name><surname>Huebl</surname><given-names>Axel</given-names></name>
+        <name><surname>Kim</surname><given-names>Mark</given-names></name>
+        <name><surname>Kress</surname><given-names>James</given-names></name>
+        <name><surname>Kurc</surname><given-names>Tahsin</given-names></name>
+        <name><surname>Liu</surname><given-names>Qing</given-names></name>
+        <name><surname>Logan</surname><given-names>Jeremy</given-names></name>
+        <name><surname>Mehta</surname><given-names>Kshitij</given-names></name>
+        <name><surname>Ostrouchov</surname><given-names>George</given-names></name>
+        <name><surname>Parashar</surname><given-names>Manish</given-names></name>
+        <name><surname>Poeschel</surname><given-names>Franz</given-names></name>
+        <name><surname>Pugmire</surname><given-names>David</given-names></name>
+        <name><surname>Suchyta</surname><given-names>Eric</given-names></name>
+        <name><surname>Takahashi</surname><given-names>Keichi</given-names></name>
+        <name><surname>Thompson</surname><given-names>Nick</given-names></name>
+        <name><surname>Tsutsumi</surname><given-names>Seiji</given-names></name>
+        <name><surname>Wan</surname><given-names>Lipeng</given-names></name>
+        <name><surname>Wolf</surname><given-names>Matthew</given-names></name>
+        <name><surname>Wu</surname><given-names>Kesheng</given-names></name>
+        <name><surname>Klasky</surname><given-names>Scott</given-names></name>
+      </person-group>
+      <article-title>ADIOS 2: The adaptable input output system. A framework for high-performance data management</article-title>
+      <source>SoftwareX</source>
+      <year iso-8601-date="2020">2020</year>
+      <volume>12</volume>
+      <issn>2352-7110</issn>
+      <pub-id pub-id-type="doi">10.1016/j.softx.2020.100561</pub-id>
+      <fpage>100561</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-HaberaU003A2018">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Habera</surname><given-names>Michal</given-names></name>
+        <name><surname>Zilian</surname><given-names>Andreas</given-names></name>
+        <name><surname>Hale</surname><given-names>Jack</given-names></name>
+        <name><surname>Richardson</surname><given-names>Chris N.</given-names></name>
+        <name><surname>Blechta</surname><given-names>Jan</given-names></name>
+        <name><surname>Dave</surname><given-names>Demarle</given-names></name>
+      </person-group>
+      <article-title>XDMF and ParaView: checkpointing format</article-title>
+      <year iso-8601-date="2018">2018</year>
+      <uri>https://hdl.handle.net/10993/35848</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-HamU003A2024">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Ham</surname><given-names>David A.</given-names></name>
+        <name><surname>Hapla</surname><given-names>Vaclav</given-names></name>
+        <name><surname>Knepley</surname><given-names>Matthew G.</given-names></name>
+        <name><surname>Mitchell</surname><given-names>Lawrence</given-names></name>
+        <name><surname>Sagiyama</surname><given-names>Koki</given-names></name>
+      </person-group>
+      <article-title>Efficient n-to-m checkpointing algorithm for finite element simulations</article-title>
+      <year iso-8601-date="2024">2024</year>
+      <uri>https://arxiv.org/abs/2401.05868</uri>
+      <pub-id pub-id-type="doi">10.48550/arXiv.2401.05868</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-RathgeberU003A2016">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Rathgeber</surname><given-names>Florian</given-names></name>
+        <name><surname>Ham</surname><given-names>David A.</given-names></name>
+        <name><surname>Mitchell</surname><given-names>Lawrence</given-names></name>
+        <name><surname>Lange</surname><given-names>Michael</given-names></name>
+        <name><surname>Luporini</surname><given-names>Fabio</given-names></name>
+        <name><surname>Mcrae</surname><given-names>Andrew T. T.</given-names></name>
+        <name><surname>Bercea</surname><given-names>Gheorghe-Teodor</given-names></name>
+        <name><surname>Markall</surname><given-names>Graham R.</given-names></name>
+        <name><surname>Kelly</surname><given-names>Paul H. J.</given-names></name>
+      </person-group>
+      <article-title>Firedrake: Automating the finite element method by composing abstractions</article-title>
+      <source>ACM Transactions on Mathematical Software</source>
+      <publisher-name>Association for Computing Machinery</publisher-name>
+      <publisher-loc>New York, NY, USA</publisher-loc>
+      <year iso-8601-date="2016-12">2016</year><month>12</month>
+      <volume>43</volume>
+      <issue>3</issue>
+      <issn>0098-3500</issn>
+      <pub-id pub-id-type="doi">10.1145/2998441</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-ScroggsU003A2022">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Scroggs</surname><given-names>Matthew W.</given-names></name>
+        <name><surname>Dokken</surname><given-names>Jørgen S.</given-names></name>
+        <name><surname>Richardson</surname><given-names>Chris N.</given-names></name>
+        <name><surname>Wells</surname><given-names>Garth N.</given-names></name>
+      </person-group>
+      <article-title>Construction of arbitrary order finite element degree-of-freedom maps on polygonal and polyhedral cell meshes</article-title>
+      <source>ACM Transactions on Mathematical Software</source>
+      <publisher-name>Association for Computing Machinery</publisher-name>
+      <publisher-loc>New York, NY, USA</publisher-loc>
+      <year iso-8601-date="2022-05">2022</year><month>05</month>
+      <volume>48</volume>
+      <issue>2</issue>
+      <issn>0098-3500</issn>
+      <pub-id pub-id-type="doi">10.1145/3524456</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-MPI-ForumU003A2012">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>MPI-Forum</surname></name>
+      </person-group>
+      <article-title>MPI: A Message-Passing Interface Standard. Version 3.0</article-title>
+      <year iso-8601-date="2012">2012</year>
+      <uri>https://www.mpi-forum.org/docs/mpi-3.0/mpi30-report.pdf</uri>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
