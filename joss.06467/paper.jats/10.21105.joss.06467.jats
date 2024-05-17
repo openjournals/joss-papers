@@ -1,0 +1,495 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">6467</article-id>
+<article-id pub-id-type="doi">10.21105/joss.06467</article-id>
+<title-group>
+<article-title>HealpixMPI.jl: an MPI-parallel implementation of the
+Healpix tessellation scheme in Julia</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0009-0002-6351-5426</contrib-id>
+<name>
+<surname>Bianchi</surname>
+<given-names>Leo A.</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+<xref ref-type="aff" rid="aff-2"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Dipartimento di Fisica Aldo Pontremoli, Università degli
+Studi di Milano, Milan, Italy</institution>
+</institution-wrap>
+</aff>
+<aff id="aff-2">
+<institution-wrap>
+<institution>Institute of Theoretical Astrophysics, University of Oslo,
+Blindern, Oslo, Norway</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2024-01-10">
+<day>10</day>
+<month>1</month>
+<year>2024</year>
+</pub-date>
+<volume>9</volume>
+<issue>97</issue>
+<fpage>6467</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2022</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>Julia</kwd>
+<kwd>SHT</kwd>
+<kwd>Healpix</kwd>
+<kwd>parallel computing</kwd>
+<kwd>cosmology</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p>Spherical Harmonic Transforms (SHT) can be seen as Fourier
+  Transforms’ spherical, two-dimensional counterparts, casting
+  real-space data to the spectral domain and vice versa. As in Fourier
+  analysis a function is decomposed into a set of amplitude
+  coefficients, through an SHT, any spherically-symmetric field defined
+  in real space can be decomposed into a set of complex harmonic
+  coefficients <inline-formula><alternatives>
+  <tex-math><![CDATA[a_{\ell, m}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>a</mml:mi><mml:mrow><mml:mo>ℓ</mml:mo><mml:mo>,</mml:mo><mml:mi>m</mml:mi></mml:mrow></mml:msub></mml:math></alternatives></inline-formula>,
+  commonly referred to as alms, each quantifying the contribution of the
+  corresponding spherical harmonic function.</p>
+  <p>SHTs are important for a wide variety of theoretical and practical
+  scientific applications, including particle physics, astrophysics, and
+  cosmology. However, the SHTs are generally computationally expensive
+  operations and thus often constitute the <italic>bottleneck</italic>
+  of the scientific software they are part of. For this reason, many
+  efforts have been spent over the last couple of decades to obtain fast
+  and efficient SHT implementations. In such a setting, parallel
+  computing naturally comes into play, especially for heavy software to
+  be run on large High-Performance Computing (HPC) clusters.</p>
+  <p>The Julia package <monospace>HealpixMPI.jl</monospace> constitutes
+  an extension package of <monospace>Healpix.jl</monospace>
+  (<xref alt="Tomasi &amp; Li, 2021" rid="ref-Healpix_jl" ref-type="bibr">Tomasi
+  &amp; Li, 2021</xref>), efficiently parallelizing its SHT
+  functionalities. <monospace>Healpix.jl</monospace> is a Julia-only
+  implementation of the HEALPix
+  (<xref alt="Gorski et al., 2005" rid="ref-HEALPix" ref-type="bibr">Gorski
+  et al., 2005</xref>) library, which provides one of the most used
+  two-sphere tessellation schemes and a series of SHTs-related
+  functions.</p>
+  <p>The main goal of the Julia package
+  <monospace>HealpixMPI.jl</monospace> presented in this paper is to
+  efficiently employ a large number of computing cores to perform fast
+  spherical harmonic transforms. This paper presents the key features
+  implemented to achieve this, together with a statement of need and the
+  results of a parallel scaling test.</p>
+  <p></p>
+  <fig>
+    <caption><p><monospace>HealpixMPI.jl</monospace>’s logo
+    <styled-content id="figU003Alogo"></styled-content></p></caption>
+    <graphic mimetype="image" mime-subtype="png" xlink:href="logo.png" />
+  </fig>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p>Together with a variety of applications, spherical harmonic
+  transforms are extremely relevant in different cosmological research
+  topics, e.g.
+  (<xref alt="Loureiro et al., 2023" rid="ref-Loureiro_2023" ref-type="bibr">Loureiro
+  et al., 2023</xref>),
+  (<xref alt="Euclid Collaboration, 2023" rid="ref-euclidcollaboration2023euclid" ref-type="bibr">Euclid
+  Collaboration, 2023</xref>). Among those, SHT are essential for the
+  analysis of cosmic microwave background (CMB) radiation, which is
+  among the most active research fields of recent cosmology. CMB
+  radiation is, in fact, very conveniently described as a temperature
+  (and polarization) field on the sky sphere, making spherical harmonics
+  the most natural mathematical tool for analyzing its measured signal.
+  On the other hand, from a computational point of view, CMB field
+  measurements need, of course, to be discretized, requiring a
+  mathematically consistent pixelization of the sphere and the functions
+  defined on it. This is exactly the goal HEALPix was targeting when
+  more than two decades ago was released, quickly becoming the standard
+  library for CMB numerical analysis. HEALPix code can be, of course,
+  used for a wider variety of applications, but its bond with CMB
+  analysis has always been particularly strong, especially given the
+  research focus of its main authors. Not surprisingly, the cosmic
+  microwave background is also the research context wherein
+  <monospace>HealpixMPI.jl</monospace> was born.</p>
+  <p>SHTs are often the computational bottleneck of CMB data analysis
+  pipelines, as the one implemented by Cosmoglobe
+  (<xref alt="Watts et al., 2023" rid="ref-Watts_2023" ref-type="bibr">Watts
+  et al., 2023</xref>) based on the software Commander
+  (<xref alt="Eriksen et al., 2004" rid="ref-Eriksen_2004" ref-type="bibr">Eriksen
+  et al., 2004</xref>). Given the significantly increasing amount of
+  data produced by the most recent observational experiments, efficient
+  algorithms alone are no longer enough to perform SHTs within
+  acceptable run times, and a parallel architecture must be implemented.
+  In the specific case of Cosmoglobe and Commander, the goal for the
+  next years is to be able to run a full pipeline, and thus the SHTs
+  performed in it, on large HPC clusters <italic>efficiently</italic>
+  employing at least <inline-formula><alternatives>
+  <tex-math><![CDATA[10^4]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msup><mml:mn>10</mml:mn><mml:mn>4</mml:mn></mml:msup></mml:math></alternatives></inline-formula>
+  cores.</p>
+  <p>To achieve this, an implementation of massively parallel spherical
+  harmonic transforms beyond machine-size limitations is unavoidably
+  needed. The concept of <monospace>HealpixMPI.jl</monospace> was born
+  as a contribution to Cosmoglobe’s pipeline targeting this exact
+  goal.</p>
+</sec>
+<sec id="the-latest-sht-engine-ducc">
+  <title>The latest SHT engine: DUCC</title>
+  <p>As of the time this paper was submitted,
+  <monospace>Healpix.jl</monospace> relies on the SHTs provided by the C
+  library <monospace>libsharp</monospace>
+  (<xref alt="Reinecke &amp; Seljebotn, 2013" rid="ref-libsharp" ref-type="bibr">Reinecke
+  &amp; Seljebotn, 2013</xref>). However, since a few years ago,
+  <monospace>libsharp</monospace>’s development has ceased, and its
+  functionalities have been included as an SHT sub-module in
+  <monospace>DUCC</monospace>
+  (<xref alt="Reinecke, 2019" rid="ref-ducc" ref-type="bibr">Reinecke,
+  2019</xref>), an acronym of “Distinctively Useful Code
+  Collection.”</p>
+  <p>The timing between the development of
+  <monospace>HealpixMPI.jl</monospace> and a Julia interface for
+  <monospace>DUCC</monospace> has been quite lucky. This allowed
+  <monospace>HealpixMPI.jl</monospace> to be up-to-date with the state
+  of the art of spherical harmonics upon its first release. In fact, for
+  what concerns the SHTs, <monospace>DUCC</monospace>’s code is derived
+  directly from <monospace>libsharp</monospace>, but has been
+  significantly enhanced with the latest algorithmical improvements as
+  well as the employment of standard C++ multithreading for
+  <italic>shared-memory</italic> parallelization of the core
+  operations.</p>
+</sec>
+<sec id="hybrid-parallelization-of-the-sht">
+  <title>Hybrid parallelization of the SHT</title>
+  <p>To run SHT on a large number of cores, i.e., on an HPC cluster,
+  <monospace>HealpixMPI.jl</monospace> provides a hybrid parallel
+  design, based on simultaneous usage of multithreading and MPI, for
+  shared- and distributed-memory parallelization respectively, as shown
+  in
+  <xref alt="[fig:hybrid]" rid="figU003Ahybrid">[fig:hybrid]</xref>.</p>
+  <fig>
+    <caption><p>Multi-node computing cluster representation. The optimal
+    way to parallelize operations such as the SHTs on a cluster of
+    computers is to employ MPI to share the computation
+    <italic>between</italic> the available nodes, assigning one MPI task
+    per node, and multithreading to parallelize <italic>within</italic>
+    each node, involving as many CPUs as locally available. Figure taken
+    from www.comsol.com.
+    <styled-content id="figU003Ahybrid"></styled-content></p></caption>
+    <graphic mimetype="image" mime-subtype="png" xlink:href="hybrid_parallel.png" />
+  </fig>
+  <p>In the case of ‘HealpixMPI.jl’, native C++ multithreading is
+  provided by <monospace>DUCC</monospace> for its spherical harmonic
+  transforms by default; while the MPI interface is entirely coded in
+  Julia and based on the package <monospace>MPI.jl</monospace>
+  (<xref alt="Byrne et al., 2021" rid="ref-MPI" ref-type="bibr">Byrne et
+  al., 2021</xref>).</p>
+  <p>Moreover, the MPI parallelization requires data to be distributed
+  across the MPI tasks. As shown in the usage examples, this is
+  implemented by mirroring <monospace>Healpix.jl</monospace>’s classes
+  with two new <italic>distributed</italic> data types:
+  <monospace>DAlm</monospace> and <monospace>DMap</monospace>, encoding
+  the harmonic coefficients and a pixelized representation of the
+  spherical field respectively.</p>
+</sec>
+<sec id="usage-example">
+  <title>Usage example</title>
+  <p>An usage example with all the necessary steps to set up and perform
+  an MPI-parallel <monospace>alm2map</monospace> SHT can be found in the
+  front page of <monospace>HealpixMPI.jl</monospace>’s
+  <ext-link ext-link-type="uri" xlink:href="https://github.com/LeeoBianchi/HealpixMPI.jl">repository</ext-link>.</p>
+  <p>In addition, refer to
+  <ext-link ext-link-type="uri" xlink:href="https://github.com/LeeoBianchi/Jommander.jl">Jommander</ext-link>,
+  a parallel and Julia-only CMB Gibbs Sampler, for an example of code
+  based on <monospace>HealpixMPI.jl</monospace>.</p>
+</sec>
+<sec id="scaling-results">
+  <title>Scaling results</title>
+  <p>This section shows the results of parallel benchmark tests
+  conducted on <monospace>HealpixMPI.jl</monospace>. In particular, a
+  strong-scaling scenario is analyzed: given a problem of fixed size,
+  the wall time improvement is measured as the number of cores exploited
+  in the computation is increased.</p>
+  <p>To obtain a reliable measurement of massively parallel spherical
+  harmonics wall time is certainly nontrivial, especially for tests
+  employing a high number of cores; intermittent operating system
+  activity can significantly distort the measurement of short time
+  scales. For this reason, the benchmark tests were carried out by
+  timing a batch of 20 <monospace>alm2map</monospace> +
+  <monospace>adjoint_alm2map</monospace> SHT pairs. For reference, the
+  scaling shown here is relative to unpolarized spherical harmonics with
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[\mathrm{N}_\mathrm{side} = 4096]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi mathvariant="normal">N</mml:mi><mml:mrow><mml:mi mathvariant="normal">s</mml:mi><mml:mi mathvariant="normal">i</mml:mi><mml:mi mathvariant="normal">d</mml:mi><mml:mi mathvariant="normal">e</mml:mi></mml:mrow></mml:msub><mml:mo>=</mml:mo><mml:mn>4096</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>
+  and <inline-formula><alternatives>
+  <tex-math><![CDATA[\ell_{\mathrm{max}} = 12287]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mo>ℓ</mml:mo><mml:mrow><mml:mi mathvariant="normal">m</mml:mi><mml:mi mathvariant="normal">a</mml:mi><mml:mi mathvariant="normal">x</mml:mi></mml:mrow></mml:msub><mml:mo>=</mml:mo><mml:mn>12287</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>
+  and were carried out on the
+  <ext-link ext-link-type="uri" xlink:href="https://www.mn.uio.no/astro/english/services/it/help/basic-services/compute-resources.html">Hyades
+  cluster</ext-link> of the University of Oslo. The benchmark results
+  are quantified as the wall time multiplied by the total number of
+  cores, shown in a 3D plot
+  (<xref alt="[fig:bench]" rid="figU003Abench">[fig:bench]</xref>) as a
+  function of the number of local threads and MPI tasks (always one per
+  node).</p>
+  <fig>
+    <caption><p>The measured wall time is multiplied by the total number
+    of cores used and plotted as a function of the number of local
+    threads and MPI tasks used. The total number of cores corresponding
+    to each column is given by the product of these two quantities.
+    <styled-content id="figU003Abench"></styled-content></p></caption>
+    <graphic mimetype="image" mime-subtype="png" xlink:href="3DBench.png" />
+  </fig>
+  <p>Increasing the number of threads on a single core, for which no MPI
+  communication is needed, the scaling results nearly ideal up to
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[\sim 50]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mo>∼</mml:mo><mml:mn>50</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>
+  cores. For 60 and higher local threads we start observing a slight
+  slowdown, probably given by the many threads simultaneously trying to
+  access the same memory, hitting its bandwidth limit.</p>
+  <p>While switching to a multi-node setup, we introduce, as expected,
+  an overhead given by the necessary MPI communication whose size,
+  unfortunately, remains constant as we increase the number of local
+  threads. This leads to the ramp-like shape along the “local threads”
+  axis shown by the plot. However, the overhead size scales down, even
+  if not perfectly, when we increase the number of nodes, as the size of
+  the locally stored data will linearly decrease. This is shown by the
+  relatively flat shape of the plot along the “nodes”-axis.</p>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>The development of <monospace>HealpixMPI.jl</monospace>, which is
+  part of my master’s thesis, has been funded by the University of Milan
+  through a “Thesis Abroad Grant.” Moreover, I acknowledge significant
+  contributions to this project from Maurizio Tomasi, Martin Reinecke,
+  Hans Kristian Eriksen, and Sigurd Næss, as well as the support I
+  received from all the members of Cosmoglobe collaboration during my
+  stay at the Institute of Theoretical Astrophysics of the University of
+  Oslo.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <ref id="ref-Healpix_jl">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Tomasi</surname><given-names>Maurizio</given-names></name>
+        <name><surname>Li</surname><given-names>Zack</given-names></name>
+      </person-group>
+      <article-title>Healpix.jl: Julia-only port of the HEALPix library</article-title>
+      <year iso-8601-date="2021-09">2021</year><month>09</month>
+      <fpage>ascl:2109.028</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Watts_2023">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Watts</surname><given-names>D. J.</given-names></name>
+        <name><surname>Basyrov</surname><given-names>A.</given-names></name>
+        <name><surname>Eskilt</surname><given-names>J. R.</given-names></name>
+        <name><surname>Galloway</surname><given-names>M.</given-names></name>
+        <name><surname>Gjerløw</surname><given-names>E.</given-names></name>
+        <name><surname>Hergt</surname><given-names>L. T.</given-names></name>
+        <name><surname>Herman</surname><given-names>D.</given-names></name>
+        <name><surname>Ihle</surname><given-names>H. T.</given-names></name>
+        <name><surname>Paradiso</surname><given-names>S.</given-names></name>
+        <name><surname>Rahman</surname><given-names>F.</given-names></name>
+        <name><surname>Thommesen</surname><given-names>H.</given-names></name>
+        <name><surname>Aurlien</surname><given-names>R.</given-names></name>
+        <name><surname>Bersanelli</surname><given-names>M.</given-names></name>
+        <name><surname>Bianchi</surname><given-names>L. A.</given-names></name>
+        <name><surname>Brilenkov</surname><given-names>M.</given-names></name>
+        <name><surname>Colombo</surname><given-names>L. P. L.</given-names></name>
+        <name><surname>Eriksen</surname><given-names>H. K.</given-names></name>
+        <name><surname>Franceschet</surname><given-names>C.</given-names></name>
+        <name><surname>Fuskeland</surname><given-names>U.</given-names></name>
+        <name><surname>Hensley</surname><given-names>B.</given-names></name>
+        <name><surname>Hoerning</surname><given-names>G. A.</given-names></name>
+        <name><surname>Lee</surname><given-names>K.</given-names></name>
+        <name><surname>Lunde</surname><given-names>J. G. S.</given-names></name>
+        <name><surname>Marins</surname><given-names>A.</given-names></name>
+        <name><surname>Nerval</surname><given-names>S. K.</given-names></name>
+        <name><surname>Patel</surname><given-names>S. K.</given-names></name>
+        <name><surname>Regnier</surname><given-names>M.</given-names></name>
+        <name><surname>San</surname><given-names>M.</given-names></name>
+        <name><surname>Sanyal</surname><given-names>S.</given-names></name>
+        <name><surname>Stutzer</surname><given-names>N.-O.</given-names></name>
+        <name><surname>Verma</surname><given-names>A.</given-names></name>
+        <name><surname>Wehus</surname><given-names>I. K.</given-names></name>
+        <name><surname>Zhou</surname><given-names>Y.</given-names></name>
+      </person-group>
+      <article-title>COSMOGLOBE DR1 results: I. Improved wilkinson microwave anisotropy probe maps through bayesian end-to-end analysis</article-title>
+      <source>Astronomy &amp;amp; Astrophysics</source>
+      <publisher-name>EDP Sciences</publisher-name>
+      <year iso-8601-date="2023-11">2023</year><month>11</month>
+      <volume>679</volume>
+      <issn>1432-0746</issn>
+      <uri>http://dx.doi.org/10.1051/0004-6361/202346414</uri>
+      <pub-id pub-id-type="doi">10.1051/0004-6361/202346414</pub-id>
+      <fpage>A143</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-HEALPix">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Gorski</surname><given-names>K. M.</given-names></name>
+        <name><surname>Hivon</surname><given-names>E.</given-names></name>
+        <name><surname>Banday</surname><given-names>A. J.</given-names></name>
+        <name><surname>Wandelt</surname><given-names>B. D.</given-names></name>
+        <name><surname>Hansen</surname><given-names>F. K.</given-names></name>
+        <name><surname>Reinecke</surname><given-names>M.</given-names></name>
+        <name><surname>Bartelmann</surname><given-names>M.</given-names></name>
+      </person-group>
+      <article-title>HEALPix: A framework for high-resolution discretization and fast analysis of data distributed on the sphere</article-title>
+      <source>The Astrophysical Journal</source>
+      <publisher-name>American Astronomical Society</publisher-name>
+      <year iso-8601-date="2005-04">2005</year><month>04</month>
+      <volume>622</volume>
+      <issue>2</issue>
+      <uri>https://doi.org/10.1086%2F427976</uri>
+      <pub-id pub-id-type="doi">10.1086/427976</pub-id>
+      <fpage>759</fpage>
+      <lpage>771</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Eriksen_2004">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Eriksen</surname><given-names>H. K.</given-names></name>
+        <name><surname>O’Dwyer</surname><given-names>I. J.</given-names></name>
+        <name><surname>Jewell</surname><given-names>J. B.</given-names></name>
+        <name><surname>Wandelt</surname><given-names>B. D.</given-names></name>
+        <name><surname>Larson</surname><given-names>D. L.</given-names></name>
+        <name><surname>Gorski</surname><given-names>K. M.</given-names></name>
+        <name><surname>Levin</surname><given-names>S.</given-names></name>
+        <name><surname>Banday</surname><given-names>A. J.</given-names></name>
+        <name><surname>Lilje</surname><given-names>P. B.</given-names></name>
+      </person-group>
+      <article-title>Power spectrum estimation from high-resolution maps by gibbs sampling</article-title>
+      <source>The Astrophysical Journal Supplement Series</source>
+      <publisher-name>American Astronomical Society</publisher-name>
+      <year iso-8601-date="2004-12">2004</year><month>12</month>
+      <volume>155</volume>
+      <issue>2</issue>
+      <uri>https://doi.org/10.1086</uri>
+      <pub-id pub-id-type="doi">10.1086/425219</pub-id>
+      <fpage>227</fpage>
+      <lpage>241</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-libsharp">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Reinecke</surname><given-names>M.</given-names></name>
+        <name><surname>Seljebotn</surname><given-names>D. S.</given-names></name>
+      </person-group>
+      <article-title>Libsharp  spherical harmonic transforms revisited</article-title>
+      <source>Astronomy &amp; Astrophysics</source>
+      <publisher-name>EDP Sciences</publisher-name>
+      <year iso-8601-date="2013-06">2013</year><month>06</month>
+      <volume>554</volume>
+      <uri>https://doi.org/10.1051%2F0004-6361%2F201321494</uri>
+      <pub-id pub-id-type="doi">10.1051/0004-6361/201321494</pub-id>
+      <fpage>A112</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-ducc">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Reinecke</surname><given-names>M.</given-names></name>
+      </person-group>
+      <article-title>DUCC</article-title>
+      <source>GitLab repository</source>
+      <publisher-name>GitLab</publisher-name>
+      <year iso-8601-date="2019">2019</year>
+      <uri>https://gitlab.mpcdf.mpg.de/mtr/ducc</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-MPI">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Byrne</surname><given-names>Simon</given-names></name>
+        <name><surname>Wilcox</surname><given-names>Lucas C.</given-names></name>
+        <name><surname>Churavy</surname><given-names>Valentin</given-names></name>
+      </person-group>
+      <article-title>MPI.jl: Julia bindings for the message passing interface</article-title>
+      <source>Proceedings of the JuliaCon Conferences</source>
+      <publisher-name>The Open Journal</publisher-name>
+      <year iso-8601-date="2021">2021</year>
+      <volume>1</volume>
+      <issue>1</issue>
+      <uri>https://doi.org/10.21105/jcon.00068</uri>
+      <pub-id pub-id-type="doi">10.21105/jcon.00068</pub-id>
+      <fpage>68</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-euclidcollaboration2023euclid">
+    <element-citation>
+      <person-group person-group-type="author">
+        <string-name>Euclid Collaboration</string-name>
+      </person-group>
+      <article-title>Euclid preparation: XXVIII. Modelling of the weak lensing angular power spectrum</article-title>
+      <year iso-8601-date="2023">2023</year>
+      <uri>https://arxiv.org/abs/2302.04507</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-Loureiro_2023">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Loureiro</surname><given-names>Arthur</given-names></name>
+        <name><surname>Whiteaway</surname><given-names>Lorne</given-names></name>
+        <name><surname>Sellentin</surname><given-names>Elena</given-names></name>
+        <name><surname>Lafaurie</surname><given-names>Javier Silva</given-names></name>
+        <name><surname>Jaffe</surname><given-names>Andrew H.</given-names></name>
+        <name><surname>Heavens</surname><given-names>Alan F.</given-names></name>
+      </person-group>
+      <article-title>Almanac: Weak lensing power spectra and map inference on the masked sphere</article-title>
+      <source>The Open Journal of Astrophysics</source>
+      <publisher-name>Maynooth University</publisher-name>
+      <year iso-8601-date="2023-02">2023</year><month>02</month>
+      <volume>6</volume>
+      <issn>2565-6120</issn>
+      <uri>http://dx.doi.org/10.21105/astro.2210.13260</uri>
+      <pub-id pub-id-type="doi">10.21105/astro.2210.13260</pub-id>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
