@@ -1,0 +1,712 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">6532</article-id>
+<article-id pub-id-type="doi">10.21105/joss.06532</article-id>
+<title-group>
+<article-title><monospace>JAXbind</monospace>: Bind any function to
+JAX</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author" equal-contrib="yes">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0002-8873-8215</contrib-id>
+<name>
+<surname>Roth</surname>
+<given-names>Jakob</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+<xref ref-type="aff" rid="aff-2"/>
+<xref ref-type="aff" rid="aff-3"/>
+</contrib>
+<contrib contrib-type="author" equal-contrib="yes">
+<name>
+<surname>Reinecke</surname>
+<given-names>Martin</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<contrib contrib-type="author" equal-contrib="yes">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0003-3122-4894</contrib-id>
+<name>
+<surname>Edenhofer</surname>
+<given-names>Gordian</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+<xref ref-type="aff" rid="aff-2"/>
+<xref ref-type="aff" rid="aff-4"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Max Planck Institute for Astrophysics,
+Karl-Schwarzschild-Str. 1, 85748 Garching, Germany</institution>
+</institution-wrap>
+</aff>
+<aff id="aff-2">
+<institution-wrap>
+<institution>Ludwig Maximilian University of Munich,
+Geschwister-Scholl-Platz 1, 80539 Munich, Germany</institution>
+</institution-wrap>
+</aff>
+<aff id="aff-3">
+<institution-wrap>
+<institution>Technical University of Munich, Boltzmannstr. 3, 85748
+Garching, Germany</institution>
+</institution-wrap>
+</aff>
+<aff id="aff-4">
+<institution-wrap>
+<institution>Department of Astrophysics, University of Vienna,
+Türkenschanzstr. 17, A-1180 Vienna, Austria</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2024-02-22">
+<day>22</day>
+<month>2</month>
+<year>2024</year>
+</pub-date>
+<volume>9</volume>
+<issue>98</issue>
+<fpage>6532</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2022</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>Python</kwd>
+<kwd>Machine Learning</kwd>
+<kwd>High Performance Computing</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p>JAX is widely used in machine learning and scientific computing,
+  the latter of which often relies on existing high-performance code
+  that we would ideally like to incorporate into JAX. Reimplementing the
+  existing code in JAX is often impractical and the existing interface
+  in JAX for binding custom code either limits the user to a single
+  Jacobian product or requires deep knowledge of JAX and its C++ backend
+  for general Jacobian products. With <monospace>JAXbind</monospace> we
+  drastically reduce the effort required to bind custom functions
+  implemented in other programming languages with full support for
+  Jacobian-vector products and vector-Jacobian products to JAX.
+  Specifically, <monospace>JAXbind</monospace> provides an easy-to-use
+  Python interface for defining custom, so-called JAX primitives. Via
+  <monospace>JAXbind</monospace>, any function callable from Python can
+  be exposed as a JAX primitive. <monospace>JAXbind</monospace> allows a
+  user to interface the JAX function transformation engine with custom
+  derivatives and batching rules, enabling all JAX transformations for
+  the custom primitive.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of Need</title>
+  <p>The use of JAX
+  (<xref alt="Bradbury et al., 2018" rid="ref-Jax2018" ref-type="bibr">Bradbury
+  et al., 2018</xref>) is widespread in the natural sciences. Of
+  particular interest is JAX’s powerful transformation system. It
+  enables a user to retrieve arbitrary derivatives of functions, batch
+  computations, and just-in-time compile code for additional
+  performance. Its transformation system requires that all components of
+  the computation are written in JAX.</p>
+  <p>A plethora of high-performance code is not written in JAX and thus
+  not accessible from within JAX. Rewriting these codes is often
+  infeasible and/or inefficient. Ideally, we would like to mix existing
+  high-performance code with JAX code. However, connecting code to JAX
+  requires knowledge of the internals of JAX and its C++ backend.</p>
+  <p>In this paper, we present <monospace>JAXbind</monospace>, a package
+  for bridging any function to JAX without in-depth knowledge of JAX’s
+  transformation system. The interface is accessible from Python without
+  requiring any development in C++. The package is able to register any
+  function and its partial derivatives and their transpose functions as
+  a JAX native call, a so-called primitive.</p>
+  <p>We believe <monospace>JAXbind</monospace> to be highly useful in
+  scientific computing. We intend to use this package to connect the
+  Hartley transform and the spherical harmonic transform from DUCC
+  (<xref alt="Reinecke, 2024" rid="ref-ducc0" ref-type="bibr">Reinecke,
+  2024</xref>) to the probabilistic programming package NIFTy
+  (<xref alt="Edenhofer et al., 2024" rid="ref-Edenhofer2023NIFTyRE" ref-type="bibr">Edenhofer
+  et al., 2024</xref>) as well as the radio interferometry response from
+  DUCC with the radio astronomy package <monospace>resolve</monospace>
+  (<xref alt="Arras et al., 2024" rid="ref-Resolve2024" ref-type="bibr">Arras
+  et al., 2024</xref>). Furthermore, we intend to connect the
+  non-uniform FFT from DUCC with JAX for applications in strong-lensing
+  astrophysics. We envision many further applications within and outside
+  of astrophysics.</p>
+  <p>The functionality of <monospace>JAXbind</monospace> extends the
+  external callback functionality in JAX. Currently,
+  <monospace>JAXbind</monospace>, akin to the external callback
+  functions in JAX, briefly requires Python’s global interpreter lock
+  (GIL) to call the user-specified Python function. In contrast to JAX’s
+  external callback functions, <monospace>JAXbind</monospace> allows for
+  both a custom Jacobian-vector product and vector-Jacobian product. To
+  the best of our knowledge no other code currently exists for easily
+  binding generic functions and both of their Jacobian products to JAX,
+  without the need for C++ or LLVM. The package that comes the closest
+  is Enzyme-JAX
+  (<xref alt="W. S. Moses &amp; Zinenko, 2024" rid="ref-Moses2024" ref-type="bibr">W.
+  S. Moses &amp; Zinenko, 2024</xref>), which allows one to bind
+  arbitrary LLVM/MLIR, including C++, with automatically-generated
+  (<xref alt="W. S. Moses et al., 2021" rid="ref-Moses2021" ref-type="bibr">W.
+  S. Moses et al., 2021</xref>,
+  <xref alt="2022" rid="ref-Moses2022" ref-type="bibr">2022</xref>;
+  <xref alt="W. Moses &amp; Churavy, 2020" rid="ref-Moses2020" ref-type="bibr">W.
+  Moses &amp; Churavy, 2020</xref>) or manually-defined derivatives to
+  JAX.</p>
+  <p>PyTorch
+  (<xref alt="Ansel et al., 2024" rid="ref-PyTorch2024" ref-type="bibr">Ansel
+  et al., 2024</xref>) and TensorFlow
+  (<xref alt="Abadi et al., 2015" rid="ref-tensorflow2015" ref-type="bibr">Abadi
+  et al., 2015</xref>) also provide interfaces for custom extensions.
+  PyTorch has an extensively documented Python
+  interface<xref ref-type="fn" rid="fn1">1</xref> for wrapping custom
+  Python functions as PyTorch functions. This interface connects the
+  custom function to PyTorch’s automatic differentiation engine,
+  allowing for custom Jacobian and Jacobian transposed applications,
+  similar to what is possible with JAXbind. Additionally, PyTorch allows
+  a user to interface its C++ backend with custom C++ or CUDA
+  extensions<xref ref-type="fn" rid="fn2">2</xref>. JAXbind, in
+  contrast, currently only supports functions executed on the CPU,
+  although the JAX built-in C++ interface also allows for custom GPU
+  kernels. TensorFlow includes a C++
+  interface<xref ref-type="fn" rid="fn3">3</xref> for custom functions
+  that can be executed on the CPU or GPU. Custom gradients can be added
+  to these functions.</p>
+</sec>
+<sec id="automatic-differentiation-and-code-example">
+  <title>Automatic Differentiation and Code Example</title>
+  <p>Automatic differentiation is a core feature of JAX and often one of
+  the main reasons for using it. Thus, it is essential that custom
+  functions registered with JAX support automatic differentiation. In
+  the following, we will outline which functions our package requires to
+  enable automatic differentiation via JAX. For simplicity, we assume
+  that we want to connect the nonlinear function
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[f(x_1,x_2) = x_1x_2^2]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>f</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>x</mml:mi><mml:mn>1</mml:mn></mml:msub><mml:mo>,</mml:mo><mml:msub><mml:mi>x</mml:mi><mml:mn>2</mml:mn></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>=</mml:mo><mml:msub><mml:mi>x</mml:mi><mml:mn>1</mml:mn></mml:msub><mml:msubsup><mml:mi>x</mml:mi><mml:mn>2</mml:mn><mml:mn>2</mml:mn></mml:msubsup></mml:mrow></mml:math></alternatives></inline-formula>
+  to JAX. The <monospace>JAXbind</monospace> package expects the Python
+  function for <inline-formula><alternatives>
+  <tex-math><![CDATA[f]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>f</mml:mi></mml:math></alternatives></inline-formula>
+  to take three positional arguments. The first argument,
+  <monospace>out</monospace>, is a <monospace>tuple</monospace> into
+  which the results are written. The second argument is also a
+  <monospace>tuple</monospace> containing the input to the function, in
+  our case, <inline-formula><alternatives>
+  <tex-math><![CDATA[x_1]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>x</mml:mi><mml:mn>1</mml:mn></mml:msub></mml:math></alternatives></inline-formula>
+  and <inline-formula><alternatives>
+  <tex-math><![CDATA[x_2]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>x</mml:mi><mml:mn>2</mml:mn></mml:msub></mml:math></alternatives></inline-formula>.
+  Via <monospace>kwargs_dump</monospace>, any keyword arguments given to
+  the registered JAX primitive can be forwarded to
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[f]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>f</mml:mi></mml:math></alternatives></inline-formula>
+  in a serialized form.</p>
+  <code language="python">import jaxbind
+
+def f(out, args, kwargs_dump):
+    kwargs = jaxbind.load_kwargs(kwargs_dump)
+    x1, x2 = args
+    out[0][()] = x1 * x2**2</code>
+  <p>JAX’s automatic differentiation engine can compute the
+  Jacobian-vector product <monospace>jvp</monospace> and vector-Jacobian
+  product <monospace>vjp</monospace> of JAX primitives. The
+  Jacobian-vector product in JAX is a function applying the Jacobian of
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[f]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>f</mml:mi></mml:math></alternatives></inline-formula>
+  at a position <inline-formula><alternatives>
+  <tex-math><![CDATA[x]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>x</mml:mi></mml:math></alternatives></inline-formula>
+  to a tangent vector. In mathematical nomenclature this operation is
+  called the pushforward of <inline-formula><alternatives>
+  <tex-math><![CDATA[f]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>f</mml:mi></mml:math></alternatives></inline-formula>
+  and can be denoted as <inline-formula><alternatives>
+  <tex-math><![CDATA[\partial f(x): T_x X \mapsto T_{f(x)} Y]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>∂</mml:mi><mml:mi>f</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>x</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>:</mml:mo><mml:msub><mml:mi>T</mml:mi><mml:mi>x</mml:mi></mml:msub><mml:mi>X</mml:mi><mml:mo>↦</mml:mo><mml:msub><mml:mi>T</mml:mi><mml:mrow><mml:mi>f</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>x</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:msub><mml:mi>Y</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>,
+  with <inline-formula><alternatives>
+  <tex-math><![CDATA[T_x X]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>T</mml:mi><mml:mi>x</mml:mi></mml:msub><mml:mi>X</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>
+  and <inline-formula><alternatives>
+  <tex-math><![CDATA[T_{f(x)} Y]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>T</mml:mi><mml:mrow><mml:mi>f</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>x</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:msub><mml:mi>Y</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>
+  being the tangent spaces of <inline-formula><alternatives>
+  <tex-math><![CDATA[X]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>X</mml:mi></mml:math></alternatives></inline-formula>
+  and <inline-formula><alternatives>
+  <tex-math><![CDATA[Y]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>Y</mml:mi></mml:math></alternatives></inline-formula>
+  at the positions <inline-formula><alternatives>
+  <tex-math><![CDATA[x]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>x</mml:mi></mml:math></alternatives></inline-formula>
+  and <inline-formula><alternatives>
+  <tex-math><![CDATA[f(x)]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>f</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>x</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>.
+  As the implementation of <inline-formula><alternatives>
+  <tex-math><![CDATA[f]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>f</mml:mi></mml:math></alternatives></inline-formula>
+  is not JAX native, JAX cannot automatically compute the
+  <monospace>jvp</monospace>. Instead, an implementation of the
+  pushforward has to be provided, which <monospace>JAXbind</monospace>
+  will register as the <monospace>jvp</monospace> of the JAX primitive
+  of <inline-formula><alternatives>
+  <tex-math><![CDATA[f]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>f</mml:mi></mml:math></alternatives></inline-formula>.
+  For our example, this Jacobian-vector-product function is given by
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[\partial f(x_1,x_2)(dx_1,dx_2) = x_2^2dx_1 + 2x_1x_2dx_2]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>∂</mml:mi><mml:mi>f</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>x</mml:mi><mml:mn>1</mml:mn></mml:msub><mml:mo>,</mml:mo><mml:msub><mml:mi>x</mml:mi><mml:mn>2</mml:mn></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>d</mml:mi><mml:msub><mml:mi>x</mml:mi><mml:mn>1</mml:mn></mml:msub><mml:mo>,</mml:mo><mml:mi>d</mml:mi><mml:msub><mml:mi>x</mml:mi><mml:mn>2</mml:mn></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>=</mml:mo><mml:msubsup><mml:mi>x</mml:mi><mml:mn>2</mml:mn><mml:mn>2</mml:mn></mml:msubsup><mml:mi>d</mml:mi><mml:msub><mml:mi>x</mml:mi><mml:mn>1</mml:mn></mml:msub><mml:mo>+</mml:mo><mml:mn>2</mml:mn><mml:msub><mml:mi>x</mml:mi><mml:mn>1</mml:mn></mml:msub><mml:msub><mml:mi>x</mml:mi><mml:mn>2</mml:mn></mml:msub><mml:mi>d</mml:mi><mml:msub><mml:mi>x</mml:mi><mml:mn>2</mml:mn></mml:msub></mml:mrow></mml:math></alternatives></inline-formula>.</p>
+  <code language="python">def f_jvp(out, args, kwargs_dump):
+    kwargs = jaxbind.load_kwargs(kwargs_dump)
+    x1, x2, dx1, dx2 = args
+    out[0][()] = x2**2 * dx1 + 2 * x1 * x2 * dx2</code>
+  <p>The vector-Jacobian product <monospace>vjp</monospace> in JAX is
+  the linear transpose of the Jacobian-vector product. In mathematical
+  nomenclature this is the pullback <inline-formula><alternatives>
+  <tex-math><![CDATA[(\partial f(x))^{T}: T_{f(x)}Y \mapsto T_x X]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msup><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>∂</mml:mi><mml:mi>f</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>x</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mi>T</mml:mi></mml:msup><mml:mo>:</mml:mo><mml:msub><mml:mi>T</mml:mi><mml:mrow><mml:mi>f</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>x</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:msub><mml:mi>Y</mml:mi><mml:mo>↦</mml:mo><mml:msub><mml:mi>T</mml:mi><mml:mi>x</mml:mi></mml:msub><mml:mi>X</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>
+  of <inline-formula><alternatives>
+  <tex-math><![CDATA[f]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>f</mml:mi></mml:math></alternatives></inline-formula>.
+  Analogously to the <monospace>jvp</monospace>, the user has to
+  implement this function as JAX cannot automatically construct it. For
+  our example function, the vector-Jacobian product is
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[(\partial f(x_1,x_2))^{T}(dy) = (x_2^2dy, 2x_1x_2dy)]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msup><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>∂</mml:mi><mml:mi>f</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>x</mml:mi><mml:mn>1</mml:mn></mml:msub><mml:mo>,</mml:mo><mml:msub><mml:mi>x</mml:mi><mml:mn>2</mml:mn></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mi>T</mml:mi></mml:msup><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>d</mml:mi><mml:mi>y</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>=</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msubsup><mml:mi>x</mml:mi><mml:mn>2</mml:mn><mml:mn>2</mml:mn></mml:msubsup><mml:mi>d</mml:mi><mml:mi>y</mml:mi><mml:mo>,</mml:mo><mml:mn>2</mml:mn><mml:msub><mml:mi>x</mml:mi><mml:mn>1</mml:mn></mml:msub><mml:msub><mml:mi>x</mml:mi><mml:mn>2</mml:mn></mml:msub><mml:mi>d</mml:mi><mml:mi>y</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>.</p>
+  <code language="python">def f_vjp(out, args, kwargs_dump):
+    kwargs = jaxbind.load_kwargs(kwargs_dump)
+    x1, x2, dy = args
+    out[0][()] = x2**2 * dy
+    out[1][()] = 2 * x1 * x2 * dy</code>
+  <p>To just-in-time compile the function, JAX needs to abstractly
+  evaluate the code, i.e., it needs to be able to infer the shape and
+  dtype of the output of the function given only the shape and dtype of
+  the input. We have to provide these abstract evaluation functions
+  returning the output shape and dtype given an input shape and dtype
+  for <inline-formula><alternatives>
+  <tex-math><![CDATA[f]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>f</mml:mi></mml:math></alternatives></inline-formula>
+  as well as for the <monospace>vjp</monospace> application. The output
+  shape of the <monospace>jvp</monospace> is identical to the output
+  shape of <inline-formula><alternatives>
+  <tex-math><![CDATA[f]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>f</mml:mi></mml:math></alternatives></inline-formula>
+  itself and does not need to be specified again. The abstract
+  evaluation functions take normal positional and keyword arguments.</p>
+  <code language="python">def f_abstract(*args, **kwargs):
+    assert args[0].shape == args[1].shape
+    return ((args[0].shape, args[0].dtype),)
+
+def f_abstract_T(*args, **kwargs):
+    return (
+        (args[0].shape, args[0].dtype),
+        (args[0].shape, args[0].dtype),
+    )</code>
+  <p>We have now defined all ingredients necessary to register a JAX
+  primitive for our function <inline-formula><alternatives>
+  <tex-math><![CDATA[f]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>f</mml:mi></mml:math></alternatives></inline-formula>
+  using the <monospace>JAXbind</monospace> package.</p>
+  <code language="python">f_jax = jaxbind.get_nonlinear_call(
+    f, (f_jvp, f_vjp), f_abstract, f_abstract_T
+)</code>
+  <p><monospace>f_jax</monospace> is a JAX primitive registered via the
+  <monospace>JAXbind</monospace> package supporting all JAX
+  transformations. We can now compute the <monospace>jvp</monospace> and
+  <monospace>vjp</monospace> of the new JAX primitive and even
+  jit-compile and batch it.</p>
+  <code language="python">import jax
+import jax.numpy as jnp
+
+inp = (jnp.full((4,3), 4.), jnp.full((4,3), 2.))
+tan = (jnp.full((4,3), 1.), jnp.full((4,3), 1.))
+res, res_tan = jax.jvp(f_jax, inp, tan)
+
+cotan = [jnp.full((4,3), 6.)]
+res, f_vjp = jax.vjp(f_jax, *inp)
+res_cotan = f_vjp(cotan)
+
+f_jax_jit = jax.jit(f_jax)
+res = f_jax_jit(*inp)</code>
+</sec>
+<sec id="higher-order-derivatives-and-linear-functions">
+  <title>Higher Order Derivatives and Linear Functions</title>
+  <p>JAX supports higher order derivatives and can differentiate a
+  <monospace>jvp</monospace> or <monospace>vjp</monospace> with respect
+  to the position at which the Jacobian was taken. Similar to first
+  derivatives, JAX can not automatically compute higher derivatives of a
+  general function <inline-formula><alternatives>
+  <tex-math><![CDATA[f]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>f</mml:mi></mml:math></alternatives></inline-formula>
+  that is not natively implemented in JAX. Higher order derivatives
+  would again need to be provided by the user. For many algorithms,
+  first derivatives are sufficient, and higher order derivatives are
+  often not implemented by high-performance codes. Therefore, the
+  current interface of <monospace>JAXbind</monospace> is, for
+  simplicity, restricted to first derivatives. In the future, the
+  interface could be easily expanded if specific use cases require
+  higher order derivatives.</p>
+  <p>In scientific computing, linear functions such as, e.g., spherical
+  harmonic transforms are widespread. If the function
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[f]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>f</mml:mi></mml:math></alternatives></inline-formula>
+  is linear, differentiation becomes trivial. Specifically for a linear
+  function <inline-formula><alternatives>
+  <tex-math><![CDATA[f]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>f</mml:mi></mml:math></alternatives></inline-formula>,
+  the pushforward or <monospace>jvp</monospace> of
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[f]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>f</mml:mi></mml:math></alternatives></inline-formula>
+  is identical to <inline-formula><alternatives>
+  <tex-math><![CDATA[f]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>f</mml:mi></mml:math></alternatives></inline-formula>
+  itself and independent of the position at which it is computed.
+  Expressed in formulas, <inline-formula><alternatives>
+  <tex-math><![CDATA[\partial f(x)(dx) = f(dx)]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>∂</mml:mi><mml:mi>f</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>x</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>d</mml:mi><mml:mi>x</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>=</mml:mo><mml:mi>f</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>d</mml:mi><mml:mi>x</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>
+  if <inline-formula><alternatives>
+  <tex-math><![CDATA[f]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>f</mml:mi></mml:math></alternatives></inline-formula>
+  is linear in <inline-formula><alternatives>
+  <tex-math><![CDATA[x]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>x</mml:mi></mml:math></alternatives></inline-formula>.
+  Analogously, the pullback or <monospace>vjp</monospace> becomes
+  independent of the initial position and is given by the linear
+  transpose of <inline-formula><alternatives>
+  <tex-math><![CDATA[f]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>f</mml:mi></mml:math></alternatives></inline-formula>,
+  thus <inline-formula><alternatives>
+  <tex-math><![CDATA[(\partial f(x))^{T}(dy) = f^T(dy)]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msup><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>∂</mml:mi><mml:mi>f</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>x</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mi>T</mml:mi></mml:msup><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>d</mml:mi><mml:mi>y</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>=</mml:mo><mml:msup><mml:mi>f</mml:mi><mml:mi>T</mml:mi></mml:msup><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>d</mml:mi><mml:mi>y</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>.
+  Also, all higher order derivatives can be expressed in terms of
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[f]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>f</mml:mi></mml:math></alternatives></inline-formula>
+  and its transpose. To make use of these simplifications,
+  <monospace>JAXbind</monospace> provides a special interface for linear
+  functions, supporting higher order derivatives, only requiring an
+  implementation of the function and its transpose.</p>
+</sec>
+<sec id="platforms">
+  <title>Platforms</title>
+  <p>Currently, <monospace>JAXbind</monospace> only supports primitives
+  that act on CPU memory. In the future, GPU support could be added,
+  which should work analogously to the CPU support in most respects. The
+  automatic differentiation in JAX is backend agnostic and would thus
+  not require any additional bindings to work on the GPU.</p>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>We would like to thank Dan Foreman-Mackey for his detailed guide
+  (https://dfm.io/posts/extending-jax/) on connecting C++ code to JAX.
+  Jakob Roth acknowledges financial support from the German Federal
+  Ministry of Education and Research (BMBF) under grant 05A23WO1
+  (Verbundprojekt D-MeerKAT III). Gordian Edenhofer acknowledges support
+  from the German Academic Scholarship Foundation in the form of a PhD
+  scholarship (“Promotionsstipendium der Studienstiftung des Deutschen
+  Volkes”).</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <title></title>
+  <ref id="ref-Jax2018">
+    <element-citation publication-type="software">
+      <person-group person-group-type="author">
+        <name><surname>Bradbury</surname><given-names>James</given-names></name>
+        <name><surname>Frostig</surname><given-names>Roy</given-names></name>
+        <name><surname>Hawkins</surname><given-names>Peter</given-names></name>
+        <name><surname>Johnson</surname><given-names>Matthew James</given-names></name>
+        <name><surname>Leary</surname><given-names>Chris</given-names></name>
+        <name><surname>Maclaurin</surname><given-names>Dougal</given-names></name>
+        <name><surname>Necula</surname><given-names>George</given-names></name>
+        <name><surname>Paszke</surname><given-names>Adam</given-names></name>
+        <name><surname>VanderPlas</surname><given-names>Jake</given-names></name>
+        <name><surname>Wanderman-Milne</surname><given-names>Skye</given-names></name>
+        <name><surname>Zhang</surname><given-names>Qiao</given-names></name>
+      </person-group>
+      <article-title>JAX: Composable transformations of Python+NumPy programs</article-title>
+      <year iso-8601-date="2018">2018</year>
+      <uri>http://github.com/google/jax</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-ducc0">
+    <element-citation publication-type="software">
+      <person-group person-group-type="author">
+        <name><surname>Reinecke</surname><given-names>Martin</given-names></name>
+      </person-group>
+      <article-title>DUCC: Distinctly useful code collection</article-title>
+      <year iso-8601-date="2024">2024</year>
+      <uri>https://gitlab.mpcdf.mpg.de/mtr/ducc</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-Moses2024">
+    <element-citation publication-type="software">
+      <person-group person-group-type="author">
+        <name><surname>Moses</surname><given-names>William S.</given-names></name>
+        <name><surname>Zinenko</surname><given-names>Oleksandr</given-names></name>
+      </person-group>
+      <article-title>Enzyme-JAX</article-title>
+      <year iso-8601-date="2024">2024</year>
+      <uri>https://github.com/EnzymeAD/Enzyme-JAX</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-Moses2020">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Moses</surname><given-names>William</given-names></name>
+        <name><surname>Churavy</surname><given-names>Valentin</given-names></name>
+      </person-group>
+      <article-title>Instead of rewriting foreign code for machine learning, automatically synthesize fast gradients</article-title>
+      <source>Advances in neural information processing systems</source>
+      <person-group person-group-type="editor">
+        <name><surname>Larochelle</surname><given-names>H.</given-names></name>
+        <name><surname>Ranzato</surname><given-names>M.</given-names></name>
+        <name><surname>Hadsell</surname><given-names>R.</given-names></name>
+        <name><surname>Balcan</surname><given-names>M. F.</given-names></name>
+        <name><surname>Lin</surname><given-names>H.</given-names></name>
+      </person-group>
+      <publisher-name>Curran Associates, Inc.</publisher-name>
+      <year iso-8601-date="2020">2020</year>
+      <volume>33</volume>
+      <uri>https://proceedings.neurips.cc/paper/2020/file/9332c513ef44b682e9347822c2e457ac-Paper.pdf</uri>
+      <fpage>12472</fpage>
+      <lpage>12485</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Moses2021">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Moses</surname><given-names>William S.</given-names></name>
+        <name><surname>Churavy</surname><given-names>Valentin</given-names></name>
+        <name><surname>Paehler</surname><given-names>Ludger</given-names></name>
+        <name><surname>Hückelheim</surname><given-names>Jan</given-names></name>
+        <name><surname>Narayanan</surname><given-names>Sri Hari Krishna</given-names></name>
+        <name><surname>Schanen</surname><given-names>Michel</given-names></name>
+        <name><surname>Doerfert</surname><given-names>Johannes</given-names></name>
+      </person-group>
+      <article-title>Reverse-mode automatic differentiation and optimization of GPU kernels via enzyme</article-title>
+      <source>Proceedings of the international conference for high performance computing, networking, storage and analysis</source>
+      <publisher-name>Association for Computing Machinery</publisher-name>
+      <publisher-loc>New York, NY, USA</publisher-loc>
+      <year iso-8601-date="2021">2021</year>
+      <isbn>9781450384421</isbn>
+      <uri>https://doi.org/10.1145/3458817.3476165</uri>
+      <pub-id pub-id-type="doi">10.1145/3458817.3476165</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-Moses2022">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Moses</surname><given-names>William S.</given-names></name>
+        <name><surname>Narayanan</surname><given-names>Sri Hari Krishna</given-names></name>
+        <name><surname>Paehler</surname><given-names>Ludger</given-names></name>
+        <name><surname>Churavy</surname><given-names>Valentin</given-names></name>
+        <name><surname>Schanen</surname><given-names>Michel</given-names></name>
+        <name><surname>Hückelheim</surname><given-names>Jan</given-names></name>
+        <name><surname>Doerfert</surname><given-names>Johannes</given-names></name>
+        <name><surname>Hovland</surname><given-names>Paul</given-names></name>
+      </person-group>
+      <article-title>Scalable automatic differentiation of multiple parallel paradigms through compiler augmentation</article-title>
+      <source>Proceedings of the international conference on high performance computing, networking, storage and analysis</source>
+      <publisher-name>IEEE Press</publisher-name>
+      <publisher-loc>Dallas, Texas</publisher-loc>
+      <year iso-8601-date="2022">2022</year>
+      <isbn>9784665454445</isbn>
+      <pub-id pub-id-type="doi">10.1109/SC41404.2022.00065</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-Resolve2024">
+    <element-citation publication-type="software">
+      <person-group person-group-type="author">
+        <name><surname>Arras</surname><given-names>Philipp</given-names></name>
+        <name><surname>Roth</surname><given-names>Jakob</given-names></name>
+        <name><surname>Ding</surname><given-names>Simon</given-names></name>
+        <name><surname>Reinecke</surname><given-names>Martin</given-names></name>
+        <name><surname>Fuchs</surname><given-names>Richard</given-names></name>
+        <name><surname>Johnson</surname><given-names>Vishal</given-names></name>
+      </person-group>
+      <article-title>RESOLVE</article-title>
+      <year iso-8601-date="2024">2024</year>
+      <uri>https://gitlab.mpcdf.mpg.de/ift/resolve</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-Edenhofer2023NIFTyRE">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Edenhofer</surname><given-names>Gordian</given-names></name>
+        <name><surname>Frank</surname><given-names>Philipp</given-names></name>
+        <name><surname>Roth</surname><given-names>Jakob</given-names></name>
+        <name><surname>Leike</surname><given-names>Reimar H.</given-names></name>
+        <name><surname>Guerdi</surname><given-names>Massin</given-names></name>
+        <name><surname>Scheel-Platz</surname><given-names>Lukas I.</given-names></name>
+        <name><surname>Guardiani</surname><given-names>Matteo</given-names></name>
+        <name><surname>Eberle</surname><given-names>Vincent</given-names></name>
+        <name><surname>Westerkamp</surname><given-names>Margret</given-names></name>
+        <name><surname>Enßlin</surname><given-names>Torsten A.</given-names></name>
+      </person-group>
+      <article-title>Re-envisioning numerical information field theory (NIFTy.re): A library for Gaussian processes and variational inference</article-title>
+      <source>Journal of Open Source Software</source>
+      <publisher-name>The Open Journal</publisher-name>
+      <year iso-8601-date="2024">2024</year>
+      <volume>9</volume>
+      <issue>98</issue>
+      <uri>https://doi.org/10.21105/joss.06593</uri>
+      <pub-id pub-id-type="doi">10.21105/joss.06593</pub-id>
+      <fpage>6593</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-tensorflow2015">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Abadi</surname><given-names>Martín</given-names></name>
+        <name><surname>Agarwal</surname><given-names>Ashish</given-names></name>
+        <name><surname>Barham</surname><given-names>Paul</given-names></name>
+        <name><surname>Brevdo</surname><given-names>Eugene</given-names></name>
+        <name><surname>Chen</surname><given-names>Zhifeng</given-names></name>
+        <name><surname>Citro</surname><given-names>Craig</given-names></name>
+        <name><surname>Corrado</surname><given-names>Greg S.</given-names></name>
+        <name><surname>Davis</surname><given-names>Andy</given-names></name>
+        <name><surname>Dean</surname><given-names>Jeffrey</given-names></name>
+        <name><surname>Devin</surname><given-names>Matthieu</given-names></name>
+        <name><surname>Ghemawat</surname><given-names>Sanjay</given-names></name>
+        <name><surname>Goodfellow</surname><given-names>Ian</given-names></name>
+        <name><surname>Harp</surname><given-names>Andrew</given-names></name>
+        <name><surname>Irving</surname><given-names>Geoffrey</given-names></name>
+        <name><surname>Isard</surname><given-names>Michael</given-names></name>
+        <name><surname>Jia</surname><given-names>Yangqing</given-names></name>
+        <name><surname>Jozefowicz</surname><given-names>Rafal</given-names></name>
+        <name><surname>Kaiser</surname><given-names>Lukasz</given-names></name>
+        <name><surname>Kudlur</surname><given-names>Manjunath</given-names></name>
+        <name><surname>Levenberg</surname><given-names>Josh</given-names></name>
+        <name><surname>Mané</surname><given-names>Dandelion</given-names></name>
+        <name><surname>Monga</surname><given-names>Rajat</given-names></name>
+        <name><surname>Moore</surname><given-names>Sherry</given-names></name>
+        <name><surname>Murray</surname><given-names>Derek</given-names></name>
+        <name><surname>Olah</surname><given-names>Chris</given-names></name>
+        <name><surname>Schuster</surname><given-names>Mike</given-names></name>
+        <name><surname>Shlens</surname><given-names>Jonathon</given-names></name>
+        <name><surname>Steiner</surname><given-names>Benoit</given-names></name>
+        <name><surname>Sutskever</surname><given-names>Ilya</given-names></name>
+        <name><surname>Talwar</surname><given-names>Kunal</given-names></name>
+        <name><surname>Tucker</surname><given-names>Paul</given-names></name>
+        <name><surname>Vanhoucke</surname><given-names>Vincent</given-names></name>
+        <name><surname>Vasudevan</surname><given-names>Vijay</given-names></name>
+        <name><surname>Viégas</surname><given-names>Fernanda</given-names></name>
+        <name><surname>Vinyals</surname><given-names>Oriol</given-names></name>
+        <name><surname>Warden</surname><given-names>Pete</given-names></name>
+        <name><surname>Wattenberg</surname><given-names>Martin</given-names></name>
+        <name><surname>Wicke</surname><given-names>Martin</given-names></name>
+        <name><surname>Yu</surname><given-names>Yuan</given-names></name>
+        <name><surname>Zheng</surname><given-names>Xiaoqiang</given-names></name>
+      </person-group>
+      <article-title>TensorFlow: Large-scale machine learning on heterogeneous systems</article-title>
+      <year iso-8601-date="2015">2015</year>
+      <uri>https://www.tensorflow.org/</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-PyTorch2024">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Ansel</surname><given-names>Jason</given-names></name>
+        <name><surname>Yang</surname><given-names>Edward</given-names></name>
+        <name><surname>He</surname><given-names>Horace</given-names></name>
+        <name><surname>Gimelshein</surname><given-names>Natalia</given-names></name>
+        <name><surname>Jain</surname><given-names>Animesh</given-names></name>
+        <name><surname>Voznesensky</surname><given-names>Michael</given-names></name>
+        <name><surname>Bao</surname><given-names>Bin</given-names></name>
+        <name><surname>Bell</surname><given-names>Peter</given-names></name>
+        <name><surname>Berard</surname><given-names>David</given-names></name>
+        <name><surname>Burovski</surname><given-names>Evgeni</given-names></name>
+        <name><surname>Chauhan</surname><given-names>Geeta</given-names></name>
+        <name><surname>Chourdia</surname><given-names>Anjali</given-names></name>
+        <name><surname>Constable</surname><given-names>Will</given-names></name>
+        <name><surname>Desmaison</surname><given-names>Alban</given-names></name>
+        <name><surname>DeVito</surname><given-names>Zachary</given-names></name>
+        <name><surname>Ellison</surname><given-names>Elias</given-names></name>
+        <name><surname>Feng</surname><given-names>Will</given-names></name>
+        <name><surname>Gong</surname><given-names>Jiong</given-names></name>
+        <name><surname>Gschwind</surname><given-names>Michael</given-names></name>
+        <name><surname>Hirsh</surname><given-names>Brian</given-names></name>
+        <name><surname>Huang</surname><given-names>Sherlock</given-names></name>
+        <name><surname>Kalambarkar</surname><given-names>Kshiteej</given-names></name>
+        <name><surname>Kirsch</surname><given-names>Laurent</given-names></name>
+        <name><surname>Lazos</surname><given-names>Michael</given-names></name>
+        <name><surname>Lezcano</surname><given-names>Mario</given-names></name>
+        <name><surname>Liang</surname><given-names>Yanbo</given-names></name>
+        <name><surname>Liang</surname><given-names>Jason</given-names></name>
+        <name><surname>Lu</surname><given-names>Yinghai</given-names></name>
+        <name><surname>Luk</surname><given-names>CK</given-names></name>
+        <name><surname>Maher</surname><given-names>Bert</given-names></name>
+        <name><surname>Pan</surname><given-names>Yunjie</given-names></name>
+        <name><surname>Puhrsch</surname><given-names>Christian</given-names></name>
+        <name><surname>Reso</surname><given-names>Matthias</given-names></name>
+        <name><surname>Saroufim</surname><given-names>Mark</given-names></name>
+        <name><surname>Siraichi</surname><given-names>Marcos Yukio</given-names></name>
+        <name><surname>Suk</surname><given-names>Helen</given-names></name>
+        <name><surname>Suo</surname><given-names>Michael</given-names></name>
+        <name><surname>Tillet</surname><given-names>Phil</given-names></name>
+        <name><surname>Wang</surname><given-names>Eikan</given-names></name>
+        <name><surname>Wang</surname><given-names>Xiaodong</given-names></name>
+        <name><surname>Wen</surname><given-names>William</given-names></name>
+        <name><surname>Zhang</surname><given-names>Shunting</given-names></name>
+        <name><surname>Zhao</surname><given-names>Xu</given-names></name>
+        <name><surname>Zhou</surname><given-names>Keren</given-names></name>
+        <name><surname>Zou</surname><given-names>Richard</given-names></name>
+        <name><surname>Mathews</surname><given-names>Ajit</given-names></name>
+        <name><surname>Chanan</surname><given-names>Gregory</given-names></name>
+        <name><surname>Wu</surname><given-names>Peng</given-names></name>
+        <name><surname>Chintala</surname><given-names>Soumith</given-names></name>
+      </person-group>
+      <article-title>PyTorch 2: Faster machine learning through dynamic Python bytecode transformation and graph compilation</article-title>
+      <source>29th ACM international conference on architectural support for programming languages and operating systems, volume 2 (ASPLOS ’24)</source>
+      <publisher-name>ACM</publisher-name>
+      <year iso-8601-date="2024-04">2024</year><month>04</month>
+      <uri>https://pytorch.org/assets/pytorch2-2.pdf</uri>
+      <pub-id pub-id-type="doi">10.1145/3620665.3640366</pub-id>
+    </element-citation>
+  </ref>
+</ref-list>
+<fn-group>
+  <fn id="fn1">
+    <label>1</label><p><ext-link ext-link-type="uri" xlink:href="https://pytorch.org/docs/stable/notes/extending.html">https://pytorch.org/docs/stable/notes/extending.html</ext-link></p>
+  </fn>
+  <fn id="fn2">
+    <label>2</label><p><ext-link ext-link-type="uri" xlink:href="https://pytorch.org/tutorials/advanced/cpp_extension.html">https://pytorch.org/tutorials/advanced/cpp_extension.html</ext-link></p>
+  </fn>
+  <fn id="fn3">
+    <label>3</label><p><ext-link ext-link-type="uri" xlink:href="https://www.tensorflow.org/guide/create_op">https://www.tensorflow.org/guide/create_op</ext-link></p>
+  </fn>
+</fn-group>
+</back>
+</article>
