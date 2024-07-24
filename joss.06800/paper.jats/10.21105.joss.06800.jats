@@ -1,0 +1,1015 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">6800</article-id>
+<article-id pub-id-type="doi">10.21105/joss.06800</article-id>
+<title-group>
+<article-title>tidylda: An R Package for Latent Dirichlet Allocation
+Using ‘tidyverse’ Conventions</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author" equal-contrib="yes">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0001-6457-2452</contrib-id>
+<name>
+<surname>Jones</surname>
+<given-names>Tommy</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Foundation, USA</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2024-05-09">
+<day>9</day>
+<month>5</month>
+<year>2024</year>
+</pub-date>
+<volume>9</volume>
+<issue>99</issue>
+<fpage>6800</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2022</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>R</kwd>
+<kwd>topic models</kwd>
+<kwd>LDA</kwd>
+<kwd>natural language processing</kwd>
+<kwd>tidy data</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p><italic>tidylda</italic> is a package for a topic model, Latent
+  Dirichlet Allocation or LDA
+  (<xref alt="Blei et al., 2003" rid="ref-blei2002lda" ref-type="bibr">Blei
+  et al., 2003</xref>), that is natively compatible with the
+  <italic>tidyverse</italic>
+  (<xref alt="Wickham et al., 2019" rid="ref-tidyverse" ref-type="bibr">Wickham
+  et al., 2019</xref>). <italic>tidylda</italic>’s Gibbs sampler is
+  written in C++ for performance and offers several novel features, such
+  as transfer learning for LDA using the tLDA model. It also has methods
+  for sampling from the posterior of a trained model, for more
+  traditional Bayesian analyses.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of Need</title>
+  <p>Packages that implement topic models in R and other languages are
+  plentiful. Why do we need another? <italic>tidylda</italic>’s native
+  compatibility with the <italic>tidyverse</italic> makes it
+  significantly more user friendly than other topic modeling packages.
+  It also enables more traditional Bayesian analyses such as the ability
+  to set more flexible priors, burn-in iterations, averaging over
+  segments of the Gibbs sample chain, and sampling from the posterior
+  that other packages lack. Finally, <italic>tidylda</italic> implements
+  a transfer learning algorithm developed in
+  (<xref alt="Jones, 2023" rid="ref-jones2023latent" ref-type="bibr">Jones,
+  2023</xref>), unavailable in any other package and described in more
+  detail in the following section.</p>
+  <sec id="the-tidyverse-family-of-packages-for-r">
+    <title>The “tidyverse” family of packages for R</title>
+    <p><italic>tidylda</italic> takes its syntactic cues from an
+    ecosystem of R packages known as <italic>the tidyverse</italic>. The
+    tidyverse’s goal is to “facilitate a conversation between a human
+    and computer about data”
+    (<xref alt="Wickham et al., 2019" rid="ref-tidyverse" ref-type="bibr">Wickham
+    et al., 2019</xref>). Packages in—and adjacent to—the tidyverse
+    share a common design philosophy and syntax based on “tidy data”
+    principles
+    (<xref alt="Wickham &amp; others, 2014" rid="ref-wickham2014tidy" ref-type="bibr">Wickham
+    &amp; others, 2014</xref>). Tidy data has each variable in a column,
+    each observation in a row, and each observational unit in a table.
+    Extensions include the <italic>broom</italic> package
+    (<xref alt="Robinson, 2014" rid="ref-broom" ref-type="bibr">Robinson,
+    2014</xref>) for “tidying” up outputs from statistical models and
+    the in-development <italic>tidymodels</italic> ecosystem
+    (<xref alt="Khun &amp; Wickham, 2018" rid="ref-tidymodels" ref-type="bibr">Khun
+    &amp; Wickham, 2018</xref>) which extends the tidyverse philosophy
+    to statistical modeling and machine learning workflows.</p>
+    <p>Silge and Robinson articulated a “tidy data” framework for text
+    analyses—the <italic>tidytext</italic> package
+    (<xref alt="Silge &amp; Robinson, 2016" rid="ref-tidytextjoss" ref-type="bibr">Silge
+    &amp; Robinson, 2016</xref>). Their approach has “one row per
+    document per token”. The <italic>tidytext</italic> package provides
+    functionality to tokenize a corpus, transform it into this “tidy”
+    format, and manipulate it in various ways, including preparing data
+    for input into some of R’s many topic modeling packages. The
+    <italic>tidytext</italic> package also provides tidying functions in
+    the style of the <italic>broom</italic> package, which harmonizes
+    outputs from some of R’s topic modeling packages into more usable
+    formats. <italic>tidylda</italic> manages inputs and outputs in the
+    flavor of <italic>tidytext</italic> but in one self contained
+    package.</p>
+  </sec>
+  <sec id="topic-modeling-software-in-r">
+    <title>Topic modeling software in R</title>
+    <p>R has many packages for topic modeling; none are natively “tidy”
+    though some have wrapper functions available in
+    <italic>tidytext</italic> that produce tidy outputs. In almost all
+    cases these models support only scalar, or “symmetric”, priors for
+    topics over documents.</p>
+    <p>The <italic>textmineR</italic> package
+    (<xref alt="Jones, 2015" rid="ref-textminer" ref-type="bibr">Jones,
+    2015</xref>) is <italic>tidylda</italic>’s predecessor, supporting
+    vector, or “asymmetric”,” priors. It supports fitting several topic
+    models, not just LDA. But <italic>textmineR</italic> does not
+    support transfer learning nor is it consistent with the
+    <italic>tidyverse</italic> principles.</p>
+    <p>The <italic>topicmodels</italic> package
+    (<xref alt="Grün &amp; Hornik, 2011" rid="ref-topicmodelspackage" ref-type="bibr">Grün
+    &amp; Hornik, 2011</xref>) supports fitting models for LDA and
+    correlated topic models
+    (<xref alt="Blei &amp; Lafferty, 2007" rid="ref-blei2007ctm" ref-type="bibr">Blei
+    &amp; Lafferty, 2007</xref>) with both a collapsed Gibbs sampler and
+    variational expectation maximization (VEM). When using VEM,
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[\boldsymbol\alpha]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>𝛂</mml:mi></mml:math></alternatives></inline-formula>
+    may be treated as a free parameter and estimated during fitting. It
+    only allows users to set symmetric priors. It is designed to be
+    interoperable with the <italic>tm</italic> package
+    (<xref alt="Feinerer et al., 2008" rid="ref-tmjss" ref-type="bibr">Feinerer
+    et al., 2008</xref>), the oldest framework for text analysis in R.
+    <italic>tidytext</italic> provides “tidier” functions to make the
+    <italic>topicmodels</italic> package interoperable with other
+    frameworks, such as <italic>quanteda</italic>
+    (<xref alt="Benoit et al., 2018" rid="ref-quanteda" ref-type="bibr">Benoit
+    et al., 2018</xref>), <italic>text2vec</italic>
+    (<xref alt="Selivanov et al., 2020" rid="ref-text2vec" ref-type="bibr">Selivanov
+    et al., 2020</xref>), and more.</p>
+    <p>The <italic>lda</italic> package
+    (<xref alt="Chang, 2015" rid="ref-chang2015lda" ref-type="bibr">Chang,
+    2015</xref>) provides a collapsed Gibbs sampler for LDA, and other
+    less well-known models. Its Gibbs sampler is one of the fastest. It
+    allows users to set only symmetric priors. Its syntax is esoteric
+    and it requires text documents as input, but does not offer much
+    flexibility in the way of pre-processing. It is generally not
+    interoperable with other packages without significant programming on
+    the part of its users.</p>
+    <p>The <italic>text2vec</italic> package
+    (<xref alt="Selivanov et al., 2020" rid="ref-text2vec" ref-type="bibr">Selivanov
+    et al., 2020</xref>) is a framework for very fast text
+    pre-processing and modeling. <italic>text2vec</italic> implements
+    LDA using the WarpLDA algorithm
+    (<xref alt="Chen et al., 2015" rid="ref-chen2015warplda" ref-type="bibr">Chen
+    et al., 2015</xref>), but it only allows symmetric priors.
+    <italic>text2vec</italic> also offers other models related to
+    distributional semantics. Its syntax is also esoteric using R’s
+    <italic>R6</italic> objects that reach back to actively running C++
+    code for performance reasons. One of <italic>text2vec</italic>’s
+    novel features is that it implements many different coherence
+    calculations; most packages implement only one or none.</p>
+    <p>The <italic>STM</italic> package
+    (<xref alt="Margaret E. Roberts et al., 2019" rid="ref-roberts2019stm" ref-type="bibr">Margaret
+    E. Roberts et al., 2019</xref>) implements VEM algorithms for
+    structural topic models
+    (<xref alt="Margaret E. Roberts et al., 2013" rid="ref-roberts2013stm" ref-type="bibr">Margaret
+    E. Roberts et al., 2013</xref>) and correlated topic models
+    (<xref alt="Blei &amp; Lafferty, 2007" rid="ref-blei2007ctm" ref-type="bibr">Blei
+    &amp; Lafferty, 2007</xref>). <italic>STM</italic> is well-supported
+    with interfaces in <italic>tidytext</italic>. It offers unique
+    capabilities for model initialization somewhat analogous to transfer
+    learning. Models may be initialized at random or from an LDA model
+    that has run for a few iterations. <italic>STM</italic> does not
+    offer this as a fully-fledged “transfer learning” paradigm. Instead
+    it is a flag the user sets at run time. <italic>STM</italic> then
+    produces the LDA model to hand off to the STM model internally. STM
+    has several unique methods for setting priors but the documentation
+    makes it appear that they are all symmetric.</p>
+  </sec>
+</sec>
+<sec id="latent-dirichlet-allocation-and-notation">
+  <title>Latent Dirichlet Allocation and Notation</title>
+  <p>LDA is a Bayesian latent variable model for text
+  (<xref alt="Blei et al., 2003" rid="ref-blei2002lda" ref-type="bibr">Blei
+  et al., 2003</xref>). It decomposes a data set of word counts,
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[\boldsymbol{X}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>𝐗</mml:mi></mml:math></alternatives></inline-formula>,
+  whose row/column entries, <inline-formula><alternatives>
+  <tex-math><![CDATA[d,v]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>d</mml:mi><mml:mo>,</mml:mo><mml:mi>v</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>,
+  represent the number of times word <inline-formula><alternatives>
+  <tex-math><![CDATA[v]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>v</mml:mi></mml:math></alternatives></inline-formula>
+  is found in document <inline-formula><alternatives>
+  <tex-math><![CDATA[d]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>d</mml:mi></mml:math></alternatives></inline-formula>,
+  into two matrices: <inline-formula><alternatives>
+  <tex-math><![CDATA[\boldsymbol\Theta]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>𝚯</mml:mi></mml:math></alternatives></inline-formula>
+  and <inline-formula><alternatives>
+  <tex-math><![CDATA[\boldsymbol{B}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>𝐁</mml:mi></mml:math></alternatives></inline-formula>.
+  The former gives a distribution of (latent) topics over documents and
+  the latter gives a distribution of words over topics. Formally, LDA
+  is</p>
+  <p><disp-formula><alternatives>
+  <tex-math><![CDATA[\begin{aligned}
+    z_{d_{n}}|\boldsymbol\theta_d &\sim 
+    \text{Categorical}(\boldsymbol\theta_d)\\
+    w_{d_{n}}|z_{k},\boldsymbol\beta_k^{(t)} &\sim
+    \text{Categorical}(\boldsymbol\beta_k^{(t)}) \\
+    \boldsymbol\theta_d &\sim
+    \text{Dirichlet}(\boldsymbol\alpha)\\
+    \boldsymbol\beta_k^{(t)} &\sim
+    \text{Dirichlet}(\boldsymbol\eta)
+  \end{aligned}]]></tex-math>
+  <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mtable><mml:mtr><mml:mtd columnalign="right" style="text-align: right"><mml:msub><mml:mi>z</mml:mi><mml:msub><mml:mi>d</mml:mi><mml:mi>n</mml:mi></mml:msub></mml:msub><mml:mo stretchy="false" form="prefix">|</mml:mo><mml:msub><mml:mi>𝛉</mml:mi><mml:mi>d</mml:mi></mml:msub></mml:mtd><mml:mtd columnalign="left" style="text-align: left"><mml:mo>∼</mml:mo><mml:mtext mathvariant="normal">Categorical</mml:mtext><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>𝛉</mml:mi><mml:mi>d</mml:mi></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mtd></mml:mtr><mml:mtr><mml:mtd columnalign="right" style="text-align: right"><mml:msub><mml:mi>w</mml:mi><mml:msub><mml:mi>d</mml:mi><mml:mi>n</mml:mi></mml:msub></mml:msub><mml:mo stretchy="false" form="prefix">|</mml:mo><mml:msub><mml:mi>z</mml:mi><mml:mi>k</mml:mi></mml:msub><mml:mo>,</mml:mo><mml:msubsup><mml:mi>𝛃</mml:mi><mml:mi>k</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>t</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:msubsup></mml:mtd><mml:mtd columnalign="left" style="text-align: left"><mml:mo>∼</mml:mo><mml:mtext mathvariant="normal">Categorical</mml:mtext><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msubsup><mml:mi>𝛃</mml:mi><mml:mi>k</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>t</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:msubsup><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mtd></mml:mtr><mml:mtr><mml:mtd columnalign="right" style="text-align: right"><mml:msub><mml:mi>𝛉</mml:mi><mml:mi>d</mml:mi></mml:msub></mml:mtd><mml:mtd columnalign="left" style="text-align: left"><mml:mo>∼</mml:mo><mml:mtext mathvariant="normal">Dirichlet</mml:mtext><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>𝛂</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mtd></mml:mtr><mml:mtr><mml:mtd columnalign="right" style="text-align: right"><mml:msubsup><mml:mi>𝛃</mml:mi><mml:mi>k</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>t</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:msubsup></mml:mtd><mml:mtd columnalign="left" style="text-align: left"><mml:mo>∼</mml:mo><mml:mtext mathvariant="normal">Dirichlet</mml:mtext><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>𝛈</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mtd></mml:mtr></mml:mtable></mml:math></alternatives></disp-formula></p>
+  <p>where random variables <inline-formula><alternatives>
+  <tex-math><![CDATA[w_{d_{n}}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>w</mml:mi><mml:msub><mml:mi>d</mml:mi><mml:mi>n</mml:mi></mml:msub></mml:msub></mml:math></alternatives></inline-formula>
+  and <inline-formula><alternatives>
+  <tex-math><![CDATA[z_{d_{n}}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>z</mml:mi><mml:msub><mml:mi>d</mml:mi><mml:mi>n</mml:mi></mml:msub></mml:msub></mml:math></alternatives></inline-formula>
+  represent the word and topic of the <inline-formula><alternatives>
+  <tex-math><![CDATA[n]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>n</mml:mi></mml:math></alternatives></inline-formula>-th
+  word of the <inline-formula><alternatives>
+  <tex-math><![CDATA[d]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>d</mml:mi></mml:math></alternatives></inline-formula>-th
+  document. The user sets prior values for
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[\boldsymbol\alpha]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>𝛂</mml:mi></mml:math></alternatives></inline-formula>
+  and <inline-formula><alternatives>
+  <tex-math><![CDATA[\boldsymbol\eta]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>𝛈</mml:mi></mml:math></alternatives></inline-formula>
+  as well as specifying the number of topics,
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[K]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>K</mml:mi></mml:math></alternatives></inline-formula>.</p>
+  <p>Posterior estimates of <inline-formula><alternatives>
+  <tex-math><![CDATA[\boldsymbol\Theta]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>𝚯</mml:mi></mml:math></alternatives></inline-formula>
+  and <inline-formula><alternatives>
+  <tex-math><![CDATA[\boldsymbol{B}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>𝐁</mml:mi></mml:math></alternatives></inline-formula>
+  along with the data, <inline-formula><alternatives>
+  <tex-math><![CDATA[\boldsymbol{X}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>𝐗</mml:mi></mml:math></alternatives></inline-formula>,
+  allow for the calculation of <inline-formula><alternatives>
+  <tex-math><![CDATA[\boldsymbol\Lambda]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>𝚲</mml:mi></mml:math></alternatives></inline-formula>.
+  Where <inline-formula><alternatives>
+  <tex-math><![CDATA[\beta_{k,v}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>β</mml:mi><mml:mrow><mml:mi>k</mml:mi><mml:mo>,</mml:mo><mml:mi>v</mml:mi></mml:mrow></mml:msub></mml:math></alternatives></inline-formula>
+  is <inline-formula><alternatives>
+  <tex-math><![CDATA[P(\text{word}_v | \text{topic}_k)]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>P</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mtext mathvariant="normal">word</mml:mtext><mml:mi>v</mml:mi></mml:msub><mml:mo stretchy="false" form="prefix">|</mml:mo><mml:msub><mml:mtext mathvariant="normal">topic</mml:mtext><mml:mi>k</mml:mi></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>,
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[\lambda_{k, v}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>λ</mml:mi><mml:mrow><mml:mi>k</mml:mi><mml:mo>,</mml:mo><mml:mi>v</mml:mi></mml:mrow></mml:msub></mml:math></alternatives></inline-formula>
+  is <inline-formula><alternatives>
+  <tex-math><![CDATA[P(\text{topic}_k | \text{word}_v)]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>P</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mtext mathvariant="normal">topic</mml:mtext><mml:mi>k</mml:mi></mml:msub><mml:mo stretchy="false" form="prefix">|</mml:mo><mml:msub><mml:mtext mathvariant="normal">word</mml:mtext><mml:mi>v</mml:mi></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>.</p>
+  <p>One of the common ways of estimating LDA is through collapsed Gibbs
+  sampling. Gibbs sampling is a Markov chain Monte Carlo method for
+  estimating parameters of a probability distribution where a closed
+  form solution does not exist or is computationally intractable. In the
+  background, the sampler tracks the number of times topics are sampled
+  with two matrices: <inline-formula><alternatives>
+  <tex-math><![CDATA[\boldsymbol{Cd}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>𝐂</mml:mi><mml:mi>𝐝</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>
+  and <inline-formula><alternatives>
+  <tex-math><![CDATA[\boldsymbol{Cv}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>𝐂</mml:mi><mml:mi>𝐯</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>.
+  The former’s row/column entries, <inline-formula><alternatives>
+  <tex-math><![CDATA[d,k]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>d</mml:mi><mml:mo>,</mml:mo><mml:mi>k</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>,
+  are the number of times topic <inline-formula><alternatives>
+  <tex-math><![CDATA[k]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>k</mml:mi></mml:math></alternatives></inline-formula>
+  was sampled in document <inline-formula><alternatives>
+  <tex-math><![CDATA[d]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>d</mml:mi></mml:math></alternatives></inline-formula>.
+  The latter’s row/column entries, <inline-formula><alternatives>
+  <tex-math><![CDATA[k,v]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>k</mml:mi><mml:mo>,</mml:mo><mml:mi>v</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>
+  are the number of times topic <inline-formula><alternatives>
+  <tex-math><![CDATA[k]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>k</mml:mi></mml:math></alternatives></inline-formula>
+  was sampled for word <inline-formula><alternatives>
+  <tex-math><![CDATA[v]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>v</mml:mi></mml:math></alternatives></inline-formula>.</p>
+  <sec id="transfer-lda-tlda">
+    <title>Transfer LDA (tLDA)</title>
+    <p>Formally, tLDA modifies LDA in the following way:</p>
+    <p><disp-formula><alternatives>
+    <tex-math><![CDATA[\begin{aligned}
+      \boldsymbol\beta_k^{(t)} &\sim
+      \text{Dirichlet}(\omega_k^{(t)} \cdot \mathbb{E}\left[\boldsymbol\beta_k^{(t-1)}\right])
+    \end{aligned}]]></tex-math>
+    <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mtable><mml:mtr><mml:mtd columnalign="right" style="text-align: right"><mml:msubsup><mml:mi>𝛃</mml:mi><mml:mi>k</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>t</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:msubsup></mml:mtd><mml:mtd columnalign="left" style="text-align: left"><mml:mo>∼</mml:mo><mml:mtext mathvariant="normal">Dirichlet</mml:mtext><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msubsup><mml:mi>ω</mml:mi><mml:mi>k</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>t</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:msubsup><mml:mo>⋅</mml:mo><mml:mi>𝔼</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">[</mml:mo><mml:msubsup><mml:mi>𝛃</mml:mi><mml:mi>k</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>t</mml:mi><mml:mo>−</mml:mo><mml:mn>1</mml:mn><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:msubsup><mml:mo stretchy="true" form="postfix">]</mml:mo></mml:mrow><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mtd></mml:mtr></mml:mtable></mml:math></alternatives></disp-formula></p>
+    <p>The above indicates that tLDA places a matrix prior for words
+    over topics where <inline-formula><alternatives>
+    <tex-math><![CDATA[\eta_{k, v}^{(t)} = \omega_{k}^{(t)} \cdot \mathbb{E}\left[\beta_{k,v}^{(t-1)}\right] = \omega_{k}^{(t)} \cdot \frac{Cv_{k,v}^{(t-1)} + \eta_{k,v}^{(t-1)}}{\sum_{v=1}^V Cv_{k,v}^{(t-1)}}]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msubsup><mml:mi>η</mml:mi><mml:mrow><mml:mi>k</mml:mi><mml:mo>,</mml:mo><mml:mi>v</mml:mi></mml:mrow><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>t</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:msubsup><mml:mo>=</mml:mo><mml:msubsup><mml:mi>ω</mml:mi><mml:mi>k</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>t</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:msubsup><mml:mo>⋅</mml:mo><mml:mi>𝔼</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">[</mml:mo><mml:msubsup><mml:mi>β</mml:mi><mml:mrow><mml:mi>k</mml:mi><mml:mo>,</mml:mo><mml:mi>v</mml:mi></mml:mrow><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>t</mml:mi><mml:mo>−</mml:mo><mml:mn>1</mml:mn><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:msubsup><mml:mo stretchy="true" form="postfix">]</mml:mo></mml:mrow><mml:mo>=</mml:mo><mml:msubsup><mml:mi>ω</mml:mi><mml:mi>k</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>t</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:msubsup><mml:mo>⋅</mml:mo><mml:mfrac><mml:mrow><mml:mi>C</mml:mi><mml:msubsup><mml:mi>v</mml:mi><mml:mrow><mml:mi>k</mml:mi><mml:mo>,</mml:mo><mml:mi>v</mml:mi></mml:mrow><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>t</mml:mi><mml:mo>−</mml:mo><mml:mn>1</mml:mn><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:msubsup><mml:mo>+</mml:mo><mml:msubsup><mml:mi>η</mml:mi><mml:mrow><mml:mi>k</mml:mi><mml:mo>,</mml:mo><mml:mi>v</mml:mi></mml:mrow><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>t</mml:mi><mml:mo>−</mml:mo><mml:mn>1</mml:mn><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:msubsup></mml:mrow><mml:mrow><mml:msubsup><mml:mo>∑</mml:mo><mml:mrow><mml:mi>v</mml:mi><mml:mo>=</mml:mo><mml:mn>1</mml:mn></mml:mrow><mml:mi>V</mml:mi></mml:msubsup><mml:mi>C</mml:mi><mml:msubsup><mml:mi>v</mml:mi><mml:mrow><mml:mi>k</mml:mi><mml:mo>,</mml:mo><mml:mi>v</mml:mi></mml:mrow><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>t</mml:mi><mml:mo>−</mml:mo><mml:mn>1</mml:mn><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:msubsup></mml:mrow></mml:mfrac></mml:mrow></mml:math></alternatives></inline-formula>.
+    Because the posterior at time <inline-formula><alternatives>
+    <tex-math><![CDATA[t]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>t</mml:mi></mml:math></alternatives></inline-formula>
+    depends only on data at time <inline-formula><alternatives>
+    <tex-math><![CDATA[t]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>t</mml:mi></mml:math></alternatives></inline-formula>
+    and the state of the model at time <inline-formula><alternatives>
+    <tex-math><![CDATA[t-1]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>t</mml:mi><mml:mo>−</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>,
+    tLDA models retain the Markov property. Rather than
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[K]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>K</mml:mi></mml:math></alternatives></inline-formula>
+    tuning weights, <inline-formula><alternatives>
+    <tex-math><![CDATA[\omega_k^{(t)}]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msubsup><mml:mi>ω</mml:mi><mml:mi>k</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>t</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:msubsup></mml:math></alternatives></inline-formula>,
+    users tune a single parameter, <inline-formula><alternatives>
+    <tex-math><![CDATA[a]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>a</mml:mi></mml:math></alternatives></inline-formula>.</p>
+    <p>When <inline-formula><alternatives>
+    <tex-math><![CDATA[a^{(t)} = 1]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msup><mml:mi>a</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>t</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:msup><mml:mo>=</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>,
+    fine tuning is equivalent to adding the data in
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[\boldsymbol{X}^{(t)}]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msup><mml:mi>𝐗</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>t</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:msup></mml:math></alternatives></inline-formula>
+    to <inline-formula><alternatives>
+    <tex-math><![CDATA[\boldsymbol{X}^{(t-1)}]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msup><mml:mi>𝐗</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>t</mml:mi><mml:mo>−</mml:mo><mml:mn>1</mml:mn><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:msup></mml:math></alternatives></inline-formula>.
+    In other words, each word occurrence in
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[\boldsymbol{X}^{(t)}]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msup><mml:mi>𝐗</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>t</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:msup></mml:math></alternatives></inline-formula>
+    carries the same weight in the posterior as each word occurrence in
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[\boldsymbol{X}^{(t-1)}]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msup><mml:mi>𝐗</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>t</mml:mi><mml:mo>−</mml:mo><mml:mn>1</mml:mn><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:msup></mml:math></alternatives></inline-formula>.
+    When <inline-formula><alternatives>
+    <tex-math><![CDATA[a^{(t)} < 1]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msup><mml:mi>a</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>t</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:msup><mml:mo>&lt;</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>,
+    then the posterior has recency bias. When
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[a^{(t)} > 1]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msup><mml:mi>a</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>t</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:msup><mml:mo>&gt;</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>,
+    then the posterior has precedent bias. Each word occurrence in
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[\boldsymbol{X}^{(t)}]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msup><mml:mi>𝐗</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>t</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:msup></mml:math></alternatives></inline-formula>
+    carries less weight than each word occurrence in
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[\boldsymbol{X}^{(t-1)}]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msup><mml:mi>𝐗</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>t</mml:mi><mml:mo>−</mml:mo><mml:mn>1</mml:mn><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:msup></mml:math></alternatives></inline-formula>.</p>
+    <p>For more details on tLDA see
+    (<xref alt="Jones, 2023" rid="ref-jones2023latent" ref-type="bibr">Jones,
+    2023</xref>).</p>
+  </sec>
+</sec>
+<sec id="tidyldas-novel-features">
+  <title><italic>tidylda</italic>’s Novel Features</title>
+  <sec id="model-initialization-and-gibbs-sampling">
+    <title>Model Initialization and Gibbs Sampling</title>
+    <p><italic>tidylda</italic>’s Gibbs sampler has several unique
+    features, described below.</p>
+    <p><bold>Non-uniform initialization:</bold> Most LDA Gibbs samplers
+    initialize by assigning words to topics and topics to documents by
+    sampling from a uniform distribution. This ensures initialization
+    without incorporating any prior information.
+    <italic>tidylda</italic> incorporates the priors in its
+    initialization. It begins by drawing <inline-formula><alternatives>
+    <tex-math><![CDATA[P(\text{topic}|\text{document})]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>P</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mtext mathvariant="normal">topic</mml:mtext><mml:mo stretchy="false" form="prefix">|</mml:mo><mml:mtext mathvariant="normal">document</mml:mtext><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>
+    and <inline-formula><alternatives>
+    <tex-math><![CDATA[P(\text{word}|\text{topic})]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>P</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mtext mathvariant="normal">word</mml:mtext><mml:mo stretchy="false" form="prefix">|</mml:mo><mml:mtext mathvariant="normal">topic</mml:mtext><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>
+    from Dirichlet distributions with parameters
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[\boldsymbol\alpha]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>𝛂</mml:mi></mml:math></alternatives></inline-formula>
+    and <inline-formula><alternatives>
+    <tex-math><![CDATA[\boldsymbol\eta]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>𝛈</mml:mi></mml:math></alternatives></inline-formula>,
+    respectively. Then <italic>tidylda</italic> uses the above
+    probabilities to construct <inline-formula><alternatives>
+    <tex-math><![CDATA[P(\text{topic}|\text{word}, \text{document})]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>P</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mtext mathvariant="normal">topic</mml:mtext><mml:mo stretchy="false" form="prefix">|</mml:mo><mml:mtext mathvariant="normal">word</mml:mtext><mml:mo>,</mml:mo><mml:mtext mathvariant="normal">document</mml:mtext><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>
+    and makes a single run of the Gibbs sampler to initialize two
+    matrices tracking topics over documents and words over topics,
+    denoted <inline-formula><alternatives>
+    <tex-math><![CDATA[\boldsymbol{Cd}]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>𝐂</mml:mi><mml:mi>𝐝</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>
+    and <inline-formula><alternatives>
+    <tex-math><![CDATA[\boldsymbol{Cv}]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>𝐂</mml:mi><mml:mi>𝐯</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>,
+    respectively.</p>
+    <p>This non-uniform initialization powers tLDA, described above, by
+    starting a Gibbs run near where the previous run left off. For
+    initial models, it uses the user’s prior information to tune where
+    sampling starts.</p>
+    <p><bold>Flexible priors:</bold> <italic>tidylda</italic> has
+    multiple options for setting LDA priors. Users may set scalar values
+    for <inline-formula><alternatives>
+    <tex-math><![CDATA[\boldsymbol\alpha]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>𝛂</mml:mi></mml:math></alternatives></inline-formula>
+    and <inline-formula><alternatives>
+    <tex-math><![CDATA[\boldsymbol\eta]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>𝛈</mml:mi></mml:math></alternatives></inline-formula>
+    to construct symmetric priors. Users may also choose to construct
+    vector priors for both <inline-formula><alternatives>
+    <tex-math><![CDATA[\boldsymbol\alpha]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>𝛂</mml:mi></mml:math></alternatives></inline-formula>
+    and <inline-formula><alternatives>
+    <tex-math><![CDATA[\boldsymbol\eta]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>𝛈</mml:mi></mml:math></alternatives></inline-formula>
+    for a full specification of LDA. Additionally,
+    <italic>tidylda</italic> allows users to set a matrix prior for
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[\boldsymbol\eta]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>𝛈</mml:mi></mml:math></alternatives></inline-formula>,
+    enabled by its implementation of tLDA. This enables users to set
+    priors over word-topic relationships informed by expert input. The
+    best practices for encoding expert input in this manner are not yet
+    well studied. Nevertheless, this capability makes
+    <italic>tidylda</italic> unique among LDA implementations.</p>
+    <p><bold>Burn in iterations and posterior averaging:</bold> Most LDA
+    Gibbs samplers construct posterior estimates of
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[\boldsymbol\Theta]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>𝚯</mml:mi></mml:math></alternatives></inline-formula>
+    and <inline-formula><alternatives>
+    <tex-math><![CDATA[\boldsymbol{B}]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>𝐁</mml:mi></mml:math></alternatives></inline-formula>
+    from <inline-formula><alternatives>
+    <tex-math><![CDATA[\boldsymbol{Cd}]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>𝐂</mml:mi><mml:mi>𝐝</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>
+    and <inline-formula><alternatives>
+    <tex-math><![CDATA[\boldsymbol{Cv}]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>𝐂</mml:mi><mml:mi>𝐯</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>’s
+    values of the final iteration of sampling, effectively using a
+    single sample. This is inconsistent with best practices from
+    Bayesian statistics, which is to average over many samples from a
+    stable posterior. <italic>tidylda</italic> enables averaging across
+    multiple samples of the posterior with the
+    <monospace>burnin</monospace> argument. When
+    <monospace>burnin</monospace> is set to a positive integer,
+    <italic>tidylda</italic> averages the posterior across all
+    iterations larger than <monospace>burnin</monospace>. For example,
+    if <monospace>iterations</monospace> is 200 and
+    <monospace>burnin</monospace> is 150, <italic>tidylda</italic> will
+    return a posterior estimate that is an average of the last 50
+    sampling iterations. This ensures that posterior estimates are more
+    likely to be representative than any single sample.</p>
+    <p><bold>Transfer learning with tLDA:</bold> Finally, and as
+    discussed previously, <italic>tidylda</italic>’s Gibbs sampler
+    enables transfer learning with tLDA.</p>
+  </sec>
+  <sec id="tidy-methods">
+    <title>Tidy Methods</title>
+    <p><italic>tidylda</italic>’s construction follows
+    <italic>Conventions of R Modeling Packages</italic>
+    (<xref alt="Khun, 2019" rid="ref-tidymodelsbook" ref-type="bibr">Khun,
+    2019</xref>). In particular, it contains methods for
+    <monospace>print</monospace>, <monospace>summary</monospace>,
+    <monospace>glance</monospace>, <monospace>tidy</monospace>, and
+    <monospace>augment</monospace>, consistent with other “tidy”
+    packages. These methods are briefly described below.</p>
+    <list list-type="bullet">
+      <list-item>
+        <p><monospace>print</monospace>, <monospace>summary</monospace>,
+        and <monospace>glance</monospace> return various summaries of
+        the contents of a <italic>tidylda</italic> object, into which an
+        LDA model trained with <italic>tidylda</italic> is stored.</p>
+      </list-item>
+      <list-item>
+        <p><monospace>tidy</monospace> returns the contents of
+        <inline-formula><alternatives>
+        <tex-math><![CDATA[\boldsymbol\Theta]]></tex-math>
+        <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>𝚯</mml:mi></mml:math></alternatives></inline-formula>,
+        <inline-formula><alternatives>
+        <tex-math><![CDATA[\boldsymbol{B}]]></tex-math>
+        <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>𝐁</mml:mi></mml:math></alternatives></inline-formula>,
+        or <inline-formula><alternatives>
+        <tex-math><![CDATA[\boldsymbol\Lambda]]></tex-math>
+        <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>𝚲</mml:mi></mml:math></alternatives></inline-formula>
+        (stored as <monospace>theta</monospace>,
+        <monospace>beta</monospace>, and <monospace>lambda</monospace>
+        respectively), as specified by the user, formatted as a tidy
+        <monospace>tibble</monospace>, instead of a numeric matrix.</p>
+      </list-item>
+      <list-item>
+        <p><monospace>augment</monospace> appends model outputs to
+        observational-level data. Taking the cue from
+        <italic>tidytext</italic>
+        (<xref alt="Fay, 2018" rid="ref-tidytextjss" ref-type="bibr">Fay,
+        2018</xref>), “observational-level” data is one row per word per
+        document. Therefore, the key statistic used by
+        <monospace>augment</monospace> is <inline-formula><alternatives>
+        <tex-math><![CDATA[P(\text{topic}|\text{word}, \text{document})]]></tex-math>
+        <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>P</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mtext mathvariant="normal">topic</mml:mtext><mml:mo stretchy="false" form="prefix">|</mml:mo><mml:mtext mathvariant="normal">word</mml:mtext><mml:mo>,</mml:mo><mml:mtext mathvariant="normal">document</mml:mtext><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>.
+        <italic>tidylda</italic> calculates this as
+        <inline-formula><alternatives>
+        <tex-math><![CDATA[\boldsymbol\Lambda \times P(\text{word}|\text{document})]]></tex-math>
+        <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>𝚲</mml:mi><mml:mo>×</mml:mo><mml:mi>P</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mtext mathvariant="normal">word</mml:mtext><mml:mo stretchy="false" form="prefix">|</mml:mo><mml:mtext mathvariant="normal">document</mml:mtext><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>,
+        where <inline-formula><alternatives>
+        <tex-math><![CDATA[P(\text{word}|\text{document}_d) = \frac{\boldsymbol{x}_d}{\sum_{v=1}^V x_{d,v}}]]></tex-math>
+        <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>P</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mtext mathvariant="normal">word</mml:mtext><mml:mo stretchy="false" form="prefix">|</mml:mo><mml:msub><mml:mtext mathvariant="normal">document</mml:mtext><mml:mi>d</mml:mi></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>=</mml:mo><mml:mfrac><mml:msub><mml:mi>𝐱</mml:mi><mml:mi>d</mml:mi></mml:msub><mml:mrow><mml:msubsup><mml:mo>∑</mml:mo><mml:mrow><mml:mi>v</mml:mi><mml:mo>=</mml:mo><mml:mn>1</mml:mn></mml:mrow><mml:mi>V</mml:mi></mml:msubsup><mml:msub><mml:mi>x</mml:mi><mml:mrow><mml:mi>d</mml:mi><mml:mo>,</mml:mo><mml:mi>v</mml:mi></mml:mrow></mml:msub></mml:mrow></mml:mfrac></mml:mrow></mml:math></alternatives></inline-formula>.</p>
+      </list-item>
+    </list>
+  </sec>
+  <sec id="posterior-methods">
+    <title>Posterior Methods</title>
+    <p><italic>tidylda</italic> enables traditional Bayesian uncertainty
+    quantification by sampling from the posterior. The posterior
+    distribution for <inline-formula><alternatives>
+    <tex-math><![CDATA[\boldsymbol\theta_d]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>𝛉</mml:mi><mml:mi>d</mml:mi></mml:msub></mml:math></alternatives></inline-formula>
+    is <inline-formula><alternatives>
+    <tex-math><![CDATA[\text{Dirichlet}(\boldsymbol{Cd}_d + \boldsymbol\alpha)]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mtext mathvariant="normal">Dirichlet</mml:mtext><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mrow><mml:mi>𝐂</mml:mi><mml:mi>𝐝</mml:mi></mml:mrow><mml:mi>d</mml:mi></mml:msub><mml:mo>+</mml:mo><mml:mi>𝛂</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>
+    and the posterior distribution for <inline-formula><alternatives>
+    <tex-math><![CDATA[\boldsymbol\beta_k]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>𝛃</mml:mi><mml:mi>k</mml:mi></mml:msub></mml:math></alternatives></inline-formula>
+    is <inline-formula><alternatives>
+    <tex-math><![CDATA[\text{Dirichlet}(\boldsymbol{Cv}_k + \boldsymbol\eta)]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mtext mathvariant="normal">Dirichlet</mml:mtext><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mrow><mml:mi>𝐂</mml:mi><mml:mi>𝐯</mml:mi></mml:mrow><mml:mi>k</mml:mi></mml:msub><mml:mo>+</mml:mo><mml:mi>𝛈</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>
+    (or <inline-formula><alternatives>
+    <tex-math><![CDATA[\text{Dirichlet}(\boldsymbol{Cv}_k + \boldsymbol\eta_k)]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mtext mathvariant="normal">Dirichlet</mml:mtext><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mrow><mml:mi>𝐂</mml:mi><mml:mi>𝐯</mml:mi></mml:mrow><mml:mi>k</mml:mi></mml:msub><mml:mo>+</mml:mo><mml:msub><mml:mi>𝛈</mml:mi><mml:mi>k</mml:mi></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>
+    for tLDA). <italic>tidylda</italic> enables a
+    <monospace>posterior</monospace> method for <italic>tidylda</italic>
+    objects, allowing users to sample from the posterior to quantify
+    uncertainty for estimates of estimated parameters.</p>
+    <p><italic>tidylda</italic> uses one of two calculations for
+    predicting topic distributions (i.e., <inline-formula><alternatives>
+    <tex-math><![CDATA[\hat{\boldsymbol\theta}_d]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mover><mml:mi>𝛉</mml:mi><mml:mo accent="true">̂</mml:mo></mml:mover><mml:mi>d</mml:mi></mml:msub></mml:math></alternatives></inline-formula>)
+    for new documents. The first, and default, is to run the Gibbs
+    sampler, constructing a new <inline-formula><alternatives>
+    <tex-math><![CDATA[\boldsymbol{Cd}]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>𝐂</mml:mi><mml:mi>𝐝</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>
+    for the new documents but without updating topic-word distributions
+    in <inline-formula><alternatives>
+    <tex-math><![CDATA[\boldsymbol{B}]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>𝐁</mml:mi></mml:math></alternatives></inline-formula>.
+    The second uses a dot product, <inline-formula><alternatives>
+    <tex-math><![CDATA[\boldsymbol{X}^{(new)} \cdot \boldsymbol\Lambda']]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msup><mml:mi>𝐗</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>n</mml:mi><mml:mi>e</mml:mi><mml:mi>w</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:msup><mml:mo>⋅</mml:mo><mml:mi>𝚲</mml:mi><mml:mi>′</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>,
+    where the rows of <inline-formula><alternatives>
+    <tex-math><![CDATA[\boldsymbol{X}^{(new)}]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msup><mml:mi>𝐗</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>n</mml:mi><mml:mi>e</mml:mi><mml:mi>w</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:msup></mml:math></alternatives></inline-formula>
+    are normalized to sum to <inline-formula><alternatives>
+    <tex-math><![CDATA[1]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mn>1</mml:mn></mml:math></alternatives></inline-formula>.
+    <italic>tidylda</italic> actually uses the dot product prediction
+    combined with the <italic>non-uniform
+    initialization</italic>—described above—to initialize
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[\boldsymbol{Cd}]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>𝐂</mml:mi><mml:mi>𝐝</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>
+    when predicting using the Gibbs sampler.</p>
+  </sec>
+  <sec id="other-details">
+    <title>Other details</title>
+    <p>You can install the development version of
+    <italic>tidylda</italic> from GitHub
+    <ext-link ext-link-type="uri" xlink:href="https://github.com/tommyjones/tidylda">here</ext-link>
+    or the CRAN release
+    <ext-link ext-link-type="uri" xlink:href="https://CRAN.R-project.org/package=tidylda">here</ext-link>.
+    Instructions for both are in the <italic>tidylda</italic>
+    repository’s
+    <ext-link ext-link-type="uri" xlink:href="https://github.com/TommyJones/tidylda/blob/main/README.md">README
+    file</ext-link>.</p>
+    <p><italic>tidylda</italic>’s repository and CRAN release contain
+    several vignettes on usage and background. Most of the vignette
+    content is included in this paper. One exception is the coherence
+    calculation used in <italic>tidylda</italic>. The PDF version of
+    that vignette is available on CRAN
+    <ext-link ext-link-type="uri" xlink:href="https://cran.r-project.org/web/packages/tidylda/vignettes/probabilistic-coherence.html">here</ext-link>.</p>
+  </sec>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>Many people over the years have supported the development of
+  <italic>tidylda</italic>. But most notably are</p>
+  <list list-type="bullet">
+    <list-item>
+      <p>Wil Doane, for making me a better programmer and giving ample
+      good advice.</p>
+    </list-item>
+    <list-item>
+      <p>Brendan Knapp, for helping with the C++ code.</p>
+    </list-item>
+    <list-item>
+      <p>Barum Park, whose code formed the basis of the multinomial
+      sampler in C++.</p>
+    </list-item>
+    <list-item>
+      <p>My PhD committee, without whom <italic>tidylda</italic> would
+      be full of “good ideas”, but not peer-reviewed research.</p>
+    </list-item>
+  </list>
+</sec>
+</body>
+<back>
+<ref-list>
+  <title></title>
+  <ref id="ref-text2vec">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Selivanov</surname><given-names>Dmitriy</given-names></name>
+        <name><surname>Bickel</surname><given-names>Manuel</given-names></name>
+        <name><surname>Wang</surname><given-names>Qing</given-names></name>
+      </person-group>
+      <article-title>text2vec</article-title>
+      <publisher-name>CRAN</publisher-name>
+      <year iso-8601-date="2020">2020</year>
+      <uri>https://CRAN.R-project.org/package=text2vec</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-tidyverse">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Wickham</surname><given-names>Hadley</given-names></name>
+        <name><surname>Averick</surname><given-names>Mara</given-names></name>
+        <name><surname>Bryan</surname><given-names>Jennifer</given-names></name>
+        <name><surname>Chang</surname><given-names>Winston</given-names></name>
+        <name><surname>McGowan</surname><given-names>Lucy D’Agostino</given-names></name>
+        <name><surname>François</surname><given-names>Romain</given-names></name>
+        <name><surname>Grolemund</surname><given-names>Garrett</given-names></name>
+        <name><surname>Hayes</surname><given-names>Alex</given-names></name>
+        <name><surname>Henry</surname><given-names>Lionel</given-names></name>
+        <name><surname>Hester</surname><given-names>Jim</given-names></name>
+        <name><surname>Kuhn</surname><given-names>Max</given-names></name>
+        <name><surname>Pedersen</surname><given-names>Thomas Lin</given-names></name>
+        <name><surname>Miller</surname><given-names>Evan</given-names></name>
+        <name><surname>Bache</surname><given-names>Stephan Milton</given-names></name>
+        <name><surname>Müller</surname><given-names>Kirill</given-names></name>
+        <name><surname>Ooms</surname><given-names>Jeroen</given-names></name>
+        <name><surname>Robinson</surname><given-names>David</given-names></name>
+        <name><surname>Seidel</surname><given-names>Dana Paige</given-names></name>
+        <name><surname>Spinu</surname><given-names>Vitalie</given-names></name>
+        <name><surname>Takahashi</surname><given-names>Kohske</given-names></name>
+        <name><surname>Vaughan</surname><given-names>Davis</given-names></name>
+        <name><surname>Wilke</surname><given-names>Claus</given-names></name>
+        <name><surname>Woo</surname><given-names>Kara</given-names></name>
+        <name><surname>Yutani</surname><given-names>Hiroaki</given-names></name>
+      </person-group>
+      <article-title>Welcome to the tidyverse</article-title>
+      <source>Journal of Open Source Software</source>
+      <year iso-8601-date="2019">2019</year>
+      <volume>4</volume>
+      <issue>43</issue>
+      <pub-id pub-id-type="doi">10.21105/joss.01686</pub-id>
+      <fpage>1686</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-roberts2019stm">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Roberts</surname><given-names>Margaret E</given-names></name>
+        <name><surname>Stewart</surname><given-names>Brandon M</given-names></name>
+        <name><surname>Tingley</surname><given-names>Dustin</given-names></name>
+      </person-group>
+      <article-title>stm : An R Package for Structural Topic Models</article-title>
+      <source>Journal of Statistical Software</source>
+      <year iso-8601-date="2019">2019</year>
+      <volume>91</volume>
+      <issue>2</issue>
+      <pub-id pub-id-type="doi">10.18637/jss.v091.i02</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-tidytextjss">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Fay</surname><given-names>Colin</given-names></name>
+      </person-group>
+      <article-title>Text Mining with R: A Tidy Approach</article-title>
+      <source>Journal of Statistical Software</source>
+      <year iso-8601-date="2018">2018</year>
+      <volume>83</volume>
+      <issue>Book Review 1</issue>
+      <pub-id pub-id-type="doi">10.18637/jss.v083.b01</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-quanteda">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Benoit</surname><given-names>Kenneth</given-names></name>
+        <name><surname>Watanabe</surname><given-names>Kohei</given-names></name>
+        <name><surname>Wang</surname><given-names>Haiyan</given-names></name>
+        <name><surname>Nulty</surname><given-names>Paul</given-names></name>
+        <name><surname>Obeng</surname><given-names>Adam</given-names></name>
+        <name><surname>Müller</surname><given-names>Stefan</given-names></name>
+        <name><surname>Matsuo</surname><given-names>Akitaka</given-names></name>
+      </person-group>
+      <article-title>quanteda: An R package for the quantitative analysis of textual data</article-title>
+      <source>Journal of Open Source Software</source>
+      <year iso-8601-date="2018">2018</year>
+      <volume>3</volume>
+      <issue>30</issue>
+      <pub-id pub-id-type="doi">10.21105/joss.00774</pub-id>
+      <fpage>774</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-tidytextjoss">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Silge</surname><given-names>Julia</given-names></name>
+        <name><surname>Robinson</surname><given-names>David</given-names></name>
+      </person-group>
+      <article-title>tidytext: Text Mining and Analysis Using Tidy Data Principles in R</article-title>
+      <source>The Journal of Open Source Software</source>
+      <year iso-8601-date="2016">2016</year>
+      <volume>1</volume>
+      <issue>3</issue>
+      <pub-id pub-id-type="doi">10.21105/joss.00037</pub-id>
+      <fpage>37</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-textminer">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Jones</surname><given-names>Tommy</given-names></name>
+      </person-group>
+      <article-title>textmineR: Functions for Text Mining and Topic Modeling</article-title>
+      <year iso-8601-date="2015">2015</year>
+      <uri>https://CRAN.R-project.org/package=textmineR</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-chang2015lda">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Chang</surname><given-names>Jonathan</given-names></name>
+      </person-group>
+      <article-title>lda</article-title>
+      <year iso-8601-date="2015">2015</year>
+      <uri>https://CRAN.R-project.org/package=lda</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-broom">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Robinson</surname><given-names>David</given-names></name>
+      </person-group>
+      <article-title>broom: An R Package for Converting Statistical Analysis Objects Into Tidy Data Frames</article-title>
+      <source>arXiv</source>
+      <year iso-8601-date="2014">2014</year>
+    </element-citation>
+  </ref>
+  <ref id="ref-topicmodelspackage">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Grün</surname><given-names>Bettina</given-names></name>
+        <name><surname>Hornik</surname><given-names>Kurt</given-names></name>
+      </person-group>
+      <article-title>topicmodels: An R Package for Fitting Topic Models</article-title>
+      <source>Journal of Statistical Software</source>
+      <year iso-8601-date="2011">2011</year>
+      <volume>40</volume>
+      <issue>13</issue>
+    </element-citation>
+  </ref>
+  <ref id="ref-tmjss">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Feinerer</surname><given-names>Ingo</given-names></name>
+        <name><surname>Hornik</surname><given-names>Kurt</given-names></name>
+        <name><surname>Meyer</surname><given-names>David</given-names></name>
+      </person-group>
+      <article-title>Text Mining Infrastructure in R</article-title>
+      <source>Journal of Statistical Software</source>
+      <year iso-8601-date="2008">2008</year>
+      <volume>25</volume>
+      <issue>5</issue>
+    </element-citation>
+  </ref>
+  <ref id="ref-blei2002lda">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Blei</surname><given-names>David M.</given-names></name>
+        <name><surname>Ng</surname><given-names>Andrew Y.</given-names></name>
+        <name><surname>Jordan</surname><given-names>Michael I.</given-names></name>
+      </person-group>
+      <article-title>Latent Dirichlet Allocation</article-title>
+      <source>Journal of Machine Learning Research</source>
+      <year iso-8601-date="2003">2003</year>
+      <volume>3</volume>
+    </element-citation>
+  </ref>
+  <ref id="ref-jones2023latent">
+    <element-citation publication-type="thesis">
+      <person-group person-group-type="author">
+        <name><surname>Jones</surname><given-names>Tommy</given-names></name>
+      </person-group>
+      <article-title>Latent dirichlet allocation for natural language statistics</article-title>
+      <publisher-name>George Mason University</publisher-name>
+      <year iso-8601-date="2023">2023</year>
+    </element-citation>
+  </ref>
+  <ref id="ref-tidymodelsbook">
+    <element-citation publication-type="webpage">
+      <person-group person-group-type="author">
+        <name><surname>Khun</surname><given-names>Max</given-names></name>
+      </person-group>
+      <article-title>Conventions for r modeling packages</article-title>
+      <year iso-8601-date="2019">2019</year>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2022-04-12">2022</year><month>04</month><day>12</day></date-in-citation>
+      <uri>https://tidymodels.github.io/model-implementation-principles/index.html</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-wickham2014tidy">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Wickham</surname><given-names>Hadley</given-names></name>
+        <name><surname>others</surname></name>
+      </person-group>
+      <article-title>Tidy data</article-title>
+      <source>Journal of Statistical Software</source>
+      <year iso-8601-date="2014">2014</year>
+      <volume>59</volume>
+      <issue>10</issue>
+      <fpage>1</fpage>
+      <lpage>23</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-tidymodels">
+    <element-citation publication-type="webpage">
+      <person-group person-group-type="author">
+        <name><surname>Khun</surname><given-names>Max</given-names></name>
+        <name><surname>Wickham</surname><given-names>Hadley</given-names></name>
+      </person-group>
+      <article-title>Tidymodels</article-title>
+      <year iso-8601-date="2018">2018</year>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2021-01-01">2021</year><month>01</month><day>01</day></date-in-citation>
+      <uri>https://www.tidymodels.org/</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-text2vec">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Selivanov</surname><given-names>Dmitriy</given-names></name>
+        <name><surname>Bickel</surname><given-names>Manuel</given-names></name>
+        <name><surname>Wang</surname><given-names>Qing</given-names></name>
+      </person-group>
+      <article-title>text2vec</article-title>
+      <publisher-name>CRAN</publisher-name>
+      <year iso-8601-date="2020">2020</year>
+      <uri>https://CRAN.R-project.org/package=text2vec</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-roberts2013stm">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Roberts</surname><given-names>Margaret E.</given-names></name>
+        <name><surname>Stewart</surname><given-names>Brandon M.</given-names></name>
+        <name><surname>Tingley</surname><given-names>Dustin</given-names></name>
+        <name><surname>Airoldi</surname><given-names>Edoardo M.</given-names></name>
+      </person-group>
+      <article-title>The Structural Topic Model and Applied Social Science</article-title>
+      <year iso-8601-date="2013">2013</year>
+    </element-citation>
+  </ref>
+  <ref id="ref-quanteda">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Benoit</surname><given-names>Kenneth</given-names></name>
+        <name><surname>Watanabe</surname><given-names>Kohei</given-names></name>
+        <name><surname>Wang</surname><given-names>Haiyan</given-names></name>
+        <name><surname>Nulty</surname><given-names>Paul</given-names></name>
+        <name><surname>Obeng</surname><given-names>Adam</given-names></name>
+        <name><surname>Müller</surname><given-names>Stefan</given-names></name>
+        <name><surname>Matsuo</surname><given-names>Akitaka</given-names></name>
+      </person-group>
+      <article-title>quanteda: An R package for the quantitative analysis of textual data</article-title>
+      <source>Journal of Open Source Software</source>
+      <year iso-8601-date="2018">2018</year>
+      <volume>3</volume>
+      <issue>30</issue>
+      <pub-id pub-id-type="doi">10.21105/joss.00774</pub-id>
+      <fpage>774</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-textminer">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Jones</surname><given-names>Tommy</given-names></name>
+      </person-group>
+      <article-title>textmineR: Functions for Text Mining and Topic Modeling</article-title>
+      <year iso-8601-date="2015">2015</year>
+      <uri>https://CRAN.R-project.org/package=textmineR</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-chang2015lda">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Chang</surname><given-names>Jonathan</given-names></name>
+      </person-group>
+      <article-title>lda</article-title>
+      <year iso-8601-date="2015">2015</year>
+      <uri>https://CRAN.R-project.org/package=lda</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-topicmodelspackage">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Grün</surname><given-names>Bettina</given-names></name>
+        <name><surname>Hornik</surname><given-names>Kurt</given-names></name>
+      </person-group>
+      <article-title>topicmodels: An R Package for Fitting Topic Models</article-title>
+      <source>Journal of Statistical Software</source>
+      <year iso-8601-date="2011">2011</year>
+      <volume>40</volume>
+      <issue>13</issue>
+    </element-citation>
+  </ref>
+  <ref id="ref-tmjss">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Feinerer</surname><given-names>Ingo</given-names></name>
+        <name><surname>Hornik</surname><given-names>Kurt</given-names></name>
+        <name><surname>Meyer</surname><given-names>David</given-names></name>
+      </person-group>
+      <article-title>Text Mining Infrastructure in R</article-title>
+      <source>Journal of Statistical Software</source>
+      <year iso-8601-date="2008">2008</year>
+      <volume>25</volume>
+      <issue>5</issue>
+    </element-citation>
+  </ref>
+  <ref id="ref-blei2007ctm">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Blei</surname><given-names>David M.</given-names></name>
+        <name><surname>Lafferty</surname><given-names>John D.</given-names></name>
+      </person-group>
+      <article-title>A correlated topic model of Science</article-title>
+      <source>The Annals of Applied Statistics</source>
+      <year iso-8601-date="2007">2007</year>
+      <volume>1</volume>
+      <issue>1</issue>
+      <issn>1932-6157</issn>
+      <pub-id pub-id-type="doi">10.1214/07-aoas114</pub-id>
+      <fpage>17</fpage>
+      <lpage>35</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-chen2015warplda">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Chen</surname><given-names>Jianfei</given-names></name>
+        <name><surname>Li</surname><given-names>Kaiwei</given-names></name>
+        <name><surname>Zhu</surname><given-names>Jun</given-names></name>
+        <name><surname>Chen</surname><given-names>Wenguang</given-names></name>
+      </person-group>
+      <article-title>WarpLDA: a Cache Efficient O(1) Algorithm for Latent Dirichlet Allocation</article-title>
+      <source>arXiv</source>
+      <year iso-8601-date="2015">2015</year>
+    </element-citation>
+  </ref>
+  <ref id="ref-roberts2019stm">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Roberts</surname><given-names>Margaret E</given-names></name>
+        <name><surname>Stewart</surname><given-names>Brandon M</given-names></name>
+        <name><surname>Tingley</surname><given-names>Dustin</given-names></name>
+      </person-group>
+      <article-title>stm : An R Package for Structural Topic Models</article-title>
+      <source>Journal of Statistical Software</source>
+      <year iso-8601-date="2019">2019</year>
+      <volume>91</volume>
+      <issue>2</issue>
+      <pub-id pub-id-type="doi">10.18637/jss.v091.i02</pub-id>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
