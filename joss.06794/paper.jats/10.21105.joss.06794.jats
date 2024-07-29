@@ -1,0 +1,571 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">6794</article-id>
+<article-id pub-id-type="doi">10.21105/joss.06794</article-id>
+<title-group>
+<article-title>AutoEncoderToolkit.jl: A Julia package for training
+(Variational) Autoencoders</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0002-9510-0527</contrib-id>
+<name>
+<surname>Razo-Mejia</surname>
+<given-names>Manuel</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+<xref ref-type="aff" rid="aff-2"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Department of Biology, Stanford University, CA, United
+States of America</institution>
+</institution-wrap>
+</aff>
+<aff id="aff-2">
+<institution-wrap>
+<institution>For correspondence, contact
+mrazo@stanford.edu</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2024-05-01">
+<day>1</day>
+<month>5</month>
+<year>2024</year>
+</pub-date>
+<volume>9</volume>
+<issue>99</issue>
+<fpage>6794</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2022</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>Julia</kwd>
+<kwd>Unsupervised Learning</kwd>
+<kwd>Deep Learning</kwd>
+<kwd>Autoencoders</kwd>
+<kwd>Dimensionality Reduction</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p>With the advent of generative models, the field of unsupervised
+  learning has exploded in the last decade. One of the most popular
+  generative models is the variational autoencoder (VAE)
+  (<xref alt="Kingma &amp; Welling, 2014" rid="ref-kingma2014" ref-type="bibr">Kingma
+  &amp; Welling, 2014</xref>). VAEs assume the existence of a joint
+  probability distribution between a high-dimensional data space and a
+  lower-dimensional latent space. Using a variational inference
+  approach, the VAE parametrizes this joint distribution with two neural
+  networks–an encoder and a decoder. This approach allows the model to
+  approximate the underlying low-dimensional structure that generated
+  the observed data and generate new samples by sampling from the
+  learned latent space. Several variations of the original VAE have been
+  proposed to extend its capabilities and tackle different problems.
+  Here, we present <monospace>AutoEncoderToolkit.jl</monospace>, a
+  <monospace>Julia</monospace> package for training VAEs and its
+  extensions. The package is built on top of the
+  <monospace>Flux.jl</monospace> deep learning library
+  (<xref alt="Innes, 2018" rid="ref-innes2018" ref-type="bibr">Innes,
+  2018</xref>) and provides a simple and flexible interface for training
+  different flavors of VAEs. Furthermore, the package offers a set of
+  utilities for the geometric analysis of the learned latent space.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p>Collecting and analyzing large high-dimensional datasets have
+  become routine in several scientific fields. Therefore, the need to
+  understand and uncover the underlying low-dimensional structure of
+  these datasets has become more pressing than ever. VAEs have shown
+  great promise in this regard, with applications ranging from
+  single-cell transcriptomics
+  (<xref alt="Lopez et al., 2018" rid="ref-lopez2018" ref-type="bibr">Lopez
+  et al., 2018</xref>) to protein design
+  (<xref alt="Lian et al., 2022" rid="ref-lian2022" ref-type="bibr">Lian
+  et al., 2022</xref>) to the discovery of the governing equations of
+  dynamical systems
+  (<xref alt="Champion et al., 2019" rid="ref-champion2019" ref-type="bibr">Champion
+  et al., 2019</xref>). However, most of these tools have been
+  exclusively developed for the <monospace>Python</monospace> ecosystem.
+  <monospace>Julia</monospace> is a promising high-performance language
+  for scientific computing, with a growing ecosystem for deep learning,
+  state-of-the-art automatic differentiation, and a strong
+  GPU-accelerated computing backend. Furthermore, the programming
+  paradigm of <monospace>Julia</monospace>, based on multiple dispatch,
+  allows for a more flexible, modular, and composable codebase.
+  <monospace>AutoEncoderToolkit.jl</monospace> aims to provide a simple
+  and flexible interface for training VAEs and their extensions in
+  <monospace>Julia</monospace>, taking full advantage of the language
+  programming paradigm.</p>
+</sec>
+<sec id="software-description">
+  <title>Software Description</title>
+  <sec id="encoder-decoder-definition">
+    <title>Encoder &amp; Decoder definition</title>
+    <p><monospace>AutoEncoderToolkit.jl</monospace> takes a
+    probability-theory-based approach to the package design. Taking
+    advantage of the multiple dispatch paradigm of
+    <monospace>Julia</monospace>, the package can easily combine and
+    extend the encoders and decoders to quickly prototype different VAE
+    architectures. In other words, independent of the design of the
+    multi-layer perceptron used for either the encoder or the decoder,
+    what defines their behavior is their associated probability
+    distribution. For example, let us consider the loss function for the
+    standard VAE model, given by the evidence lower bound (ELBO):
+    <disp-formula><alternatives>
+    <tex-math><![CDATA[ 
+    \text{ELBO} = \left\langle \log p_\theta(x|z) \right\rangle_{q_\phi(z|x)} -
+    D_{KL}(q_\phi(z|x)
+    || p(z)), 
+    \tag{1} 
+    ]]></tex-math>
+    <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mtext mathvariant="normal">ELBO</mml:mtext><mml:mo>=</mml:mo><mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">⟨</mml:mo><mml:mo>log</mml:mo><mml:msub><mml:mi>p</mml:mi><mml:mi>θ</mml:mi></mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>x</mml:mi><mml:mo stretchy="false" form="prefix">|</mml:mo><mml:mi>z</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo stretchy="true" form="postfix">⟩</mml:mo></mml:mrow><mml:mrow><mml:msub><mml:mi>q</mml:mi><mml:mi>ϕ</mml:mi></mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>z</mml:mi><mml:mo stretchy="false" form="prefix">|</mml:mo><mml:mi>x</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:msub><mml:mo>−</mml:mo><mml:msub><mml:mi>D</mml:mi><mml:mrow><mml:mi>K</mml:mi><mml:mi>L</mml:mi></mml:mrow></mml:msub><mml:mo stretchy="false" form="prefix">(</mml:mo><mml:msub><mml:mi>q</mml:mi><mml:mi>ϕ</mml:mi></mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>z</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">|</mml:mo><mml:mi>x</mml:mi><mml:mo stretchy="false" form="postfix">)</mml:mo><mml:mo stretchy="true" form="postfix">|</mml:mo></mml:mrow><mml:mo stretchy="false" form="prefix">|</mml:mo><mml:mi>p</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>z</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>,</mml:mo></mml:mrow></mml:math></alternatives></disp-formula>
+    where <inline-formula><alternatives>
+    <tex-math><![CDATA[p_\theta(x|z)]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>p</mml:mi><mml:mi>θ</mml:mi></mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>x</mml:mi><mml:mo stretchy="false" form="prefix">|</mml:mo><mml:mi>z</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>–defined
+    by the decoder with parameters <inline-formula><alternatives>
+    <tex-math><![CDATA[\theta]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>θ</mml:mi></mml:math></alternatives></inline-formula>–is
+    the likelihood of the data given the latent variable,
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[q_\phi(z|x)]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>q</mml:mi><mml:mi>ϕ</mml:mi></mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>z</mml:mi><mml:mo stretchy="false" form="prefix">|</mml:mo><mml:mi>x</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>–defined
+    by the encoder with parameters <inline-formula><alternatives>
+    <tex-math><![CDATA[\phi]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>ϕ</mml:mi></mml:math></alternatives></inline-formula>–is
+    the posterior distribution of the latent variable given the data,
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[D_{KL}(q_\phi(z|x) || p(z))]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>D</mml:mi><mml:mrow><mml:mi>K</mml:mi><mml:mi>L</mml:mi></mml:mrow></mml:msub><mml:mo stretchy="false" form="prefix">(</mml:mo><mml:msub><mml:mi>q</mml:mi><mml:mi>ϕ</mml:mi></mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>z</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">|</mml:mo><mml:mi>x</mml:mi><mml:mo stretchy="false" form="postfix">)</mml:mo><mml:mo stretchy="true" form="postfix">|</mml:mo></mml:mrow><mml:mo stretchy="false" form="prefix">|</mml:mo><mml:mi>p</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>z</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>
+    is the Kullback-Leibler divergence between the posterior and the
+    prior distribution of the latent space, and
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[\langle\cdot\rangle_{q_\phi(z|x)}]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mo stretchy="false" form="prefix">⟨</mml:mo><mml:mi>⋅</mml:mi><mml:msub><mml:mo stretchy="false" form="postfix">⟩</mml:mo><mml:mrow><mml:msub><mml:mi>q</mml:mi><mml:mi>ϕ</mml:mi></mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>z</mml:mi><mml:mo stretchy="false" form="prefix">|</mml:mo><mml:mi>x</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:msub></mml:mrow></mml:math></alternatives></inline-formula>
+    is the expected value over the posterior distribution. By defining
+    the decoder type as either <monospace>BernoulliDecoder</monospace>
+    or <monospace>SimpleGaussianDecoder</monospace>, the user can decide
+    whether the decoder parametrizes a likelihood function
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[p_\theta(x|z)]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>p</mml:mi><mml:mi>θ</mml:mi></mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>x</mml:mi><mml:mo stretchy="false" form="prefix">|</mml:mo><mml:mi>z</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>
+    as a Bernoulli distribution or a Gaussian distribution with constant
+    diagonal covariance, respectively. This design choice allows for the
+    quick prototyping of different architectures without the overhead of
+    defining new specific losses for each type of decoder.</p>
+    <p>Furthermore, the design allows for the easy extension of the
+    available encoders and decoders that can directly integrate into any
+    available VAE model. For example, let us assume that for a
+    particular problem, the user wants to define a decoder whose outputs
+    are the parameters for independent Poisson distributions, each with
+    a different parameter <inline-formula><alternatives>
+    <tex-math><![CDATA[\lambda_i]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>λ</mml:mi><mml:mi>i</mml:mi></mml:msub></mml:math></alternatives></inline-formula>.
+    In other words, on the decoder side, the decoder returns a vector of
+    parameters <inline-formula><alternatives>
+    <tex-math><![CDATA[\lambda]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>λ</mml:mi></mml:math></alternatives></inline-formula>
+    for each of the dimensions of the data. The user can define a new
+    decoder type</p>
+    <code language="julia">struct PoissonDecoder &lt;: AbstractVariationalDecoder
+    decoder::Flux.Chain
+end # struct</code>
+    <p>With this <monospace>struct</monospace> defined, the user only
+    needs to define two methods: one for the forward pass of the
+    decoder</p>
+    <code language="julia">function (decoder::PoissonDecoder)(z::AbstractArray)
+    # Forward pass through decoder
+    return (λ=decoder.decoder(z),)
+end # function</code>
+    <p>and another for the likelihood of the data given the latent
+    variable</p>
+    <code language="julia">function decoder_loglikelihood(
+        x::AbstractArray,
+        z::AbstractVector,
+        decoder::PoissonDecoder,
+        decoder_output::NamedTuple;
+)
+        # Extract the lambda parameter of the Poisson distribution
+        λ = decoder_output.λ
+
+        # Compute log-likelihood
+        loglikelihood = sum(x .* log.(λ) - λ - loggamma.(x .+ 1))
+
+        return loglikelihood
+end # function</code>
+    <p>where we use the log-likelihood function of multiple independent
+    Poisson distributions, given by <disp-formula><alternatives>
+    <tex-math><![CDATA[
+    \ln p(x|\lambda) = \sum_i x_i \log(\lambda_i) - 
+    \lambda_i - \log(\Gamma(x_i + 1)).
+    \tag{2}
+    ]]></tex-math>
+    <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mo>ln</mml:mo><mml:mi>p</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>x</mml:mi><mml:mo stretchy="false" form="prefix">|</mml:mo><mml:mi>λ</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>=</mml:mo><mml:munder><mml:mo>∑</mml:mo><mml:mi>i</mml:mi></mml:munder><mml:msub><mml:mi>x</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mo>log</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>λ</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>−</mml:mo><mml:msub><mml:mi>λ</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mo>−</mml:mo><mml:mo>log</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>Γ</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>x</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mo>+</mml:mo><mml:mn>1</mml:mn><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mi>.</mml:mi></mml:mrow></mml:math></alternatives></disp-formula></p>
+    <p>With these methods defined, the
+    <monospace>PoissonDecoder</monospace> can be directly integrated
+    into any of the different VAE models provided by the package.</p>
+  </sec>
+  <sec id="implemented-models">
+    <title>Implemented models</title>
+    <p>At the time of this writing, the package has implemented the
+    following models:</p>
+    <table-wrap>
+      <caption>
+        <p>List of implemented (variational) autoencoder models</p>
+      </caption>
+      <table>
+        <colgroup>
+          <col width="79%" />
+          <col width="21%" />
+        </colgroup>
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Reference</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Deterministic Autoencoder</td>
+            <td></td>
+          </tr>
+          <tr>
+            <td>Vanilla Variational Autoencoder (VAE)</td>
+            <td>(<xref alt="Kingma &amp; Welling, 2014" rid="ref-kingma2014" ref-type="bibr">Kingma
+            &amp; Welling, 2014</xref>)</td>
+          </tr>
+          <tr>
+            <td><inline-formula><alternatives>
+            <tex-math><![CDATA[\beta]]></tex-math>
+            <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>β</mml:mi></mml:math></alternatives></inline-formula>-Variational
+            Autoencoder (<inline-formula><alternatives>
+            <tex-math><![CDATA[\beta]]></tex-math>
+            <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>β</mml:mi></mml:math></alternatives></inline-formula>-VAE)</td>
+            <td>(<xref alt="Higgins et al., 2017" rid="ref-higgins2017a" ref-type="bibr">Higgins
+            et al., 2017</xref>)</td>
+          </tr>
+          <tr>
+            <td>Maximum-Mean Discrepancy Variational Autoencoder
+            (InfoVAE)</td>
+            <td>(<xref alt="Zhao et al., 2018" rid="ref-zhao2018" ref-type="bibr">Zhao
+            et al., 2018</xref>)</td>
+          </tr>
+          <tr>
+            <td>InfoMax Variational Autoencoder (InfoMaxVAE)</td>
+            <td>(<xref alt="Rezaabad &amp; Vishwanath, 2020" rid="ref-rezaabad2020" ref-type="bibr">Rezaabad
+            &amp; Vishwanath, 2020</xref>)</td>
+          </tr>
+          <tr>
+            <td>Hamiltonian Variational Autoencoder (HVAE)</td>
+            <td>(<xref alt="Caterini et al., 2018" rid="ref-caterini2018" ref-type="bibr">Caterini
+            et al., 2018</xref>)</td>
+          </tr>
+          <tr>
+            <td>Riemannian Hamiltonian Variational Autoencoder
+            (RHVAE)</td>
+            <td>(<xref alt="Chadebec et al., 2020" rid="ref-chadebec2020" ref-type="bibr">Chadebec
+            et al., 2020</xref>)</td>
+          </tr>
+        </tbody>
+      </table>
+    </table-wrap>
+    <p>Other than the deterministic autoencoder, all the models listed
+    above use the same underlying <monospace>VAE</monospace> struct as
+    part of their definition. Some of them, like the
+    <monospace>InfoMaxVAE</monospace> and <monospace>RHVAE</monospace>
+    require additional neural networks for training or inference.
+    However, other than those additional elements, the training routines
+    for all models are virtually the same. This design choice allows
+    users to quickly explore different VAE models for their specific
+    applications without writing new training routines for each
+    model.</p>
+    <p>Moreover, extending the list of VAE models is also
+    straightforward as contributions to the package only need to focus
+    on a general definition of the loss function associated with the new
+    VAE model without the need to define specific terms for each type of
+    encoder or decoder.</p>
+  </sec>
+  <sec id="differential-geometry-utilities">
+    <title>Differential geometry utilities</title>
+    <p>In recent years, there has been a growing interest in
+    understanding the geometric properties of the latent space learned
+    by VAEs
+    (<xref alt="Arvanitidis et al., 2021" rid="ref-arvanitidis2021" ref-type="bibr">Arvanitidis
+    et al., 2021</xref>;
+    <xref alt="Chadebec &amp; Allassonnière, 2022" rid="ref-chadebec2022" ref-type="bibr">Chadebec
+    &amp; Allassonnière, 2022</xref>). This is because the
+    non-linearities of the encoder and decoder networks can induce
+    complex geometries in the latent space, where the Euclidean distance
+    between points in the latent space does not necessarily reflect the
+    true distance between the corresponding data points. Thus, tools
+    from differential geometry such as geodesic distance, parallel
+    transport, and curvature can provide deeper insights into the
+    structure of the learned latent space.
+    <monospace>AutoEncoderToolkit.jl</monospace> provides a set of
+    utilities for the geometric analysis of the latent space. For
+    example, at the time of this writing, the
+    <monospace>NeuralGeodedics</monospace> module provides the tools to
+    approximate geodesic curves between points in latent space for the
+    Riemannian Hamiltonian VAE (RHVAE) model. This is achieved by
+    utilizing a neural network to approximate the geodesic equation
+    (<xref alt="Chen et al., 2018" rid="ref-chen2018a" ref-type="bibr">Chen
+    et al., 2018</xref>) in the latent space using the explicit
+    representation of the Riemannian metric learned by the RHVAE model
+    (<xref alt="Chadebec et al., 2020" rid="ref-chadebec2020" ref-type="bibr">Chadebec
+    et al., 2020</xref>).</p>
+  </sec>
+  <sec id="gpu-support">
+    <title>GPU support</title>
+    <p><monospace>AutoEncoderToolkit.jl</monospace> offers GPU support
+    for <monospace>CUDA.jl</monospace> compatible GPUs out of the
+    box.</p>
+  </sec>
+  <sec id="documentation">
+    <title>Documentation</title>
+    <p>Documentation is available at
+    (https://mrazomej.github.io/AutoEncoderToolkit.jl), where there are
+    worked-out examples and tutorials on how to use the package.</p>
+  </sec>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>I would like to thank Griffin Chure, Madhav Mani, and Dmitri Petrov
+  for their advice and helpful discussions during the development of
+  this package. I also want to thank the Schmidt Science Fellows program
+  for funding part of this work via a postdoctoral fellowship. I would
+  also like to thank the reviewers of this manuscript for their helpful
+  comments and suggestions. The journal’s transparent peer review
+  process has dramatically improved the quality of this work.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <title></title>
+  <ref id="ref-arvanitidis2021">
+    <element-citation publication-type="webpage">
+      <person-group person-group-type="author">
+        <name><surname>Arvanitidis</surname><given-names>Georgios</given-names></name>
+        <name><surname>Hansen</surname><given-names>Lars Kai</given-names></name>
+        <name><surname>Hauberg</surname><given-names>Søren</given-names></name>
+      </person-group>
+      <article-title>Latent Space Oddity: On the Curvature of Deep Generative Models</article-title>
+      <year iso-8601-date="2021-12-13">2021</year><month>12</month><day>13</day>
+      <uri>https://arxiv.org/abs/1710.11379</uri>
+      <pub-id pub-id-type="doi">10.48550/arXiv.1710.11379</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-caterini2018">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Caterini</surname><given-names>Anthony L</given-names></name>
+        <name><surname>Doucet</surname><given-names>Arnaud</given-names></name>
+        <name><surname>Sejdinovic</surname><given-names>Dino</given-names></name>
+      </person-group>
+      <article-title>Hamiltonian Variational Auto-Encoder</article-title>
+      <year iso-8601-date="2018">2018</year>
+      <pub-id pub-id-type="doi">10.48550/arXiv.1805.11328</pub-id>
+      <fpage>11</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-chadebec2020">
+    <element-citation publication-type="webpage">
+      <person-group person-group-type="author">
+        <name><surname>Chadebec</surname><given-names>Clément</given-names></name>
+        <name><surname>Mantoux</surname><given-names>Clément</given-names></name>
+        <name><surname>Allassonnière</surname><given-names>Stéphanie</given-names></name>
+      </person-group>
+      <article-title>Geometry-Aware Hamiltonian Variational Auto-Encoder</article-title>
+      <year iso-8601-date="2020-10-22">2020</year><month>10</month><day>22</day>
+      <uri>https://arxiv.org/abs/2010.11518</uri>
+      <pub-id pub-id-type="doi">10.48550/arXiv.2010.11518</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-chadebec2022">
+    <element-citation publication-type="webpage">
+      <person-group person-group-type="author">
+        <name><surname>Chadebec</surname><given-names>Clément</given-names></name>
+        <name><surname>Allassonnière</surname><given-names>Stéphanie</given-names></name>
+      </person-group>
+      <article-title>A Geometric Perspective on Variational Autoencoders</article-title>
+      <year iso-8601-date="2022-11-03">2022</year><month>11</month><day>03</day>
+      <uri>https://arxiv.org/abs/2209.07370</uri>
+      <pub-id pub-id-type="doi">10.48550/arXiv.2209.07370</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-champion2019">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Champion</surname><given-names>Kathleen</given-names></name>
+        <name><surname>Lusch</surname><given-names>Bethany</given-names></name>
+        <name><surname>Kutz</surname><given-names>J. Nathan</given-names></name>
+        <name><surname>Brunton</surname><given-names>Steven L.</given-names></name>
+      </person-group>
+      <article-title>Data-driven discovery of coordinates and governing equations</article-title>
+      <source>Proceedings of the National Academy of Sciences</source>
+      <year iso-8601-date="2019-11-05">2019</year><month>11</month><day>05</day>
+      <volume>116</volume>
+      <issue>45</issue>
+      <issn>0027-8424</issn>
+      <pub-id pub-id-type="doi">10.1073/pnas.1906995116</pub-id>
+      <fpage>22445</fpage>
+      <lpage>22451</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-chen2018a">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Chen</surname><given-names>Nutan</given-names></name>
+        <name><surname>Klushyn</surname><given-names>Alexej</given-names></name>
+        <name><surname>Kurle</surname><given-names>Richard</given-names></name>
+        <name><surname>Jiang</surname><given-names>Xueyan</given-names></name>
+        <name><surname>Bayer</surname><given-names>Justin</given-names></name>
+        <name><surname>Smagt</surname><given-names>Patrick</given-names></name>
+      </person-group>
+      <article-title>Metrics for Deep Generative Models</article-title>
+      <source>Proceedings of the Twenty-First International Conference on Artificial Intelligence and Statistics</source>
+      <publisher-name>PMLR</publisher-name>
+      <year iso-8601-date="2018-03-31">2018</year><month>03</month><day>31</day>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2024-02-22">2024</year><month>02</month><day>22</day></date-in-citation>
+      <issn>2640-3498</issn>
+      <uri>https://proceedings.mlr.press/v84/chen18e.html</uri>
+      <fpage>1540</fpage>
+      <lpage>1550</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-higgins2017a">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Higgins</surname><given-names>Irina</given-names></name>
+        <name><surname>Matthey</surname><given-names>Loic</given-names></name>
+        <name><surname>Pal</surname><given-names>Arka</given-names></name>
+        <name><surname>Burgess</surname><given-names>Christopher</given-names></name>
+        <name><surname>Glorot</surname><given-names>Xavier</given-names></name>
+        <name><surname>Botvinick</surname><given-names>Matthew</given-names></name>
+        <name><surname>Mohamed</surname><given-names>Shakir</given-names></name>
+        <name><surname>Lerchner</surname><given-names>Alexander</given-names></name>
+      </person-group>
+      <article-title>Β-VAE: Learning Basic Visual Concepts with a Constrained Variational Framework</article-title>
+      <year iso-8601-date="2017">2017</year>
+    </element-citation>
+  </ref>
+  <ref id="ref-innes2018">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Innes</surname><given-names>Mike</given-names></name>
+      </person-group>
+      <article-title>Flux: Elegant machine learning with Julia</article-title>
+      <source>Journal of Open Source Software</source>
+      <year iso-8601-date="2018-05-03">2018</year><month>05</month><day>03</day>
+      <volume>3</volume>
+      <issue>25</issue>
+      <issn>2475-9066</issn>
+      <pub-id pub-id-type="doi">10.21105/joss.00602</pub-id>
+      <fpage>602</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-kingma2014">
+    <element-citation publication-type="webpage">
+      <person-group person-group-type="author">
+        <name><surname>Kingma</surname><given-names>Diederik P.</given-names></name>
+        <name><surname>Welling</surname><given-names>Max</given-names></name>
+      </person-group>
+      <article-title>Auto-Encoding Variational Bayes</article-title>
+      <year iso-8601-date="2014-05-01">2014</year><month>05</month><day>01</day>
+      <uri>https://arxiv.org/abs/1312.6114</uri>
+      <pub-id pub-id-type="doi">10.48550/arXiv.1312.6114</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-lian2022">
+    <element-citation publication-type="report">
+      <person-group person-group-type="author">
+        <name><surname>Lian</surname><given-names>Xinran</given-names></name>
+        <name><surname>Praljak</surname><given-names>Niksa</given-names></name>
+        <name><surname>Subramanian</surname><given-names>Subu K.</given-names></name>
+        <name><surname>Wasinger</surname><given-names>Sarah</given-names></name>
+        <name><surname>Ranganathan</surname><given-names>Rama</given-names></name>
+        <name><surname>Ferguson</surname><given-names>Andrew L.</given-names></name>
+      </person-group>
+      <article-title>Deep learning-enabled design of synthetic orthologs of a signaling protein</article-title>
+      <publisher-name>Molecular Biology</publisher-name>
+      <year iso-8601-date="2022-12-21">2022</year><month>12</month><day>21</day>
+      <pub-id pub-id-type="doi">10.1101/2022.12.21.521443</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-lopez2018">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Lopez</surname><given-names>Romain</given-names></name>
+        <name><surname>Regier</surname><given-names>Jeffrey</given-names></name>
+        <name><surname>Cole</surname><given-names>Michael B.</given-names></name>
+        <name><surname>Jordan</surname><given-names>Michael I.</given-names></name>
+        <name><surname>Yosef</surname><given-names>Nir</given-names></name>
+      </person-group>
+      <article-title>Deep generative modeling for single-cell transcriptomics</article-title>
+      <source>Nature Methods</source>
+      <publisher-name>Nature Publishing Group</publisher-name>
+      <year iso-8601-date="2018-12">2018</year><month>12</month>
+      <volume>15</volume>
+      <issue>12</issue>
+      <issn>1548-7105</issn>
+      <pub-id pub-id-type="doi">10.1038/s41592-018-0229-2</pub-id>
+      <fpage>1053</fpage>
+      <lpage>1058</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-rezaabad2020">
+    <element-citation publication-type="webpage">
+      <person-group person-group-type="author">
+        <name><surname>Rezaabad</surname><given-names>Ali Lotfi</given-names></name>
+        <name><surname>Vishwanath</surname><given-names>Sriram</given-names></name>
+      </person-group>
+      <article-title>Learning Representations by Maximizing Mutual Information in Variational Autoencoders</article-title>
+      <year iso-8601-date="2020-01-07">2020</year><month>01</month><day>07</day>
+      <uri>https://arxiv.org/abs/1912.13361</uri>
+      <pub-id pub-id-type="doi">10.48550/arXiv.1912.13361</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-zhao2018">
+    <element-citation publication-type="webpage">
+      <person-group person-group-type="author">
+        <name><surname>Zhao</surname><given-names>Shengjia</given-names></name>
+        <name><surname>Song</surname><given-names>Jiaming</given-names></name>
+        <name><surname>Ermon</surname><given-names>Stefano</given-names></name>
+      </person-group>
+      <article-title>InfoVAE: Information Maximizing Variational Autoencoders</article-title>
+      <year iso-8601-date="2018-05-30">2018</year><month>05</month><day>30</day>
+      <uri>https://arxiv.org/abs/1706.02262</uri>
+      <pub-id pub-id-type="doi">10.48550/arXiv.1706.02262</pub-id>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
