@@ -1,0 +1,1364 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">6104</article-id>
+<article-id pub-id-type="doi">10.21105/joss.06104</article-id>
+<title-group>
+<article-title>cortecs: A Python package for compressing
+opacities</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author" corresp="yes">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0002-2454-768X</contrib-id>
+<name>
+<surname>Savel</surname>
+<given-names>Arjun B.</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+<xref ref-type="aff" rid="aff-2"/>
+<xref ref-type="corresp" rid="cor-1"><sup>*</sup></xref>
+</contrib>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0001-9907-7742</contrib-id>
+<name>
+<surname>Bedell</surname>
+<given-names>Megan</given-names>
+</name>
+<xref ref-type="aff" rid="aff-2"/>
+</contrib>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0002-1337-9051</contrib-id>
+<name>
+<surname>Kempton</surname>
+<given-names>Eliza M.-R.</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Astronomy Department, University of Maryland, College Park,
+4296 Stadium Dr., College Park, MD 207842 USA</institution>
+</institution-wrap>
+</aff>
+<aff id="aff-2">
+<institution-wrap>
+<institution>Flatiron Institute, Simons Foundation, 162 Fifth Avenue,
+New York, NY 10010, USA</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<author-notes>
+<corresp id="cor-1">* E-mail: <email></email></corresp>
+</author-notes>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2023-08-26">
+<day>26</day>
+<month>8</month>
+<year>2023</year>
+</pub-date>
+<volume>9</volume>
+<issue>100</issue>
+<fpage>6104</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2022</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>Python</kwd>
+<kwd>astronomy</kwd>
+<kwd>radiative transfer</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p>The absorption and emission of light by exoplanet atmospheres
+  encode details of atmospheric composition, temperature, and dynamics.
+  Fundamentally, simulating these processes requires detailed knowledge
+  of the opacity of gases within an atmosphere. When modeling broad
+  wavelength ranges at high resolution, such opacity data, for even a
+  single gas, can take up multiple gigabytes of system random-access
+  memory (RAM). This aspect can be a limiting factor when considering
+  the number of gases to include in a simulation, the sampling strategy
+  used for inference, or even the architecture of the system used for
+  calculations. Here, we present <monospace>cortecs</monospace>, a
+  Python tool for compressing opacity data.
+  <monospace>cortecs</monospace> provides flexible methods for fitting
+  the temperature, pressure, and wavelength dependencies of opacity data
+  and for evaluating the opacity with accelerated, GPU-friendly methods.
+  The package is actively developed on GitHub
+  (<ext-link ext-link-type="uri" xlink:href="https://github.com/arjunsavel/cortecs">https://github.com/arjunsavel/cortecs</ext-link>),
+  and it is available for download with <monospace>pip</monospace> and
+  <monospace>conda</monospace>.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p>Observations with the latest high-resolution spectrographs (e.g.,
+  IGRINS / Gemini South, ESPRESSO / VLT, MAROON-X / Gemini North; Mace
+  et al.
+  (<xref alt="2018" rid="ref-maceU003A2018" ref-type="bibr">2018</xref>);
+  Seifahrt et al.
+  (<xref alt="2020" rid="ref-seifahrtU003A2020" ref-type="bibr">2020</xref>);
+  Pepe et al.
+  (<xref alt="2021" rid="ref-pepeU003A2021" ref-type="bibr">2021</xref>))
+  have motivated RAM-intensive simulations of exoplanet atmospheres at
+  high spectral resolution. <monospace>cortecs</monospace> enables these
+  simulations with more gases and on a broader range of computing
+  architectures by compressing opacity data.</p>
+  <p>Broadly, generating a spectrum to compare against recent
+  high-resolution data requires solving the radiative transfer equation
+  over tens of thousands of wavelength points (e.g.,
+  <xref alt="Beltz et al., 2023" rid="ref-beltzU003A2023" ref-type="bibr">Beltz
+  et al., 2023</xref>;
+  <xref alt="Gandhi et al., 2023" rid="ref-gandhiU003A2023" ref-type="bibr">Gandhi
+  et al., 2023</xref>;
+  <xref alt="Line et al., 2021" rid="ref-lineU003A2021" ref-type="bibr">Line
+  et al., 2021</xref>;
+  <xref alt="Maguire et al., 2023" rid="ref-maguireU003A2023" ref-type="bibr">Maguire
+  et al., 2023</xref>;
+  <xref alt="Prinoth et al., 2023" rid="ref-prinothU003A2023" ref-type="bibr">Prinoth
+  et al., 2023</xref>;
+  <xref alt="Savel et al., 2022" rid="ref-savelU003A2022" ref-type="bibr">Savel
+  et al., 2022</xref>;
+  <xref alt="Wardenier et al., 2023" rid="ref-wardenierU003A2023" ref-type="bibr">Wardenier
+  et al., 2023</xref>). To decrease computational runtime, some codes
+  have parallelized the problem on GPUs (e.g.,
+  <xref alt="Lee et al., 2022" rid="ref-leeU003A2022" ref-type="bibr">Lee
+  et al., 2022</xref>;
+  <xref alt="Line et al., 2021" rid="ref-lineU003A2021" ref-type="bibr">Line
+  et al., 2021</xref>). However, GPUs cannot in general hold large
+  amounts of data in their video random-access memory (VRAM) (e.g.,
+  <xref alt="Ito et al., 2017" rid="ref-itoU003A2017" ref-type="bibr">Ito
+  et al., 2017</xref>); only the cutting-edge, most expensive GPUs are
+  equipped with VRAM in excess of 30 GB (such as the NVIDIA A100 or
+  H100). RAM and VRAM management is therefore a clear concern when
+  producing high-resolution spectra.</p>
+  <p>How do we decrease the RAM footprint of these calculations? By far
+  the largest contributor to the RAM footprint, at least as measured on
+  disk, is the opacity data. For instance, the opacity data for a single
+  gas species across the wavelength range of the Immersion GRating
+  INfrared Spectrometer spectrograph (IGRINS,
+  <xref alt="Mace et al., 2018" rid="ref-maceU003A2018" ref-type="bibr">Mace
+  et al., 2018</xref>) takes up 2.1 GB of non-volatile memory (i.e., the
+  file size is 2.1 GB) at <monospace>float64</monospace> precision and
+  at a resolving power of 400,000 (as used in Line et al.
+  (<xref alt="2021" rid="ref-lineU003A2021" ref-type="bibr">2021</xref>);
+  with 39 temperature points and 18 pressure points, using, e.g., the
+  Polyansky et al.
+  (<xref alt="2018" rid="ref-polyanskyU003A2018" ref-type="bibr">2018</xref>)
+  water opacity tables). In many cases, not all wavelengths need to be
+  loaded, e.g. if the user is down-sampling the resolution of their
+  opacity function. Even so, it stands to reason that decreasing the
+  amount of RAM/VRAM consumed by opacity data would strongly decrease
+  the total amount of RAM/VRAM consumed by the radiative transfer
+  calculation.</p>
+  <p>One solution is to isolate redundancy: While the wavelength
+  dependence of opacity is sharp for many gases, the temperature and
+  pressure dependencies are generally smooth and similar across
+  wavelengths (e.g.,
+  <xref alt="Barber et al., 2014" rid="ref-barberU003A2014" ref-type="bibr">Barber
+  et al., 2014</xref>;
+  <xref alt="Coles et al., 2019" rid="ref-colesU003A2019" ref-type="bibr">Coles
+  et al., 2019</xref>;
+  <xref alt="Polyansky et al., 2018" rid="ref-polyanskyU003A2018" ref-type="bibr">Polyansky
+  et al., 2018</xref>). This feature implies that the opacity data
+  should be compressible without significant loss of accuracy at the
+  spectrum level.</p>
+  <p>While our benchmark case (see the Benchmark section below)
+  demonstrates the applicability of <monospace>cortecs</monospace> to
+  high-resolution opacity functions of molecular gases, the package is
+  general and the compression/decompression steps of the package can be
+  applied to any opacity data in HDF5 format that has pressure and
+  temperature dependence, such as the opacity of neutral atoms or ions.
+  Our benchmark only shows, however, that the amounts of error from our
+  compression technique is reasonable in the spectra of exoplanet
+  atmospheres at pressures greater than a microbar for a single
+  composition. This caveat is important to note for a few reasons:</p>
+  <list list-type="order">
+    <list-item>
+      <p>Based on error propagation, the error in the opacity function
+      may be magnified in the spectrum based on the number of cells that
+      are traced during radiative transfer. The number of spatial cells
+      used to simulate exoplanet atmospheres (in our case, 100) is small
+      enough that the <monospace>cortecs</monospace> error is not large
+      at the spectrum level.</p>
+    </list-item>
+    <list-item>
+      <p>Exoplanet atmospheres are often modeled in hydrostatic
+      equilibrium at pressures greater than a microbar (e.g.,
+      <xref alt="Barstow et al., 2020" rid="ref-barstow2020comparison" ref-type="bibr">Barstow
+      et al., 2020</xref>;
+      <xref alt="Showman et al., 2020" rid="ref-showman2020atmospheric" ref-type="bibr">Showman
+      et al., 2020</xref>). When modeling atmospheres in hydrostatic
+      equilibrium, the final spectrum essentially maps to the altitude
+      at which the gas becomes optically thick. If
+      <monospace>cortecs</monospace>-compressed opacities were used to
+      model an optically thin gas over large path lengths, however, then
+      smaller opacities would be more important.
+      <monospace>cortecs</monospace> tends to perform worse at modeling
+      opacity functions that jump from very low to very high opacities,
+      so it may not perform optimally in these optically thin
+      scenarios.</p>
+    </list-item>
+    <list-item>
+      <p>The program may perform poorly for opacity functions with sharp
+      features in their temperature–pressure dependence (e.g., the Lyman
+      series transitions of hydrogen,
+      <xref alt="Kurucz, 2017" rid="ref-kurucz2017including" ref-type="bibr">Kurucz,
+      2017</xref>). That is, the data may require so many parameters to
+      be fit that the compression is no longer worthwhile.</p>
+    </list-item>
+  </list>
+</sec>
+<sec id="methods">
+  <title>Methods</title>
+  <p><monospace>cortecs</monospace> seeks to compress redundant
+  information by representing opacity data not as the opacity itself but
+  as fits to the opacity as a function of temperature and pressure. We
+  generally refer to this process as <italic>compression</italic> as
+  opposed to <italic>fitting</italic> to emphasize that we do not seek
+  to construct physically motivated, predictive, or comprehensible
+  models of the opacity function. Rather, we simply seek representations
+  of the opacity function that consume less RAM/VRAM. The compression
+  methods we use are <italic>lossy</italic> — the original opacity data
+  cannot be exactly recovered with our methods. We find that the loss of
+  accuracy is tolerable for at least the hot Jupiter emission
+  spectroscopy application (see Benchmark below).</p>
+  <p>We provide three methods of increasing complexity (and flexibility)
+  for compressing and decompressing opacity: polynomial-fitting,
+  principal components analysis (PCA, e.g.,
+  <xref alt="Jolliffe &amp; Cadima, 2016" rid="ref-jolliffeU003A2016" ref-type="bibr">Jolliffe
+  &amp; Cadima, 2016</xref>) and neural networks (e.g.,
+  <xref alt="Alzubaidi et al., 2021" rid="ref-alzubaidiU003A2021" ref-type="bibr">Alzubaidi
+  et al., 2021</xref>). The default neural network architecture is a
+  fully connected neural network; the user can specify the desired
+  hyperparameters, such as number of layers, neurons per layer, and
+  activation function. Alternatively, any <monospace>keras</monospace>
+  model
+  (<xref alt="Chollet, 2015" rid="ref-cholletU003A2015" ref-type="bibr">Chollet,
+  2015</xref>) can be passed to the fitter. Each compression method is
+  paired with a decompression method for evaluating opacity as a
+  function of temperature, pressure, and wavelength. These decompression
+  methods are tailored for GPUs and are accelerated with the
+  <monospace>JAX</monospace> code transformation framework
+  (<xref alt="Bradbury et al., 2018" rid="ref-jaxU003A2018" ref-type="bibr">Bradbury
+  et al., 2018</xref>). An example of this reconstruction is shown in
+  <xref alt="[fig:example]" rid="figU003Aexample">[fig:example]</xref>.
+  In the figure, opacities less than <inline-formula><alternatives>
+  <tex-math><![CDATA[10^{-60}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msup><mml:mn>10</mml:mn><mml:mrow><mml:mi>−</mml:mi><mml:mn>60</mml:mn></mml:mrow></mml:msup></mml:math></alternatives></inline-formula>
+  are ignored. This is because, to become optically thick at a pressure
+  of 1 bar and temperature of 1000 K, a column would need to be nearly
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[10^{34}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msup><mml:mn>10</mml:mn><mml:mn>34</mml:mn></mml:msup></mml:math></alternatives></inline-formula>m
+  long. Here we show a brief derivation of this. The length of the
+  column, <inline-formula><alternatives>
+  <tex-math><![CDATA[ds]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>d</mml:mi><mml:mi>s</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>
+  is <inline-formula><alternatives>
+  <tex-math><![CDATA[ds = \frac{\tau}{\alpha}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>d</mml:mi><mml:mi>s</mml:mi><mml:mo>=</mml:mo><mml:mfrac><mml:mi>τ</mml:mi><mml:mi>α</mml:mi></mml:mfrac></mml:mrow></mml:math></alternatives></inline-formula>,
+  where <inline-formula><alternatives>
+  <tex-math><![CDATA[\tau]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>τ</mml:mi></mml:math></alternatives></inline-formula>
+  is the optical depth, and <inline-formula><alternatives>
+  <tex-math><![CDATA[\alpha]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>α</mml:mi></mml:math></alternatives></inline-formula>
+  is the absorption coefficient. Setting <inline-formula><alternatives>
+  <tex-math><![CDATA[\tau = 1]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>τ</mml:mi><mml:mo>=</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>,
+  we have <inline-formula><alternatives>
+  <tex-math><![CDATA[ds = \frac{1}{\alpha}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>d</mml:mi><mml:mi>s</mml:mi><mml:mo>=</mml:mo><mml:mfrac><mml:mn>1</mml:mn><mml:mi>α</mml:mi></mml:mfrac></mml:mrow></mml:math></alternatives></inline-formula>.
+  The absorption coefficient is the product of the opacity and the
+  density of the gas: <inline-formula><alternatives>
+  <tex-math><![CDATA[ds = \frac{1}{\kappa_\lambda \rho}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>d</mml:mi><mml:mi>s</mml:mi><mml:mo>=</mml:mo><mml:mfrac><mml:mn>1</mml:mn><mml:mrow><mml:msub><mml:mi>κ</mml:mi><mml:mi>λ</mml:mi></mml:msub><mml:mi>ρ</mml:mi></mml:mrow></mml:mfrac></mml:mrow></mml:math></alternatives></inline-formula>.
+  Therefore,<inline-formula><alternatives>
+  <tex-math><![CDATA[ds = \frac{1}{\kappa_\lambda \rho}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>d</mml:mi><mml:mi>s</mml:mi><mml:mo>=</mml:mo><mml:mfrac><mml:mn>1</mml:mn><mml:mrow><mml:msub><mml:mi>κ</mml:mi><mml:mi>λ</mml:mi></mml:msub><mml:mi>ρ</mml:mi></mml:mrow></mml:mfrac></mml:mrow></mml:math></alternatives></inline-formula>.
+  The density of the gas <inline-formula><alternatives>
+  <tex-math><![CDATA[\rho]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>ρ</mml:mi></mml:math></alternatives></inline-formula>
+  is the pressure divided by the product of the temperature and the gas
+  constant: <inline-formula><alternatives>
+  <tex-math><![CDATA[\rho = \frac{P}{k_B T \mu}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>ρ</mml:mi><mml:mo>=</mml:mo><mml:mfrac><mml:mi>P</mml:mi><mml:mrow><mml:msub><mml:mi>k</mml:mi><mml:mi>B</mml:mi></mml:msub><mml:mi>T</mml:mi><mml:mi>μ</mml:mi></mml:mrow></mml:mfrac></mml:mrow></mml:math></alternatives></inline-formula>
+  for mean molecular weight <inline-formula><alternatives>
+  <tex-math><![CDATA[\mu]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>μ</mml:mi></mml:math></alternatives></inline-formula>.
+  This leads to the final equation for the column length:
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[ds = \frac{k_BT\mu}{P\kappa_\lambda}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>d</mml:mi><mml:mi>s</mml:mi><mml:mo>=</mml:mo><mml:mfrac><mml:mrow><mml:msub><mml:mi>k</mml:mi><mml:mi>B</mml:mi></mml:msub><mml:mi>T</mml:mi><mml:mi>μ</mml:mi></mml:mrow><mml:mrow><mml:mi>P</mml:mi><mml:msub><mml:mi>κ</mml:mi><mml:mi>λ</mml:mi></mml:msub></mml:mrow></mml:mfrac></mml:mrow></mml:math></alternatives></inline-formula>.
+  For CO, the mean molecular weight is 28.01 g/mol. Plugging in, we
+  arrive at <inline-formula><alternatives>
+  <tex-math><![CDATA[ds \approx 10^{34}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>d</mml:mi><mml:mi>s</mml:mi><mml:mo>≈</mml:mo><mml:msup><mml:mn>10</mml:mn><mml:mn>34</mml:mn></mml:msup></mml:mrow></mml:math></alternatives></inline-formula>m
+  (roughly <inline-formula><alternatives>
+  <tex-math><![CDATA[10^{17}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msup><mml:mn>10</mml:mn><mml:mn>17</mml:mn></mml:msup></mml:math></alternatives></inline-formula>
+  parsecs) for <inline-formula><alternatives>
+  <tex-math><![CDATA[\kappa_\lambda = 10^{-33}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>κ</mml:mi><mml:mi>λ</mml:mi></mml:msub><mml:mo>=</mml:mo><mml:msup><mml:mn>10</mml:mn><mml:mrow><mml:mi>−</mml:mi><mml:mn>33</mml:mn></mml:mrow></mml:msup></mml:mrow></mml:math></alternatives></inline-formula>
+  <inline-formula><tex-math><![CDATA[\rm cm^2/g]]></tex-math></inline-formula>,
+  which is equivalent to roughly a cross-section of
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[\sigma_\lambda = 10^{-60}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>σ</mml:mi><mml:mi>λ</mml:mi></mml:msub><mml:mo>=</mml:mo><mml:msup><mml:mn>10</mml:mn><mml:mrow><mml:mi>−</mml:mi><mml:mn>60</mml:mn></mml:mrow></mml:msup></mml:mrow></mml:math></alternatives></inline-formula>
+  <inline-formula><tex-math><![CDATA[\rm m^2]]></tex-math></inline-formula>.</p>
+  <fig>
+    <caption><p>Top panel: The original opacity function of CO
+    (<xref alt="Rothman et al., 2010" rid="ref-rothmanU003A2010" ref-type="bibr">Rothman
+    et al., 2010</xref>) (solid lines) and its
+    <monospace>cortecs</monospace> reconstruction (transparent lines)
+    over a large wavelength range and at multiple temperatures and
+    pressures. Bottom panel: the absolute residuals between the opacity
+    function and its <monospace>cortecs</monospace> reconstruction.
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[\sigma_\lambda]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>σ</mml:mi><mml:mi>λ</mml:mi></mml:msub></mml:math></alternatives></inline-formula>
+    is the opacity, in units of square meters. We cut off the opacity at
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[10^{-104}]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msup><mml:mn>10</mml:mn><mml:mrow><mml:mi>−</mml:mi><mml:mn>104</mml:mn></mml:mrow></mml:msup></mml:math></alternatives></inline-formula>,
+    explaining the shape of the residuals in teal and dark red. Note
+    that opacities less than <inline-formula><alternatives>
+    <tex-math><![CDATA[10^{-60}]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msup><mml:mn>10</mml:mn><mml:mrow><mml:mi>−</mml:mi><mml:mn>60</mml:mn></mml:mrow></mml:msup></mml:math></alternatives></inline-formula>
+    are not generally relevant for the benchmark presented here; an
+    opacity of <inline-formula><alternatives>
+    <tex-math><![CDATA[\sigma_\lambda=10^{-60}]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>σ</mml:mi><mml:mi>λ</mml:mi></mml:msub><mml:mo>=</mml:mo><mml:msup><mml:mn>10</mml:mn><mml:mrow><mml:mi>−</mml:mi><mml:mn>60</mml:mn></mml:mrow></mml:msup></mml:mrow></mml:math></alternatives></inline-formula>
+    would require a column nearly <inline-formula><alternatives>
+    <tex-math><![CDATA[10^{34}]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msup><mml:mn>10</mml:mn><mml:mn>34</mml:mn></mml:msup></mml:math></alternatives></inline-formula>m
+    long to become optically thick at a pressure of 1 bar and
+    temperature of 1000 K.
+    <styled-content id="figU003Aexample"></styled-content></p></caption>
+    <graphic mimetype="image" mime-subtype="png" xlink:href="example_application.png" />
+  </fig>
+</sec>
+<sec id="workflow">
+  <title>Workflow</title>
+  <p>A typical workflow with <monospace>cortecs</monospace> involves the
+  following steps:</p>
+  <list list-type="order">
+    <list-item>
+      <p>Acquiring: Download opacity data from a source such as the
+      ExoMol database
+      (<xref alt="Tennyson et al., 2016" rid="ref-tennysonU003A2016" ref-type="bibr">Tennyson
+      et al., 2016</xref>) or the HITRAN database
+      (<xref alt="Gordon et al., 2017" rid="ref-gordonU003A2017" ref-type="bibr">Gordon
+      et al., 2017</xref>).</p>
+    </list-item>
+    <list-item>
+      <p>Fitting: Compress the opacity data with
+      <monospace>cortecs</monospace>’s <monospace>fit</monospace>
+      methods.</p>
+    </list-item>
+    <list-item>
+      <p>Saving: Save the compressed opacity data (the fitted
+      parameters) to disk.</p>
+    </list-item>
+    <list-item>
+      <p>Loading: Load the compressed opacity data from disk in whatever
+      program you’re applying the data—e.g., within your radiative
+      transfer code.</p>
+    </list-item>
+    <list-item>
+      <p>Decompressing: Evaluate the opacity with
+      <monospace>cortecs</monospace>’s <monospace>eval</monospace>
+      methods.</p>
+    </list-item>
+  </list>
+  <p>The accuracy of these fits may or may not be suitable for a given
+  application. It is important to test that the error incurred using
+  <monospace>cortecs</monospace> does not impact the results of your
+  application—for instance, by using the
+  <monospace>cortecs.fit.metrics.calc_metrics</monospace> function to
+  calculate the error incurred by the compression and by calculating
+  spectra with and without using
+  <monospace>cortecs</monospace>-compressed opacities. We provide an
+  example of such a benchmarking exercise below.</p>
+</sec>
+<sec id="benchmark-high-resolution-retrieval-of-wasp-77ab">
+  <title>Benchmark: High-resolution retrieval of WASP-77Ab</title>
+  <p>As a proof of concept, we perform a parameter inference exercise (a
+  “retrieval,”
+  <xref alt="Madhusudhan &amp; Seager, 2009" rid="ref-madhusudhanU003A2009" ref-type="bibr">Madhusudhan
+  &amp; Seager, 2009</xref>) on the high-resolution thermal emission
+  spectrum of the fiducial hot Jupiter WASP-77Ab
+  (<xref alt="August et al., 2023" rid="ref-augustU003A2023" ref-type="bibr">August
+  et al., 2023</xref>;
+  <xref alt="Line et al., 2021" rid="ref-lineU003A2021" ref-type="bibr">Line
+  et al., 2021</xref>;
+  <xref alt="Mansfield et al., 2022" rid="ref-mansfieldU003A2022" ref-type="bibr">Mansfield
+  et al., 2022</xref>) as observed at IGRINS. The retrieval pairs
+  <monospace>PyMultiNest</monospace>
+  (<xref alt="Buchner et al., 2014" rid="ref-buchnerU003A2014" ref-type="bibr">Buchner
+  et al., 2014</xref>) sampling with the <monospace>CHIMERA</monospace>
+  radiative transfer code
+  (<xref alt="Line et al., 2013" rid="ref-lineU003A2013" ref-type="bibr">Line
+  et al., 2013</xref>), with opacity from
+  <inline-formula><tex-math><![CDATA[\rm H_2O]]></tex-math></inline-formula>
+  (<xref alt="Polyansky et al., 2018" rid="ref-polyanskyU003A2018" ref-type="bibr">Polyansky
+  et al., 2018</xref>),
+  <inline-formula><tex-math><![CDATA[\rm CO]]></tex-math></inline-formula>
+  (<xref alt="Rothman et al., 2010" rid="ref-rothmanU003A2010" ref-type="bibr">Rothman
+  et al., 2010</xref>),
+  <inline-formula><tex-math><![CDATA[\rm CH_4]]></tex-math></inline-formula>
+  (<xref alt="Hargreaves et al., 2020" rid="ref-hargreavesU003A2020" ref-type="bibr">Hargreaves
+  et al., 2020</xref>),
+  <inline-formula><tex-math><![CDATA[\rm NH_3]]></tex-math></inline-formula>
+  (<xref alt="Coles et al., 2019" rid="ref-colesU003A2019" ref-type="bibr">Coles
+  et al., 2019</xref>),
+  <inline-formula><tex-math><![CDATA[\rm HCN]]></tex-math></inline-formula>
+  (<xref alt="Barber et al., 2014" rid="ref-barberU003A2014" ref-type="bibr">Barber
+  et al., 2014</xref>),
+  <inline-formula><tex-math><![CDATA[\rm H_2S]]></tex-math></inline-formula>
+  (<xref alt="Azzam et al., 2016" rid="ref-azzamU003A2016" ref-type="bibr">Azzam
+  et al., 2016</xref>), and
+  <inline-formula><tex-math><![CDATA[\rm H_2-H_2]]></tex-math></inline-formula>
+  collision-induced absorption
+  (<xref alt="Karman et al., 2019" rid="ref-karmanU003A2019" ref-type="bibr">Karman
+  et al., 2019</xref>). The non-compressed retrieval uses the data and
+  retrieval framework from
+  (<xref alt="Line et al., 2021" rid="ref-lineU003A2021" ref-type="bibr">Line
+  et al., 2021</xref>), run in an upcoming article (Savel et al. 2024,
+  submitted). For this experiment, we use the PCA-based compression
+  scheme implemented in <monospace>cortecs</monospace>, preserving 2
+  principal components and their corresponding weights as a function for
+  each wavelength as a lossy compression of the original opacity
+  data.</p>
+  <p>Using <monospace>cortecs</monospace>, we compress the input opacity
+  files by a factor of 13. These opacity data (as described earlier in
+  the paper) were originally stored as 2.1 GB .h5 files containing 39
+  temperature points, 18 pressure points, and 373,260 wavelength points.
+  The compressed opacity data are stored as a 143.1 MB .npz file,
+  including the PCA coefficients and PCA vectors (which are reused for
+  each wavelength point). These on-disk memory quotes are relatively
+  faithful to the in-memory RAM footprint of the data when stored as
+  <monospace>numpy</monospace> arrays (2.1 GB for the uncompressed data
+  and 160 MB for the compressed data). Reading in the original files
+  takes 1.1 <inline-formula><alternatives>
+  <tex-math><![CDATA[\pm]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>±</mml:mi></mml:math></alternatives></inline-formula>
+  0.1 seconds, while reading in the compressed files takes 24.4
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[\pm]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>±</mml:mi></mml:math></alternatives></inline-formula>
+  0.3 ms. Accessing/evaluating a single opacity value takes 174.0
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[\pm]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>±</mml:mi></mml:math></alternatives></inline-formula>
+  0.5 ns for the uncompressed data and 789
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[\pm]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>±</mml:mi></mml:math></alternatives></inline-formula>
+  5 ns for the compressed data. All of these timing experiments are
+  performed on a 2021 MacBook Pro with an Apple M1 Pro chip and 16 GB of
+  RAM.</p>
+  <p>Importantly, we find that our compressed-opacity retrieval yields
+  posterior distributions (as plotted by the
+  <monospace>corner</monospace> package,
+  <xref alt="Foreman-Mackey, 2016" rid="ref-cornerU003A2016" ref-type="bibr">Foreman-Mackey,
+  2016</xref>) and Bayesian evidences that are consistent with those
+  from the benchmark retrieval using uncompressed opacity
+  (<xref alt="[fig:corner]" rid="figU003Acorner">[fig:corner]</xref>)
+  within a comparable runtime. The two posterior distributions exhibit
+  slightly different substructure, which we attribute to the compressed
+  results requiring 10% more samples to converge (about 5 hours of extra
+  runtime on a roughly 2 day-long calculation) and residual differences
+  between the compressed and uncompressed opacities. The results from
+  this exercise indicate that our compression/decompression scheme is
+  accurate enough to be used in at least some high-resolution
+  retrievals.</p>
+  <fig>
+    <caption><p>The posterior distributions for our baseline WASP-77Ab
+    retrieval (teal) and our retrieval using opacities compressed by
+    <monospace>cortecs</monospace> (gold).
+    <styled-content id="figU003Acorner"></styled-content></p></caption>
+    <graphic mimetype="image" mime-subtype="png" xlink:href="pca_compress.png" />
+  </fig>
+  <table-wrap>
+    <table>
+      <colgroup>
+        <col width="15%" />
+        <col width="18%" />
+        <col width="25%" />
+        <col width="20%" />
+        <col width="22%" />
+      </colgroup>
+      <thead>
+        <tr>
+          <th>Method</th>
+          <th>Compression factor</th>
+          <th>Median absolute deviation</th>
+          <th>Compression time (s)</th>
+          <th>Decompression time (s)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>PCA</td>
+          <td>13</td>
+          <td>0.30</td>
+          <td>2.6 <disp-formula><alternatives>
+          <tex-math><![CDATA[\times 10^1]]></tex-math>
+          <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>×</mml:mi><mml:msup><mml:mn>10</mml:mn><mml:mn>1</mml:mn></mml:msup></mml:mrow></mml:math></alternatives></disp-formula></td>
+          <td>2.3 <disp-formula><alternatives>
+          <tex-math><![CDATA[\times 10^2]]></tex-math>
+          <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>×</mml:mi><mml:msup><mml:mn>10</mml:mn><mml:mn>2</mml:mn></mml:msup></mml:mrow></mml:math></alternatives></disp-formula></td>
+        </tr>
+        <tr>
+          <td>Polynomials</td>
+          <td>44</td>
+          <td>0.24</td>
+          <td>7.8<disp-formula><alternatives>
+          <tex-math><![CDATA[\times 10^2]]></tex-math>
+          <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>×</mml:mi><mml:msup><mml:mn>10</mml:mn><mml:mn>2</mml:mn></mml:msup></mml:mrow></mml:math></alternatives></disp-formula></td>
+          <td>3.6<disp-formula><alternatives>
+          <tex-math><![CDATA[\times 10^3]]></tex-math>
+          <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>×</mml:mi><mml:msup><mml:mn>10</mml:mn><mml:mn>3</mml:mn></mml:msup></mml:mrow></mml:math></alternatives></disp-formula></td>
+        </tr>
+        <tr>
+          <td>Neural network</td>
+          <td>9</td>
+          <td>2.6</td>
+          <td>1.4<disp-formula><alternatives>
+          <tex-math><![CDATA[\times 10^7]]></tex-math>
+          <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>×</mml:mi><mml:msup><mml:mn>10</mml:mn><mml:mn>7</mml:mn></mml:msup></mml:mrow></mml:math></alternatives></disp-formula></td>
+          <td>3.6<disp-formula><alternatives>
+          <tex-math><![CDATA[\times 10^4]]></tex-math>
+          <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>×</mml:mi><mml:msup><mml:mn>10</mml:mn><mml:mn>4</mml:mn></mml:msup></mml:mrow></mml:math></alternatives></disp-formula></td>
+        </tr>
+      </tbody>
+    </table>
+  </table-wrap>
+  <p>Comparison of compression methods used for the full HITEMP CO line
+  list
+  (<xref alt="Rothman et al., 2010" rid="ref-rothmanU003A2010" ref-type="bibr">Rothman
+  et al., 2010</xref>) over the IGRINS wavelength range at a resolving
+  power of 250,000, cumulative for all data points. Note that the neural
+  network compression performance and timings are only assessed at a
+  single wavelength point and extrapolated over the full wavelength
+  range.</p>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>A.B.S. and E.M-R.K. acknowledge support from the Heising-Simons
+  Foundation. We thank Max Isi for helpful discussions.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <title></title>
+  <ref id="ref-kurucz2017including">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Kurucz</surname><given-names>Robert L</given-names></name>
+      </person-group>
+      <article-title>Including all the lines: Data releases for spectra and opacities</article-title>
+      <source>Canadian Journal of Physics</source>
+      <publisher-name>NRC Research Press</publisher-name>
+      <year iso-8601-date="2017">2017</year>
+      <volume>95</volume>
+      <issue>9</issue>
+      <pub-id pub-id-type="doi">10.1139/cjp-2016-0794</pub-id>
+      <fpage>825</fpage>
+      <lpage>827</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-showman2020atmospheric">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Showman</surname><given-names>Adam P</given-names></name>
+        <name><surname>Tan</surname><given-names>Xianyu</given-names></name>
+        <name><surname>Parmentier</surname><given-names>Vivien</given-names></name>
+      </person-group>
+      <article-title>Atmospheric dynamics of hot giant planets and brown dwarfs</article-title>
+      <source>Space Science Reviews</source>
+      <publisher-name>Springer</publisher-name>
+      <year iso-8601-date="2020">2020</year>
+      <volume>216</volume>
+      <pub-id pub-id-type="doi">10.1007/s11214-020-00758-8</pub-id>
+      <fpage>1</fpage>
+      <lpage>83</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-barstow2020comparison">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Barstow</surname><given-names>Joanna K</given-names></name>
+        <name><surname>Changeat</surname><given-names>Quentin</given-names></name>
+        <name><surname>Garland</surname><given-names>Ryan</given-names></name>
+        <name><surname>Line</surname><given-names>Michael R</given-names></name>
+        <name><surname>Rocchetto</surname><given-names>Marco</given-names></name>
+        <name><surname>Waldmann</surname><given-names>Ingo P</given-names></name>
+      </person-group>
+      <article-title>A comparison of exoplanet spectroscopic retrieval tools</article-title>
+      <source>Monthly Notices of the Royal Astronomical Society</source>
+      <publisher-name>Oxford University Press</publisher-name>
+      <year iso-8601-date="2020">2020</year>
+      <volume>493</volume>
+      <issue>4</issue>
+      <pub-id pub-id-type="doi">10.1093/mnras/staa548</pub-id>
+      <fpage>4884</fpage>
+      <lpage>4909</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-lineU003A2021">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Line</surname><given-names>Michael R</given-names></name>
+        <name><surname>Brogi</surname><given-names>Matteo</given-names></name>
+        <name><surname>Bean</surname><given-names>Jacob L</given-names></name>
+        <name><surname>Gandhi</surname><given-names>Siddharth</given-names></name>
+        <name><surname>Zalesky</surname><given-names>Joseph</given-names></name>
+        <name><surname>Parmentier</surname><given-names>Vivien</given-names></name>
+        <name><surname>Smith</surname><given-names>Peter</given-names></name>
+        <name><surname>Mace</surname><given-names>Gregory N</given-names></name>
+        <name><surname>Mansfield</surname><given-names>Megan</given-names></name>
+        <name><surname>Kempton</surname><given-names>Eliza M-R</given-names></name>
+        <name><surname>others</surname></name>
+      </person-group>
+      <article-title>A solar c/o and sub-solar metallicity in a hot jupiter atmosphere</article-title>
+      <source>Nature</source>
+      <publisher-name>Nature Publishing Group UK London</publisher-name>
+      <year iso-8601-date="2021">2021</year>
+      <volume>598</volume>
+      <issue>7882</issue>
+      <pub-id pub-id-type="doi">10.1038/s41586-021-03912-6</pub-id>
+      <fpage>580</fpage>
+      <lpage>584</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-tennysonU003A2016">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Tennyson</surname><given-names>Jonathan</given-names></name>
+        <name><surname>Yurchenko</surname><given-names>Sergei N</given-names></name>
+        <name><surname>Al-Refaie</surname><given-names>Ahmed F</given-names></name>
+        <name><surname>Barton</surname><given-names>Emma J</given-names></name>
+        <name><surname>Chubb</surname><given-names>Katy L</given-names></name>
+        <name><surname>Coles</surname><given-names>Phillip A</given-names></name>
+        <name><surname>Diamantopoulou</surname><given-names>S</given-names></name>
+        <name><surname>Gorman</surname><given-names>Maire N</given-names></name>
+        <name><surname>Hill</surname><given-names>Christian</given-names></name>
+        <name><surname>Lam</surname><given-names>Aden Z</given-names></name>
+        <name><surname>others</surname></name>
+      </person-group>
+      <article-title>The ExoMol database: Molecular line lists for exoplanet and other hot atmospheres</article-title>
+      <source>Journal of Molecular Spectroscopy</source>
+      <publisher-name>Elsevier</publisher-name>
+      <year iso-8601-date="2016">2016</year>
+      <volume>327</volume>
+      <pub-id pub-id-type="doi">10.1016/j.jms.2016.05.002</pub-id>
+      <fpage>73</fpage>
+      <lpage>94</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-mansfieldU003A2022">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Mansfield</surname><given-names>Megan</given-names></name>
+        <name><surname>Wiser</surname><given-names>Lindsey</given-names></name>
+        <name><surname>Stevenson</surname><given-names>Kevin B</given-names></name>
+        <name><surname>Smith</surname><given-names>Peter</given-names></name>
+        <name><surname>Line</surname><given-names>Michael R</given-names></name>
+        <name><surname>Bean</surname><given-names>Jacob L</given-names></name>
+        <name><surname>Fortney</surname><given-names>Jonathan J</given-names></name>
+        <name><surname>Parmentier</surname><given-names>Vivien</given-names></name>
+        <name><surname>Kempton</surname><given-names>Eliza M-R</given-names></name>
+        <name><surname>Arcangeli</surname><given-names>Jacob</given-names></name>
+        <name><surname>others</surname></name>
+      </person-group>
+      <article-title>Confirmation of water absorption in the thermal emission spectrum of the hot jupiter WASP-77Ab with HST/WFC3</article-title>
+      <source>The Astronomical Journal</source>
+      <publisher-name>IOP Publishing</publisher-name>
+      <year iso-8601-date="2022">2022</year>
+      <volume>163</volume>
+      <issue>6</issue>
+      <pub-id pub-id-type="doi">10.3847/1538-3881/ac658f</pub-id>
+      <fpage>261</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-augustU003A2023">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>August</surname><given-names>Prune C.</given-names></name>
+        <name><surname>Bean</surname><given-names>Jacob L.</given-names></name>
+        <name><surname>Zhang</surname><given-names>Michael</given-names></name>
+        <name><surname>Lunine</surname><given-names>Jonathan</given-names></name>
+        <name><surname>Xue</surname><given-names>Qiao</given-names></name>
+        <name><surname>Line</surname><given-names>Michael</given-names></name>
+        <name><surname>Smith</surname><given-names>Peter C. B.</given-names></name>
+      </person-group>
+      <article-title>Confirmation of Subsolar Metallicity for WASP-77Ab from JWST Thermal Emission Spectroscopy</article-title>
+      <source></source>
+      <year iso-8601-date="2023-08">2023</year><month>08</month>
+      <volume>953</volume>
+      <issue>2</issue>
+      <uri>https://arxiv.org/abs/2305.07753</uri>
+      <pub-id pub-id-type="doi">10.3847/2041-8213/ace828</pub-id>
+      <fpage>L24</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-buchnerU003A2014">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Buchner</surname><given-names>J</given-names></name>
+        <name><surname>Georgakakis</surname><given-names>A</given-names></name>
+        <name><surname>Nandra</surname><given-names>K</given-names></name>
+        <name><surname>Hsu</surname><given-names>L</given-names></name>
+        <name><surname>Rangel</surname><given-names>C</given-names></name>
+        <name><surname>Brightman</surname><given-names>M</given-names></name>
+        <name><surname>Merloni</surname><given-names>A</given-names></name>
+        <name><surname>Salvato</surname><given-names>M</given-names></name>
+        <name><surname>Donley</surname><given-names>J</given-names></name>
+        <name><surname>Kocevski</surname><given-names>D</given-names></name>
+      </person-group>
+      <article-title>X-ray spectral modelling of the AGN obscuring region in the CDFS: Bayesian model selection and catalogue</article-title>
+      <source>Astronomy &amp; Astrophysics</source>
+      <publisher-name>EDP Sciences</publisher-name>
+      <year iso-8601-date="2014">2014</year>
+      <volume>564</volume>
+      <pub-id pub-id-type="doi">10.1051/0004-6361/201322971</pub-id>
+      <fpage>A125</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-lineU003A2013">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Line</surname><given-names>Michael R</given-names></name>
+        <name><surname>Wolf</surname><given-names>Aaron S</given-names></name>
+        <name><surname>Zhang</surname><given-names>Xi</given-names></name>
+        <name><surname>Knutson</surname><given-names>Heather</given-names></name>
+        <name><surname>Kammer</surname><given-names>Joshua A</given-names></name>
+        <name><surname>Ellison</surname><given-names>Elias</given-names></name>
+        <name><surname>Deroo</surname><given-names>Pieter</given-names></name>
+        <name><surname>Crisp</surname><given-names>Dave</given-names></name>
+        <name><surname>Yung</surname><given-names>Yuk L</given-names></name>
+      </person-group>
+      <article-title>A systematic retrieval analysis of secondary eclipse spectra. I. A comparison of atmospheric retrieval techniques</article-title>
+      <source>The Astrophysical Journal</source>
+      <publisher-name>IOP Publishing</publisher-name>
+      <year iso-8601-date="2013">2013</year>
+      <volume>775</volume>
+      <issue>2</issue>
+      <pub-id pub-id-type="doi">10.1088/0004-637X/775/2/137</pub-id>
+      <fpage>137</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-jolliffeU003A2016">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Jolliffe</surname><given-names>Ian T</given-names></name>
+        <name><surname>Cadima</surname><given-names>Jorge</given-names></name>
+      </person-group>
+      <article-title>Principal component analysis: A review and recent developments</article-title>
+      <source>Philosophical transactions of the royal society A: Mathematical, Physical and Engineering Sciences</source>
+      <publisher-name>The Royal Society Publishing</publisher-name>
+      <year iso-8601-date="2016">2016</year>
+      <volume>374</volume>
+      <issue>2065</issue>
+      <pub-id pub-id-type="doi">10.1098/rsta.2015.0202</pub-id>
+      <fpage>20150202</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-gordonU003A2017">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Gordon</surname><given-names>Iouli E</given-names></name>
+        <name><surname>Rothman</surname><given-names>Laurence S</given-names></name>
+        <name><surname>Hill</surname><given-names>Christian</given-names></name>
+        <name><surname>Kochanov</surname><given-names>Roman V</given-names></name>
+        <name><surname>Tan</surname><given-names>Y</given-names></name>
+        <name><surname>Bernath</surname><given-names>Peter F</given-names></name>
+        <name><surname>Birk</surname><given-names>Manfred</given-names></name>
+        <name><surname>Boudon</surname><given-names>V</given-names></name>
+        <name><surname>Campargue</surname><given-names>Alain</given-names></name>
+        <name><surname>Chance</surname><given-names>KV</given-names></name>
+        <name><surname>others</surname></name>
+      </person-group>
+      <article-title>The HITRAN2016 molecular spectroscopic database</article-title>
+      <source>Journal of Quantitative Spectroscopy and Radiative Transfer</source>
+      <publisher-name>Elsevier</publisher-name>
+      <year iso-8601-date="2017">2017</year>
+      <volume>203</volume>
+      <pub-id pub-id-type="doi">10.1016/j.jqsrt.2017.06.038</pub-id>
+      <fpage>3</fpage>
+      <lpage>69</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-rothmanU003A2010">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Rothman</surname><given-names>Laurence S</given-names></name>
+        <name><surname>Gordon</surname><given-names>IE</given-names></name>
+        <name><surname>Barber</surname><given-names>RJ</given-names></name>
+        <name><surname>Dothe</surname><given-names>H</given-names></name>
+        <name><surname>Gamache</surname><given-names>Robert R</given-names></name>
+        <name><surname>Goldman</surname><given-names>A</given-names></name>
+        <name><surname>Perevalov</surname><given-names>VI</given-names></name>
+        <name><surname>Tashkun</surname><given-names>SA</given-names></name>
+        <name><surname>Tennyson</surname><given-names>J</given-names></name>
+      </person-group>
+      <article-title>HITEMP, the high-temperature molecular spectroscopic database</article-title>
+      <source>Journal of Quantitative Spectroscopy and Radiative Transfer</source>
+      <publisher-name>Elsevier</publisher-name>
+      <year iso-8601-date="2010">2010</year>
+      <volume>111</volume>
+      <issue>15</issue>
+      <pub-id pub-id-type="doi">10.1016/j.jqsrt.2010.05.001</pub-id>
+      <fpage>2139</fpage>
+      <lpage>2150</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-alzubaidiU003A2021">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Alzubaidi</surname><given-names>Laith</given-names></name>
+        <name><surname>Zhang</surname><given-names>Jinglan</given-names></name>
+        <name><surname>Humaidi</surname><given-names>Amjad J</given-names></name>
+        <name><surname>Al-Dujaili</surname><given-names>Ayad</given-names></name>
+        <name><surname>Duan</surname><given-names>Ye</given-names></name>
+        <name><surname>Al-Shamma</surname><given-names>Omran</given-names></name>
+        <name><surname>Santamarı́a</surname><given-names>José</given-names></name>
+        <name><surname>Fadhel</surname><given-names>Mohammed A</given-names></name>
+        <name><surname>Al-Amidie</surname><given-names>Muthana</given-names></name>
+        <name><surname>Farhan</surname><given-names>Laith</given-names></name>
+      </person-group>
+      <article-title>Review of deep learning: Concepts, CNN architectures, challenges, applications, future directions</article-title>
+      <source>Journal of big Data</source>
+      <publisher-name>Springer</publisher-name>
+      <year iso-8601-date="2021">2021</year>
+      <volume>8</volume>
+      <pub-id pub-id-type="doi">10.1186/s40537-021-00444-8</pub-id>
+      <fpage>1</fpage>
+      <lpage>74</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-jaxU003A2018">
+    <element-citation publication-type="software">
+      <person-group person-group-type="author">
+        <name><surname>Bradbury</surname><given-names>James</given-names></name>
+        <name><surname>Frostig</surname><given-names>Roy</given-names></name>
+        <name><surname>Hawkins</surname><given-names>Peter</given-names></name>
+        <name><surname>Johnson</surname><given-names>Matthew James</given-names></name>
+        <name><surname>Leary</surname><given-names>Chris</given-names></name>
+        <name><surname>Maclaurin</surname><given-names>Dougal</given-names></name>
+        <name><surname>Necula</surname><given-names>George</given-names></name>
+        <name><surname>Paszke</surname><given-names>Adam</given-names></name>
+        <name><surname>VanderPlas</surname><given-names>Jake</given-names></name>
+        <name><surname>Wanderman-Milne</surname><given-names>Skye</given-names></name>
+        <name><surname>Zhang</surname><given-names>Qiao</given-names></name>
+      </person-group>
+      <article-title>JAX: Composable transformations of Python+NumPy programs</article-title>
+      <year iso-8601-date="2018">2018</year>
+      <uri>http://github.com/google/jax</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-leeU003A2022">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Lee</surname><given-names>Elspeth KH</given-names></name>
+        <name><surname>Wardenier</surname><given-names>Joost P</given-names></name>
+        <name><surname>Prinoth</surname><given-names>Bibiana</given-names></name>
+        <name><surname>Parmentier</surname><given-names>Vivien</given-names></name>
+        <name><surname>Grimm</surname><given-names>Simon L</given-names></name>
+        <name><surname>Baeyens</surname><given-names>Robin</given-names></name>
+        <name><surname>Carone</surname><given-names>Ludmila</given-names></name>
+        <name><surname>Christie</surname><given-names>Duncan</given-names></name>
+        <name><surname>Deitrick</surname><given-names>Russell</given-names></name>
+        <name><surname>Kitzmann</surname><given-names>Daniel</given-names></name>
+        <name><surname>others</surname></name>
+      </person-group>
+      <article-title>3D radiative transfer for exoplanet atmospheres. gCMCRT: A GPU-accelerated MCRT code</article-title>
+      <source>The Astrophysical Journal</source>
+      <publisher-name>IOP Publishing</publisher-name>
+      <year iso-8601-date="2022">2022</year>
+      <volume>929</volume>
+      <issue>2</issue>
+      <pub-id pub-id-type="doi">10.3847/1538-4357/ac61d6</pub-id>
+      <fpage>180</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-itoU003A2017">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Ito</surname><given-names>Yuki</given-names></name>
+        <name><surname>Matsumiya</surname><given-names>Ryo</given-names></name>
+        <name><surname>Endo</surname><given-names>Toshio</given-names></name>
+      </person-group>
+      <article-title>Ooc_cuDNN: Accommodating convolutional neural networks over GPU memory capacity</article-title>
+      <source>2017 IEEE international conference on big data (big data)</source>
+      <publisher-name>IEEE</publisher-name>
+      <year iso-8601-date="2017">2017</year>
+      <pub-id pub-id-type="doi">10.1109/BigData.2017.8257926</pub-id>
+      <fpage>183</fpage>
+      <lpage>192</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-cornerU003A2016">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Foreman-Mackey</surname><given-names>Daniel</given-names></name>
+      </person-group>
+      <article-title>Corner.py: Scatterplot matrices in python</article-title>
+      <source>The Journal of Open Source Software</source>
+      <publisher-name>The Open Journal</publisher-name>
+      <year iso-8601-date="2016-06">2016</year><month>06</month>
+      <volume>1</volume>
+      <issue>2</issue>
+      <uri>https://doi.org/10.21105/joss.00024</uri>
+      <pub-id pub-id-type="doi">10.21105/joss.00024</pub-id>
+      <fpage>24</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-maceU003A2018">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Mace</surname><given-names>Gregory</given-names></name>
+        <name><surname>Sokal</surname><given-names>Kimberly</given-names></name>
+        <name><surname>Lee</surname><given-names>Jae-Joon</given-names></name>
+        <name><surname>Oh</surname><given-names>Heeyoung</given-names></name>
+        <name><surname>Park</surname><given-names>Chan</given-names></name>
+        <name><surname>Lee</surname><given-names>Hanshin</given-names></name>
+        <name><surname>Good</surname><given-names>John</given-names></name>
+        <name><surname>MacQueen</surname><given-names>Phillip</given-names></name>
+        <name><surname>Oh</surname><given-names>Jae Sok</given-names></name>
+        <name><surname>Kaplan</surname><given-names>Kyle</given-names></name>
+        <name><surname>others</surname></name>
+      </person-group>
+      <article-title>IGRINS at the discovery channel telescope and gemini south</article-title>
+      <source>Ground-based and airborne instrumentation for astronomy VII</source>
+      <publisher-name>SPIE</publisher-name>
+      <year iso-8601-date="2018">2018</year>
+      <volume>10702</volume>
+      <pub-id pub-id-type="doi">10.1117/12.2312345</pub-id>
+      <fpage>204</fpage>
+      <lpage>221</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-pepeU003A2021">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Pepe</surname><given-names>F</given-names></name>
+        <name><surname>Cristiani</surname><given-names>Stefano</given-names></name>
+        <name><surname>Rebolo</surname><given-names>R</given-names></name>
+        <name><surname>Santos</surname><given-names>NC</given-names></name>
+        <name><surname>Dekker</surname><given-names>H</given-names></name>
+        <name><surname>Cabral</surname><given-names>A</given-names></name>
+        <name><surname>Di Marcantonio</surname><given-names>Paolo</given-names></name>
+        <name><surname>Figueira</surname><given-names>P</given-names></name>
+        <name><surname>Curto</surname><given-names>G Lo</given-names></name>
+        <name><surname>Lovis</surname><given-names>C</given-names></name>
+        <name><surname>others</surname></name>
+      </person-group>
+      <article-title>ESPRESSO at VLT-on-sky performance and first results</article-title>
+      <source>Astronomy &amp; Astrophysics</source>
+      <publisher-name>EDP Sciences</publisher-name>
+      <year iso-8601-date="2021">2021</year>
+      <volume>645</volume>
+      <pub-id pub-id-type="doi">10.1051/0004-6361/202038306</pub-id>
+      <fpage>A96</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-seifahrtU003A2020">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Seifahrt</surname><given-names>Andreas</given-names></name>
+        <name><surname>Bean</surname><given-names>Jacob L</given-names></name>
+        <name><surname>Stürmer</surname><given-names>Julian</given-names></name>
+        <name><surname>Kasper</surname><given-names>David</given-names></name>
+        <name><surname>Gers</surname><given-names>Luke</given-names></name>
+        <name><surname>Schwab</surname><given-names>Christian</given-names></name>
+        <name><surname>Zechmeister</surname><given-names>Mathias</given-names></name>
+        <name><surname>Stefánsson</surname><given-names>Gumundur</given-names></name>
+        <name><surname>Montet</surname><given-names>Ben</given-names></name>
+        <name><surname>Dos Santos</surname><given-names>Leonardo A</given-names></name>
+        <name><surname>others</surname></name>
+      </person-group>
+      <article-title>On-sky commissioning of MAROON-x: A new precision radial velocity spectrograph for gemini north</article-title>
+      <source>Ground-based and airborne instrumentation for astronomy VIII</source>
+      <publisher-name>SPIE</publisher-name>
+      <year iso-8601-date="2020">2020</year>
+      <volume>11447</volume>
+      <pub-id pub-id-type="doi">10.1117/12.2561564</pub-id>
+      <fpage>305</fpage>
+      <lpage>325</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-madhusudhanU003A2009">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Madhusudhan</surname><given-names>N</given-names></name>
+        <name><surname>Seager</surname><given-names>Sara</given-names></name>
+      </person-group>
+      <article-title>A temperature and abundance retrieval method for exoplanet atmospheres</article-title>
+      <source>The Astrophysical Journal</source>
+      <publisher-name>IOP Publishing</publisher-name>
+      <year iso-8601-date="2009">2009</year>
+      <volume>707</volume>
+      <issue>1</issue>
+      <pub-id pub-id-type="doi">10.1088/0004-637X/707/1/24</pub-id>
+      <fpage>24</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-wardenierU003A2023">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Wardenier</surname><given-names>Joost P</given-names></name>
+        <name><surname>Parmentier</surname><given-names>Vivien</given-names></name>
+        <name><surname>Line</surname><given-names>Michael R</given-names></name>
+        <name><surname>Lee</surname><given-names>Elspeth K H</given-names></name>
+      </person-group>
+      <article-title>Modelling the effect of 3D temperature and chemistry on the cross-correlation signal of transiting ultra-hot Jupiters: a study of five chemical species on WASP-76b</article-title>
+      <source>Monthly Notices of the Royal Astronomical Society</source>
+      <year iso-8601-date="2023-08">2023</year><month>08</month>
+      <volume>525</volume>
+      <issue>4</issue>
+      <issn>0035-8711</issn>
+      <uri>https://doi.org/10.1093/mnras/stad2586</uri>
+      <pub-id pub-id-type="doi">10.1093/mnras/stad2586</pub-id>
+      <fpage>4942</fpage>
+      <lpage>4961</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-beltzU003A2023">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Beltz</surname><given-names>Hayley</given-names></name>
+        <name><surname>Rauscher</surname><given-names>Emily</given-names></name>
+        <name><surname>Kempton</surname><given-names>Eliza M-R</given-names></name>
+        <name><surname>Malsky</surname><given-names>Isaac</given-names></name>
+        <name><surname>Savel</surname><given-names>Arjun B</given-names></name>
+      </person-group>
+      <article-title>Magnetic effects and 3D structure in theoretical high-resolution transmission spectra of ultrahot jupiters: The case of WASP-76b</article-title>
+      <source>The Astronomical Journal</source>
+      <publisher-name>IOP Publishing</publisher-name>
+      <year iso-8601-date="2023">2023</year>
+      <volume>165</volume>
+      <issue>6</issue>
+      <pub-id pub-id-type="doi">10.3847/1538-3881/acd24d</pub-id>
+      <fpage>257</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-savelU003A2022">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Savel</surname><given-names>Arjun B</given-names></name>
+        <name><surname>Kempton</surname><given-names>Eliza M-R</given-names></name>
+        <name><surname>Malik</surname><given-names>Matej</given-names></name>
+        <name><surname>Komacek</surname><given-names>Thaddeus D</given-names></name>
+        <name><surname>Bean</surname><given-names>Jacob L</given-names></name>
+        <name><surname>May</surname><given-names>Erin M</given-names></name>
+        <name><surname>Stevenson</surname><given-names>Kevin B</given-names></name>
+        <name><surname>Mansfield</surname><given-names>Megan</given-names></name>
+        <name><surname>Rauscher</surname><given-names>Emily</given-names></name>
+      </person-group>
+      <article-title>No umbrella needed: Confronting the hypothesis of iron rain on WASP-76b with post-processed general circulation models</article-title>
+      <source>The Astrophysical Journal</source>
+      <publisher-name>IOP Publishing</publisher-name>
+      <year iso-8601-date="2022">2022</year>
+      <volume>926</volume>
+      <issue>1</issue>
+      <pub-id pub-id-type="doi">10.3847/1538-4357/ac423f</pub-id>
+      <fpage>85</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-prinothU003A2023">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Prinoth</surname><given-names>B.</given-names></name>
+        <name><surname>Hoeijmakers</surname><given-names>H. J.</given-names></name>
+        <name><surname>Pelletier</surname><given-names>S.</given-names></name>
+        <name><surname>Kitzmann</surname><given-names>D.</given-names></name>
+        <name><surname>Morris</surname><given-names>B. M.</given-names></name>
+        <name><surname>Seifahrt</surname><given-names>A.</given-names></name>
+        <name><surname>Kasper</surname><given-names>D.</given-names></name>
+        <name><surname>Korhonen</surname><given-names>H. H.</given-names></name>
+        <name><surname>Burheim</surname><given-names>M.</given-names></name>
+        <name><surname>Bean</surname><given-names>J. L.</given-names></name>
+        <name><surname>Benneke</surname><given-names>B.</given-names></name>
+        <name><surname>Borsato</surname><given-names>N. W.</given-names></name>
+        <name><surname>Brady</surname><given-names>M.</given-names></name>
+        <name><surname>Grimm</surname><given-names>S. L.</given-names></name>
+        <name><surname>Luque</surname><given-names>R.</given-names></name>
+        <name><surname>Stürmer</surname><given-names>J.</given-names></name>
+        <name><surname>Thorsbro</surname><given-names>B.</given-names></name>
+      </person-group>
+      <article-title>Time-resolved transmission spectroscopy of the ultra-hot Jupiter WASP-189 b</article-title>
+      <source></source>
+      <year iso-8601-date="2023-10">2023</year><month>10</month>
+      <volume>678</volume>
+      <uri>https://arxiv.org/abs/2308.04523</uri>
+      <pub-id pub-id-type="doi">10.1051/0004-6361/202347262</pub-id>
+      <fpage>A182</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-colesU003A2019">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Coles</surname><given-names>Phillip A</given-names></name>
+        <name><surname>Yurchenko</surname><given-names>Sergei N</given-names></name>
+        <name><surname>Tennyson</surname><given-names>Jonathan</given-names></name>
+      </person-group>
+      <article-title>ExoMol molecular line lists–XXXV. A rotation-vibration line list for hot ammonia</article-title>
+      <source>Monthly Notices of the Royal Astronomical Society</source>
+      <publisher-name>Oxford University Press</publisher-name>
+      <year iso-8601-date="2019">2019</year>
+      <volume>490</volume>
+      <issue>4</issue>
+      <pub-id pub-id-type="doi">10.1093/mnras/stz2778</pub-id>
+      <fpage>4638</fpage>
+      <lpage>4647</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-karmanU003A2019">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Karman</surname><given-names>Tijs</given-names></name>
+        <name><surname>Gordon</surname><given-names>Iouli E</given-names></name>
+        <name><surname>Der Avoird</surname><given-names>Ad van</given-names></name>
+        <name><surname>Baranov</surname><given-names>Yury I</given-names></name>
+        <name><surname>Boulet</surname><given-names>Christian</given-names></name>
+        <name><surname>Drouin</surname><given-names>Brian J</given-names></name>
+        <name><surname>Groenenboom</surname><given-names>Gerrit C</given-names></name>
+        <name><surname>Gustafsson</surname><given-names>Magnus</given-names></name>
+        <name><surname>Hartmann</surname><given-names>Jean-Michel</given-names></name>
+        <name><surname>Kurucz</surname><given-names>Robert L</given-names></name>
+        <name><surname>others</surname></name>
+      </person-group>
+      <article-title>Update of the HITRAN collision-induced absorption section</article-title>
+      <source>Icarus</source>
+      <publisher-name>Elsevier</publisher-name>
+      <year iso-8601-date="2019">2019</year>
+      <volume>328</volume>
+      <pub-id pub-id-type="doi">10.1016/j.icarus.2019.02.034</pub-id>
+      <fpage>160</fpage>
+      <lpage>175</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-barberU003A2014">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Barber</surname><given-names>RJ</given-names></name>
+        <name><surname>Strange</surname><given-names>JK</given-names></name>
+        <name><surname>Hill</surname><given-names>C</given-names></name>
+        <name><surname>Polyansky</surname><given-names>OL</given-names></name>
+        <name><surname>Mellau</surname><given-names>G Ch</given-names></name>
+        <name><surname>Yurchenko</surname><given-names>SN</given-names></name>
+        <name><surname>Tennyson</surname><given-names>Jonathan</given-names></name>
+      </person-group>
+      <article-title>ExoMol line lists–III. An improved hot rotation-vibration line list for HCN and HNC</article-title>
+      <source>Monthly Notices of the Royal Astronomical Society</source>
+      <publisher-name>Oxford University Press</publisher-name>
+      <year iso-8601-date="2014">2014</year>
+      <volume>437</volume>
+      <issue>2</issue>
+      <pub-id pub-id-type="doi">10.1093/mnras/stt2011</pub-id>
+      <fpage>1828</fpage>
+      <lpage>1835</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-azzamU003A2016">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Azzam</surname><given-names>Ala’a AA</given-names></name>
+        <name><surname>Tennyson</surname><given-names>Jonathan</given-names></name>
+        <name><surname>Yurchenko</surname><given-names>Sergei N</given-names></name>
+        <name><surname>Naumenko</surname><given-names>Olga V</given-names></name>
+      </person-group>
+      <article-title>ExoMol molecular line lists–XVI. The rotation–vibration spectrum of hot H2S</article-title>
+      <source>Monthly Notices of the Royal Astronomical Society</source>
+      <publisher-name>Oxford University Press</publisher-name>
+      <year iso-8601-date="2016">2016</year>
+      <volume>460</volume>
+      <issue>4</issue>
+      <pub-id pub-id-type="doi">10.1093/mnras/stw1133</pub-id>
+      <fpage>4063</fpage>
+      <lpage>4074</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-hargreavesU003A2020">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Hargreaves</surname><given-names>Robert J</given-names></name>
+        <name><surname>Gordon</surname><given-names>Iouli E</given-names></name>
+        <name><surname>Rey</surname><given-names>Michael</given-names></name>
+        <name><surname>Nikitin</surname><given-names>Andrei V</given-names></name>
+        <name><surname>Tyuterev</surname><given-names>Vladimir G</given-names></name>
+        <name><surname>Kochanov</surname><given-names>Roman V</given-names></name>
+        <name><surname>Rothman</surname><given-names>Laurence S</given-names></name>
+      </person-group>
+      <article-title>An accurate, extensive, and practical line list of methane for the HITEMP database</article-title>
+      <source>The Astrophysical Journal Supplement Series</source>
+      <publisher-name>IOP Publishing</publisher-name>
+      <year iso-8601-date="2020">2020</year>
+      <volume>247</volume>
+      <issue>2</issue>
+      <pub-id pub-id-type="doi">10.3847/1538-4365/ab7a1a</pub-id>
+      <fpage>55</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-gandhiU003A2023">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Gandhi</surname><given-names>Siddharth</given-names></name>
+        <name><surname>Kesseli</surname><given-names>Aurora</given-names></name>
+        <name><surname>Zhang</surname><given-names>Yapeng</given-names></name>
+        <name><surname>Louca</surname><given-names>Amy</given-names></name>
+        <name><surname>Snellen</surname><given-names>Ignas</given-names></name>
+        <name><surname>Brogi</surname><given-names>Matteo</given-names></name>
+        <name><surname>Miguel</surname><given-names>Yamila</given-names></name>
+        <name><surname>Casasayas-Barris</surname><given-names>Núria</given-names></name>
+        <name><surname>Pelletier</surname><given-names>Stefan</given-names></name>
+        <name><surname>Landman</surname><given-names>Rico</given-names></name>
+        <name><surname>others</surname></name>
+      </person-group>
+      <article-title>Retrieval survey of metals in six ultrahot jupiters: Trends in chemistry, rain-out, ionization, and atmospheric dynamics</article-title>
+      <source>The Astronomical Journal</source>
+      <publisher-name>IOP Publishing</publisher-name>
+      <year iso-8601-date="2023">2023</year>
+      <volume>165</volume>
+      <issue>6</issue>
+      <pub-id pub-id-type="doi">10.3847/1538-3881/accd65</pub-id>
+      <fpage>242</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-maguireU003A2023">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Maguire</surname><given-names>Cathal</given-names></name>
+        <name><surname>Gibson</surname><given-names>Neale P</given-names></name>
+        <name><surname>Nugroho</surname><given-names>Stevanus K</given-names></name>
+        <name><surname>Ramkumar</surname><given-names>Swaetha</given-names></name>
+        <name><surname>Fortune</surname><given-names>Mark</given-names></name>
+        <name><surname>Merritt</surname><given-names>Stephanie R</given-names></name>
+        <name><surname>Mooij</surname><given-names>Ernst de</given-names></name>
+      </person-group>
+      <article-title>High-resolution atmospheric retrievals of WASP-121b transmission spectroscopy with ESPRESSO: Consistent relative abundance constraints across multiple epochs and instruments</article-title>
+      <source>Monthly Notices of the Royal Astronomical Society</source>
+      <publisher-name>Oxford University Press</publisher-name>
+      <year iso-8601-date="2023">2023</year>
+      <volume>519</volume>
+      <issue>1</issue>
+      <pub-id pub-id-type="doi">10.1093/mnras/stac3388</pub-id>
+      <fpage>1030</fpage>
+      <lpage>1048</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-cholletU003A2015">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Chollet</surname><given-names>François</given-names></name>
+      </person-group>
+      <article-title>Keras</article-title>
+      <publisher-name>https://keras.io</publisher-name>
+      <year iso-8601-date="2015">2015</year>
+    </element-citation>
+  </ref>
+  <ref id="ref-polyanskyU003A2018">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Polyansky</surname><given-names>Oleg L</given-names></name>
+        <name><surname>Kyuberis</surname><given-names>Aleksandra A</given-names></name>
+        <name><surname>Zobov</surname><given-names>Nikolai F</given-names></name>
+        <name><surname>Tennyson</surname><given-names>Jonathan</given-names></name>
+        <name><surname>Yurchenko</surname><given-names>Sergei N</given-names></name>
+        <name><surname>Lodi</surname><given-names>Lorenzo</given-names></name>
+      </person-group>
+      <article-title>ExoMol molecular line lists XXX: A complete high-accuracy line list for water</article-title>
+      <source>Monthly Notices of the Royal Astronomical Society</source>
+      <publisher-name>Oxford University Press</publisher-name>
+      <year iso-8601-date="2018">2018</year>
+      <volume>480</volume>
+      <issue>2</issue>
+      <pub-id pub-id-type="doi">10.1093/mnras/sty1877</pub-id>
+      <fpage>2597</fpage>
+      <lpage>2608</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-barberU003A2014">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Barber</surname><given-names>RJ</given-names></name>
+        <name><surname>Strange</surname><given-names>JK</given-names></name>
+        <name><surname>Hill</surname><given-names>C</given-names></name>
+        <name><surname>Polyansky</surname><given-names>OL</given-names></name>
+        <name><surname>Mellau</surname><given-names>G Ch</given-names></name>
+        <name><surname>Yurchenko</surname><given-names>SN</given-names></name>
+        <name><surname>Tennyson</surname><given-names>Jonathan</given-names></name>
+      </person-group>
+      <article-title>ExoMol line lists–III. An improved hot rotation-vibration line list for HCN and HNC</article-title>
+      <source>Monthly Notices of the Royal Astronomical Society</source>
+      <publisher-name>Oxford University Press</publisher-name>
+      <year iso-8601-date="2014">2014</year>
+      <volume>437</volume>
+      <issue>2</issue>
+      <pub-id pub-id-type="doi">10.1093/mnras/stt2011</pub-id>
+      <fpage>1828</fpage>
+      <lpage>1835</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-colesU003A2019">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Coles</surname><given-names>Phillip A</given-names></name>
+        <name><surname>Yurchenko</surname><given-names>Sergei N</given-names></name>
+        <name><surname>Tennyson</surname><given-names>Jonathan</given-names></name>
+      </person-group>
+      <article-title>ExoMol molecular line lists–XXXV. A rotation-vibration line list for hot ammonia</article-title>
+      <source>Monthly Notices of the Royal Astronomical Society</source>
+      <publisher-name>Oxford University Press</publisher-name>
+      <year iso-8601-date="2019">2019</year>
+      <volume>490</volume>
+      <issue>4</issue>
+      <pub-id pub-id-type="doi">10.1093/mnras/stz2778</pub-id>
+      <fpage>4638</fpage>
+      <lpage>4647</lpage>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
