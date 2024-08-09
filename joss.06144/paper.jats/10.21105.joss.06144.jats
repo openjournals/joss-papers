@@ -1,0 +1,1552 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">6144</article-id>
+<article-id pub-id-type="doi">10.21105/joss.06144</article-id>
+<title-group>
+<article-title>ShOpt.jl: A Julia Package for Empirical Point Spread
+Function Characterization of JWST NIRCam Data</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author" corresp="yes">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0002-8494-3123</contrib-id>
+<name>
+<surname>Berman</surname>
+<given-names>Edward</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+<xref ref-type="corresp" rid="cor-1"><sup>*</sup></xref>
+</contrib>
+<contrib contrib-type="author" corresp="yes">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0002-9883-7460</contrib-id>
+<name>
+<surname>McCleary</surname>
+<given-names>Jacqueline</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+<xref ref-type="corresp" rid="cor-2"><sup>*</sup></xref>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Northeastern University, USA</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<author-notes>
+<corresp id="cor-1">* E-mail: <email></email></corresp>
+<corresp id="cor-2">* E-mail: <email></email></corresp>
+</author-notes>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2023-08-23">
+<day>23</day>
+<month>8</month>
+<year>2023</year>
+</pub-date>
+<volume>9</volume>
+<issue>100</issue>
+<fpage>6144</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2022</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>JWST</kwd>
+<kwd>Deep Learning</kwd>
+<kwd>Julia</kwd>
+<kwd>Point Spread Function</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p>When astronomers capture images of the night sky, several factors –
+  ranging from diffraction and optical aberrations to atmospheric
+  turbulence and telescope jitter – affect the incoming light. The
+  resulting distortion and blurring are summarized in the image’s point
+  spread function (PSF), the response of an optical system to an
+  idealized point source. The PSF can obscure or even mimic the
+  astronomical signal of interest, making its accurate characterization
+  essential. By effectively modeling the PSF, we can predict image
+  distortions at any location and proceed to deconvolve the PSF,
+  ultimately reconstructing distortion-free images.</p>
+  <p>The PSF characterization methods used by astronomers fall into two
+  main classes: forward-modeling approaches, which use physical optics
+  propagation based on models of the optics, and empirical approaches,
+  which use stars as fixed points to model and interpolate the PSF
+  across the rest of the image. (Stars are essentially point sources
+  before their light passes through the atmosphere (when observing from
+  the ground) and telescope, so the shape and size of their surface
+  brightness profiles define the PSF at that location.) Empirical PSF
+  characterization proceeds by first cataloging the observed stars,
+  separating the catalog into validation and training samples, and
+  interpolating the training stars across the field of view of the
+  camera. After training, the PSF model can be validated by comparing
+  the reserved stars to the PSF model’s prediction.</p>
+  <p>Shear Optimization with <monospace>ShOpt.jl</monospace> introduces
+  modern techniques, tailored to James Webb Space Telescope (JWST)
+  NIRCam imaging, for empirical PSF characterization across the field of
+  view. ShOpt has two modes of operation: approximating stars with
+  analytic profiles, and a more realistic pixel-level representation.
+  Both modes take as input a catalog with image cutouts – or “vignettes”
+  – of the stars targeted for analysis.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p>Empirical PSF characterization tools like Point Spread Function
+  Extractor (PSFex,
+  <xref alt="Bertin, 2011" rid="ref-2011ASPC" ref-type="bibr">Bertin,
+  2011</xref>) and Point Spread Functions in the Full Field of View
+  (PIFF,
+  <xref alt="Jarvis et al., 2020" rid="ref-Jarvis_2020" ref-type="bibr">Jarvis
+  et al., 2020</xref>) are widely popular in astrophysics. However, the
+  quality of PIFF and PSFEx models tends to be quite sensitive to the
+  parameter values used to run the software, with optimization sometimes
+  relying on brute-force guess-and-check runs. PIFF is also notably
+  inefficient for large, well-sampled images, taking hours in the worst
+  cases. The JWST’s Near Infrared Camera (NIRCam) offers vast scientific
+  opportunities (e.g.
+  <xref alt="Casey, Kartaltepe, et al., 2023" rid="ref-casey2023cosmosweb" ref-type="bibr">Casey,
+  Kartaltepe, et al., 2023</xref>); at the same time, this unprecedented
+  data brings new challenges for PSF modeling:</p>
+  <list list-type="order">
+    <list-item>
+      <label>(1)</label>
+      <p>Analytic functions like Gaussians are incomplete descriptions
+      of the NIRCam PSF, as evident from Figures 1 and 2. Figure 1 shows
+      that to get a good PSF model we need to model a large dynamic
+      range over a large box size. Figure 2 illustrates that the
+      residuals between an idealized forward model and a Gaussian
+      approximation can be quite severe. This calls for
+      well-thought-out, non-parametric modeling and diagnostic tools
+      that can capture the full dynamic range of the NIRCam PSF.
+      <monospace>ShOpt</monospace> provides these models and diagnostics
+      out of the box.</p>
+    </list-item>
+    <list-item>
+      <label>(2)</label>
+      <p>The NIRCam detectors have pixel scales of 0.03 (short
+      wavelength channel) and 0.06 (long wavelength channel) arcseconds
+      per pixel
+      (<xref alt="Beichman et al., 2012" rid="ref-BSPIE" ref-type="bibr">Beichman
+      et al., 2012</xref>;
+      <xref alt="Rieke et al., 2003" rid="ref-10.1117U002F12.489103" ref-type="bibr">Rieke
+      et al., 2003</xref>,
+      <xref alt="2005" rid="ref-20052005SPIE" ref-type="bibr">2005</xref>).
+      At these pixel scales, star vignettes need to be at least
+      <inline-formula><alternatives>
+      <tex-math><![CDATA[131]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mn>131</mml:mn></mml:math></alternatives></inline-formula>
+      by <inline-formula><alternatives>
+      <tex-math><![CDATA[131]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mn>131</mml:mn></mml:math></alternatives></inline-formula>
+      pixels across to fully capture the wings of the PSFs (4-5
+      arcseconds). These vignette sizes are 3-5 times larger than the
+      ones used in surveys such as DES
+      (<xref alt="Jarvis et al., 2020" rid="ref-Jarvis_2020" ref-type="bibr">Jarvis
+      et al., 2020</xref>) and SuperBIT
+      (<xref alt="McCleary et al., 2023" rid="ref-mccleary2023lensing" ref-type="bibr">McCleary
+      et al., 2023</xref>) and force us to evaluate how well existing
+      PSF fitters scale to this size. <monospace>ShOpt</monospace> has
+      been designed for computational efficiency and aims to meet the
+      requirements of detectors like NIRCam.</p>
+    </list-item>
+  </list>
+  <fig>
+    <caption><p>The plot on the left shows the average cutout of all
+    stars in a supplied catalog. The plot in the middle shows the
+    average point spread function model for each star. The plot on the
+    right shows the average normalized error between the observed star
+    cutouts and the point spread function model.</p></caption>
+    <graphic mimetype="image" mime-subtype="png" xlink:href="spikey.png" />
+  </fig>
+  <fig>
+    <caption><p>The plot on the left shows an idealized forward model of
+    the NIRCam F150W PSF made using WebbPSF. The middle shows a Gaussian
+    approximation to the PSF. The right shows the residual between the
+    WebbPSF model and the Gaussian approximation.</p></caption>
+    <graphic mimetype="image" mime-subtype="png" xlink:href="webbpsf_vs_gaussian.png" />
+  </fig>
+  <p><monospace>ShOpt</monospace> bridges the speed of
+  <monospace>PSFex</monospace> with the features of
+  <monospace>PIFF</monospace> using fewer configurable hyperparameters.
+  <monospace>ShOpt</monospace> employs a number of techniques to
+  optimize the speed of the program. First and foremost,
+  <monospace>ShOpt</monospace> is equipped with support for
+  multithreading. Polynomial interpolation is used for handling PSF
+  variations across the field of view. The polynomials given to each
+  basis element of the PSF are independent of one another and therefore
+  can be distributed to different CPU threads to be run in parallel.
+  <monospace>ShOpt</monospace> also introduces new methods for fitting
+  both analytic profiles and pixel based profiles. If an analytic
+  profile is used to model the PSF, then there are
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[3]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mn>3</mml:mn></mml:math></alternatives></inline-formula>
+  basis elements parameterizing the model. We choose 2D elliptical
+  Gaussians for these analytic profiles because they are cheap to
+  compute. Moreover, we use the Limited Memory
+  Broyden–Fletcher–Goldfarb–Shanno algorithm (LBFGS) to find these
+  paramters. This is faster but more memory intensive than Conjugate
+  Gradient, the algorithm used in <monospace>PIFF</monospace>. Moreover,
+  the <inline-formula><alternatives>
+  <tex-math><![CDATA[3]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mn>3</mml:mn></mml:math></alternatives></inline-formula>
+  basis elements are constrained to the manifold
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[B_2(r) \times \mathbb{R}_+]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>B</mml:mi><mml:mn>2</mml:mn></mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>r</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>×</mml:mo><mml:msub><mml:mi>ℝ</mml:mi><mml:mo>+</mml:mo></mml:msub></mml:mrow></mml:math></alternatives></inline-formula>,
+  where <inline-formula><alternatives>
+  <tex-math><![CDATA[B_2(r) = \{ (x,y) : x^2 + y^2 < 1 \}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>B</mml:mi><mml:mn>2</mml:mn></mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>r</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>=</mml:mo><mml:mo stretchy="false" form="prefix">{</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>x</mml:mi><mml:mo>,</mml:mo><mml:mi>y</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>:</mml:mo><mml:msup><mml:mi>x</mml:mi><mml:mn>2</mml:mn></mml:msup><mml:mo>+</mml:mo><mml:msup><mml:mi>y</mml:mi><mml:mn>2</mml:mn></mml:msup><mml:mo>&lt;</mml:mo><mml:mn>1</mml:mn><mml:mo stretchy="false" form="postfix">}</mml:mo></mml:mrow></mml:math></alternatives></inline-formula>
+  and <inline-formula><alternatives>
+  <tex-math><![CDATA[\mathbb{R}_+ = \{ x : x > 0 \}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>ℝ</mml:mi><mml:mo>+</mml:mo></mml:msub><mml:mo>=</mml:mo><mml:mo stretchy="false" form="prefix">{</mml:mo><mml:mi>x</mml:mi><mml:mo>:</mml:mo><mml:mi>x</mml:mi><mml:mo>&gt;</mml:mo><mml:mn>0</mml:mn><mml:mo stretchy="false" form="postfix">}</mml:mo></mml:mrow></mml:math></alternatives></inline-formula>.
+  We constructed a function that maps any point in
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[\mathbb{R}^3]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msup><mml:mi>ℝ</mml:mi><mml:mn>3</mml:mn></mml:msup></mml:math></alternatives></inline-formula>
+  into <inline-formula><alternatives>
+  <tex-math><![CDATA[B_2(r) \times \mathbb{R}_+]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>B</mml:mi><mml:mn>2</mml:mn></mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>r</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>×</mml:mo><mml:msub><mml:mi>ℝ</mml:mi><mml:mo>+</mml:mo></mml:msub></mml:mrow></mml:math></alternatives></inline-formula>.
+  The LBFGS algorithm uses successive iterations to converge to a
+  solution for the <inline-formula><alternatives>
+  <tex-math><![CDATA[3]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mn>3</mml:mn></mml:math></alternatives></inline-formula>
+  basis elements, and so we use this function to ensure that our update
+  steps in LBFGS do not leave the constraint. For the pixel basis, both
+  <monospace>PIFF</monospace> and <monospace>PSFex</monospace>
+  approximate the PSF by minimizing the reduced
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[\chi^2]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msup><mml:mi>χ</mml:mi><mml:mn>2</mml:mn></mml:msup></mml:math></alternatives></inline-formula>
+  between a grid of pixels and a star vignette. PCA can quickly achieve
+  the same purpose of approximating the input vignette without
+  overfitting to background noise. We also provide an autoencoder mode,
+  which uses deep learning to reconstruct the image. The weights and
+  biases are not reset between stars, so the knowledge of how to
+  reconstruct one star is transfered to the next. This in turn leads to
+  fewer training iterations. Finally, <monospace>ShOpt</monospace> is
+  written in Julia. Julia uses a just in time compiler which makes it
+  faster than intepreted languages such as Python and has shown to be a
+  good choice for performance critical code
+  (<xref alt="Stanitzki &amp; Strube, 2021" rid="ref-Stanitzki_2021" ref-type="bibr">Stanitzki
+  &amp; Strube, 2021</xref>).</p>
+</sec>
+<sec id="state-of-the-field">
+  <title>State of the Field</title>
+  <p>The JWST captures images at high resolution and at wavelengths of
+  light that have been previously unexplored
+  (<xref alt="Gardner et al., 2006" rid="ref-Gardner_2006" ref-type="bibr">Gardner
+  et al., 2006</xref>). With these images we are seeing farther into the
+  early universe than we ever have before. The complex optics of JWST
+  coupled with our desire to get the most out of the incredible data
+  have presented the community with new set of challenges that current
+  software does not address: the need to create high-fidelity models of
+  the point spread function for diffraction-limited images across a wide
+  range of wavelengths. <monospace>ShOpt.jl</monospace> is one attempt
+  to solve this challenge and other teams are approaching the issue in
+  complementary ways, as described below.</p>
+  <p>A number of JWST PSF libraries already exist, using both empirical
+  and forward-modeling approaches. We describe them here and draw
+  attention to their strengths and weaknesses to further motivate the
+  development of <monospace>ShOpt.jl</monospace>. As described in the
+  statement of need, <monospace>PSFex</monospace> was one of the first
+  precise and general purpose tools used for empirical PSF fitting.
+  However, the Dark Energy Survey collaboration reported small but
+  noticeable discrepancies between the sizes of
+  <monospace>PSFex</monospace> models and the sizes of observed stars.
+  They also reported ripple-like patterns in the spatial variation of
+  star-PSF residuals across the field of view
+  (<xref alt="Jarvis et al., 2020" rid="ref-Jarvis_2020" ref-type="bibr">Jarvis
+  et al., 2020</xref>), which they attributed to the astrometric
+  distortion solutions for the Dark Energy Camera.</p>
+  <p>These findings motivated the Dark Energy Survey’s development of
+  <monospace>PIFF</monospace> (Point Spread Functions in the Full Field
+  of View). <monospace>PIFF</monospace> works in sky coordinates on the
+  focal plane, as opposed to image pixel coordinates used in
+  <monospace>PSFex</monospace>, which minimized the ripple patterns in
+  the star-PSF residuals and the PSF model size bias. (Based on the DES
+  findings, <monospace>ShOpt</monospace> also works directly in sky
+  coordinates.) <monospace>PIFF</monospace> is written in Python, a
+  language with a large infrastructure for astronomical data analysis,
+  for example Astropy
+  (<xref alt="Astropy Collaboration et al., 2022" rid="ref-2022ApJ" ref-type="bibr">Astropy
+  Collaboration et al., 2022</xref>) and Galsim
+  (<xref alt="Rowe et al., 2015" rid="ref-rowe2015galsim" ref-type="bibr">Rowe
+  et al., 2015</xref>). The choice of language makes
+  <monospace>PIFF</monospace> software more accessible to programmers in
+  the astrophysics community than <monospace>PSFex</monospace>, which
+  was first written in <monospace>C</monospace> in 2007 and much less
+  approachable for a community of open source developers. One of the
+  motivations of <monospace>ShOpt</monospace> was to write astrophysics
+  specific software in <monospace>Julia</monospace>, because
+  <monospace>Julia</monospace> provides a good balance of readability
+  and speed with its high-level functional paradigm and just-in-time
+  compiler
+  (<xref alt="Stanitzki &amp; Strube, 2021" rid="ref-Stanitzki_2021" ref-type="bibr">Stanitzki
+  &amp; Strube, 2021</xref>). Julia ranks behind Python, IDL, Matlab,
+  and Fortran in full-text mentions in astronomical literature
+  (<xref alt="Collaboration et al., 2022" rid="ref-TheAstropyCollaboration_2022" ref-type="bibr">Collaboration
+  et al., 2022</xref>). We are optimistic that
+  <monospace>ShOpt</monospace> will demonstrate that Julia is an
+  appealing choice for programming in astronomy despite its low adoption
+  to date. There is also recent work on using
+  <monospace>PSFr</monospace> for PSF reconstructions that has been
+  applied to JWST data
+  (<xref alt="Ding et al., 2022" rid="ref-2022ApJ939L28D" ref-type="bibr">Ding
+  et al., 2022</xref>;
+  <xref alt="Merlin et al., 2022" rid="ref-2022ApJ938L14M" ref-type="bibr">Merlin
+  et al., 2022</xref>;
+  <xref alt="Santini et al., 2023" rid="ref-2023ApJ942L27S" ref-type="bibr">Santini
+  et al., 2023</xref>;
+  <xref alt="Yang et al., 2022" rid="ref-2022ApJ938L17Y" ref-type="bibr">Yang
+  et al., 2022</xref>). Similar to <monospace>ShOpt</monospace>,
+  <monospace>PSFr</monospace> begins its PSF modeling by stacking stars
+  to form an initial guess. However, rather than using polynomial
+  interpolation to address spatial variations,
+  <monospace>PSFr</monospace> employs an iterative process of shifting
+  the pixels in its PSF model. This process continues until the model
+  can adequately represent all of the stars in the catalog. Finally, the
+  PSF fitter <monospace>STARRED</monospace>
+  (<xref alt="Michalewicz et al., 2023" rid="ref-michalewicz2023starred" ref-type="bibr">Michalewicz
+  et al., 2023</xref>) has been shown to produce PSF models competitive
+  with <monospace>PSFr</monospace> and <monospace>PSFex</monospace>.
+  Like <monospace>ShOpt</monospace>, <monospace>STARRED</monospace> puts
+  an emphasis on computational efficiency and uses the JAX package to
+  achieve just-in-time compilation. There is future work to be done to
+  benchmarking all of these empirical approaches on JWST NIRCam
+  data.</p>
+  <p>While WebbPSF provides highly precise forward models of the JWST
+  PSF, these models are defined for single-epoch exposures
+  (<xref alt="Perrin et al., 2012" rid="ref-2012SPIE" ref-type="bibr">Perrin
+  et al., 2012</xref>,
+  <xref alt="2014" rid="ref-2014SPIE" ref-type="bibr">2014</xref>). Much
+  of the NIRCam science is accomplished with image mosaics –
+  essentially, the combination of single exposure detector images into a
+  larger, deeper image. The rotation of the camera between exposures,
+  the astrometric transformations and resampling of images before their
+  combination into a mosaic, and the mosaic’s large area all make the
+  application of WebbPSF models to mosaics a non-trivial procedure. This
+  has been done quite effectively
+  (<xref alt="Ji et al., 2023" rid="ref-ji2023jades" ref-type="bibr">Ji
+  et al., 2023</xref>), however, it is not as easy to reproduce compared
+  to running an empirical characterization tool like
+  <monospace>ShOpt</monospace>.</p>
+  <p>As outlined in the state of the field, <monospace>ShOpt</monospace>
+  is a tool built with the user experience in mind that attempts to
+  bridge the strengths of existing PSF fitters.
+  <monospace>ShOpt</monospace>’s combination of speed, user
+  friendliness, and accuracy enable the science goals of the COSMOS-Web
+  survey, detailed below.</p>
+  <p>The COMOS-Web survey is the largest cycle 1 JWST extragalactic
+  survey according to area and prime time allocation
+  (<xref alt="Casey, Kartaltepe, et al., 2023" rid="ref-casey2023cosmosweb" ref-type="bibr">Casey,
+  Kartaltepe, et al., 2023</xref>), and covers
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[0.54 ~deg^2]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mn>0.54</mml:mn><mml:mspace width="0.222em"></mml:mspace><mml:mi>d</mml:mi><mml:mi>e</mml:mi><mml:msup><mml:mi>g</mml:mi><mml:mn>2</mml:mn></mml:msup></mml:mrow></mml:math></alternatives></inline-formula>
+  (<xref alt="Beichman et al., 2012" rid="ref-BSPIE" ref-type="bibr">Beichman
+  et al., 2012</xref>;
+  <xref alt="Rieke et al., 2023" rid="ref-Rieke_2023" ref-type="bibr">Rieke
+  et al., 2023</xref>). Among other science goals, the COMOS-Web survey
+  will use the JWST to detect thousands of galaxies in the Epoch of
+  Reionization <inline-formula><alternatives>
+  <tex-math><![CDATA[(6 ∼ z ∼ 11)]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mn>6</mml:mn><mml:mo>∼</mml:mo><mml:mi>z</mml:mi><mml:mo>∼</mml:mo><mml:mn>11</mml:mn><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:math></alternatives></inline-formula>
+  to create one of the highest resolution large scale structure maps of
+  the early universe
+  (<xref alt="Casey, Kartaltepe, et al., 2023" rid="ref-casey2023cosmosweb" ref-type="bibr">Casey,
+  Kartaltepe, et al., 2023</xref>). JWST data has also been used to pick
+  out active galactic nuclei from host galaxies
+  (<xref alt="Zhuang &amp; Shen, 2023" rid="ref-zhuang2023characterization" ref-type="bibr">Zhuang
+  &amp; Shen, 2023</xref>) and indentify <inline-formula><alternatives>
+  <tex-math><![CDATA[15]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mn>15</mml:mn></mml:math></alternatives></inline-formula>
+  candidate galaxies whose luminosities push the limits of our
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[\Lambda]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>Λ</mml:mi></mml:math></alternatives></inline-formula>CDM
+  galaxy formation models
+  (<xref alt="Casey, Akins, et al., 2023" rid="ref-franco2023cosmosweb" ref-type="bibr">Casey,
+  Akins, et al., 2023</xref>). These science cases all rely upon good
+  PSF modeling and underscore the importance of
+  <monospace>ShOpt</monospace>.</p>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>This material is based upon work supported by a Northeastern
+  University Undergraduate Research and Fellowships PEAK Experiences
+  Award. E.B. was also supported by a Northeastern University Physics
+  Department Co-op Research Fellowship. Support for COSMOS-Web was
+  provided by NASA through grant JWST-GO-01727 and HST-AR-15802 awarded
+  by the Space Telescope Science Institute, which is operated by the
+  Association of Universities for Research in Astronomy, Inc., under
+  NASA contract NAS 5-26555. This work was made possible by utilizing
+  the CANDIDE cluster at the Institut d’Astrophysique de Paris. Further
+  support was provided by Research Computers at Northeastern University.
+  Additionally, E.B. thanks Professor David Rosen for giving some
+  valuable insights during the early stages of this work. The authors
+  gratefully acknowledge the use of simulated and real data from the
+  COSMOS-Web survey in developing ShOpt, as well as many conversations
+  with COSMOS-Web scientists.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <title></title>
+  <ref id="ref-mccleary2023lensing">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>McCleary</surname><given-names>Jacqueline E.</given-names></name>
+        <name><surname>Everett</surname><given-names>Spencer W.</given-names></name>
+        <name><surname>Shaaban</surname><given-names>Mohamed M.</given-names></name>
+        <name><surname>Gill</surname><given-names>Ajay S.</given-names></name>
+        <name><surname>Vassilakis</surname><given-names>Georgios N.</given-names></name>
+        <name><surname>Huff</surname><given-names>Eric M.</given-names></name>
+        <name><surname>Massey</surname><given-names>Richard J.</given-names></name>
+        <name><surname>Benton</surname><given-names>Steven J.</given-names></name>
+        <name><surname>Brown</surname><given-names>Anthony M.</given-names></name>
+        <name><surname>Clark</surname><given-names>Paul</given-names></name>
+        <name><surname>Holder</surname><given-names>Bradley</given-names></name>
+        <name><surname>Fraisse</surname><given-names>Aurelien A.</given-names></name>
+        <name><surname>Jauzac</surname><given-names>Mathilde</given-names></name>
+        <name><surname>Jones</surname><given-names>William C.</given-names></name>
+        <name><surname>Lagattuta</surname><given-names>David</given-names></name>
+        <name><surname>Leung</surname><given-names>Jason S.-Y.</given-names></name>
+        <name><surname>Li</surname><given-names>Lun</given-names></name>
+        <name><surname>Luu</surname><given-names>Thuy Vy T.</given-names></name>
+        <name><surname>Nagy</surname><given-names>Johanna M.</given-names></name>
+        <name><surname>Netterfield</surname><given-names>C. Barth</given-names></name>
+        <name><surname>Paracha</surname><given-names>Emaad</given-names></name>
+        <name><surname>Redmond</surname><given-names>Susan F.</given-names></name>
+        <name><surname>Rhodes</surname><given-names>Jason D.</given-names></name>
+        <name><surname>Schmoll</surname><given-names>Jürgen</given-names></name>
+        <name><surname>Sirks</surname><given-names>Ellen</given-names></name>
+        <name><surname>Tam</surname><given-names>Sut Ieng</given-names></name>
+      </person-group>
+      <article-title>Lensing in the blue. II. Estimating the sensitivity of stratospheric balloons to weak gravitational lensing</article-title>
+      <source>The Astronomical Journal</source>
+      <publisher-name>The American Astronomical Society</publisher-name>
+      <year iso-8601-date="2023-08">2023</year><month>08</month>
+      <volume>166</volume>
+      <issue>3</issue>
+      <uri>https://dx.doi.org/10.3847/1538-3881/ace7ca</uri>
+      <pub-id pub-id-type="doi">10.3847/1538-3881/ace7ca</pub-id>
+      <fpage>134</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Jarvis_2020">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Jarvis</surname><given-names>M</given-names></name>
+        <name><surname>Bernstein</surname><given-names>G M</given-names></name>
+        <name><surname>Amon</surname><given-names>A</given-names></name>
+        <name><surname>Davis</surname><given-names>C</given-names></name>
+        <name><surname>Lé get</surname><given-names>P F</given-names></name>
+        <name><surname>Bechtol</surname><given-names>K</given-names></name>
+        <name><surname>Harrison</surname><given-names>I</given-names></name>
+        <name><surname>Gatti</surname><given-names>M</given-names></name>
+        <name><surname>Roodman</surname><given-names>A</given-names></name>
+        <name><surname>Chang</surname><given-names>C</given-names></name>
+        <name><surname>Chen</surname><given-names>R</given-names></name>
+        <name><surname>Choi</surname><given-names>A</given-names></name>
+        <name><surname>Desai</surname><given-names>S</given-names></name>
+        <name><surname>Drlica-Wagner</surname><given-names>A</given-names></name>
+        <name><surname>Gruen</surname><given-names>D</given-names></name>
+        <name><surname>Gruendl</surname><given-names>R A</given-names></name>
+        <name><surname>Hernandez</surname><given-names>A</given-names></name>
+        <name><surname>MacCrann</surname><given-names>N</given-names></name>
+        <name><surname>Meyers</surname><given-names>J</given-names></name>
+        <name><surname>Navarro-Alsina</surname><given-names>A</given-names></name>
+        <name><surname>Pandey</surname><given-names>S</given-names></name>
+        <name><surname>Plazas</surname><given-names>A A</given-names></name>
+        <name><surname>Secco</surname><given-names>L F</given-names></name>
+        <name><surname>Sheldon</surname><given-names>E</given-names></name>
+        <name><surname>Troxel</surname><given-names>M A</given-names></name>
+        <name><surname>Vorperian</surname><given-names>S</given-names></name>
+        <name><surname>Wei</surname><given-names>K</given-names></name>
+        <name><surname>Zuntz</surname><given-names>J</given-names></name>
+        <name><surname>Abbott</surname><given-names>T M C</given-names></name>
+        <name><surname>Aguena</surname><given-names>M</given-names></name>
+        <name><surname>Allam</surname><given-names>S</given-names></name>
+        <name><surname>Avila</surname><given-names>S</given-names></name>
+        <name><surname>Bhargava</surname><given-names>S</given-names></name>
+        <name><surname>Bridle</surname><given-names>S L</given-names></name>
+        <name><surname>Brooks</surname><given-names>D</given-names></name>
+        <name><surname>Rosell</surname><given-names>A Carnero</given-names></name>
+        <name><surname>Kind</surname><given-names>M Carrasco</given-names></name>
+        <name><surname>Carretero</surname><given-names>J</given-names></name>
+        <name><surname>Costanzi</surname><given-names>M</given-names></name>
+        <name><surname>Costa</surname><given-names>L N da</given-names></name>
+        <name><surname>Vicente</surname><given-names>J De</given-names></name>
+        <name><surname>Diehl</surname><given-names>H T</given-names></name>
+        <name><surname>Doel</surname><given-names>P</given-names></name>
+        <name><surname>Everett</surname><given-names>S</given-names></name>
+        <name><surname>Flaugher</surname><given-names>B</given-names></name>
+        <name><surname>Fosalba</surname><given-names>P</given-names></name>
+        <name><surname>Frieman</surname><given-names>J</given-names></name>
+        <name><surname>Garcı́a-Bellido</surname><given-names>J</given-names></name>
+        <name><surname>Gaztanaga</surname><given-names>E</given-names></name>
+        <name><surname>Gerdes</surname><given-names>D W</given-names></name>
+        <name><surname>Gutierrez</surname><given-names>G</given-names></name>
+        <name><surname>Hinton</surname><given-names>S R</given-names></name>
+        <name><surname>Hollowood</surname><given-names>D L</given-names></name>
+        <name><surname>Honscheid</surname><given-names>K</given-names></name>
+        <name><surname>James</surname><given-names>D J</given-names></name>
+        <name><surname>Kent</surname><given-names>S</given-names></name>
+        <name><surname>Kuehn</surname><given-names>K</given-names></name>
+        <name><surname>Kuropatkin</surname><given-names>N</given-names></name>
+        <name><surname>Lahav</surname><given-names>O</given-names></name>
+        <name><surname>Maia</surname><given-names>M A G</given-names></name>
+        <name><surname>March</surname><given-names>M</given-names></name>
+        <name><surname>Marshall</surname><given-names>J L</given-names></name>
+        <name><surname>Melchior</surname><given-names>P</given-names></name>
+        <name><surname>Menanteau</surname><given-names>F</given-names></name>
+        <name><surname>Miquel</surname><given-names>R</given-names></name>
+        <name><surname>Ogando</surname><given-names>R L C</given-names></name>
+        <name><surname>Paz-Chinchón</surname><given-names>F</given-names></name>
+        <name><surname>Rykoff</surname><given-names>E S</given-names></name>
+        <name><surname>Sanchez</surname><given-names>E</given-names></name>
+        <name><surname>Scarpine</surname><given-names>V</given-names></name>
+        <name><surname>Schubnell</surname><given-names>M</given-names></name>
+        <name><surname>Serrano</surname><given-names>S</given-names></name>
+        <name><surname>Sevilla-Noarbe</surname><given-names>I</given-names></name>
+        <name><surname>Smith</surname><given-names>M</given-names></name>
+        <name><surname>Suchyta</surname><given-names>E</given-names></name>
+        <name><surname>Swanson</surname><given-names>M E C</given-names></name>
+        <name><surname>Tarle</surname><given-names>G</given-names></name>
+        <name><surname>Varga</surname><given-names>T N</given-names></name>
+        <name><surname>Walker</surname><given-names>A R</given-names></name>
+        <name><surname>Wester</surname><given-names>W</given-names></name>
+        <name><surname>and</surname><given-names>R D Wilkinson</given-names></name>
+      </person-group>
+      <article-title>Dark energy survey year 3 results: Point spread function modelling</article-title>
+      <source>Monthly Notices of the Royal Astronomical Society</source>
+      <publisher-name>Oxford University Press (OUP)</publisher-name>
+      <year iso-8601-date="2020-11">2020</year><month>11</month>
+      <volume>501</volume>
+      <issue>1</issue>
+      <uri>https://doi.org/10.1093%2Fmnras%2Fstaa3679</uri>
+      <pub-id pub-id-type="doi">10.1093/mnras/staa3679</pub-id>
+      <fpage>1282</fpage>
+      <lpage>1299</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-casey2023cosmosweb">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Casey</surname><given-names>Caitlin M.</given-names></name>
+        <name><surname>Kartaltepe</surname><given-names>Jeyhan S.</given-names></name>
+        <name><surname>Drakos</surname><given-names>Nicole E.</given-names></name>
+        <name><surname>Franco</surname><given-names>Maximilien</given-names></name>
+        <name><surname>Harish</surname><given-names>Santosh</given-names></name>
+        <name><surname>Paquereau</surname><given-names>Louise</given-names></name>
+        <name><surname>Ilbert</surname><given-names>Olivier</given-names></name>
+        <name><surname>Rose</surname><given-names>Caitlin</given-names></name>
+        <name><surname>Cox</surname><given-names>Isabella G.</given-names></name>
+        <name><surname>Nightingale</surname><given-names>James W.</given-names></name>
+        <name><surname>Robertson</surname><given-names>Brant E.</given-names></name>
+        <name><surname>Silverman</surname><given-names>John D.</given-names></name>
+        <name><surname>Koekemoer</surname><given-names>Anton M.</given-names></name>
+        <name><surname>Massey</surname><given-names>Richard</given-names></name>
+        <name><surname>McCracken</surname><given-names>Henry Joy</given-names></name>
+        <name><surname>Rhodes</surname><given-names>Jason</given-names></name>
+        <name><surname>Akins</surname><given-names>Hollis B.</given-names></name>
+        <name><surname>Allen</surname><given-names>Natalie</given-names></name>
+        <name><surname>Amvrosiadis</surname><given-names>Aristeidis</given-names></name>
+        <name><surname>Arango-Toro</surname><given-names>Rafael C.</given-names></name>
+        <name><surname>Bagley</surname><given-names>Micaela B.</given-names></name>
+        <name><surname>Bongiorno</surname><given-names>Angela</given-names></name>
+        <name><surname>Capak</surname><given-names>Peter L.</given-names></name>
+        <name><surname>Champagne</surname><given-names>Jaclyn B.</given-names></name>
+        <name><surname>Chartab</surname><given-names>Nima</given-names></name>
+        <name><surname>Ortiz</surname><given-names>Óscar A. Chávez</given-names></name>
+        <name><surname>Chworowsky</surname><given-names>Katherine</given-names></name>
+        <name><surname>Cooke</surname><given-names>Kevin C.</given-names></name>
+        <name><surname>Cooper</surname><given-names>Olivia R.</given-names></name>
+        <name><surname>Darvish</surname><given-names>Behnam</given-names></name>
+        <name><surname>Ding</surname><given-names>Xuheng</given-names></name>
+        <name><surname>Faisst</surname><given-names>Andreas L.</given-names></name>
+        <name><surname>Finkelstein</surname><given-names>Steven L.</given-names></name>
+        <name><surname>Fujimoto</surname><given-names>Seiji</given-names></name>
+        <name><surname>Gentile</surname><given-names>Fabrizio</given-names></name>
+        <name><surname>Gillman</surname><given-names>Steven</given-names></name>
+        <name><surname>Gould</surname><given-names>Katriona M. L.</given-names></name>
+        <name><surname>Gozaliasl</surname><given-names>Ghassem</given-names></name>
+        <name><surname>Hayward</surname><given-names>Christopher C.</given-names></name>
+        <name><surname>He</surname><given-names>Qiuhan</given-names></name>
+        <name><surname>Hemmati</surname><given-names>Shoubaneh</given-names></name>
+        <name><surname>Hirschmann</surname><given-names>Michaela</given-names></name>
+        <name><surname>Jahnke</surname><given-names>Knud</given-names></name>
+        <name><surname>Jin</surname><given-names>Shuowen</given-names></name>
+        <name><surname>Khostovan</surname><given-names>Ali Ahmad</given-names></name>
+        <name><surname>Kokorev</surname><given-names>Vasily</given-names></name>
+        <name><surname>Lambrides</surname><given-names>Erini</given-names></name>
+        <name><surname>Laigle</surname><given-names>Clotilde</given-names></name>
+        <name><surname>Larson</surname><given-names>Rebecca L.</given-names></name>
+        <name><surname>Leung</surname><given-names>Gene C. K.</given-names></name>
+        <name><surname>Liu</surname><given-names>Daizhong</given-names></name>
+        <name><surname>Liaudat</surname><given-names>Tobias</given-names></name>
+        <name><surname>Long</surname><given-names>Arianna S.</given-names></name>
+        <name><surname>Magdis</surname><given-names>Georgios</given-names></name>
+        <name><surname>Mahler</surname><given-names>Guillaume</given-names></name>
+        <name><surname>Mainieri</surname><given-names>Vincenzo</given-names></name>
+        <name><surname>Manning</surname><given-names>Sinclaire M.</given-names></name>
+        <name><surname>Maraston</surname><given-names>Claudia</given-names></name>
+        <name><surname>Martin</surname><given-names>Crystal L.</given-names></name>
+        <name><surname>McCleary</surname><given-names>Jacqueline E.</given-names></name>
+        <name><surname>McKinney</surname><given-names>Jed</given-names></name>
+        <name><surname>McPartland</surname><given-names>Conor J. R.</given-names></name>
+        <name><surname>Mobasher</surname><given-names>Bahram</given-names></name>
+        <name><surname>Pattnaik</surname><given-names>Rohan</given-names></name>
+        <name><surname>Renzini</surname><given-names>Alvio</given-names></name>
+        <name><surname>Rich</surname><given-names>R. Michael</given-names></name>
+        <name><surname>Sanders</surname><given-names>David B.</given-names></name>
+        <name><surname>Sattari</surname><given-names>Zahra</given-names></name>
+        <name><surname>Scognamiglio</surname><given-names>Diana</given-names></name>
+        <name><surname>Scoville</surname><given-names>Nick</given-names></name>
+        <name><surname>Sheth</surname><given-names>Kartik</given-names></name>
+        <name><surname>Shuntov</surname><given-names>Marko</given-names></name>
+        <name><surname>Sparre</surname><given-names>Martin</given-names></name>
+        <name><surname>Suzuki</surname><given-names>Tomoko L.</given-names></name>
+        <name><surname>Talia</surname><given-names>Margherita</given-names></name>
+        <name><surname>Toft</surname><given-names>Sune</given-names></name>
+        <name><surname>Trakhtenbrot</surname><given-names>Benny</given-names></name>
+        <name><surname>Urry</surname><given-names>C. Megan</given-names></name>
+        <name><surname>Valentino</surname><given-names>Francesco</given-names></name>
+        <name><surname>Vanderhoof</surname><given-names>Brittany N.</given-names></name>
+        <name><surname>Vardoulaki</surname><given-names>Eleni</given-names></name>
+        <name><surname>Weaver</surname><given-names>John R.</given-names></name>
+        <name><surname>Whitaker</surname><given-names>Katherine E.</given-names></name>
+        <name><surname>Wilkins</surname><given-names>Stephen M.</given-names></name>
+        <name><surname>Yang</surname><given-names>Lilan</given-names></name>
+        <name><surname>Zavala</surname><given-names>Jorge A.</given-names></name>
+      </person-group>
+      <article-title>COSMOS-web: An overview of the JWST cosmic origins survey</article-title>
+      <source>The Astrophysical Journal</source>
+      <publisher-name>The American Astronomical Society</publisher-name>
+      <year iso-8601-date="2023-08">2023</year><month>08</month>
+      <volume>954</volume>
+      <issue>1</issue>
+      <uri>https://dx.doi.org/10.3847/1538-4357/acc2bc</uri>
+      <pub-id pub-id-type="doi">10.3847/1538-4357/acc2bc</pub-id>
+      <fpage>31</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-10.1117U002F12.489103">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Rieke</surname><given-names>Marcia J.</given-names></name>
+        <name><surname>Baum</surname><given-names>Stefi Alison</given-names></name>
+        <name><surname>Beichman</surname><given-names>Charles A.</given-names></name>
+        <name><surname>Crampton</surname><given-names>David</given-names></name>
+        <name><surname>Doyon</surname><given-names>Rene</given-names></name>
+        <name><surname>Eisenstein</surname><given-names>Daniel</given-names></name>
+        <name><surname>Greene</surname><given-names>Thomas P.</given-names></name>
+        <name><surname>Hodapp</surname><given-names>Klaus-Werner</given-names></name>
+        <name><surname>Horner</surname><given-names>Scott D.</given-names></name>
+        <name><surname>Johnstone</surname><given-names>Doug</given-names></name>
+        <name><surname>Lesyna</surname><given-names>Lawrence</given-names></name>
+        <name><surname>Lilly</surname><given-names>Simon</given-names></name>
+        <name><surname>Meyer</surname><given-names>Michael</given-names></name>
+        <name><surname>Martin</surname><given-names>Peter</given-names></name>
+        <name><surname>Jr.</surname><given-names>Donald W. McCarthy</given-names></name>
+        <name><surname>Rieke</surname><given-names>George H.</given-names></name>
+        <name><surname>Roellig</surname><given-names>Thomas L.</given-names></name>
+        <name><surname>Stauffer</surname><given-names>John</given-names></name>
+        <name><surname>Trauger</surname><given-names>John T.</given-names></name>
+        <name><surname>Young</surname><given-names>Erick T.</given-names></name>
+      </person-group>
+      <article-title>NGST NIRCam scientific program and design concept</article-title>
+      <source>IR space telescopes and instruments</source>
+      <person-group person-group-type="editor">
+        <name><surname>Mather</surname><given-names>John C.</given-names></name>
+      </person-group>
+      <publisher-name>International Society for Optics; Photonics; SPIE</publisher-name>
+      <year iso-8601-date="2003">2003</year>
+      <volume>4850</volume>
+      <uri>https://doi.org/10.1117/12.489103</uri>
+      <pub-id pub-id-type="doi">10.1117/12.489103</pub-id>
+      <fpage>478 </fpage>
+      <lpage> 485</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Rieke_2023">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Rieke</surname><given-names>Marcia J.</given-names></name>
+        <name><surname>Kelly</surname><given-names>Douglas M.</given-names></name>
+        <name><surname>Misselt</surname><given-names>Karl</given-names></name>
+        <name><surname>Stansberry</surname><given-names>John</given-names></name>
+        <name><surname>Boyer</surname><given-names>Martha</given-names></name>
+        <name><surname>Beatty</surname><given-names>Thomas</given-names></name>
+        <name><surname>Egami</surname><given-names>Eiichi</given-names></name>
+        <name><surname>Florian</surname><given-names>Michael</given-names></name>
+        <name><surname>Greene</surname><given-names>Thomas P.</given-names></name>
+        <name><surname>Hainline</surname><given-names>Kevin</given-names></name>
+        <name><surname>Leisenring</surname><given-names>Jarron</given-names></name>
+        <name><surname>Roellig</surname><given-names>Thomas</given-names></name>
+        <name><surname>Schlawin</surname><given-names>Everett</given-names></name>
+        <name><surname>Sun</surname><given-names>Fengwu</given-names></name>
+        <name><surname>Tinnin</surname><given-names>Lee</given-names></name>
+        <name><surname>Williams</surname><given-names>Christina C.</given-names></name>
+        <name><surname>Willmer</surname><given-names>Christopher N. A.</given-names></name>
+        <name><surname>Wilson</surname><given-names>Debra</given-names></name>
+        <name><surname>Clark</surname><given-names>Charles R.</given-names></name>
+        <name><surname>Rohrbach</surname><given-names>Scott</given-names></name>
+        <name><surname>Brooks</surname><given-names>Brian</given-names></name>
+        <name><surname>Canipe</surname><given-names>Alicia</given-names></name>
+        <name><surname>Correnti</surname><given-names>Matteo</given-names></name>
+        <name><surname>DiFelice</surname><given-names>Audrey</given-names></name>
+        <name><surname>Gennaro</surname><given-names>Mario</given-names></name>
+        <name><surname>Girard</surname><given-names>Julian</given-names></name>
+        <name><surname>Hartig</surname><given-names>George</given-names></name>
+        <name><surname>Hilbert</surname><given-names>Bryan</given-names></name>
+        <name><surname>Koekemoer</surname><given-names>Anton M.</given-names></name>
+        <name><surname>Nikolov</surname><given-names>Nikolay K.</given-names></name>
+        <name><surname>Pirzkal</surname><given-names>Norbert</given-names></name>
+        <name><surname>Rest</surname><given-names>Armin</given-names></name>
+        <name><surname>Robberto</surname><given-names>Massimo</given-names></name>
+        <name><surname>Sunnquist</surname><given-names>Ben</given-names></name>
+        <name><surname>Telfer</surname><given-names>Randal</given-names></name>
+        <name><surname>Wu</surname><given-names>Chi Rai</given-names></name>
+        <name><surname>Ferry</surname><given-names>Malcolm</given-names></name>
+        <name><surname>Lewis</surname><given-names>Dan</given-names></name>
+        <name><surname>Baum</surname><given-names>Stefi</given-names></name>
+        <name><surname>Beichman</surname><given-names>Charles</given-names></name>
+        <name><surname>Doyon</surname><given-names>René</given-names></name>
+        <name><surname>Dressler</surname><given-names>Alan</given-names></name>
+        <name><surname>Eisenstein</surname><given-names>Daniel J.</given-names></name>
+        <name><surname>Ferrarese</surname><given-names>Laura</given-names></name>
+        <name><surname>Hodapp</surname><given-names>Klaus</given-names></name>
+        <name><surname>Horner</surname><given-names>Scott</given-names></name>
+        <name><surname>Jaffe</surname><given-names>Daniel T.</given-names></name>
+        <name><surname>Johnstone</surname><given-names>Doug</given-names></name>
+        <name><surname>Krist</surname><given-names>John</given-names></name>
+        <name><surname>Martin</surname><given-names>Peter</given-names></name>
+        <name><surname>McCarthy</surname><given-names>Donald W.</given-names></name>
+        <name><surname>Meyer</surname><given-names>Michael</given-names></name>
+        <name><surname>Rieke</surname><given-names>George H.</given-names></name>
+        <name><surname>Trauger</surname><given-names>John</given-names></name>
+        <name><surname>Young</surname><given-names>Erick T.</given-names></name>
+      </person-group>
+      <article-title>Performance of NIRCam on JWST in flight</article-title>
+      <source>Publications of the Astronomical Society of the Pacific</source>
+      <publisher-name>The Astronomical Society of the Pacific</publisher-name>
+      <year iso-8601-date="2023-02">2023</year><month>02</month>
+      <volume>135</volume>
+      <issue>1044</issue>
+      <uri>https://dx.doi.org/10.1088/1538-3873/acac53</uri>
+      <pub-id pub-id-type="doi">10.1088/1538-3873/acac53</pub-id>
+      <fpage>028001</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-2022ApJ">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <string-name>Astropy Collaboration</string-name>
+        <name><surname>Price-Whelan</surname><given-names>Adrian M.</given-names></name>
+        <name><surname>Lim</surname><given-names>Pey Lian</given-names></name>
+        <name><surname>Earl</surname><given-names>Nicholas</given-names></name>
+        <name><surname>Starkman</surname><given-names>Nathaniel</given-names></name>
+        <name><surname>Bradley</surname><given-names>Larry</given-names></name>
+        <name><surname>Shupe</surname><given-names>David L.</given-names></name>
+        <name><surname>Patil</surname><given-names>Aarya A.</given-names></name>
+        <name><surname>Corrales</surname><given-names>Lia</given-names></name>
+        <name><surname>Brasseur</surname><given-names>C. E.</given-names></name>
+        <name><surname>Nöthe</surname><given-names>Maximilian</given-names></name>
+        <name><surname>Donath</surname><given-names>Axel</given-names></name>
+        <name><surname>Tollerud</surname><given-names>Erik</given-names></name>
+        <name><surname>Morris</surname><given-names>Brett M.</given-names></name>
+        <name><surname>Ginsburg</surname><given-names>Adam</given-names></name>
+        <name><surname>Vaher</surname><given-names>Eero</given-names></name>
+        <name><surname>Weaver</surname><given-names>Benjamin A.</given-names></name>
+        <name><surname>Tocknell</surname><given-names>James</given-names></name>
+        <name><surname>Jamieson</surname><given-names>William</given-names></name>
+        <name><surname>van Kerkwijk</surname><given-names>Marten H.</given-names></name>
+        <name><surname>Robitaille</surname><given-names>Thomas P.</given-names></name>
+        <name><surname>Merry</surname><given-names>Bruce</given-names></name>
+        <name><surname>Bachetti</surname><given-names>Matteo</given-names></name>
+        <name><surname>Günther</surname><given-names>H. Moritz</given-names></name>
+        <name><surname>Aldcroft</surname><given-names>Thomas L.</given-names></name>
+        <name><surname>Alvarado-Montes</surname><given-names>Jaime A.</given-names></name>
+        <name><surname>Archibald</surname><given-names>Anne M.</given-names></name>
+        <name><surname>Bódi</surname><given-names>Attila</given-names></name>
+        <name><surname>Bapat</surname><given-names>Shreyas</given-names></name>
+        <name><surname>Barentsen</surname><given-names>Geert</given-names></name>
+        <name><surname>Bazán</surname><given-names>Juanjo</given-names></name>
+        <name><surname>Biswas</surname><given-names>Manish</given-names></name>
+        <name><surname>Boquien</surname><given-names>Médéric</given-names></name>
+        <name><surname>Burke</surname><given-names>D. J.</given-names></name>
+        <name><surname>Cara</surname><given-names>Daria</given-names></name>
+        <name><surname>Cara</surname><given-names>Mihai</given-names></name>
+        <name><surname>Conroy</surname><given-names>Kyle E.</given-names></name>
+        <name><surname>Conseil</surname><given-names>Simon</given-names></name>
+        <name><surname>Craig</surname><given-names>Matthew W.</given-names></name>
+        <name><surname>Cross</surname><given-names>Robert M.</given-names></name>
+        <name><surname>Cruz</surname><given-names>Kelle L.</given-names></name>
+        <name><surname>D’Eugenio</surname><given-names>Francesco</given-names></name>
+        <name><surname>Dencheva</surname><given-names>Nadia</given-names></name>
+        <name><surname>Devillepoix</surname><given-names>Hadrien A. R.</given-names></name>
+        <name><surname>Dietrich</surname><given-names>Jörg P.</given-names></name>
+        <name><surname>Eigenbrot</surname><given-names>Arthur Davis</given-names></name>
+        <name><surname>Erben</surname><given-names>Thomas</given-names></name>
+        <name><surname>Ferreira</surname><given-names>Leonardo</given-names></name>
+        <name><surname>Foreman-Mackey</surname><given-names>Daniel</given-names></name>
+        <name><surname>Fox</surname><given-names>Ryan</given-names></name>
+        <name><surname>Freij</surname><given-names>Nabil</given-names></name>
+        <name><surname>Garg</surname><given-names>Suyog</given-names></name>
+        <name><surname>Geda</surname><given-names>Robel</given-names></name>
+        <name><surname>Glattly</surname><given-names>Lauren</given-names></name>
+        <name><surname>Gondhalekar</surname><given-names>Yash</given-names></name>
+        <name><surname>Gordon</surname><given-names>Karl D.</given-names></name>
+        <name><surname>Grant</surname><given-names>David</given-names></name>
+        <name><surname>Greenfield</surname><given-names>Perry</given-names></name>
+        <name><surname>Groener</surname><given-names>Austen M.</given-names></name>
+        <name><surname>Guest</surname><given-names>Steve</given-names></name>
+        <name><surname>Gurovich</surname><given-names>Sebastian</given-names></name>
+        <name><surname>Handberg</surname><given-names>Rasmus</given-names></name>
+        <name><surname>Hart</surname><given-names>Akeem</given-names></name>
+        <name><surname>Hatfield-Dodds</surname><given-names>Zac</given-names></name>
+        <name><surname>Homeier</surname><given-names>Derek</given-names></name>
+        <name><surname>Hosseinzadeh</surname><given-names>Griffin</given-names></name>
+        <name><surname>Jenness</surname><given-names>Tim</given-names></name>
+        <name><surname>Jones</surname><given-names>Craig K.</given-names></name>
+        <name><surname>Joseph</surname><given-names>Prajwel</given-names></name>
+        <name><surname>Kalmbach</surname><given-names>J. Bryce</given-names></name>
+        <name><surname>Karamehmetoglu</surname><given-names>Emir</given-names></name>
+        <name><surname>Kałuszyński</surname><given-names>Mikołaj</given-names></name>
+        <name><surname>Kelley</surname><given-names>Michael S. P.</given-names></name>
+        <name><surname>Kern</surname><given-names>Nicholas</given-names></name>
+        <name><surname>Kerzendorf</surname><given-names>Wolfgang E.</given-names></name>
+        <name><surname>Koch</surname><given-names>Eric W.</given-names></name>
+        <name><surname>Kulumani</surname><given-names>Shankar</given-names></name>
+        <name><surname>Lee</surname><given-names>Antony</given-names></name>
+        <name><surname>Ly</surname><given-names>Chun</given-names></name>
+        <name><surname>Ma</surname><given-names>Zhiyuan</given-names></name>
+        <name><surname>MacBride</surname><given-names>Conor</given-names></name>
+        <name><surname>Maljaars</surname><given-names>Jakob M.</given-names></name>
+        <name><surname>Muna</surname><given-names>Demitri</given-names></name>
+        <name><surname>Murphy</surname><given-names>N. A.</given-names></name>
+        <name><surname>Norman</surname><given-names>Henrik</given-names></name>
+        <name><surname>O’Steen</surname><given-names>Richard</given-names></name>
+        <name><surname>Oman</surname><given-names>Kyle A.</given-names></name>
+        <name><surname>Pacifici</surname><given-names>Camilla</given-names></name>
+        <name><surname>Pascual</surname><given-names>Sergio</given-names></name>
+        <name><surname>Pascual-Granado</surname><given-names>J.</given-names></name>
+        <name><surname>Patil</surname><given-names>Rohit R.</given-names></name>
+        <name><surname>Perren</surname><given-names>Gabriel I.</given-names></name>
+        <name><surname>Pickering</surname><given-names>Timothy E.</given-names></name>
+        <name><surname>Rastogi</surname><given-names>Tanuj</given-names></name>
+        <name><surname>Roulston</surname><given-names>Benjamin R.</given-names></name>
+        <name><surname>Ryan</surname><given-names>Daniel F.</given-names></name>
+        <name><surname>Rykoff</surname><given-names>Eli S.</given-names></name>
+        <name><surname>Sabater</surname><given-names>Jose</given-names></name>
+        <name><surname>Sakurikar</surname><given-names>Parikshit</given-names></name>
+        <name><surname>Salgado</surname><given-names>Jesús</given-names></name>
+        <name><surname>Sanghi</surname><given-names>Aniket</given-names></name>
+        <name><surname>Saunders</surname><given-names>Nicholas</given-names></name>
+        <name><surname>Savchenko</surname><given-names>Volodymyr</given-names></name>
+        <name><surname>Schwardt</surname><given-names>Ludwig</given-names></name>
+        <name><surname>Seifert-Eckert</surname><given-names>Michael</given-names></name>
+        <name><surname>Shih</surname><given-names>Albert Y.</given-names></name>
+        <name><surname>Jain</surname><given-names>Anany Shrey</given-names></name>
+        <name><surname>Shukla</surname><given-names>Gyanendra</given-names></name>
+        <name><surname>Sick</surname><given-names>Jonathan</given-names></name>
+        <name><surname>Simpson</surname><given-names>Chris</given-names></name>
+        <name><surname>Singanamalla</surname><given-names>Sudheesh</given-names></name>
+        <name><surname>Singer</surname><given-names>Leo P.</given-names></name>
+        <name><surname>Singhal</surname><given-names>Jaladh</given-names></name>
+        <name><surname>Sinha</surname><given-names>Manodeep</given-names></name>
+        <name><surname>Sipőcz</surname><given-names>Brigitta M.</given-names></name>
+        <name><surname>Spitler</surname><given-names>Lee R.</given-names></name>
+        <name><surname>Stansby</surname><given-names>David</given-names></name>
+        <name><surname>Streicher</surname><given-names>Ole</given-names></name>
+        <name><surname>Šumak</surname><given-names>Jani</given-names></name>
+        <name><surname>Swinbank</surname><given-names>John D.</given-names></name>
+        <name><surname>Taranu</surname><given-names>Dan S.</given-names></name>
+        <name><surname>Tewary</surname><given-names>Nikita</given-names></name>
+        <name><surname>Tremblay</surname><given-names>Grant R.</given-names></name>
+        <name><surname>de Val-Borro</surname><given-names>Miguel</given-names></name>
+        <name><surname>Van Kooten</surname><given-names>Samuel J.</given-names></name>
+        <name><surname>Vasović</surname><given-names>Zlatan</given-names></name>
+        <name><surname>Verma</surname><given-names>Shresth</given-names></name>
+        <name><surname>de Miranda Cardoso</surname><given-names>José Vinı́cius</given-names></name>
+        <name><surname>Williams</surname><given-names>Peter K. G.</given-names></name>
+        <name><surname>Wilson</surname><given-names>Tom J.</given-names></name>
+        <name><surname>Winkel</surname><given-names>Benjamin</given-names></name>
+        <name><surname>Wood-Vasey</surname><given-names>W. M.</given-names></name>
+        <name><surname>Xue</surname><given-names>Rui</given-names></name>
+        <name><surname>Yoachim</surname><given-names>Peter</given-names></name>
+        <name><surname>Zhang</surname><given-names>Chen</given-names></name>
+        <name><surname>Zonca</surname><given-names>Andrea</given-names></name>
+        <string-name>Astropy Project Contributors</string-name>
+      </person-group>
+      <article-title>The Astropy Project: Sustaining and Growing a Community-oriented Open-source Project and the Latest Major Release (v5.0) of the Core Package</article-title>
+      <source>Astrophysical Journal</source>
+      <year iso-8601-date="2022-08">2022</year><month>08</month>
+      <volume>935</volume>
+      <issue>2</issue>
+      <uri>https://arxiv.org/abs/2206.14220</uri>
+      <pub-id pub-id-type="doi">10.3847/1538-4357/ac7c74</pub-id>
+      <fpage>167</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-rowe2015galsim">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Rowe</surname><given-names>B. T. P.</given-names></name>
+        <name><surname>Jarvis</surname><given-names>M.</given-names></name>
+        <name><surname>Mandelbaum</surname><given-names>R.</given-names></name>
+        <name><surname>Bernstein</surname><given-names>G. M.</given-names></name>
+        <name><surname>Bosch</surname><given-names>J.</given-names></name>
+        <name><surname>Simet</surname><given-names>M.</given-names></name>
+        <name><surname>Meyers</surname><given-names>J. E.</given-names></name>
+        <name><surname>Kacprzak</surname><given-names>T.</given-names></name>
+        <name><surname>Nakajima</surname><given-names>R.</given-names></name>
+        <name><surname>Zuntz</surname><given-names>J.</given-names></name>
+        <name><surname>Miyatake</surname><given-names>H.</given-names></name>
+        <name><surname>Dietrich</surname><given-names>J. P.</given-names></name>
+        <name><surname>Armstrong</surname><given-names>R.</given-names></name>
+        <name><surname>Melchior</surname><given-names>P.</given-names></name>
+        <name><surname>Gill</surname><given-names>M. S. S.</given-names></name>
+      </person-group>
+      <article-title>GalSim: The modular galaxy image simulation toolkit</article-title>
+      <source>Astronomy and Computing</source>
+      <year iso-8601-date="2015">2015</year>
+      <volume>10</volume>
+      <issn>2213-1337</issn>
+      <uri>https://www.sciencedirect.com/science/article/pii/S221313371500013X</uri>
+      <pub-id pub-id-type="doi">10.1016/j.ascom.2015.02.002</pub-id>
+      <fpage>121</fpage>
+      <lpage>150</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-2011ASPC">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Bertin</surname><given-names>E.</given-names></name>
+      </person-group>
+      <article-title>Automated Morphometry with SExtractor and PSFEx</article-title>
+      <source>Astronomical data analysis software and systems XX</source>
+      <person-group person-group-type="editor">
+        <name><surname>Evans</surname><given-names>I. N.</given-names></name>
+        <name><surname>Accomazzi</surname><given-names>A.</given-names></name>
+        <name><surname>Mink</surname><given-names>D. J.</given-names></name>
+        <name><surname>Rots</surname><given-names>A. H.</given-names></name>
+      </person-group>
+      <year iso-8601-date="2011-07">2011</year><month>07</month>
+      <volume>442</volume>
+      <pub-id pub-id-type="doi">10.1051/aas:1996164</pub-id>
+      <fpage>435</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-2014SPIE">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Perrin</surname><given-names>Marshall D.</given-names></name>
+        <name><surname>Sivaramakrishnan</surname><given-names>Anand</given-names></name>
+        <name><surname>Lajoie</surname><given-names>Charles-Philippe</given-names></name>
+        <name><surname>Elliott</surname><given-names>Erin</given-names></name>
+        <name><surname>Pueyo</surname><given-names>Laurent</given-names></name>
+        <name><surname>Ravindranath</surname><given-names>Swara</given-names></name>
+        <name><surname>Albert</surname><given-names>Loic.</given-names></name>
+      </person-group>
+      <article-title>Updated point spread function simulations for JWST with WebbPSF</article-title>
+      <source>Space telescopes and instrumentation 2014: Optical, infrared, and millimeter wave</source>
+      <person-group person-group-type="editor">
+        <name><surname>Oschmann</surname><given-names>Jr.</given-names><suffix>Jacobus M.</suffix></name>
+        <name><surname>Clampin</surname><given-names>Mark</given-names></name>
+        <name><surname>Fazio</surname><given-names>Giovanni G.</given-names></name>
+        <name><surname>MacEwen</surname><given-names>Howard A.</given-names></name>
+      </person-group>
+      <year iso-8601-date="2014-08">2014</year><month>08</month>
+      <volume>9143</volume>
+      <pub-id pub-id-type="doi">10.1117/12.2056689</pub-id>
+      <fpage>91433X</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-2012SPIE">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Perrin</surname><given-names>Marshall D.</given-names></name>
+        <name><surname>Soummer</surname><given-names>Rémi</given-names></name>
+        <name><surname>Elliott</surname><given-names>Erin M.</given-names></name>
+        <name><surname>Lallo</surname><given-names>Matthew D.</given-names></name>
+        <name><surname>Sivaramakrishnan</surname><given-names>Anand</given-names></name>
+      </person-group>
+      <article-title>Simulating point spread functions for the James Webb Space Telescope with WebbPSF</article-title>
+      <source>Space telescopes and instrumentation 2012: Optical, infrared, and millimeter wave</source>
+      <person-group person-group-type="editor">
+        <name><surname>Clampin</surname><given-names>Mark C.</given-names></name>
+        <name><surname>Fazio</surname><given-names>Giovanni G.</given-names></name>
+        <name><surname>MacEwen</surname><given-names>Howard A.</given-names></name>
+        <name><surname>Oschmann</surname><given-names>Jr.</given-names><suffix>Jacobus M.</suffix></name>
+      </person-group>
+      <year iso-8601-date="2012-09">2012</year><month>09</month>
+      <volume>8442</volume>
+      <pub-id pub-id-type="doi">10.1117/12.925230</pub-id>
+      <fpage>84423D</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Gardner_2006">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Gardner</surname><given-names>Jonathan P.</given-names></name>
+        <name><surname>Mather</surname><given-names>John C.</given-names></name>
+        <name><surname>Clampin</surname><given-names>Mark</given-names></name>
+        <name><surname>Doyon</surname><given-names>Rene</given-names></name>
+        <name><surname>Greenhouse</surname><given-names>Matthew A.</given-names></name>
+        <name><surname>Hammel</surname><given-names>Heidi B.</given-names></name>
+        <name><surname>Hutchings</surname><given-names>John B.</given-names></name>
+        <name><surname>Jakobsen</surname><given-names>Peter</given-names></name>
+        <name><surname>Lilly</surname><given-names>Simon J.</given-names></name>
+        <name><surname>Long</surname><given-names>Knox S.</given-names></name>
+        <name><surname>Lunine</surname><given-names>Jonathan I.</given-names></name>
+        <name><surname>Mccaughrean</surname><given-names>Mark J.</given-names></name>
+        <name><surname>Mountain</surname><given-names>Matt</given-names></name>
+        <name><surname>Nella</surname><given-names>John</given-names></name>
+        <name><surname>Rieke</surname><given-names>George H.</given-names></name>
+        <name><surname>Rieke</surname><given-names>Marcia J.</given-names></name>
+        <name><surname>Rix</surname><given-names>Hans-Walter</given-names></name>
+        <name><surname>Smith</surname><given-names>Eric P.</given-names></name>
+        <name><surname>Sonneborn</surname><given-names>George</given-names></name>
+        <name><surname>Stiavelli</surname><given-names>Massimo</given-names></name>
+        <name><surname>Stockman</surname><given-names>H. S.</given-names></name>
+        <name><surname>Windhorst</surname><given-names>Rogier A.</given-names></name>
+        <name><surname>Wright</surname><given-names>Gillian S.</given-names></name>
+      </person-group>
+      <article-title>The james webb space telescope</article-title>
+      <source>Space Science Reviews</source>
+      <publisher-name>Springer Science; Business Media LLC</publisher-name>
+      <year iso-8601-date="2006-04">2006</year><month>04</month>
+      <volume>123</volume>
+      <issue>4</issue>
+      <uri>https://doi.org/10.1007%2Fs11214-006-8315-7</uri>
+      <pub-id pub-id-type="doi">10.1007/s11214-006-8315-7</pub-id>
+      <fpage>485</fpage>
+      <lpage>606</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-BSPIE">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Beichman</surname><given-names>Charles A.</given-names></name>
+        <name><surname>Rieke</surname><given-names>Marcia</given-names></name>
+        <name><surname>Eisenstein</surname><given-names>Daniel</given-names></name>
+        <name><surname>Greene</surname><given-names>Thomas P.</given-names></name>
+        <name><surname>Krist</surname><given-names>John</given-names></name>
+        <name><surname>McCarthy</surname><given-names>Don</given-names></name>
+        <name><surname>Meyer</surname><given-names>Michael</given-names></name>
+        <name><surname>Stansberry</surname><given-names>John</given-names></name>
+      </person-group>
+      <article-title>Science opportunities with the near-IR camera (NIRCam) on the James Webb Space Telescope (JWST)</article-title>
+      <source>Space telescopes and instrumentation 2012: Optical, infrared, and millimeter wave</source>
+      <person-group person-group-type="editor">
+        <name><surname>Clampin</surname><given-names>Mark C.</given-names></name>
+        <name><surname>Fazio</surname><given-names>Giovanni G.</given-names></name>
+        <name><surname>MacEwen</surname><given-names>Howard A.</given-names></name>
+        <name><surname>Oschmann</surname><given-names>Jr.</given-names><suffix>Jacobus M.</suffix></name>
+      </person-group>
+      <year iso-8601-date="2012-09">2012</year><month>09</month>
+      <volume>8442</volume>
+      <pub-id pub-id-type="doi">10.1117/12.925447</pub-id>
+      <fpage>84422N</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-20052005SPIE">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Rieke</surname><given-names>Marcia J.</given-names></name>
+        <name><surname>Kelly</surname><given-names>Douglas</given-names></name>
+        <name><surname>Horner</surname><given-names>Scott</given-names></name>
+      </person-group>
+      <article-title>Overview of James Webb Space Telescope and NIRCam’s Role</article-title>
+      <source>Cryogenic optical systems and instruments XI</source>
+      <person-group person-group-type="editor">
+        <name><surname>Heaney</surname><given-names>James B.</given-names></name>
+        <name><surname>Burriesci</surname><given-names>Lawrence G.</given-names></name>
+      </person-group>
+      <year iso-8601-date="2005-08">2005</year><month>08</month>
+      <volume>5904</volume>
+      <pub-id pub-id-type="doi">10.1117/12.615554</pub-id>
+      <fpage>1</fpage>
+      <lpage>8</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-TheAstropyCollaboration_2022">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Collaboration</surname><given-names>The Astropy</given-names></name>
+        <name><surname>Price-Whelan</surname><given-names>Adrian M.</given-names></name>
+        <name><surname>Lim</surname><given-names>Pey Lian</given-names></name>
+        <name><surname>Earl</surname><given-names>Nicholas</given-names></name>
+        <name><surname>Starkman</surname><given-names>Nathaniel</given-names></name>
+        <name><surname>Bradley</surname><given-names>Larry</given-names></name>
+        <name><surname>Shupe</surname><given-names>David L.</given-names></name>
+        <name><surname>Patil</surname><given-names>Aarya A.</given-names></name>
+        <name><surname>Corrales</surname><given-names>Lia</given-names></name>
+        <name><surname>Brasseur</surname><given-names>C. E.</given-names></name>
+        <name><surname>Nöthe</surname><given-names>Maximilian</given-names></name>
+        <name><surname>Donath</surname><given-names>Axel</given-names></name>
+        <name><surname>Tollerud</surname><given-names>Erik</given-names></name>
+        <name><surname>Morris</surname><given-names>Brett M.</given-names></name>
+        <name><surname>Ginsburg</surname><given-names>Adam</given-names></name>
+        <name><surname>Vaher</surname><given-names>Eero</given-names></name>
+        <name><surname>Weaver</surname><given-names>Benjamin A.</given-names></name>
+        <name><surname>Tocknell</surname><given-names>James</given-names></name>
+        <name><surname>Jamieson</surname><given-names>William</given-names></name>
+        <name><surname>Kerkwijk</surname><given-names>Marten H. van</given-names></name>
+        <name><surname>Robitaille</surname><given-names>Thomas P.</given-names></name>
+        <name><surname>Merry</surname><given-names>Bruce</given-names></name>
+        <name><surname>Bachetti</surname><given-names>Matteo</given-names></name>
+        <name><surname>Günther</surname><given-names>H. Moritz</given-names></name>
+        <name><surname>Authors</surname><given-names>Paper</given-names></name>
+        <name><surname>Aldcroft</surname><given-names>Thomas L.</given-names></name>
+        <name><surname>Alvarado-Montes</surname><given-names>Jaime A.</given-names></name>
+        <name><surname>Archibald</surname><given-names>Anne M.</given-names></name>
+        <name><surname>Bódi</surname><given-names>Attila</given-names></name>
+        <name><surname>Bapat</surname><given-names>Shreyas</given-names></name>
+        <name><surname>Barentsen</surname><given-names>Geert</given-names></name>
+        <name><surname>Bazán</surname><given-names>Juanjo</given-names></name>
+        <name><surname>Biswas</surname><given-names>Manish</given-names></name>
+        <name><surname>Boquien</surname><given-names>Médéric</given-names></name>
+        <name><surname>Burke</surname><given-names>D. J.</given-names></name>
+        <name><surname>Cara</surname><given-names>Daria</given-names></name>
+        <name><surname>Cara</surname><given-names>Mihai</given-names></name>
+        <name><surname>Conroy</surname><given-names>Kyle E</given-names></name>
+        <name><surname>Conseil</surname><given-names>Simon</given-names></name>
+        <name><surname>Craig</surname><given-names>Matthew W.</given-names></name>
+        <name><surname>Cross</surname><given-names>Robert M.</given-names></name>
+        <name><surname>Cruz</surname><given-names>Kelle L.</given-names></name>
+        <name><surname>D’Eugenio</surname><given-names>Francesco</given-names></name>
+        <name><surname>Dencheva</surname><given-names>Nadia</given-names></name>
+        <name><surname>Devillepoix</surname><given-names>Hadrien A. R.</given-names></name>
+        <name><surname>Dietrich</surname><given-names>Jörg P.</given-names></name>
+        <name><surname>Eigenbrot</surname><given-names>Arthur Davis</given-names></name>
+        <name><surname>Erben</surname><given-names>Thomas</given-names></name>
+        <name><surname>Ferreira</surname><given-names>Leonardo</given-names></name>
+        <name><surname>Foreman-Mackey</surname><given-names>Daniel</given-names></name>
+        <name><surname>Fox</surname><given-names>Ryan</given-names></name>
+        <name><surname>Freij</surname><given-names>Nabil</given-names></name>
+        <name><surname>Garg</surname><given-names>Suyog</given-names></name>
+        <name><surname>Geda</surname><given-names>Robel</given-names></name>
+        <name><surname>Glattly</surname><given-names>Lauren</given-names></name>
+        <name><surname>Gondhalekar</surname><given-names>Yash</given-names></name>
+        <name><surname>Gordon</surname><given-names>Karl D.</given-names></name>
+        <name><surname>Grant</surname><given-names>David</given-names></name>
+        <name><surname>Greenfield</surname><given-names>Perry</given-names></name>
+        <name><surname>Groener</surname><given-names>Austen M.</given-names></name>
+        <name><surname>Guest</surname><given-names>Steve</given-names></name>
+        <name><surname>Gurovich</surname><given-names>Sebastian</given-names></name>
+        <name><surname>Handberg</surname><given-names>Rasmus</given-names></name>
+        <name><surname>Hart</surname><given-names>Akeem</given-names></name>
+        <name><surname>Hatfield-Dodds</surname><given-names>Zac</given-names></name>
+        <name><surname>Homeier</surname><given-names>Derek</given-names></name>
+        <name><surname>Hosseinzadeh</surname><given-names>Griffin</given-names></name>
+        <name><surname>Jenness</surname><given-names>Tim</given-names></name>
+        <name><surname>Jones</surname><given-names>Craig K.</given-names></name>
+        <name><surname>Joseph</surname><given-names>Prajwel</given-names></name>
+        <name><surname>Kalmbach</surname><given-names>J. Bryce</given-names></name>
+        <name><surname>Karamehmetoglu</surname><given-names>Emir</given-names></name>
+        <name><surname>Kałuszyński</surname><given-names>Mikołaj</given-names></name>
+        <name><surname>Kelley</surname><given-names>Michael S. P.</given-names></name>
+        <name><surname>Kern</surname><given-names>Nicholas</given-names></name>
+        <name><surname>Kerzendorf</surname><given-names>Wolfgang E.</given-names></name>
+        <name><surname>Koch</surname><given-names>Eric W.</given-names></name>
+        <name><surname>Kulumani</surname><given-names>Shankar</given-names></name>
+        <name><surname>Lee</surname><given-names>Antony</given-names></name>
+        <name><surname>Ly</surname><given-names>Chun</given-names></name>
+        <name><surname>Ma</surname><given-names>Zhiyuan</given-names></name>
+        <name><surname>MacBride</surname><given-names>Conor</given-names></name>
+        <name><surname>Maljaars</surname><given-names>Jakob M.</given-names></name>
+        <name><surname>Muna</surname><given-names>Demitri</given-names></name>
+        <name><surname>Murphy</surname><given-names>N. A.</given-names></name>
+        <name><surname>Norman</surname><given-names>Henrik</given-names></name>
+        <name><surname>O’Steen</surname><given-names>Richard</given-names></name>
+        <name><surname>Oman</surname><given-names>Kyle A.</given-names></name>
+        <name><surname>Pacifici</surname><given-names>Camilla</given-names></name>
+        <name><surname>Pascual</surname><given-names>Sergio</given-names></name>
+        <name><surname>Pascual-Granado</surname><given-names>J.</given-names></name>
+        <name><surname>Patil</surname><given-names>Rohit R.</given-names></name>
+        <name><surname>Perren</surname><given-names>Gabriel I</given-names></name>
+        <name><surname>Pickering</surname><given-names>Timothy E.</given-names></name>
+        <name><surname>Rastogi</surname><given-names>Tanuj</given-names></name>
+        <name><surname>Roulston</surname><given-names>Benjamin R.</given-names></name>
+        <name><surname>Ryan</surname><given-names>Daniel F</given-names></name>
+        <name><surname>Rykoff</surname><given-names>Eli S.</given-names></name>
+        <name><surname>Sabater</surname><given-names>Jose</given-names></name>
+        <name><surname>Sakurikar</surname><given-names>Parikshit</given-names></name>
+        <name><surname>Salgado</surname><given-names>Jesús</given-names></name>
+        <name><surname>Sanghi</surname><given-names>Aniket</given-names></name>
+        <name><surname>Saunders</surname><given-names>Nicholas</given-names></name>
+        <name><surname>Savchenko</surname><given-names>Volodymyr</given-names></name>
+        <name><surname>Schwardt</surname><given-names>Ludwig</given-names></name>
+        <name><surname>Seifert-Eckert</surname><given-names>Michael</given-names></name>
+        <name><surname>Shih</surname><given-names>Albert Y.</given-names></name>
+        <name><surname>Jain</surname><given-names>Anany Shrey</given-names></name>
+        <name><surname>Shukla</surname><given-names>Gyanendra</given-names></name>
+        <name><surname>Sick</surname><given-names>Jonathan</given-names></name>
+        <name><surname>Simpson</surname><given-names>Chris</given-names></name>
+        <name><surname>Singanamalla</surname><given-names>Sudheesh</given-names></name>
+        <name><surname>Singer</surname><given-names>Leo P.</given-names></name>
+        <name><surname>Singhal</surname><given-names>Jaladh</given-names></name>
+        <name><surname>Sinha</surname><given-names>Manodeep</given-names></name>
+        <name><surname>Sipőcz</surname><given-names>Brigitta M.</given-names></name>
+        <name><surname>Spitler</surname><given-names>Lee R.</given-names></name>
+        <name><surname>Stansby</surname><given-names>David</given-names></name>
+        <name><surname>Streicher</surname><given-names>Ole</given-names></name>
+        <name><surname>Šumak</surname><given-names>Jani</given-names></name>
+        <name><surname>Swinbank</surname><given-names>John D.</given-names></name>
+        <name><surname>Taranu</surname><given-names>Dan S.</given-names></name>
+        <name><surname>Tewary</surname><given-names>Nikita</given-names></name>
+        <name><surname>Tremblay</surname><given-names>Grant R.</given-names></name>
+        <name><surname>Val-Borro</surname><given-names>Miguel de</given-names></name>
+        <name><surname>Kooten</surname><given-names>Samuel J. Van</given-names></name>
+        <name><surname>Vasović</surname><given-names>Zlatan</given-names></name>
+        <name><surname>Verma</surname><given-names>Shresth</given-names></name>
+        <name><surname>Miranda Cardoso</surname><given-names>José Vinícius de</given-names></name>
+        <name><surname>Williams</surname><given-names>Peter K. G.</given-names></name>
+        <name><surname>Wilson</surname><given-names>Tom J.</given-names></name>
+        <name><surname>Winkel</surname><given-names>Benjamin</given-names></name>
+        <name><surname>Wood-Vasey</surname><given-names>W. M.</given-names></name>
+        <name><surname>Xue</surname><given-names>Rui</given-names></name>
+        <name><surname>Yoachim</surname><given-names>Peter</given-names></name>
+        <name><surname>Zhang</surname><given-names>Chen</given-names></name>
+        <name><surname>Zonca</surname><given-names>Andrea</given-names></name>
+        <name><surname>Contributors</surname><given-names>Astropy Project</given-names></name>
+      </person-group>
+      <article-title>The astropy project: Sustaining and growing a community-oriented open-source project and the latest major release (v5.0) of the core package*</article-title>
+      <source>The Astrophysical Journal</source>
+      <publisher-name>The American Astronomical Society</publisher-name>
+      <year iso-8601-date="2022-08">2022</year><month>08</month>
+      <volume>935</volume>
+      <issue>2</issue>
+      <uri>https://dx.doi.org/10.3847/1538-4357/ac7c74</uri>
+      <pub-id pub-id-type="doi">10.3847/1538-4357/ac7c74</pub-id>
+      <fpage>167</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-zhuang2023characterization">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Zhuang</surname><given-names>Ming-Yang</given-names></name>
+        <name><surname>Shen</surname><given-names>Yue</given-names></name>
+      </person-group>
+      <article-title>Characterization of JWST NIRCam PSFs and implications for AGN+host image decomposition</article-title>
+      <year iso-8601-date="2023">2023</year>
+      <uri>https://arxiv.org/abs/2304.13776</uri>
+      <pub-id pub-id-type="doi">10.48550/arXiv.2304.13776</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-franco2023cosmosweb">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Casey</surname><given-names>Caitlin M.</given-names></name>
+        <name><surname>Akins</surname><given-names>Hollis B.</given-names></name>
+        <name><surname>Shuntov</surname><given-names>Marko</given-names></name>
+        <name><surname>Ilbert</surname><given-names>Olivier</given-names></name>
+        <name><surname>Paquereau</surname><given-names>Louise</given-names></name>
+        <name><surname>Franco</surname><given-names>Maximilien</given-names></name>
+        <name><surname>Hayward</surname><given-names>Christopher C.</given-names></name>
+        <name><surname>Finkelstein</surname><given-names>Steven L.</given-names></name>
+        <name><surname>Boylan-Kolchin</surname><given-names>Michael</given-names></name>
+        <name><surname>Robertson</surname><given-names>Brant E.</given-names></name>
+        <name><surname>Allen</surname><given-names>Natalie</given-names></name>
+        <name><surname>Brinch</surname><given-names>Malte</given-names></name>
+        <name><surname>Cooper</surname><given-names>Olivia R.</given-names></name>
+        <name><surname>Ding</surname><given-names>Xuheng</given-names></name>
+        <name><surname>Drakos</surname><given-names>Nicole E.</given-names></name>
+        <name><surname>Faisst</surname><given-names>Andreas L.</given-names></name>
+        <name><surname>Fujimoto</surname><given-names>Seiji</given-names></name>
+        <name><surname>Gillman</surname><given-names>Steven</given-names></name>
+        <name><surname>Harish</surname><given-names>Santosh</given-names></name>
+        <name><surname>Hirschmann</surname><given-names>Michaela</given-names></name>
+        <name><surname>Jin</surname><given-names>Shuowen</given-names></name>
+        <name><surname>Kartaltepe</surname><given-names>Jeyhan S.</given-names></name>
+        <name><surname>Koekemoer</surname><given-names>Anton M.</given-names></name>
+        <name><surname>Kokorev</surname><given-names>Vasily</given-names></name>
+        <name><surname>Liu</surname><given-names>Daizhong</given-names></name>
+        <name><surname>Long</surname><given-names>Arianna S.</given-names></name>
+        <name><surname>Magdis</surname><given-names>Georgios</given-names></name>
+        <name><surname>Maraston</surname><given-names>Claudia</given-names></name>
+        <name><surname>Martin</surname><given-names>Crystal L.</given-names></name>
+        <name><surname>McCracken</surname><given-names>Henry Joy</given-names></name>
+        <name><surname>McKinney</surname><given-names>Jed</given-names></name>
+        <name><surname>Mobasher</surname><given-names>Bahram</given-names></name>
+        <name><surname>Rhodes</surname><given-names>Jason</given-names></name>
+        <name><surname>Rich</surname><given-names>R. Michael</given-names></name>
+        <name><surname>Sanders</surname><given-names>David B.</given-names></name>
+        <name><surname>Silverman</surname><given-names>John D.</given-names></name>
+        <name><surname>Toft</surname><given-names>Sune</given-names></name>
+        <name><surname>Vijayan</surname><given-names>Aswin P.</given-names></name>
+        <name><surname>Weaver</surname><given-names>John R.</given-names></name>
+        <name><surname>Wilkins</surname><given-names>Stephen M.</given-names></name>
+        <name><surname>Yang</surname><given-names>Lilan</given-names></name>
+        <name><surname>Zavala</surname><given-names>Jorge A.</given-names></name>
+      </person-group>
+      <article-title>COSMOS-web: Intrinsically luminous z\gtrsim10 galaxy candidates test early stellar mass assembly</article-title>
+      <year iso-8601-date="2023">2023</year>
+      <uri>https://arxiv.org/abs/2308.10932</uri>
+      <pub-id pub-id-type="doi">10.48550/arXiv.2308.10932</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-Stanitzki_2021">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Stanitzki</surname><given-names>Marcel</given-names></name>
+        <name><surname>Strube</surname><given-names>Jan</given-names></name>
+      </person-group>
+      <article-title>Performance of julia for high energy physics analyses</article-title>
+      <source>Computing and Software for Big Science</source>
+      <publisher-name>Springer Science; Business Media LLC</publisher-name>
+      <year iso-8601-date="2021-04">2021</year><month>04</month>
+      <volume>5</volume>
+      <issue>1</issue>
+      <uri>https://doi.org/10.1007%2Fs41781-021-00053-3</uri>
+      <pub-id pub-id-type="doi">10.1007/s41781-021-00053-3</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-ji2023jades">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Ji</surname><given-names>Zhiyuan</given-names></name>
+        <name><surname>Williams</surname><given-names>Christina C.</given-names></name>
+        <name><surname>Tacchella</surname><given-names>Sandro</given-names></name>
+        <name><surname>Suess</surname><given-names>Katherine A.</given-names></name>
+        <name><surname>Baker</surname><given-names>William M.</given-names></name>
+        <name><surname>Alberts</surname><given-names>Stacey</given-names></name>
+        <name><surname>Bunker</surname><given-names>Andrew J.</given-names></name>
+        <name><surname>Johnson</surname><given-names>Benjamin D.</given-names></name>
+        <name><surname>Robertson</surname><given-names>Brant</given-names></name>
+        <name><surname>Sun</surname><given-names>Fengwu</given-names></name>
+        <name><surname>Eisenstein</surname><given-names>Daniel J.</given-names></name>
+        <name><surname>Rieke</surname><given-names>Marcia</given-names></name>
+        <name><surname>Maseda</surname><given-names>Michael V.</given-names></name>
+        <name><surname>Hainline</surname><given-names>Kevin</given-names></name>
+        <name><surname>Hausen</surname><given-names>Ryan</given-names></name>
+        <name><surname>Rieke</surname><given-names>George</given-names></name>
+        <name><surname>Willmer</surname><given-names>Christopher N. A.</given-names></name>
+        <name><surname>Egami</surname><given-names>Eiichi</given-names></name>
+        <name><surname>Shivaei</surname><given-names>Irene</given-names></name>
+        <name><surname>Carniani</surname><given-names>Stefano</given-names></name>
+        <name><surname>Charlot</surname><given-names>Stephane</given-names></name>
+        <name><surname>Chevallard</surname><given-names>Jacopo</given-names></name>
+        <name><surname>Curtis-Lake</surname><given-names>Emma</given-names></name>
+        <name><surname>Looser</surname><given-names>Tobias J.</given-names></name>
+        <name><surname>Maiolino</surname><given-names>Roberto</given-names></name>
+        <name><surname>Willott</surname><given-names>Chris</given-names></name>
+        <name><surname>Chen</surname><given-names>Zuyi</given-names></name>
+        <name><surname>Helton</surname><given-names>Jakob M.</given-names></name>
+        <name><surname>Lyu</surname><given-names>Jianwei</given-names></name>
+        <name><surname>Nelson</surname><given-names>Erica</given-names></name>
+        <name><surname>Bhatawdekar</surname><given-names>Rachana</given-names></name>
+        <name><surname>Boyett</surname><given-names>Kristan</given-names></name>
+        <name><surname>Sandles</surname><given-names>Lester</given-names></name>
+      </person-group>
+      <article-title>JADES + JEMS: A detailed look at the buildup of central stellar cores and suppression of star formation in galaxies at redshifts 3 &lt; z &lt; 4.5</article-title>
+      <year iso-8601-date="2023">2023</year>
+      <uri>https://arxiv.org/abs/2305.18518</uri>
+      <pub-id pub-id-type="doi">10.48550/arXiv.2305.18518</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-2023ApJ942L27S">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Santini</surname><given-names>P.</given-names></name>
+        <name><surname>Fontana</surname><given-names>A.</given-names></name>
+        <name><surname>Castellano</surname><given-names>M.</given-names></name>
+        <name><surname>Leethochawalit</surname><given-names>N.</given-names></name>
+        <name><surname>Trenti</surname><given-names>M.</given-names></name>
+        <name><surname>Treu</surname><given-names>T.</given-names></name>
+        <name><surname>Belfiori</surname><given-names>D.</given-names></name>
+        <name><surname>Birrer</surname><given-names>S.</given-names></name>
+        <name><surname>Bonchi</surname><given-names>A.</given-names></name>
+        <name><surname>Merlin</surname><given-names>E.</given-names></name>
+        <name><surname>Mason</surname><given-names>C.</given-names></name>
+        <name><surname>Morishita</surname><given-names>T.</given-names></name>
+        <name><surname>Nonino</surname><given-names>M.</given-names></name>
+        <name><surname>Paris</surname><given-names>D.</given-names></name>
+        <name><surname>Polenta</surname><given-names>G.</given-names></name>
+        <name><surname>Rosati</surname><given-names>P.</given-names></name>
+        <name><surname>Yang</surname><given-names>L.</given-names></name>
+        <name><surname>Boyett</surname><given-names>K.</given-names></name>
+        <name><surname>Bradac</surname><given-names>M.</given-names></name>
+        <name><surname>Calabrò</surname><given-names>A.</given-names></name>
+        <name><surname>Dressler</surname><given-names>A.</given-names></name>
+        <name><surname>Glazebrook</surname><given-names>K.</given-names></name>
+        <name><surname>Marchesini</surname><given-names>D.</given-names></name>
+        <name><surname>Mascia</surname><given-names>S.</given-names></name>
+        <name><surname>Nanayakkara</surname><given-names>T.</given-names></name>
+        <name><surname>Pentericci</surname><given-names>L.</given-names></name>
+        <name><surname>Roberts-Borsani</surname><given-names>G.</given-names></name>
+        <name><surname>Scarlata</surname><given-names>C.</given-names></name>
+        <name><surname>Vulcani</surname><given-names>B.</given-names></name>
+        <name><surname>Wang</surname><given-names>Xin</given-names></name>
+      </person-group>
+      <article-title>Early Results from GLASS-JWST. XI. Stellar Masses and Mass-to-light Ratio of z &gt; 7 Galaxies</article-title>
+      <source>Astrophysical Journal, Letters</source>
+      <year iso-8601-date="2023-01">2023</year><month>01</month>
+      <volume>942</volume>
+      <issue>2</issue>
+      <uri>https://arxiv.org/abs/2207.11379</uri>
+      <pub-id pub-id-type="doi">10.3847/2041-8213/ac9586</pub-id>
+      <fpage>L27</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-2022ApJ938L14M">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Merlin</surname><given-names>Emiliano</given-names></name>
+        <name><surname>Bonchi</surname><given-names>Andrea</given-names></name>
+        <name><surname>Paris</surname><given-names>Diego</given-names></name>
+        <name><surname>Belfiori</surname><given-names>Davide</given-names></name>
+        <name><surname>Fontana</surname><given-names>Adriano</given-names></name>
+        <name><surname>Castellano</surname><given-names>Marco</given-names></name>
+        <name><surname>Nonino</surname><given-names>Mario</given-names></name>
+        <name><surname>Polenta</surname><given-names>Gianluca</given-names></name>
+        <name><surname>Santini</surname><given-names>Paola</given-names></name>
+        <name><surname>Yang</surname><given-names>Lilan</given-names></name>
+        <name><surname>Glazebrook</surname><given-names>Karl</given-names></name>
+        <name><surname>Treu</surname><given-names>Tommaso</given-names></name>
+        <name><surname>Roberts-Borsani</surname><given-names>Guido</given-names></name>
+        <name><surname>Trenti</surname><given-names>Michele</given-names></name>
+        <name><surname>Birrer</surname><given-names>Simon</given-names></name>
+        <name><surname>Brammer</surname><given-names>Gabriel</given-names></name>
+        <name><surname>Grillo</surname><given-names>Claudio</given-names></name>
+        <name><surname>Calabrò</surname><given-names>Antonello</given-names></name>
+        <name><surname>Marchesini</surname><given-names>Danilo</given-names></name>
+        <name><surname>Mason</surname><given-names>Charlotte</given-names></name>
+        <name><surname>Mercurio</surname><given-names>Amata</given-names></name>
+        <name><surname>Morishita</surname><given-names>Takahiro</given-names></name>
+        <name><surname>Strait</surname><given-names>Victoria</given-names></name>
+        <name><surname>Boyett</surname><given-names>Kristan</given-names></name>
+        <name><surname>Leethochawalit</surname><given-names>Nicha</given-names></name>
+        <name><surname>Nanayakkara</surname><given-names>Themiya</given-names></name>
+        <name><surname>Vulcani</surname><given-names>Benedetta</given-names></name>
+        <name><surname>Bradac</surname><given-names>Marusa</given-names></name>
+        <name><surname>Wang</surname><given-names>Xin</given-names></name>
+      </person-group>
+      <article-title>Early Results from GLASS-JWST. II. NIRCam Extragalactic Imaging and Photometric Catalog</article-title>
+      <source>Astrophysical Journal, Letters</source>
+      <year iso-8601-date="2022-10">2022</year><month>10</month>
+      <volume>938</volume>
+      <issue>2</issue>
+      <uri>https://arxiv.org/abs/2207.11701</uri>
+      <pub-id pub-id-type="doi">10.3847/2041-8213/ac8f93</pub-id>
+      <fpage>L14</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-2022ApJ938L17Y">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Yang</surname><given-names>L.</given-names></name>
+        <name><surname>Morishita</surname><given-names>T.</given-names></name>
+        <name><surname>Leethochawalit</surname><given-names>N.</given-names></name>
+        <name><surname>Castellano</surname><given-names>M.</given-names></name>
+        <name><surname>Calabrò</surname><given-names>A.</given-names></name>
+        <name><surname>Treu</surname><given-names>T.</given-names></name>
+        <name><surname>Bonchi</surname><given-names>A.</given-names></name>
+        <name><surname>Fontana</surname><given-names>A.</given-names></name>
+        <name><surname>Mason</surname><given-names>C.</given-names></name>
+        <name><surname>Merlin</surname><given-names>E.</given-names></name>
+        <name><surname>Paris</surname><given-names>D.</given-names></name>
+        <name><surname>Trenti</surname><given-names>M.</given-names></name>
+        <name><surname>Roberts-Borsani</surname><given-names>G.</given-names></name>
+        <name><surname>Bradac</surname><given-names>M.</given-names></name>
+        <name><surname>Vanzella</surname><given-names>E.</given-names></name>
+        <name><surname>Vulcani</surname><given-names>B.</given-names></name>
+        <name><surname>Marchesini</surname><given-names>D.</given-names></name>
+        <name><surname>Ding</surname><given-names>X.</given-names></name>
+        <name><surname>Nanayakkara</surname><given-names>T.</given-names></name>
+        <name><surname>Birrer</surname><given-names>S.</given-names></name>
+        <name><surname>Glazebrook</surname><given-names>K.</given-names></name>
+        <name><surname>Jones</surname><given-names>T.</given-names></name>
+        <name><surname>Boyett</surname><given-names>K.</given-names></name>
+        <name><surname>Santini</surname><given-names>P.</given-names></name>
+        <name><surname>Strait</surname><given-names>V.</given-names></name>
+        <name><surname>Wang</surname><given-names>X.</given-names></name>
+      </person-group>
+      <article-title>Early Results from GLASS-JWST. V: The First Rest-frame Optical Size-Luminosity Relation of Galaxies at z &gt; 7</article-title>
+      <source>Astrophysical Journal, Letters</source>
+      <year iso-8601-date="2022-10">2022</year><month>10</month>
+      <volume>938</volume>
+      <issue>2</issue>
+      <uri>https://arxiv.org/abs/2207.13101</uri>
+      <pub-id pub-id-type="doi">10.3847/2041-8213/ac8803</pub-id>
+      <fpage>L17</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-2022ApJ939L28D">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Ding</surname><given-names>Xuheng</given-names></name>
+        <name><surname>Silverman</surname><given-names>John D.</given-names></name>
+        <name><surname>Onoue</surname><given-names>Masafusa</given-names></name>
+      </person-group>
+      <article-title>Opening the Era of Quasar-host Studies at High Redshift with JWST</article-title>
+      <source>Astrophysical Journal, Letters</source>
+      <year iso-8601-date="2022-11">2022</year><month>11</month>
+      <volume>939</volume>
+      <issue>2</issue>
+      <uri>https://arxiv.org/abs/2209.03359</uri>
+      <pub-id pub-id-type="doi">10.3847/2041-8213/ac9c02</pub-id>
+      <fpage>L28</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-michalewicz2023starred">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Michalewicz</surname><given-names>Kevin</given-names></name>
+        <name><surname>Millon</surname><given-names>Martin</given-names></name>
+        <name><surname>Dux</surname><given-names>Frédéric</given-names></name>
+        <name><surname>Courbin</surname><given-names>Frédéric</given-names></name>
+      </person-group>
+      <article-title>STARRED: A two-channel deconvolution method with starlet regularization</article-title>
+      <source>Journal of Open Source Software</source>
+      <year iso-8601-date="2023">2023</year>
+      <volume>8</volume>
+      <issue>85</issue>
+      <pub-id pub-id-type="doi">10.21105/joss.05340</pub-id>
+      <fpage>5340</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
