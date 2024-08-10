@@ -1,0 +1,447 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">6948</article-id>
+<article-id pub-id-type="doi">10.21105/joss.06948</article-id>
+<title-group>
+<article-title>small_gicp: Efficient and parallel algorithms for point
+cloud registration</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author" corresp="yes">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0001-5361-1428</contrib-id>
+<name>
+<surname>Koide</surname>
+<given-names>Kenji</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+<xref ref-type="corresp" rid="cor-1"><sup>*</sup></xref>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>National Institute of Advanced Industrial Science and
+Technology (AIST), Japan</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<author-notes>
+<corresp id="cor-1">* E-mail: <email></email></corresp>
+</author-notes>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2024-06-22">
+<day>22</day>
+<month>6</month>
+<year>2024</year>
+</pub-date>
+<volume>9</volume>
+<issue>100</issue>
+<fpage>6948</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2022</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>C++</kwd>
+<kwd>Python</kwd>
+<kwd>Point cloud registration</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p>Point cloud registration is a task of aligning two point clouds
+  measured by 3D ranging sensors, for example, LiDARs and range cameras.
+  Iterative point cloud registration, also known as fine registration or
+  local registration, iteratively refines the transformation between
+  point clouds starting from an initial guess. Each iteration involves a
+  proximity-based point correspondence search and the minimization of
+  the distance between corresponding points, continuing until
+  convergence. Iterative closest point (ICP) and its variants, such as
+  Generalized ICP, are representative iterative point cloud registration
+  algorithms. They are widely used in applications like autonomous
+  vehicle localization
+  (<xref alt="Kim et al., 2022" rid="ref-Kim" ref-type="bibr">Kim et
+  al., 2022</xref>), place recognition
+  (<xref alt="Wang et al., 2020" rid="ref-Wang" ref-type="bibr">Wang et
+  al., 2020</xref>), and object classification
+  (<xref alt="Izadinia &amp; Seitz, 2020" rid="ref-Izadinia" ref-type="bibr">Izadinia
+  &amp; Seitz, 2020</xref>). Since these applications often require
+  real-time or near-real-time processing, speed is a critical factor in
+  point cloud registration routines.</p>
+  <p><bold>small_gicp</bold> provides efficient and parallel algorithms
+  to create an extremely fast point cloud registration pipeline. It
+  offers parallel implementations of downsampling, nearest neighbor
+  search, local feature extraction, and registration to accelerate the
+  entire process. small_gicp is implemented as a header-only Clibrary
+  with minimal dependencies to offer efficiency, portability, and
+  customizability.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p>There are several point cloud processing libraries, and PCL
+  (<xref alt="Rusu &amp; Cousins, 2011" rid="ref-Rusu" ref-type="bibr">Rusu
+  &amp; Cousins, 2011</xref>), Open3D
+  (<xref alt="Zhou et al., 2018" rid="ref-Zhou" ref-type="bibr">Zhou et
+  al., 2018</xref>), libpointmatcher
+  (<xref alt="Pomerleau et al., 2013" rid="ref-Pomerleau" ref-type="bibr">Pomerleau
+  et al., 2013</xref>) are commonly used in real-time applications owing
+  to their performant implementations. Although they offer numerous
+  functionalities, including those required for point cloud
+  registration, they present several challenges for practical
+  applications and scientific research.</p>
+  <p><bold>Processing speed:</bold> A typical point cloud registration
+  pipeline includes processes such as downsampling, nearest neighbor
+  search (e.g., KdTree construction), local feature estimation, and
+  registration error minimization. PCL and Open3D support
+  multi-threading only for parts of these processes (feature estimation
+  and registration error minimization), with the remaining
+  single-threaded parts often limiting the overall processing speed.
+  Additionally, the multi-thread implementations in these libraries can
+  have significant overheads, reducing scalability to many-core CPUs.
+  These issues make it difficult to meet real-time processing
+  requirements, especially on low-specification CPUs. It is also
+  difficult to fully utilize the computational power of modern high-end
+  CPUs.</p>
+  <p><bold>Customizability:</bold> Customizing the internal workings
+  (e.g., replacing the registration cost function or changing the
+  correspondence search method) of existing implementations is
+  challenging due to hard-coded processes. This poses a significant
+  hurdle for research and development, where testing new cost functions
+  and search algorithms is essential.</p>
+  <p><bold>small_gicp:</bold> To address these issues and accelerate the
+  development of point cloud registration-related systems, we designed
+  small_gicp with the following features:</p>
+  <list list-type="bullet">
+    <list-item>
+      <p>Fully parallelized point cloud preprocessing and registration
+      algorithms with minimal overhead, offering up to 2x speed gain in
+      single-threaded scenarios and better scalability in multi-core
+      environments.</p>
+    </list-item>
+    <list-item>
+      <p>A modular and customizable framework using Ctemplates, allowing
+      easy customization of the algorithm’s internal workings while
+      maintaining efficiency.</p>
+    </list-item>
+    <list-item>
+      <p>A header-only Clibrary implementation for easy integration into
+      user projects, with Python bindings provided for collaborative use
+      with other libraries (e.g., Open3D).</p>
+    </list-item>
+  </list>
+</sec>
+<sec id="functionalities">
+  <title>Functionalities</title>
+  <p><bold>small_gicp</bold> implements several preprocessing algorithms
+  related to point cloud registration, and ICP variant algorithms
+  (point-to-point ICP, point-to-plane ICP, and Generalized ICP based on
+  distribution-to-distribution correspondence).</p>
+  <list list-type="bullet">
+    <list-item>
+      <p>Downsampling</p>
+      <list list-type="bullet">
+        <list-item>
+          <p>Voxelgrid sampling</p>
+        </list-item>
+        <list-item>
+          <p>Random sampling</p>
+        </list-item>
+      </list>
+    </list-item>
+    <list-item>
+      <p>Nearest neighbor search and point accumulation structures</p>
+      <list list-type="bullet">
+        <list-item>
+          <p>KdTree</p>
+        </list-item>
+        <list-item>
+          <p>Linear iVox (supports incremental points insertion and
+          LRU-cache-based voxel deletion)
+          (<xref alt="Bai et al., 2022" rid="ref-Bai" ref-type="bibr">Bai
+          et al., 2022</xref>)</p>
+        </list-item>
+        <list-item>
+          <p>Gaussian voxelmap (supports incremental points insertion
+          and LRU-cache-based voxel deletion)
+          (<xref alt="Kenji Koide &amp; Banno, 2021" rid="ref-Koide" ref-type="bibr">Kenji
+          Koide &amp; Banno, 2021</xref>)</p>
+        </list-item>
+      </list>
+    </list-item>
+    <list-item>
+      <p>Registration error functions</p>
+      <list list-type="bullet">
+        <list-item>
+          <p>Point-to-point ICP error
+          (<xref alt="Zhang, 1994" rid="ref-Zhang" ref-type="bibr">Zhang,
+          1994</xref>)</p>
+        </list-item>
+        <list-item>
+          <p>Point-to-plane ICP error</p>
+        </list-item>
+        <list-item>
+          <p>Generalized ICP error
+          (<xref alt="Segal et al., 2009" rid="ref-Segal" ref-type="bibr">Segal
+          et al., 2009</xref>)</p>
+        </list-item>
+        <list-item>
+          <p>Robust kernels</p>
+        </list-item>
+      </list>
+    </list-item>
+    <list-item>
+      <p>Least squares optimizers</p>
+      <list list-type="bullet">
+        <list-item>
+          <p>GaussNewton optimizer</p>
+        </list-item>
+        <list-item>
+          <p>LevenbergMarquardt optimizer</p>
+        </list-item>
+      </list>
+    </list-item>
+  </list>
+</sec>
+<sec id="benchmark-results">
+  <title>Benchmark results</title>
+  <list list-type="bullet">
+    <list-item>
+      <p>Single-threaded and multi-threaded (6 threads)
+      <monospace>small_gicp::voxelgrid_sampling</monospace> are
+      approximately 1.3x and 3.2x faster than
+      <monospace>pcl::VoxelGrid</monospace>, respectively.</p>
+    </list-item>
+    <list-item>
+      <p>Multi-threaded construction of
+      <monospace>small_gicp::KdTree</monospace> can be up to 6x faster
+      than that of <monospace>nanoflann</monospace>.</p>
+    </list-item>
+    <list-item>
+      <p>Single-threaded <monospace>small_gicp::GICP</monospace> is
+      about 2.4x faster than <monospace>pcl::GICP</monospace>, with the
+      multi-threaded version showing better scalability.</p>
+    </list-item>
+  </list>
+  <p>More details can be found at
+  <ext-link ext-link-type="uri" xlink:href="https://github.com/koide3/small_gicp/blob/master/BENCHMARK.md">https://github.com/koide3/small_gicp/blob/master/BENCHMARK.md</ext-link>.</p>
+</sec>
+<sec id="future-work">
+  <title>Future work</title>
+  <p>The efficiency of nearest neighbor search significantly impacts the
+  overall performance of point cloud registration. While small_gicp
+  currently offers efficient and parallel implementations of KdTree and
+  voxelmap, which are general and useful in many situations, there are
+  other nearest neighbor search methods that can be more efficient under
+  mild assumptions about the point cloud measurement model (e.g.,
+  projective search
+  (<xref alt="Serafin &amp; Grisetti, 2015" rid="ref-Serafin" ref-type="bibr">Serafin
+  &amp; Grisetti, 2015</xref>)). We plan to implement these alternative
+  neighbor search algorithms to further enhance the speed of the point
+  cloud registration process. The design of small_gicp, where nearest
+  neighbor search and pose optimization are decoupled, facilitates the
+  easy integration of these new search algorithms.</p>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>This work was supported in part by JSPS KAKENHI Grant Number
+  23K16979.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <title></title>
+  <ref id="ref-Rusu">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Rusu</surname><given-names>Radu Bogdan</given-names></name>
+        <name><surname>Cousins</surname><given-names>Steve</given-names></name>
+      </person-group>
+      <article-title>3D is here: Point cloud library (PCL)</article-title>
+      <source>IEEE International Conference on Robotics and Automation (ICRA2011)</source>
+      <publisher-loc>Shanghai, China</publisher-loc>
+      <year iso-8601-date="2011-05">2011</year><month>05</month>
+      <pub-id pub-id-type="doi">10.1109/ICRA.2011.5980567</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-Zhou">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Zhou</surname><given-names>Qian-Yi</given-names></name>
+        <name><surname>Park</surname><given-names>Jaesik</given-names></name>
+        <name><surname>Koltun</surname><given-names>Vladlen</given-names></name>
+      </person-group>
+      <article-title>Open3D: A modern library for 3D data processing</article-title>
+      <source>arXiv:1801.09847</source>
+      <year iso-8601-date="2018">2018</year>
+      <pub-id pub-id-type="doi">10.48550/arXiv.1801.09847</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-Bai">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Bai</surname><given-names>Chunge</given-names></name>
+        <name><surname>Xiao</surname><given-names>Tao</given-names></name>
+        <name><surname>Chen</surname><given-names>Yajie</given-names></name>
+        <name><surname>Wang</surname><given-names>Haoqian</given-names></name>
+        <name><surname>Zhang</surname><given-names>Fang</given-names></name>
+        <name><surname>Gao</surname><given-names>Xiang</given-names></name>
+      </person-group>
+      <article-title>Faster-LIO: Lightweight tightly coupled lidar-inertial odometry using parallel sparse incremental voxels</article-title>
+      <source>IEEE Robotics and Automation Letters</source>
+      <year iso-8601-date="2022">2022</year>
+      <volume>7</volume>
+      <issue>2</issue>
+      <pub-id pub-id-type="doi">10.1109/LRA.2022.3152830</pub-id>
+      <fpage>4861</fpage>
+      <lpage>4868</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Koide">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Kenji Koide</surname><given-names>Shuji Oishi</given-names><suffix>Masashi Yokozuka</suffix></name>
+        <name><surname>Banno</surname><given-names>Atsuhiko</given-names></name>
+      </person-group>
+      <article-title>Voxelized GICP for fast and accurate 3D point cloud registration</article-title>
+      <source>IEEE international conference on robotics and automation (ICRA2021)</source>
+      <year iso-8601-date="2021-05">2021</year><month>05</month>
+      <pub-id pub-id-type="doi">10.1109/ICRA48506.2021.9560835</pub-id>
+      <fpage>11054</fpage>
+      <lpage>11059</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Zhang">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Zhang</surname><given-names>Zhengyou</given-names></name>
+      </person-group>
+      <article-title>Iterative point matching for registration of free-form curves and surfaces</article-title>
+      <source>International journal of computer vision</source>
+      <publisher-name>Springer</publisher-name>
+      <year iso-8601-date="1994">1994</year>
+      <volume>13</volume>
+      <issue>2</issue>
+      <pub-id pub-id-type="doi">10.1007/BF01427149</pub-id>
+      <fpage>119</fpage>
+      <lpage>152</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Segal">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Segal</surname><given-names>Aleksandr</given-names></name>
+        <name><surname>Haehnel</surname><given-names>Dirk</given-names></name>
+        <name><surname>Thrun</surname><given-names>Sebastian</given-names></name>
+      </person-group>
+      <article-title>Generalized-ICP</article-title>
+      <source>Robotics: Science and systems</source>
+      <year iso-8601-date="2009">2009</year>
+      <volume>2</volume>
+      <pub-id pub-id-type="doi">10.15607/rss.2009.v.021</pub-id>
+      <fpage>435</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Wang">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Wang</surname><given-names>Han</given-names></name>
+        <name><surname>Wang</surname><given-names>Chen</given-names></name>
+        <name><surname>Xie</surname><given-names>Lihua</given-names></name>
+      </person-group>
+      <article-title>Intensity scan context: Coding intensity and geometry relations for loop closure detection</article-title>
+      <source>IEEE international conference on robotics and automation (ICRA2020)</source>
+      <year iso-8601-date="2020">2020</year>
+      <pub-id pub-id-type="doi">10.1109/ICRA40945.2020.9196764</pub-id>
+      <fpage>2095</fpage>
+      <lpage>2101</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Izadinia">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Izadinia</surname><given-names>Hamid</given-names></name>
+        <name><surname>Seitz</surname><given-names>Steven M</given-names></name>
+      </person-group>
+      <article-title>Scene recomposition by learning-based ICP</article-title>
+      <source>IEEE/CVF conference on computer vision and pattern recognition (CVPR2020)</source>
+      <year iso-8601-date="2020">2020</year>
+      <pub-id pub-id-type="doi">10.1109/cvpr42600.2020.00101</pub-id>
+      <fpage>930</fpage>
+      <lpage>939</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Kim">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Kim</surname><given-names>Kyuwon</given-names></name>
+        <name><surname>Im</surname><given-names>Junhyuck</given-names></name>
+        <name><surname>Jee</surname><given-names>Gyuin</given-names></name>
+      </person-group>
+      <article-title>Tunnel facility based vehicle localization in highway tunnel using 3D LIDAR</article-title>
+      <source>IEEE Transactions on Intelligent Transportation Systems</source>
+      <year iso-8601-date="2022">2022</year>
+      <volume>23</volume>
+      <issue>10</issue>
+      <pub-id pub-id-type="doi">10.1109/TITS.2022.3160235</pub-id>
+      <fpage>17575</fpage>
+      <lpage>17583</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Pomerleau">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Pomerleau</surname><given-names>François</given-names></name>
+        <name><surname>Colas</surname><given-names>Francis</given-names></name>
+        <name><surname>Siegwart</surname><given-names>Roland</given-names></name>
+        <name><surname>Magnenat</surname><given-names>Stéphane</given-names></name>
+      </person-group>
+      <article-title>Comparing ICP variants on real-world data sets</article-title>
+      <source>Autonomous Robots</source>
+      <year iso-8601-date="2013-02">2013</year><month>02</month>
+      <volume>34</volume>
+      <issue>3</issue>
+      <pub-id pub-id-type="doi">10.1007/s10514-013-9327-2</pub-id>
+      <fpage>133</fpage>
+      <lpage>148</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Serafin">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Serafin</surname><given-names>Jacopo</given-names></name>
+        <name><surname>Grisetti</surname><given-names>Giorgio</given-names></name>
+      </person-group>
+      <article-title>NICP: Dense normal based point cloud registration</article-title>
+      <source>IEEE/RSJ international conference on intelligent robots and systems (IROS2015)</source>
+      <year iso-8601-date="2015">2015</year>
+      <pub-id pub-id-type="doi">10.1109/IROS.2015.7353455</pub-id>
+      <fpage>742</fpage>
+      <lpage>749</lpage>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
