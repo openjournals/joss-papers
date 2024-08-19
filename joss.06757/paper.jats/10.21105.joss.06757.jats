@@ -1,0 +1,596 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">6757</article-id>
+<article-id pub-id-type="doi">10.21105/joss.06757</article-id>
+<title-group>
+<article-title>Satisfiability.jl: Satisfiability Modulo Theories in
+Julia</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author" corresp="yes">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0009-0001-2710-469X</contrib-id>
+<name>
+<surname>Soroka</surname>
+<given-names>Emiko</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+<xref ref-type="corresp" rid="cor-1"><sup>*</sup></xref>
+</contrib>
+<contrib contrib-type="author" corresp="yes">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0002-7238-9663</contrib-id>
+<name>
+<surname>Kochenderfer</surname>
+<given-names>Mykel J.</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+<xref ref-type="corresp" rid="cor-2"><sup>*</sup></xref>
+</contrib>
+<contrib contrib-type="author" corresp="yes">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0002-1783-5309</contrib-id>
+<name>
+<surname>Lall</surname>
+<given-names>Sanjay</given-names>
+</name>
+<xref ref-type="aff" rid="aff-2"/>
+<xref ref-type="corresp" rid="cor-3"><sup>*</sup></xref>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Stanford University Department of Aeronautics and
+Astronautics, Stanford CA 94305, USA</institution>
+</institution-wrap>
+</aff>
+<aff id="aff-2">
+<institution-wrap>
+<institution>Stanford University Department of Electrical Engineering,
+Stanford CA 94305, USA</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<author-notes>
+<corresp id="cor-1">* E-mail: <email></email></corresp>
+<corresp id="cor-2">* E-mail: <email></email></corresp>
+<corresp id="cor-3">* E-mail: <email></email></corresp>
+</author-notes>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2024-03-01">
+<day>1</day>
+<month>3</month>
+<year>2024</year>
+</pub-date>
+<volume>9</volume>
+<issue>100</issue>
+<fpage>6757</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2022</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>Julia</kwd>
+<kwd>formal verification</kwd>
+<kwd>satisfiability modulo theories</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p>Theorem proving software is one of the core tools in formal
+  verification, model checking, and synthesis. Modern provers solve
+  satisfiability modulo theories (SMT) problems encompassing
+  propositional logic, integer and real arithmetic, floating-point
+  arithmetic, strings, and data structures such as bit vectors
+  (<xref alt="De Moura &amp; Bjørner, 2011" rid="ref-de2011satisfiabilityintro" ref-type="bibr">De
+  Moura &amp; Bjørner, 2011</xref>). Additionally, new theories and
+  heuristics are continually being developed, increasing the practical
+  utility of SMT
+  (<xref alt="Bjørner et al., 2023" rid="ref-bjorner2023satisfiability" ref-type="bibr">Bjørner
+  et al., 2023</xref>;
+  <xref alt="Saouli et al., 2023" rid="ref-saouli2023cosysel" ref-type="bibr">Saouli
+  et al., 2023</xref>).</p>
+  <p>This paper introduces <monospace>Satisfiability.jl</monospace>, a
+  package providing a high-level representation for SMT formulae
+  including propositional logic, integer and real-valued arithmetic, and
+  bit vectors in Julia
+  (<xref alt="Bezanson et al., 2017" rid="ref-bezanson2017julia" ref-type="bibr">Bezanson
+  et al., 2017</xref>). <monospace>Satisfiability.jl</monospace> is the
+  first published package for SMT solving in idiomatic Julia, taking
+  advantage of language features such as multiple dispatch and
+  metaprogramming to simplify the process of specifying and solving an
+  SMT problem.</p>
+  <sec id="the-smt-lib-specification-language">
+    <title>The SMT-LIB specification language</title>
+    <p>SMT-LIB is a low-level specification language designed to
+    standardize interactions with theorem
+    provers<xref ref-type="fn" rid="fn1">1</xref>. (To disambiguate
+    between the SMT (satisfiability modulo theories) and this
+    specification language, we always refer to the language as SMT-LIB.)
+    There are both in-depth treatments of computational logic and
+    associated decision procedures
+    (<xref alt="Bradley &amp; Manna, 2007" rid="ref-bradley2007calculus" ref-type="bibr">Bradley
+    &amp; Manna, 2007</xref>;
+    <xref alt="Kroening &amp; Strichman, 2016" rid="ref-kroening2016decision" ref-type="bibr">Kroening
+    &amp; Strichman, 2016</xref>) and shorter overviews of SMT
+    (<xref alt="De Moura &amp; Bjørner, 2011" rid="ref-de2011satisfiabilityintro" ref-type="bibr">De
+    Moura &amp; Bjørner, 2011</xref>).</p>
+    <p>SMT-LIB uses a Lisp-like syntax designed to simplify input
+    parsing, providing an interactive interface for theorem proving
+    similar to Julia’s REPL. The language supports declaring variables,
+    defining functions, making assertions (requiring that a Boolean
+    predicate be true), and issuing solver commands. However, a
+    limitation of SMT-LIB is that many commands are only valid in
+    specific solver modes. The command
+    <monospace>(get-model)</monospace>, for example, retrieves the
+    satisfying assignment for a predicate and is only valid in
+    <monospace>sat</monospace> mode, while
+    <monospace>(get-unsat-core)</monospace> is only valid in
+    <monospace>unsat</monospace> mode. Issuing a command in the wrong
+    mode yields an error, thus many useful sequences of SMT-LIB commands
+    cannot be scripted in advance.</p>
+    <p>For a full description of SMT-LIB, readers are referred to the
+    standard
+    (<xref alt="Barrett et al., 2017" rid="ref-smtlib2" ref-type="bibr">Barrett
+    et al., 2017</xref>). Because our software provides an abstraction
+    on top of SMT-LIB (thus offering compatibility with different SMT
+    solver backends), we refrain from an in-depth description of the
+    language. Knowledge of SMT-LIB is not required to use
+    <monospace>Satisfiability.jl</monospace>.</p>
+  </sec>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p>Many theorem provers have been developed over the years. Some
+  notable provers include Z3
+  (<xref alt="Moura &amp; Bjørner, 2008" rid="ref-z3" ref-type="bibr">Moura
+  &amp; Bjørner, 2008</xref>), PicoSAT
+  (<xref alt="Biere, 2008" rid="ref-biere2008picosat" ref-type="bibr">Biere,
+  2008</xref>), and CVC5
+  (<xref alt="Barbosa et al., 2022" rid="ref-cvc5" ref-type="bibr">Barbosa
+  et al., 2022</xref>), all of which expose APIs in popular languages
+  including C++ and Python. However, provers are low-level tools
+  intended to be integrated into other software, necessitating the
+  development of higher-level software to improve usability. Such
+  packages been published for other common languages:
+  <monospace>PySMT</monospace> uses both solver-specific APIs and the
+  SMT-LIB language to interact with a variety of solvers
+  (<xref alt="Gario &amp; Micheli, 2015" rid="ref-pysmt2015" ref-type="bibr">Gario
+  &amp; Micheli, 2015</xref>). <monospace>JavaSMT</monospace> and
+  <monospace>ScalaSMT</monospace> are similar
+  (<xref alt="Baier et al., 2021" rid="ref-baier2021javasmt" ref-type="bibr">Baier
+  et al., 2021</xref>;
+  <xref alt="Cassez &amp; Sloane, 2017" rid="ref-cassez2017scalasmt" ref-type="bibr">Cassez
+  &amp; Sloane, 2017</xref>). In C++, the SMT-Switch library exposes
+  many of the underlying SMT-LIB commands
+  (<xref alt="Mann et al., 2021" rid="ref-mann2021smt" ref-type="bibr">Mann
+  et al., 2021</xref>).</p>
+  <p>By comparison, SMT solving in Julia has historically required the
+  use of wrapped C++ APIs to access specific solvers. Z3 and PicoSAT,
+  among others, provide Julia APIs through this method, allowing access
+  to some or all functionality at a lower level of abstraction
+  (<xref alt="Bolewski et al., 2020" rid="ref-picosat_jl" ref-type="bibr">Bolewski
+  et al., 2020</xref>). However, wrapped APIs often provide interfaces
+  that do not match the idioms or best practices of a specific language.
+  Thus a native Julia front-end for SMT solving has the potential to
+  greatly improve the accessibility of formal verification in Julia.
+  <monospace>Satisfiability.jl</monospace> is the first such tool to be
+  published in the Julia ecosystem. It facilitates the construction of
+  SMT formulae and the automatic generation of SMT-LIB statements, as
+  well as programmatic interaction with SMT-LIB compliant theorem
+  provers.</p>
+</sec>
+<sec id="functionality">
+  <title>Functionality</title>
+  <p>Satisfiability.jl uses multiple dispatch to optimize and simplify
+  operations over constants, the type system to enforce the correctness
+  of SMT expressions, and Julia’s system libraries to interact with
+  SMT-LIB compliant solvers.</p>
+  <list list-type="bullet">
+    <list-item>
+      <p>Variables are defined using macros, similarly to JuMP.jl
+      (<xref alt="Lubin et al., 2023" rid="ref-Lubin2023" ref-type="bibr">Lubin
+      et al., 2023</xref>). Expressions are constructed from variables
+      and SMT-LIB operators. Where applicable, we define the appropriate
+      mathematical operator symbols using Julia’s operator precedence
+      rules and Unicode support. We also use the built-in array
+      functionality to broadcast operators across arrays of expressions,
+      a feature that is not available in the underlying SMT-LIB
+      language.</p>
+    </list-item>
+    <list-item>
+      <p>Constants are automatically wrapped. Julia’s native
+      <monospace>Bool</monospace>, <monospace>Int</monospace>, and
+      <monospace>Float64</monospace> types interoperate with our
+      <monospace>BoolExpr</monospace>, <monospace>IntExpr</monospace>
+      and <monospace>RealExpr</monospace> types following type promotion
+      rules. Numeric constants are simplified and promoted; for example,
+      <monospace>true + 2</monospace> is stored as integer
+      <monospace>3</monospace> and <monospace>1 + 2.5</monospace> is
+      promoted to <monospace>3.5</monospace>. Logical expressions
+      involving constants are simplified using multiple dispatch to
+      handle special cases.</p>
+    </list-item>
+    <list-item>
+      <p>We use Julia’s type system to prevent expressions with
+      incompatible types from being constructed and to automatically
+      convert compatible types following Z3’s promotion rules. For
+      example, adding a Boolean <monospace>z</monospace> and integer
+      <monospace>a</monospace> yields the expression
+      <monospace>ite(z, 1, 0) + a</monospace> (where
+      <monospace>ite</monospace> is the if-then-else operator).</p>
+    </list-item>
+    <list-item>
+      <p>An uninterpreted function is a function where the input-output
+      mapping is not known. When uninterpreted functions appear in SMT
+      formulae, the task of the solver is to construct a representation
+      of the function using operators in the appropriate theories, or to
+      determine that no function exists (the formula is unsatisfiable).
+      <monospace>Satisfiability.jl</monospace> implements uninterpreted
+      functions using Julia’s metaprogramming capabilities to generate
+      correctly typed functions returning either SMT expressions or (if
+      a satisfying assignment is known), the correct value when
+      evaluating a constant.</p>
+    </list-item>
+  </list>
+  <sec id="interacting-with-solvers">
+    <title>Interacting with solvers</title>
+    <p>Internally, our package launches a solver as an external process
+    and interacts with it via input and output pipes. This supports the
+    interactive nature of SMT-LIB, which necessitates a two-way
+    connection with the solver, and provides several benefits. By
+    transparently documenting how our software manages sessions with
+    solvers, we eliminate many of the difficulties that arise when
+    calling software dependencies. We also unify the process of
+    installing solvers for <monospace>Satisfiability.jl</monospace>
+    across operating systems; the user simply ensures the solver can be
+    invoked from their machine’s command line. Users may customize the
+    command used to invoke a solver, providing a single mechanism for
+    interacting with any SMT-LIB compatible solver; customizing options
+    using command line flags; and working around machine-specific issues
+    such as a solver being available under a different name or at a
+    specific path.</p>
+  </sec>
+  <sec id="interactive-solving">
+    <title>Interactive solving</title>
+    <p>SMT-LIB was designed as an interactive interface, allowing users
+    to modify the assertions of an SMT problem and issue follow-up
+    commands after a <monospace>sat</monospace> or
+    <monospace>unsat</monospace> response.
+    <monospace>Satisfiability.jl</monospace> provides an interactive
+    mode for these use cases, in which users can manage the solver
+    assertion stack using <monospace>push!</monospace>,
+    <monospace>pop!</monospace>, and <monospace>assert!</monospace>
+    commands.</p>
+  </sec>
+</sec>
+<sec id="future-work">
+  <title>Future work</title>
+  <p>Two planned improvements to
+  <monospace>Satisfiability.jl</monospace> include adding support for
+  the remaining SMT-LIB standard theories and adding the ability to
+  automatically determine the <italic>logic type</italic> of an
+  assertion, a property describing what types of variables and
+  expressions are present, which is used by solvers to determine the
+  best algorithm for a particular problem.</p>
+</sec>
+<sec id="acknowledgments">
+  <title>Acknowledgments</title>
+  <p>The software architecture of
+  <monospace>Satisfiability.jl</monospace> was inspired by
+  <monospace>Convex.jl</monospace> and <monospace>JuMP.jl</monospace>
+  (<xref alt="Lubin et al., 2023" rid="ref-Lubin2023" ref-type="bibr">Lubin
+  et al., 2023</xref>;
+  <xref alt="Udell et al., 2014" rid="ref-convexjl" ref-type="bibr">Udell
+  et al., 2014</xref>). Professor Clark Barrett provided valuable advice
+  on understanding the SMT-LIB standard and on interface design for SMT
+  solving.</p>
+  <p>This research was supported by Ford Motor Co. under the
+  Stanford-Ford Alliance, agreement number 235158.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <title></title>
+  <ref id="ref-convexjl">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Udell</surname><given-names>Madeleine</given-names></name>
+        <name><surname>Mohan</surname><given-names>Karanveer</given-names></name>
+        <name><surname>Zeng</surname><given-names>David</given-names></name>
+        <name><surname>Hong</surname><given-names>Jenny</given-names></name>
+        <name><surname>Diamond</surname><given-names>Steven</given-names></name>
+        <name><surname>Boyd</surname><given-names>Stephen</given-names></name>
+      </person-group>
+      <article-title>Convex optimization in Julia</article-title>
+      <source>SC14 Workshop on High Performance Technical Computing in Dynamic Languages</source>
+      <year iso-8601-date="2014">2014</year>
+      <uri>https://arxiv.org/abs/1410.4821</uri>
+      <pub-id pub-id-type="doi">10.48550/arXiv.1410.4821</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-Lubin2023">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Lubin</surname><given-names>Miles</given-names></name>
+        <name><surname>Dowson</surname><given-names>Oscar</given-names></name>
+        <name><surname>Garcia</surname><given-names>Joaquim Dias</given-names></name>
+        <name><surname>Huchette</surname><given-names>Joey</given-names></name>
+        <name><surname>Legat</surname><given-names>Benoît</given-names></name>
+        <name><surname>Vielma</surname><given-names>Juan Pablo</given-names></name>
+      </person-group>
+      <article-title>JuMP 1.0: Recent improvements to a modeling language for mathematical optimization</article-title>
+      <source>Mathematical Programming Computation</source>
+      <year iso-8601-date="2023">2023</year>
+      <pub-id pub-id-type="doi">10.1007/s12532-023-00239-3</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-bradley2007calculus">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Bradley</surname><given-names>Aaron R</given-names></name>
+        <name><surname>Manna</surname><given-names>Zohar</given-names></name>
+      </person-group>
+      <source>The calculus of computation: Decision procedures with applications to verification</source>
+      <publisher-name>Springer Science &amp; Business Media</publisher-name>
+      <year iso-8601-date="2007">2007</year>
+    </element-citation>
+  </ref>
+  <ref id="ref-kroening2016decision">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Kroening</surname><given-names>Daniel</given-names></name>
+        <name><surname>Strichman</surname><given-names>Ofer</given-names></name>
+      </person-group>
+      <source>Decision procedures</source>
+      <publisher-name>Springer</publisher-name>
+      <year iso-8601-date="2016">2016</year>
+    </element-citation>
+  </ref>
+  <ref id="ref-de2011satisfiabilityintro">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>De Moura</surname><given-names>Leonardo</given-names></name>
+        <name><surname>Bjørner</surname><given-names>Nikolaj</given-names></name>
+      </person-group>
+      <article-title>Satisfiability modulo theories: Introduction and applications</article-title>
+      <source>Communications of the ACM</source>
+      <publisher-name>ACM New York, NY, USA</publisher-name>
+      <year iso-8601-date="2011">2011</year>
+      <volume>54</volume>
+      <issue>9</issue>
+      <pub-id pub-id-type="doi">10.1145/1995376.1995394</pub-id>
+      <fpage>69</fpage>
+      <lpage>77</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-pysmt2015">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Gario</surname><given-names>Marco</given-names></name>
+        <name><surname>Micheli</surname><given-names>Andrea</given-names></name>
+      </person-group>
+      <article-title>PySMT: A solver-agnostic library for fast prototyping of SMT-based algorithms</article-title>
+      <source>SMT workshop 2015</source>
+      <year iso-8601-date="2015">2015</year>
+    </element-citation>
+  </ref>
+  <ref id="ref-baier2021javasmt">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Baier</surname><given-names>Daniel</given-names></name>
+        <name><surname>Beyer</surname><given-names>Dirk</given-names></name>
+        <name><surname>Friedberger</surname><given-names>Karlheinz</given-names></name>
+      </person-group>
+      <article-title>JavaSMT 3: Interacting with SMT solvers in java</article-title>
+      <source>International conference on computer aided verification</source>
+      <publisher-name>Springer</publisher-name>
+      <year iso-8601-date="2021">2021</year>
+      <pub-id pub-id-type="doi">10.1007/978-3-030-81688-9_9</pub-id>
+      <fpage>195</fpage>
+      <lpage>208</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-z3">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Moura</surname><given-names>Leonardo Mendonça de</given-names></name>
+        <name><surname>Bjørner</surname><given-names>Nikolaj S.</given-names></name>
+      </person-group>
+      <article-title>Z3: An efficient SMT solver</article-title>
+      <source>International conference on tools and algorithms for construction and analysis of systems</source>
+      <year iso-8601-date="2008">2008</year>
+      <pub-id pub-id-type="doi">10.1007/978-3-540-78800-3_24</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-cvc5">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Barbosa</surname><given-names>Haniel</given-names></name>
+        <name><surname>Barrett</surname><given-names>Clark W.</given-names></name>
+        <name><surname>Brain</surname><given-names>Martin</given-names></name>
+        <name><surname>Kremer</surname><given-names>Gereon</given-names></name>
+        <name><surname>Lachnitt</surname><given-names>Hanna</given-names></name>
+        <name><surname>Mann</surname><given-names>Makai</given-names></name>
+        <name><surname>Mohamed</surname><given-names>Abdalrhman</given-names></name>
+        <name><surname>Mohamed</surname><given-names>Mudathir</given-names></name>
+        <name><surname>Niemetz</surname><given-names>Aina</given-names></name>
+        <name><surname>Nötzli</surname><given-names>Andres</given-names></name>
+        <name><surname>Ozdemir</surname><given-names>Alex</given-names></name>
+        <name><surname>Preiner</surname><given-names>Mathias</given-names></name>
+        <name><surname>Reynolds</surname><given-names>Andrew</given-names></name>
+        <name><surname>Sheng</surname><given-names>Ying</given-names></name>
+        <name><surname>Tinelli</surname><given-names>Cesare</given-names></name>
+        <name><surname>Zohar</surname><given-names>Yoni</given-names></name>
+      </person-group>
+      <article-title>cvc5: A versatile and industrial-strength SMT solver</article-title>
+      <source>Tools and algorithms for the construction and analysis of systems TACAS 2022</source>
+      <publisher-name>Springer</publisher-name>
+      <year iso-8601-date="2022">2022</year>
+      <volume>13243</volume>
+      <uri>https://doi.org/10.1007/978-3-030-99524-9_24</uri>
+      <pub-id pub-id-type="doi">10.1007/978-3-030-99524-9_24</pub-id>
+      <fpage>415</fpage>
+      <lpage>442</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-biere2008picosat">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Biere</surname><given-names>Armin</given-names></name>
+      </person-group>
+      <article-title>PicoSAT essentials</article-title>
+      <source>Journal on Satisfiability, Boolean Modeling and Computation</source>
+      <publisher-name>IOS Press</publisher-name>
+      <year iso-8601-date="2008">2008</year>
+      <volume>4</volume>
+      <issue>2-4</issue>
+      <pub-id pub-id-type="doi">10.3233/SAT190039</pub-id>
+      <fpage>75</fpage>
+      <lpage>97</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-cassez2017scalasmt">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Cassez</surname><given-names>Franck</given-names></name>
+        <name><surname>Sloane</surname><given-names>Anthony M</given-names></name>
+      </person-group>
+      <article-title>ScalaSMT: Satisfiability modulo theory in scala (tool paper)</article-title>
+      <source>Proceedings of the 8th ACM SIGPLAN international symposium on scala</source>
+      <year iso-8601-date="2017">2017</year>
+      <pub-id pub-id-type="doi">10.1145/3136000.3136004</pub-id>
+      <fpage>51</fpage>
+      <lpage>55</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-picosat_jl">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Bolewski</surname><given-names>Jake</given-names></name>
+        <name><surname>Lucibello</surname><given-names>Carlo</given-names></name>
+        <name><surname>Bouton</surname><given-names>Maxime</given-names></name>
+      </person-group>
+      <article-title>PicoSAT.jl</article-title>
+      <publisher-name>Stanford Intelligent Systems Laboratory</publisher-name>
+      <year iso-8601-date="2020-07">2020</year><month>07</month>
+      <uri>https://github.com/sisl/PicoSAT.jl</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-smtlib2">
+    <element-citation publication-type="report">
+      <person-group person-group-type="author">
+        <name><surname>Barrett</surname><given-names>Clark</given-names></name>
+        <name><surname>Fontaine</surname><given-names>Pascal</given-names></name>
+        <name><surname>Tinelli</surname><given-names>Cesare</given-names></name>
+      </person-group>
+      <article-title>The SMT-LIB Standard: Version 2.6</article-title>
+      <publisher-name>Department of Computer Science, The University of Iowa</publisher-name>
+      <year iso-8601-date="2017">2017</year>
+    </element-citation>
+  </ref>
+  <ref id="ref-bjorner2023satisfiability">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Bjørner</surname><given-names>Nikolaj</given-names></name>
+        <name><surname>Eisenhofer</surname><given-names>Clemens</given-names></name>
+        <name><surname>Kovács</surname><given-names>Laura</given-names></name>
+      </person-group>
+      <article-title>Satisfiability modulo custom theories in Z3</article-title>
+      <source>International conference on verification, model checking, and abstract interpretation</source>
+      <publisher-name>Springer</publisher-name>
+      <year iso-8601-date="2023">2023</year>
+      <pub-id pub-id-type="doi">10.1007/978-3-031-24950-1_5</pub-id>
+      <fpage>91</fpage>
+      <lpage>105</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-saouli2023cosysel">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Saouli</surname><given-names>Sabrine</given-names></name>
+        <name><surname>Baarir</surname><given-names>Souheib</given-names></name>
+        <name><surname>Dutheillet</surname><given-names>Claude</given-names></name>
+        <name><surname>Devriendt</surname><given-names>Jo</given-names></name>
+      </person-group>
+      <article-title>CosySEL: Improving SAT solving using local symmetries</article-title>
+      <source>International conference on verification, model checking, and abstract interpretation</source>
+      <publisher-name>Springer</publisher-name>
+      <year iso-8601-date="2023">2023</year>
+      <pub-id pub-id-type="doi">10.1007/978-3-031-24950-1_12</pub-id>
+      <fpage>252</fpage>
+      <lpage>266</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-bezanson2017julia">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Bezanson</surname><given-names>Jeff</given-names></name>
+        <name><surname>Edelman</surname><given-names>Alan</given-names></name>
+        <name><surname>Karpinski</surname><given-names>Stefan</given-names></name>
+        <name><surname>Shah</surname><given-names>Viral B</given-names></name>
+      </person-group>
+      <article-title>Julia: A fresh approach to numerical computing</article-title>
+      <source>SIAM review</source>
+      <publisher-name>SIAM</publisher-name>
+      <year iso-8601-date="2017">2017</year>
+      <volume>59</volume>
+      <issue>1</issue>
+      <pub-id pub-id-type="doi">10.1137/141000671</pub-id>
+      <fpage>65</fpage>
+      <lpage>98</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-mann2021smt">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Mann</surname><given-names>Makai</given-names></name>
+        <name><surname>Wilson</surname><given-names>Amalee</given-names></name>
+        <name><surname>Zohar</surname><given-names>Yoni</given-names></name>
+        <name><surname>Stuntz</surname><given-names>Lindsey</given-names></name>
+        <name><surname>Irfan</surname><given-names>Ahmed</given-names></name>
+        <name><surname>Brown</surname><given-names>Kristopher</given-names></name>
+        <name><surname>Donovick</surname><given-names>Caleb</given-names></name>
+        <name><surname>Guman</surname><given-names>Allison</given-names></name>
+        <name><surname>Tinelli</surname><given-names>Cesare</given-names></name>
+        <name><surname>Barrett</surname><given-names>Clark</given-names></name>
+      </person-group>
+      <article-title>SMT-switch: A solver-agnostic c++ API for SMT solving</article-title>
+      <source>International conference on theory and applications of satisfiability testing</source>
+      <publisher-name>Springer</publisher-name>
+      <year iso-8601-date="2021">2021</year>
+      <pub-id pub-id-type="doi">10.1007/978-3-030-80223-3_26</pub-id>
+      <fpage>377</fpage>
+      <lpage>386</lpage>
+    </element-citation>
+  </ref>
+</ref-list>
+<fn-group>
+  <fn id="fn1">
+    <label>1</label><p>The current SMT-LIB standard is V2.6; we used
+    this version of the language specification when implementing our
+    software.</p>
+  </fn>
+</fn-group>
+</back>
+</article>
