@@ -1,0 +1,1128 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">6881</article-id>
+<article-id pub-id-type="doi">10.21105/joss.06881</article-id>
+<title-group>
+<article-title>DTW-C++: Fast dynamic time warping and clustering of time
+series data</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0003-2392-9771</contrib-id>
+<name>
+<surname>Kumtepeli</surname>
+<given-names>Volkan</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0009-0003-2781-0724</contrib-id>
+<name>
+<surname>Perriment</surname>
+<given-names>Rebecca</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0002-0620-3955</contrib-id>
+<name>
+<surname>Howey</surname>
+<given-names>David A.</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Department of Engineering Science, University of Oxford,
+OX1 3PJ, Oxford, UK</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<volume>9</volume>
+<issue>101</issue>
+<fpage>6881</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2022</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>C++</kwd>
+<kwd>Dynamic time warping</kwd>
+<kwd>Clustering</kwd>
+<kwd>k-medoids</kwd>
+<kwd>Integer programming</kwd>
+<kwd>Dynamic programming</kwd>
+<kwd>Time series</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p>Time-series data analysis is of interest in a huge number of
+  different applications, from finding patterns of energy consumption to
+  detecting brain activity or discovering stock price trends.
+  Unsupervised learning methods can help analysts unlock patterns in
+  data, and a key example of this is clustering. However, clustering of
+  time series data can be computationally expensive for large datasets.
+  We present an approach for computationally efficient dynamic time
+  warping (DTW) and clustering of time-series data. The method frames
+  the dynamic warping of time series datasets as an optimisation problem
+  solved using dynamic programming, and then clusters time series data
+  by solving a second optimisation problem using integer programming.
+  There is also an option to use k-medoids clustering when a certificate
+  for global optimality is not essential. The increased speed of our
+  approach is due to task-level parallelisation and memory efficiency
+  improvements. The method was tested using the UCR Time Series Archive,
+  and was found to be on average 33% faster than the next fastest option
+  when using the same clustering approach. This increases to 64% faster
+  when considering only larger datasets (with more than 1000 time
+  series). The integer programming clustering is most effective on small
+  numbers of longer time series, because the DTW computation is faster
+  than other approaches, but the clustering problem becomes increasingly
+  computationally expensive as the number of time series increases.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p>The target audience for this software is very broad, since
+  clustering of time series data is relevant in many applications from
+  energy to finance and medicine. However, as data availability
+  increases, so does the complexity of the clustering problem. Most time
+  series clustering algorithms depend on dimension reduction or feature
+  extraction techniques to enable scaling to large datasets, but this
+  can induce bias in the clustering
+  (<xref alt="Aghabozorgi et al., 2015" rid="ref-Aghabozorgi2015" ref-type="bibr">Aghabozorgi
+  et al., 2015</xref>). Dynamic time warping
+  (<xref alt="Sakoe &amp; Chiba, 1978" rid="ref-Sakoe1978" ref-type="bibr">Sakoe
+  &amp; Chiba, 1978</xref>) is a well-known technique for manipulating
+  time series to enable comparisons between datasets, using local
+  warping (stretching or compressing along the time axis) of the
+  elements within each time series to find an optimal alignment between
+  series. This emphasises the similarity of the shapes of the respective
+  time series rather than the exact alignment of specific features.
+  Unfortunately, DTW does not scale well in computational speed as the
+  length and number of time series to be compared increases—the
+  computational complexity grows quadratically with the total number of
+  data points. This is a barrier to DTW being widely implemented in
+  large-scale time series clustering
+  (<xref alt="Rajabi et al., 2020" rid="ref-Rajabi2020" ref-type="bibr">Rajabi
+  et al., 2020</xref>). In response, <monospace>DTW-C++</monospace> was
+  written to handle large time series efficiently, directly processing
+  the raw data rather than first extracting features.</p>
+  <p>In contrast to existing tools available for time series clustering
+  using DTW, such as <monospace>DTAIDistance</monospace>
+  (<xref alt="Meert et al., 2022" rid="ref-meert2022wannesm" ref-type="bibr">Meert
+  et al., 2022</xref>) and <monospace>TSlearn</monospace>
+  (<xref alt="Tavenard et al., 2020" rid="ref-Tavenard2020" ref-type="bibr">Tavenard
+  et al., 2020</xref>), <monospace>DTW-C++</monospace> offers
+  significant improvements in speed and memory use, enabling larger
+  datasets to be clustered. This is achieved by</p>
+  <list list-type="order">
+    <list-item>
+      <p>task-level parallelisation, where multiple pairwise comparisons
+      between time series can be evaluated simultaneously, and,</p>
+    </list-item>
+    <list-item>
+      <p>improved memory management—since the clustering algorithm only
+      needs the final distance computed between pairwise time series,
+      the DTW distance computation stores only the most recent previous
+      vector, rather than the entire warping matrix.</p>
+    </list-item>
+  </list>
+  <p>In addition, <monospace>DTW-C++</monospace> offers the option of
+  clustering using a new algorithm (described below) based on integer
+  programming. The advantage of this over k-based methods is that it
+  guarantees finding a global optimal solution in most cases, and in the
+  rare event that the global optimum cannot be found, the gap between
+  the best solution and the global optimum is given.</p>
+</sec>
+<sec id="current-dtw-c-functionality">
+  <title>Current <monospace>DTW-C++</monospace> functionality</title>
+  <p>The current functionality of the software is:</p>
+  <list list-type="bullet">
+    <list-item>
+      <p>Calculate DTW pairwise distances between all pairs of time
+      series in a set, using a vector based approach to reduce memory
+      use. There is also the option to use a Sakoe-Chiba band to
+      restrict warping in the DTW distance calculation
+      (<xref alt="Sakoe &amp; Chiba, 1978" rid="ref-Sakoe1978" ref-type="bibr">Sakoe
+      &amp; Chiba, 1978</xref>). This speeds up the computation time, as
+      well as being a useful constraint for some clustering scenarios
+      (e.g., if an event must occur within a certain time window to be
+      considered similar).</p>
+    </list-item>
+    <list-item>
+      <p>Produce a distance matrix containing all pairwise comparisons
+      between each time series in the dataset.</p>
+    </list-item>
+    <list-item>
+      <p>Split all time series into a predefined number of clusters,
+      with a representative centroid time series for each cluster. This
+      can be done using integer programming or k-medoids clustering,
+      depending on user choice.</p>
+    </list-item>
+    <list-item>
+      <p>Output the clustering cost, which is the sum of distances
+      between every time series within each cluster and its cluster
+      centroid.</p>
+    </list-item>
+    <list-item>
+      <p>Find the silhouette score and elbow score for the clusters to
+      aid the user decision on how many clusters,
+      <inline-formula><alternatives>
+      <tex-math><![CDATA[k]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>k</mml:mi></mml:math></alternatives></inline-formula>,
+      to include. The silhouette score is defined by the difference
+      between the mean intra-cluster distance and the mean
+      nearest-cluster distance, divided by the maximum of these two
+      distances
+      (<xref alt="Rousseeuw, 1987" rid="ref-ROUSSEEUW198753" ref-type="bibr">Rousseeuw,
+      1987</xref>). This considers both the similarity of a time series
+      to its own cluster as well as its dissimilarity from other
+      clusters. The elbow score is based on the cost of the clustering
+      exercise, which sums together the distance between each time
+      series and its centroid. Therefore the similarity of a time series
+      to its own cluster is considered, but not its dissimilarity from
+      other clusters.</p>
+    </list-item>
+  </list>
+</sec>
+<sec id="mathematical-background">
+  <title>Mathematical background</title>
+  <sec id="dynamic-time-warping">
+    <title>Dynamic time warping</title>
+    <p>Consider a time series to be a vector of arbitrary length.
+    Consider that we have <inline-formula><alternatives>
+    <tex-math><![CDATA[p]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>p</mml:mi></mml:math></alternatives></inline-formula>
+    such vectors in total, each possibly differing in length. To find a
+    subset of <inline-formula><alternatives>
+    <tex-math><![CDATA[k]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>k</mml:mi></mml:math></alternatives></inline-formula>
+    clusters within the set of <inline-formula><alternatives>
+    <tex-math><![CDATA[p]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>p</mml:mi></mml:math></alternatives></inline-formula>
+    vectors, we must first make <inline-formula><alternatives>
+    <tex-math><![CDATA[\frac{1}{2} {p \choose 2}]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mfrac><mml:mn>1</mml:mn><mml:mn>2</mml:mn></mml:mfrac><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mfrac linethickness="0"><mml:mi>p</mml:mi><mml:mn>2</mml:mn></mml:mfrac><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>
+    pairwise comparisons between all vectors within the total set and
+    find the `similarity’ between each pair. In this case, the
+    similarity is defined as the DTW distance. Consider two time series
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[x]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>x</mml:mi></mml:math></alternatives></inline-formula>
+    and <inline-formula><alternatives>
+    <tex-math><![CDATA[y]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>y</mml:mi></mml:math></alternatives></inline-formula>
+    of differing lengths <inline-formula><alternatives>
+    <tex-math><![CDATA[n]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>n</mml:mi></mml:math></alternatives></inline-formula>
+    and <inline-formula><alternatives>
+    <tex-math><![CDATA[m]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>m</mml:mi></mml:math></alternatives></inline-formula>
+    respectively,</p>
+    <p><disp-formula><alternatives>
+    <tex-math><![CDATA[
+    x=(x_1, x_2, ..., x_n)
+    ]]></tex-math>
+    <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>x</mml:mi><mml:mo>=</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>x</mml:mi><mml:mn>1</mml:mn></mml:msub><mml:mo>,</mml:mo><mml:msub><mml:mi>x</mml:mi><mml:mn>2</mml:mn></mml:msub><mml:mo>,</mml:mo><mml:mi>.</mml:mi><mml:mi>.</mml:mi><mml:mi>.</mml:mi><mml:mo>,</mml:mo><mml:msub><mml:mi>x</mml:mi><mml:mi>n</mml:mi></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></disp-formula>
+    <disp-formula><alternatives>
+    <tex-math><![CDATA[
+    y=(y_1, y_2, ..., y_m).
+    ]]></tex-math>
+    <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>y</mml:mi><mml:mo>=</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>y</mml:mi><mml:mn>1</mml:mn></mml:msub><mml:mo>,</mml:mo><mml:msub><mml:mi>y</mml:mi><mml:mn>2</mml:mn></mml:msub><mml:mo>,</mml:mo><mml:mi>.</mml:mi><mml:mi>.</mml:mi><mml:mi>.</mml:mi><mml:mo>,</mml:mo><mml:msub><mml:mi>y</mml:mi><mml:mi>m</mml:mi></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mi>.</mml:mi></mml:mrow></mml:math></alternatives></disp-formula></p>
+    <p>The DTW distance is the sum of the Euclidean distance between
+    each point and its matched point(s) in the other vector, as shown in
+    <xref alt="[fig:warping_signals]" rid="figU003Awarping_signals">[fig:warping_signals]</xref>.
+    To find the DTW distance, the following constraints must be met:</p>
+    <list list-type="order">
+      <list-item>
+        <p>The first and last elements of each series must be
+        matched.</p>
+      </list-item>
+      <list-item>
+        <p>Only unidirectional forward movement through relative time is
+        allowed, i.e., if <inline-formula><alternatives>
+        <tex-math><![CDATA[x_1]]></tex-math>
+        <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>x</mml:mi><mml:mn>1</mml:mn></mml:msub></mml:math></alternatives></inline-formula>
+        is mapped to <inline-formula><alternatives>
+        <tex-math><![CDATA[y_2]]></tex-math>
+        <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>y</mml:mi><mml:mn>2</mml:mn></mml:msub></mml:math></alternatives></inline-formula>
+        then <inline-formula><alternatives>
+        <tex-math><![CDATA[x_2]]></tex-math>
+        <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>x</mml:mi><mml:mn>2</mml:mn></mml:msub></mml:math></alternatives></inline-formula>
+        may not be mapped to <inline-formula><alternatives>
+        <tex-math><![CDATA[y_1]]></tex-math>
+        <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>y</mml:mi><mml:mn>1</mml:mn></mml:msub></mml:math></alternatives></inline-formula>
+        (monotonicity).</p>
+      </list-item>
+      <list-item>
+        <p>Each point is mapped to at least one other point, i.e., there
+        are no jumps in time (continuity).</p>
+      </list-item>
+    </list>
+    <fig>
+      <caption><p>(a) Two time series with DTW pairwise alignment
+      between each point, showing the one-to-many mapping properties of
+      DTW. (b) Cost matrix <inline-formula><alternatives>
+      <tex-math><![CDATA[C]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>C</mml:mi></mml:math></alternatives></inline-formula>
+      for the two time series, showing the warping path and final DTW
+      cost at <inline-formula><alternatives>
+      <tex-math><![CDATA[c_{14,13}]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>c</mml:mi><mml:mrow><mml:mn>14</mml:mn><mml:mo>,</mml:mo><mml:mn>13</mml:mn></mml:mrow></mml:msub></mml:math></alternatives></inline-formula>.
+      <styled-content id="figU003Awarping_signals"></styled-content></p></caption>
+      <graphic mimetype="application" mime-subtype="pdf" xlink:href="../media/warping_merged_cropped.pdf" />
+    </fig>
+    <p>Finding the optimal warping arrangement is an optimisation
+    problem that can be solved using dynamic programming, which splits
+    the problem into easier sub-problems and solves them recursively,
+    storing intermediate solutions until the final solution is reached.
+    To understand the memory-efficient method used in
+    <monospace>DTW-C++</monospace>, it is useful to first examine the
+    full cost matrix solution, as follows. For each pairwise comparison,
+    an <inline-formula><alternatives>
+    <tex-math><![CDATA[n]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>n</mml:mi></mml:math></alternatives></inline-formula>
+    by <inline-formula><alternatives>
+    <tex-math><![CDATA[m]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>m</mml:mi></mml:math></alternatives></inline-formula>
+    matrix <inline-formula><alternatives>
+    <tex-math><![CDATA[C^{n\times m}]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msup><mml:mi>C</mml:mi><mml:mrow><mml:mi>n</mml:mi><mml:mo>×</mml:mo><mml:mi>m</mml:mi></mml:mrow></mml:msup></mml:math></alternatives></inline-formula>
+    is calculated, where each element represents the cumulative cost
+    between series up to the points <inline-formula><alternatives>
+    <tex-math><![CDATA[x_i]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>x</mml:mi><mml:mi>i</mml:mi></mml:msub></mml:math></alternatives></inline-formula>
+    and <inline-formula><alternatives>
+    <tex-math><![CDATA[y_j]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>y</mml:mi><mml:mi>j</mml:mi></mml:msub></mml:math></alternatives></inline-formula>:</p>
+    <p><named-content id="c" content-type="equation"><disp-formula><alternatives>
+    <tex-math><![CDATA[
+        c_{i,j} = (x_i-y_j)^2+\min\begin{cases}
+        c_{i-1,j-1}\\
+        c_{i-1,j}\\
+        c_{i,j-1}
+        \end{cases}]]></tex-math>
+    <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>c</mml:mi><mml:mrow><mml:mi>i</mml:mi><mml:mo>,</mml:mo><mml:mi>j</mml:mi></mml:mrow></mml:msub><mml:mo>=</mml:mo><mml:msup><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>x</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mo>−</mml:mo><mml:msub><mml:mi>y</mml:mi><mml:mi>j</mml:mi></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mn>2</mml:mn></mml:msup><mml:mo>+</mml:mo><mml:mo>min</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">{</mml:mo><mml:mtable><mml:mtr><mml:mtd columnalign="left" style="text-align: left"><mml:msub><mml:mi>c</mml:mi><mml:mrow><mml:mi>i</mml:mi><mml:mo>−</mml:mo><mml:mn>1</mml:mn><mml:mo>,</mml:mo><mml:mi>j</mml:mi><mml:mo>−</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:msub></mml:mtd></mml:mtr><mml:mtr><mml:mtd columnalign="left" style="text-align: left"><mml:msub><mml:mi>c</mml:mi><mml:mrow><mml:mi>i</mml:mi><mml:mo>−</mml:mo><mml:mn>1</mml:mn><mml:mo>,</mml:mo><mml:mi>j</mml:mi></mml:mrow></mml:msub></mml:mtd></mml:mtr><mml:mtr><mml:mtd columnalign="left" style="text-align: left"><mml:msub><mml:mi>c</mml:mi><mml:mrow><mml:mi>i</mml:mi><mml:mo>,</mml:mo><mml:mi>j</mml:mi><mml:mo>−</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:msub></mml:mtd></mml:mtr></mml:mtable></mml:mrow></mml:mrow></mml:math></alternatives></disp-formula></named-content></p>
+    <p>The final element in the matrix <inline-formula><alternatives>
+    <tex-math><![CDATA[c_{n,m}]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>c</mml:mi><mml:mrow><mml:mi>n</mml:mi><mml:mo>,</mml:mo><mml:mi>m</mml:mi></mml:mrow></mml:msub></mml:math></alternatives></inline-formula>
+    is then the total cost, and this provides the metric for comparing
+    the two series <inline-formula><alternatives>
+    <tex-math><![CDATA[x]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>x</mml:mi></mml:math></alternatives></inline-formula>
+    and <inline-formula><alternatives>
+    <tex-math><![CDATA[y]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>y</mml:mi></mml:math></alternatives></inline-formula>.
+    <xref alt="[fig:warping_signals]" rid="figU003Awarping_signals">[fig:warping_signals]</xref>
+    shows an example of this cost matrix <inline-formula><alternatives>
+    <tex-math><![CDATA[C]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>C</mml:mi></mml:math></alternatives></inline-formula>
+    and the warping path through it.</p>
+  </sec>
+  <sec id="clustering">
+    <title>Clustering</title>
+    <p>For the clustering algorithm, only the final cost for each
+    pairwise comparison is required; the actual warping path (i.e.,
+    mapping between time series) is superfluous. The memory complexity
+    of the cost matrix <inline-formula><alternatives>
+    <tex-math><![CDATA[C]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>C</mml:mi></mml:math></alternatives></inline-formula>
+    is <inline-formula><alternatives>
+    <tex-math><![CDATA[\mathcal{O}(nm)]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>𝒪</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>n</mml:mi><mml:mi>m</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>,
+    so as the length of the time series grows, the memory required
+    greatly increases. Therefore, significant reductions in memory use
+    can be achieved by not storing the entire cost matrix. Since the
+    warping path is not required, we only need to store a vector
+    containing the previous row relating to the current step of the
+    dynamic programming sub-problem (i.e., the previous three values
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[c_{i-1,j-1}]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>c</mml:mi><mml:mrow><mml:mi>i</mml:mi><mml:mo>−</mml:mo><mml:mn>1</mml:mn><mml:mo>,</mml:mo><mml:mi>j</mml:mi><mml:mo>−</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:msub></mml:math></alternatives></inline-formula>,
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[c_{i-1,j}]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>c</mml:mi><mml:mrow><mml:mi>i</mml:mi><mml:mo>−</mml:mo><mml:mn>1</mml:mn><mml:mo>,</mml:mo><mml:mi>j</mml:mi></mml:mrow></mml:msub></mml:math></alternatives></inline-formula>,
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[c_{i,j-1}]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>c</mml:mi><mml:mrow><mml:mi>i</mml:mi><mml:mo>,</mml:mo><mml:mi>j</mml:mi><mml:mo>−</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:msub></mml:math></alternatives></inline-formula>),
+    as indicated in
+    <xref alt="Equation 1" rid="c">Equation 1</xref>.</p>
+    <p>We now introduce the notation <inline-formula><alternatives>
+    <tex-math><![CDATA[d_{x,y}=c_{n,m}]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>d</mml:mi><mml:mrow><mml:mi>x</mml:mi><mml:mo>,</mml:mo><mml:mi>y</mml:mi></mml:mrow></mml:msub><mml:mo>=</mml:mo><mml:msub><mml:mi>c</mml:mi><mml:mrow><mml:mi>n</mml:mi><mml:mo>,</mml:mo><mml:mi>m</mml:mi></mml:mrow></mml:msub></mml:mrow></mml:math></alternatives></inline-formula>
+    to denote the final (scalar) cost relating to the pairwise
+    comparison between time series <inline-formula><alternatives>
+    <tex-math><![CDATA[x]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>x</mml:mi></mml:math></alternatives></inline-formula>
+    and <inline-formula><alternatives>
+    <tex-math><![CDATA[y]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>y</mml:mi></mml:math></alternatives></inline-formula>,
+    given by the final element in the cost matrix relating to the
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[x]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>x</mml:mi></mml:math></alternatives></inline-formula>
+    and <inline-formula><alternatives>
+    <tex-math><![CDATA[y]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>y</mml:mi></mml:math></alternatives></inline-formula>
+    time series. To cluster several time series, this cost is first
+    computed for every pairwise comparison between every time series. As
+    shown in
+    <xref alt="[fig:c_to_d]" rid="figU003Ac_to_d">[fig:c_to_d]</xref>,
+    all of the pairwise distances are then stored in a separate
+    symmetric matrix, <inline-formula><alternatives>
+    <tex-math><![CDATA[D^{p\times p}]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msup><mml:mi>D</mml:mi><mml:mrow><mml:mi>p</mml:mi><mml:mo>×</mml:mo><mml:mi>p</mml:mi></mml:mrow></mml:msup></mml:math></alternatives></inline-formula>,
+    where <inline-formula><alternatives>
+    <tex-math><![CDATA[p]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>p</mml:mi></mml:math></alternatives></inline-formula>
+    is the total number of time series in the clustering exercise. In
+    other words, the element <inline-formula><alternatives>
+    <tex-math><![CDATA[d_{i,j}]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>d</mml:mi><mml:mrow><mml:mi>i</mml:mi><mml:mo>,</mml:mo><mml:mi>j</mml:mi></mml:mrow></mml:msub></mml:math></alternatives></inline-formula>
+    in this matrix gives the cost between time series
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[i]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>i</mml:mi></mml:math></alternatives></inline-formula>
+    and <inline-formula><alternatives>
+    <tex-math><![CDATA[j]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>j</mml:mi></mml:math></alternatives></inline-formula>.</p>
+    <fig>
+      <caption><p>The individual DTW costs from each pairwise comparison
+      between time series in the dataset are all combined to form a
+      distance matrix <inline-formula><alternatives>
+      <tex-math><![CDATA[D]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>D</mml:mi></mml:math></alternatives></inline-formula>.
+      <styled-content id="figU003Ac_to_d"></styled-content></p></caption>
+      <graphic mimetype="application" mime-subtype="pdf" xlink:href="../media/c_to_d_cropped.pdf" />
+    </fig>
+    <p>Using this distance matrix, <inline-formula><alternatives>
+    <tex-math><![CDATA[D]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>D</mml:mi></mml:math></alternatives></inline-formula>,
+    the full set of time series can be split into
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[k]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>k</mml:mi></mml:math></alternatives></inline-formula>
+    separate clusters with integer programming. The problem formulation
+    begins by considering a binary square matrix
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[A^{p\times p}]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msup><mml:mi>A</mml:mi><mml:mrow><mml:mi>p</mml:mi><mml:mo>×</mml:mo><mml:mi>p</mml:mi></mml:mrow></mml:msup></mml:math></alternatives></inline-formula>,
+    where <inline-formula><alternatives>
+    <tex-math><![CDATA[A_{ij}=1]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>A</mml:mi><mml:mrow><mml:mi>i</mml:mi><mml:mi>j</mml:mi></mml:mrow></mml:msub><mml:mo>=</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>
+    if time series <inline-formula><alternatives>
+    <tex-math><![CDATA[j]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>j</mml:mi></mml:math></alternatives></inline-formula>
+    is a member of the <inline-formula><alternatives>
+    <tex-math><![CDATA[i]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>i</mml:mi></mml:math></alternatives></inline-formula>th
+    cluster centroid, and 0 otherwise, as shown in
+    <xref alt="[fig:A_matrix]" rid="figU003AA_matrix">[fig:A_matrix]</xref>.</p>
+    <fig>
+      <caption><p>Example clustering matrix, where an entry of 1
+      indicates that time series <inline-formula><alternatives>
+      <tex-math><![CDATA[j]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>j</mml:mi></mml:math></alternatives></inline-formula>
+      belongs to the cluster with centroid
+      <inline-formula><alternatives>
+      <tex-math><![CDATA[i]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>i</mml:mi></mml:math></alternatives></inline-formula>.
+      <styled-content id="figU003AA_matrix"></styled-content></p></caption>
+      <graphic mimetype="application" mime-subtype="pdf" xlink:href="../media/clustering_cropped.pdf" />
+    </fig>
+    <p>As each centroid has to be in its own cluster, non-zero diagonal
+    entries in <inline-formula><alternatives>
+    <tex-math><![CDATA[A]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>A</mml:mi></mml:math></alternatives></inline-formula>
+    represent centroids. Our objective is to find
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[A]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>A</mml:mi></mml:math></alternatives></inline-formula>,
+    and this may be formulated as an optimisation problem</p>
+    <p><disp-formula><tex-math><![CDATA[A^\star = \underset{A}{\rm argmin} \sum_i \sum_j D_{ij} \times A_{ij},]]></tex-math></disp-formula></p>
+    <p>subject to the following constraints:</p>
+    <list list-type="order">
+      <list-item>
+        <p>Only <inline-formula><alternatives>
+        <tex-math><![CDATA[k]]></tex-math>
+        <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>k</mml:mi></mml:math></alternatives></inline-formula>
+        series can be centroids, <disp-formula><alternatives>
+        <tex-math><![CDATA[
+        \sum_{i=1}^p A_{ii}=k.
+        ]]></tex-math>
+        <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:munderover><mml:mo>∑</mml:mo><mml:mrow><mml:mi>i</mml:mi><mml:mo>=</mml:mo><mml:mn>1</mml:mn></mml:mrow><mml:mi>p</mml:mi></mml:munderover><mml:msub><mml:mi>A</mml:mi><mml:mrow><mml:mi>i</mml:mi><mml:mi>i</mml:mi></mml:mrow></mml:msub><mml:mo>=</mml:mo><mml:mi>k</mml:mi><mml:mi>.</mml:mi></mml:mrow></mml:math></alternatives></disp-formula></p>
+      </list-item>
+      <list-item>
+        <p>Each time series must be a member of one and only one
+        cluster, <disp-formula><alternatives>
+        <tex-math><![CDATA[
+        \sum_{i=1}^pA_{ij}=1  \quad \forall j \in [1,p].
+        ]]></tex-math>
+        <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:munderover><mml:mo>∑</mml:mo><mml:mrow><mml:mi>i</mml:mi><mml:mo>=</mml:mo><mml:mn>1</mml:mn></mml:mrow><mml:mi>p</mml:mi></mml:munderover><mml:msub><mml:mi>A</mml:mi><mml:mrow><mml:mi>i</mml:mi><mml:mi>j</mml:mi></mml:mrow></mml:msub><mml:mo>=</mml:mo><mml:mn>1</mml:mn><mml:mspace width="1.0em"></mml:mspace><mml:mo>∀</mml:mo><mml:mi>j</mml:mi><mml:mo>∈</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">[</mml:mo><mml:mn>1</mml:mn><mml:mo>,</mml:mo><mml:mi>p</mml:mi><mml:mo stretchy="true" form="postfix">]</mml:mo></mml:mrow><mml:mi>.</mml:mi></mml:mrow></mml:math></alternatives></disp-formula></p>
+      </list-item>
+      <list-item>
+        <p>In any row, there can only be non-zero entries if the
+        corresponding diagonal entry is non-zero, so a time series can
+        only be in a cluster where the row corresponds to a centroid
+        time series, <disp-formula><alternatives>
+        <tex-math><![CDATA[
+        A_{ij} \le A_{ii} \quad \forall i,j \in [1,p].
+        ]]></tex-math>
+        <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>A</mml:mi><mml:mrow><mml:mi>i</mml:mi><mml:mi>j</mml:mi></mml:mrow></mml:msub><mml:mo>≤</mml:mo><mml:msub><mml:mi>A</mml:mi><mml:mrow><mml:mi>i</mml:mi><mml:mi>i</mml:mi></mml:mrow></mml:msub><mml:mspace width="1.0em"></mml:mspace><mml:mo>∀</mml:mo><mml:mi>i</mml:mi><mml:mo>,</mml:mo><mml:mi>j</mml:mi><mml:mo>∈</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">[</mml:mo><mml:mn>1</mml:mn><mml:mo>,</mml:mo><mml:mi>p</mml:mi><mml:mo stretchy="true" form="postfix">]</mml:mo></mml:mrow><mml:mi>.</mml:mi></mml:mrow></mml:math></alternatives></disp-formula></p>
+      </list-item>
+    </list>
+    <p>This integer program is solved in <monospace>DTW-C++</monospace>
+    using Gurobi
+    (<xref alt="Gurobi Optimization, LLC, 2024" rid="ref-gurobi" ref-type="bibr">Gurobi
+    Optimization, LLC, 2024</xref>) or HiGHS
+    (<xref alt="Huangfu &amp; Hall, 2018" rid="ref-Huangfu2018" ref-type="bibr">Huangfu
+    &amp; Hall, 2018</xref>). After solution, the non-zero diagonal
+    entries of <inline-formula><alternatives>
+    <tex-math><![CDATA[A]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>A</mml:mi></mml:math></alternatives></inline-formula>
+    represent the centroids, and the non-zero elements in the
+    corresponding columns in <inline-formula><alternatives>
+    <tex-math><![CDATA[A]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>A</mml:mi></mml:math></alternatives></inline-formula>
+    represent the members of that cluster. In the example in
+    <xref alt="[fig:A_matrix]" rid="figU003AA_matrix">[fig:A_matrix]</xref>,
+    the clusters are time series 1, <bold>2</bold>, 5 and 3,
+    <bold>4</bold> with the bold type face entries indicating the
+    centroids.</p>
+    <p>Finding a globally optimal solution with this method can result
+    in increased computation times depending on the number of time
+    series within the dataset and the DTW distances. Therefore, there is
+    also a built-in option to cluster using k-medoids, as used in other
+    packages such as <monospace>DTAIDistance</monospace>
+    (<xref alt="Meert et al., 2022" rid="ref-meert2022wannesm" ref-type="bibr">Meert
+    et al., 2022</xref>). The k-medoids method is often quicker as it is
+    an iterative approach, however it is subject to getting stuck in
+    local optima. The results in the next section show the timing and
+    memory performance of both integer programming clustering and
+    k-medoids clustering using <monospace>DTW-C++</monospace> compared
+    to other packages.</p>
+  </sec>
+</sec>
+<sec id="comparison">
+  <title>Comparison</title>
+  <p>We compared our approach with two other DTW clustering packages,
+  <monospace>DTAIDistance</monospace>
+  (<xref alt="Meert et al., 2022" rid="ref-meert2022wannesm" ref-type="bibr">Meert
+  et al., 2022</xref>) and <monospace>TSlearn</monospace>
+  (<xref alt="Tavenard et al., 2020" rid="ref-Tavenard2020" ref-type="bibr">Tavenard
+  et al., 2020</xref>) using data from the UCR Time Series
+  Classification Archive Dau et al.
+  (<xref alt="2019" rid="ref-dau2019ucr" ref-type="bibr">2019</xref>),
+  which consists of 128 time series datasets with up to 16,800 data
+  series of lengths up to 2,844. Benchmarking against
+  <monospace>TSlearn</monospace> was stopped after the first 22 datasets
+  because the results were consistently over 20 times slower than
+  <monospace>DTW-C++</monospace>.
+  <xref alt="[tab:small_table]" rid="tabU003Asmall_table">[tab:small_table]</xref>
+  shows the results for datasets downselected to have the number of time
+  series, <inline-formula><alternatives>
+  <tex-math><![CDATA[N]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>N</mml:mi></mml:math></alternatives></inline-formula>,
+  greater than 100, and the length of each time series greater than 500
+  points. This is because <monospace>DTW-C++</monospace> is aimed at
+  larger datasets where the speed improvements are more relevant.</p>
+  <boxed-text id="tabU003Asmall_table">
+    <table-wrap>
+      <caption>
+        <p>Computational time comparison between
+        <monospace>DTW-C++</monospace> using integer programming and
+        k-medoids, vs. <monospace>DTAIDistance</monospace>, and
+        <monospace>TSlearn</monospace>, on datasets in the UCR Time
+        Series Classification Archive where
+        <inline-formula><alternatives>
+        <tex-math><![CDATA[N>100]]></tex-math>
+        <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>N</mml:mi><mml:mo>&gt;</mml:mo><mml:mn>100</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>
+        and <inline-formula><alternatives>
+        <tex-math><![CDATA[L>500]]></tex-math>
+        <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>L</mml:mi><mml:mo>&gt;</mml:mo><mml:mn>500</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>.
+        The fastest result for each dataset is in bold type.</p>
+      </caption>
+      <table>
+        <thead>
+          <tr>
+            <th align="left"></th>
+            <th align="left">Number of time series</th>
+            <th align="left">Length of time series</th>
+            <th align="left">DTW-C++ IP (s)</th>
+            <th align="left">DTW-C++ k-Medoids (s)</th>
+            <th align="left">DTAI Distance* (s)</th>
+            <th align="left">Time decrease (%)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td align="left">CinCECGTorso</td>
+            <td align="left">1380</td>
+            <td align="left">1639</td>
+            <td align="left">3008.4</td>
+            <td align="left"><bold>1104.2</bold></td>
+            <td align="left">1955.9</td>
+            <td align="left">44</td>
+          </tr>
+          <tr>
+            <td align="left">Computers</td>
+            <td align="left">250</td>
+            <td align="left">720</td>
+            <td align="left">16.1</td>
+            <td align="left"><bold>10.5</bold></td>
+            <td align="left">12.8</td>
+            <td align="left">18</td>
+          </tr>
+          <tr>
+            <td align="left">Earthquakes</td>
+            <td align="left">139</td>
+            <td align="left">512</td>
+            <td align="left">3.2</td>
+            <td align="left"><bold>2.4</bold></td>
+            <td align="left">2.5</td>
+            <td align="left">3</td>
+          </tr>
+          <tr>
+            <td align="left">EOGHorizontalSignal</td>
+            <td align="left">362</td>
+            <td align="left">1250</td>
+            <td align="left">81.8</td>
+            <td align="left"><bold>27.6</bold></td>
+            <td align="left">82.9</td>
+            <td align="left">67</td>
+          </tr>
+          <tr>
+            <td align="left">EOGVerticalSignal</td>
+            <td align="left">362</td>
+            <td align="left">1250</td>
+            <td align="left">85.9</td>
+            <td align="left"><bold>30.2</bold></td>
+            <td align="left">85.2</td>
+            <td align="left">65</td>
+          </tr>
+          <tr>
+            <td align="left">EthanolLevel</td>
+            <td align="left">500</td>
+            <td align="left">1751</td>
+            <td align="left">325.7</td>
+            <td align="left"><bold>198.9</bold></td>
+            <td align="left">302.3</td>
+            <td align="left">34</td>
+          </tr>
+          <tr>
+            <td align="left">HandOutlines</td>
+            <td align="left">370</td>
+            <td align="left">2709</td>
+            <td align="left">383.7</td>
+            <td align="left"><bold>280.9</bold></td>
+            <td align="left">415.9</td>
+            <td align="left">32</td>
+          </tr>
+          <tr>
+            <td align="left">Haptics</td>
+            <td align="left">308</td>
+            <td align="left">1092</td>
+            <td align="left">65.5</td>
+            <td align="left"><bold>24.0</bold></td>
+            <td align="left">45.5</td>
+            <td align="left">47</td>
+          </tr>
+          <tr>
+            <td align="left">HouseTwenty</td>
+            <td align="left">119</td>
+            <td align="left">2000</td>
+            <td align="left">23.8</td>
+            <td align="left"><bold>19.1</bold></td>
+            <td align="left">22.0</td>
+            <td align="left">13</td>
+          </tr>
+          <tr>
+            <td align="left">InlineSkate</td>
+            <td align="left">550</td>
+            <td align="left">1882</td>
+            <td align="left">412.4</td>
+            <td align="left"><bold>198.9</bold></td>
+            <td align="left">423.4</td>
+            <td align="left">53</td>
+          </tr>
+          <tr>
+            <td align="left">InsectEPGRegularTrain</td>
+            <td align="left">249</td>
+            <td align="left">601</td>
+            <td align="left">12.3</td>
+            <td align="left"><bold>5.6</bold></td>
+            <td align="left">8.9</td>
+            <td align="left">37</td>
+          </tr>
+          <tr>
+            <td align="left">InsectEPGSmallTrain</td>
+            <td align="left">249</td>
+            <td align="left">601</td>
+            <td align="left">11.6</td>
+            <td align="left"><bold>5.3</bold></td>
+            <td align="left">8.9</td>
+            <td align="left">41</td>
+          </tr>
+          <tr>
+            <td align="left">LargeKitchenAppliances</td>
+            <td align="left">375</td>
+            <td align="left">720</td>
+            <td align="left">44.6</td>
+            <td align="left"><bold>25.6</bold></td>
+            <td align="left">31.8</td>
+            <td align="left">20</td>
+          </tr>
+          <tr>
+            <td align="left">Mallat</td>
+            <td align="left">2345</td>
+            <td align="left">1024</td>
+            <td align="left">2948.7</td>
+            <td align="left"><bold>517.0</bold></td>
+            <td align="left">2251.3</td>
+            <td align="left">77</td>
+          </tr>
+          <tr>
+            <td align="left">MixedShapesRegularTrain</td>
+            <td align="left">2425</td>
+            <td align="left">1024</td>
+            <td align="left">2811.8</td>
+            <td align="left"><bold>1221.9</bold></td>
+            <td align="left">2367.1</td>
+            <td align="left">48</td>
+          </tr>
+          <tr>
+            <td align="left">MixedShapesSmallTrain</td>
+            <td align="left">2425</td>
+            <td align="left">1024</td>
+            <td align="left">2793.7</td>
+            <td align="left"><bold>934.0</bold></td>
+            <td align="left">2369.3</td>
+            <td align="left">61</td>
+          </tr>
+          <tr>
+            <td align="left">NonInvasiveFetalECGThorax1</td>
+            <td align="left">1965</td>
+            <td align="left">750</td>
+            <td align="left">52599.0</td>
+            <td align="left"><bold>128.7</bold></td>
+            <td align="left">941.9</td>
+            <td align="left">86</td>
+          </tr>
+          <tr>
+            <td align="left">NonInvasiveFetalECGThorax2</td>
+            <td align="left">1965</td>
+            <td align="left">750</td>
+            <td align="left">4905.4</td>
+            <td align="left"><bold>115.6</bold></td>
+            <td align="left">951.0</td>
+            <td align="left">88</td>
+          </tr>
+          <tr>
+            <td align="left">Phoneme</td>
+            <td align="left">1896</td>
+            <td align="left">1024</td>
+            <td align="left">46549.0</td>
+            <td align="left"><bold>198.4</bold></td>
+            <td align="left">1560.6</td>
+            <td align="left">87</td>
+          </tr>
+          <tr>
+            <td align="left">PigAirwayPressure</td>
+            <td align="left">208</td>
+            <td align="left">2000</td>
+            <td align="left">84.6</td>
+            <td align="left"><bold>56.7</bold></td>
+            <td align="left">73.2</td>
+            <td align="left">23</td>
+          </tr>
+          <tr>
+            <td align="left">PigArtPressure</td>
+            <td align="left">208</td>
+            <td align="left">2000</td>
+            <td align="left">78.9</td>
+            <td align="left"><bold>41.8</bold></td>
+            <td align="left">71.1</td>
+            <td align="left">41</td>
+          </tr>
+          <tr>
+            <td align="left">PigCVP</td>
+            <td align="left">208</td>
+            <td align="left">2000</td>
+            <td align="left">73.5</td>
+            <td align="left"><bold>51.7</bold></td>
+            <td align="left">69.5</td>
+            <td align="left">26</td>
+          </tr>
+          <tr>
+            <td align="left">RefrigerationDevices</td>
+            <td align="left">375</td>
+            <td align="left">720</td>
+            <td align="left">36.8</td>
+            <td align="left"><bold>20.3</bold></td>
+            <td align="left">28.4</td>
+            <td align="left">28</td>
+          </tr>
+          <tr>
+            <td align="left">ScreenType</td>
+            <td align="left">375</td>
+            <td align="left">720</td>
+            <td align="left">38.6</td>
+            <td align="left"><bold>16.1</bold></td>
+            <td align="left">28.5</td>
+            <td align="left">43</td>
+          </tr>
+          <tr>
+            <td align="left">SemgHandGenderCh2</td>
+            <td align="left">600</td>
+            <td align="left">1500</td>
+            <td align="left">335.9</td>
+            <td align="left"><bold>315.2</bold></td>
+            <td align="left">325.4</td>
+            <td align="left">3</td>
+          </tr>
+          <tr>
+            <td align="left">SemgHandMovementCh2</td>
+            <td align="left">450</td>
+            <td align="left">1500</td>
+            <td align="left">177.7</td>
+            <td align="left"><bold>107.2</bold></td>
+            <td align="left">181.1</td>
+            <td align="left">41</td>
+          </tr>
+          <tr>
+            <td align="left">SemgHandSubjectCh2</td>
+            <td align="left">450</td>
+            <td align="left">1500</td>
+            <td align="left">186.4</td>
+            <td align="left"><bold>96.7</bold></td>
+            <td align="left">177.6</td>
+            <td align="left">46</td>
+          </tr>
+          <tr>
+            <td align="left">ShapesAll</td>
+            <td align="left">600</td>
+            <td align="left">512</td>
+            <td align="left">67.5</td>
+            <td align="left"><bold>15.1</bold></td>
+            <td align="left">44.4</td>
+            <td align="left">66</td>
+          </tr>
+          <tr>
+            <td align="left">SmallKitchenAppliances</td>
+            <td align="left">375</td>
+            <td align="left">720</td>
+            <td align="left">41.7</td>
+            <td align="left"><bold>23.8</bold></td>
+            <td align="left">30.1</td>
+            <td align="left">21</td>
+          </tr>
+          <tr>
+            <td align="left">StarLightCurves</td>
+            <td align="left">8236</td>
+            <td align="left">1024</td>
+            <td align="left">N/A</td>
+            <td align="left"><bold>18551.7</bold></td>
+            <td align="left">27558.1</td>
+            <td align="left">33</td>
+          </tr>
+          <tr>
+            <td align="left">UWaveGestureLibraryAll</td>
+            <td align="left">3582</td>
+            <td align="left">945</td>
+            <td align="left">N/A</td>
+            <td align="left"><bold>1194.6</bold></td>
+            <td align="left">4436.9</td>
+            <td align="left">73</td>
+          </tr>
+          <tr>
+            <td align="left" colspan="7">*Benchmark results for Python
+            libraries <italic>may</italic> include an overhead of 10%
+            due to the usage of the <italic>tracemalloc</italic>
+            library.</td>
+          </tr>
+        </tbody>
+      </table>
+    </table-wrap>
+  </boxed-text>
+  <p><monospace>DTW-C++</monospace> is the fastest package for 90% of
+  the datasets, and all 13 datasets where
+  <monospace>DTAIDistance</monospace> was faster were cases where the
+  entire clustering process was completed in 1.06 seconds or less.
+  Across the whole collection of datasets,
+  <monospace>DTW-C++</monospace> was on average 32% faster. When looking
+  at larger datasets, with <inline-formula><alternatives>
+  <tex-math><![CDATA[N > 1000]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>N</mml:mi><mml:mo>&gt;</mml:mo><mml:mn>1000</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>,
+  <monospace>DTW-C++</monospace> is on average 65% faster. In all, apart
+  from 2 of the 115 cases where <monospace>DTW-C++</monospace> is the
+  fastest, we used the k-medoids algorithm for clustering.
+  <xref alt="[fig:k_med]" rid="figU003Ak_med">[fig:k_med]</xref> shows
+  the increasing performance of <monospace>DTW-C++</monospace> as the
+  number of time series increases. In this comparison, both algorithms
+  used k-medoids, so the speed improvement is due to faster dynamic time
+  warping method in <monospace>DTW-C++</monospace>.</p>
+  <p>With respect to clustering, <monospace>DTW-C++</monospace> with
+  integer programming was on average 16 times slower than
+  <monospace>DTAIDistance</monospace> over all samples, and as the
+  number of time series increases, integer programming clustering
+  becomes increasingly slower
+  (<xref alt="[fig:speed_IP]" rid="figU003Aspeed_IP">[fig:speed_IP]</xref>).
+  This is to be expected because the computational complexity of the
+  integer programming optimisation increases significantly as the number
+  of time series in the clustering problem increases. However, as the
+  lengths of each time series increase, the performance of integer
+  programming converges to the speed of
+  <monospace>DTAIDistance</monospace>, and the former finds globally
+  optimal results. Therefore, the integer programming approach is
+  recommended for occasions when the individual time series to be
+  clustered are very long, but the number of individual time series is
+  small (e.g., fewer than 1000).</p>
+  <p>The performance comparison on all datasets in the UCR Time Series
+  Classification Archive and any updated benchmarking tests can be found
+  in the repository.</p>
+  <fig>
+    <caption><p><monospace>DTW-C++</monospace> with k-medoids clustering
+    becomes increasingly faster compared to
+    <monospace>DTAIDistance</monospace> as the number of time series
+    increases.
+    <styled-content id="figU003Ak_med"></styled-content></p></caption>
+    <graphic mimetype="application" mime-subtype="pdf" xlink:href="../media/k_med_speed_nn.pdf" />
+  </fig>
+  <fig>
+    <caption><p>Change in computational time of
+    <monospace>DTW-C++</monospace> using integer programming clustering
+    compared with <monospace>DTAIDistance</monospace> as the number of
+    time series in the datasets to be clustered increases and the length
+    of time series in the datasets increases.
+    <styled-content id="figU003Aspeed_IP"></styled-content></p></caption>
+    <graphic mimetype="application" mime-subtype="pdf" xlink:href="../media/ip_speed.pdf" />
+  </fig>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>We are grateful for discussions of this topic with
+  <ext-link ext-link-type="uri" xlink:href="https://howey.eng.ox.ac.uk">Battery
+  Intelligence Lab</ext-link> members, and thank BBOXX for project
+  funding and access to data. This work was also funded by the UKRI PFER
+  Energy Superhub Oxford demonstrator and the ``Data-driven exploration
+  of the carbon emissions impact of grid energy storage deployment and
+  dispatch’’ project (EP/W027321/1). The authors would like to
+  particularly thank Dau, Keogh, et al. for their extensive efforts in
+  compiling a diverse range of datasets for the
+  <ext-link ext-link-type="uri" xlink:href="https://www.cs.ucr.edu/~eamonn/time_series_data_2018/">UCR
+  Time Series Classification Archive</ext-link>.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <title></title>
+  <ref id="ref-Aghabozorgi2015">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Aghabozorgi</surname><given-names>Saeed</given-names></name>
+        <name><surname>Shirkhorshidi</surname><given-names>Ali Seyed</given-names></name>
+        <name><surname>Wah</surname><given-names>Teh Ying</given-names></name>
+      </person-group>
+      <article-title>Time-series clustering - a decade review</article-title>
+      <source>Information Systems</source>
+      <publisher-name>Elsevier Ltd</publisher-name>
+      <year iso-8601-date="2015-05">2015</year><month>05</month>
+      <volume>53</volume>
+      <pub-id pub-id-type="doi">10.1016/j.is.2015.04.007</pub-id>
+      <fpage>16</fpage>
+      <lpage>38</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Sakoe1978">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Sakoe</surname><given-names>Hiroaki</given-names></name>
+        <name><surname>Chiba</surname><given-names>Seibi</given-names></name>
+      </person-group>
+      <article-title>Dynamic programming algorithm optimization for spoken word recognition</article-title>
+      <source>IEEE Transactions on Acoustics, Speech, and Signal Processing</source>
+      <year iso-8601-date="1978">1978</year>
+      <volume>26</volume>
+      <issue>1</issue>
+      <pub-id pub-id-type="doi">10.1109/TASSP.1978.1163055</pub-id>
+      <fpage>43</fpage>
+      <lpage>49</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-meert2022wannesm">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Meert</surname><given-names>Wannes</given-names></name>
+        <name><surname>Hendrickx</surname><given-names>Kilian</given-names></name>
+        <name><surname>Van Craenendonck</surname><given-names>Toon</given-names></name>
+        <name><surname>Robberechts</surname><given-names>Pieter</given-names></name>
+        <name><surname>Blockeel</surname><given-names>Hendrik</given-names></name>
+        <name><surname>Davis</surname><given-names>Jesse</given-names></name>
+      </person-group>
+      <article-title>Wannesm/dtaidistance v2.3.10</article-title>
+      <source>Zenodo</source>
+      <year iso-8601-date="2022">2022</year>
+      <uri>https://zenodo.org/records/7158824</uri>
+      <pub-id pub-id-type="doi">10.5281/zenodo.1202378</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-dau2019ucr">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Dau</surname><given-names>Hoang Anh</given-names></name>
+        <name><surname>Bagnall</surname><given-names>Anthony</given-names></name>
+        <name><surname>Kamgar</surname><given-names>Kaveh</given-names></name>
+        <name><surname>Yeh</surname><given-names>Chin-Chia Michael</given-names></name>
+        <name><surname>Zhu</surname><given-names>Yan</given-names></name>
+        <name><surname>Gharghabi</surname><given-names>Shaghayegh</given-names></name>
+        <name><surname>Ratanamahatana</surname><given-names>Chotirat Ann</given-names></name>
+        <name><surname>Keogh</surname><given-names>Eamonn</given-names></name>
+      </person-group>
+      <article-title>The UCR time series archive</article-title>
+      <source>IEEE/CAA Journal of Automatica Sinica</source>
+      <publisher-name>IEEE</publisher-name>
+      <year iso-8601-date="2019">2019</year>
+      <volume>6</volume>
+      <issue>6</issue>
+      <pub-id pub-id-type="doi">10.1109/JAS.2019.1911747</pub-id>
+      <fpage>1293</fpage>
+      <lpage>1305</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-UCRArchive2018">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Dau</surname><given-names>Hoang Anh</given-names></name>
+        <name><surname>Keogh</surname><given-names>Eamonn</given-names></name>
+        <name><surname>Kamgar</surname><given-names>Kaveh</given-names></name>
+        <name><surname>Yeh</surname><given-names>Chin-Chia Michael</given-names></name>
+        <name><surname>Zhu</surname><given-names>Yan</given-names></name>
+        <name><surname>Gharghabi</surname><given-names>Shaghayegh</given-names></name>
+        <name><surname>Ratanamahatana</surname><given-names>Chotirat Ann</given-names></name>
+        <name><surname>Yanping</surname></name>
+        <name><surname>Hu</surname><given-names>Bing</given-names></name>
+        <name><surname>Begum</surname><given-names>Nurjahan</given-names></name>
+        <name><surname>Bagnall</surname><given-names>Anthony</given-names></name>
+        <name><surname>Mueen</surname><given-names>Abdullah</given-names></name>
+        <name><surname>Batista</surname><suffix>Gustavo</suffix></name>
+        <name><surname>Hexagon-ML</surname></name>
+      </person-group>
+      <article-title>The UCR time series classification archive</article-title>
+      <year iso-8601-date="2018">2018</year>
+      <uri>https://www.cs.ucr.edu/~eamonn/time_series_data_2018/</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-Rajabi2020">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Rajabi</surname><given-names>Amin</given-names></name>
+        <name><surname>Eskandari</surname><given-names>Mohsen</given-names></name>
+        <name><surname>Ghadi</surname><given-names>Mojtaba Jabbari</given-names></name>
+        <name><surname>Li</surname><given-names>Li</given-names></name>
+        <name><surname>Zhang</surname><given-names>Jiangfeng</given-names></name>
+        <name><surname>Siano</surname><given-names>Pierluigi</given-names></name>
+      </person-group>
+      <article-title>A comparative study of clustering techniques for electrical load pattern segmentation</article-title>
+      <source>Renewable and Sustainable Energy Reviews</source>
+      <publisher-name>Elsevier Ltd</publisher-name>
+      <year iso-8601-date="2020-03">2020</year><month>03</month>
+      <volume>120</volume>
+      <pub-id pub-id-type="doi">10.1016/j.rser.2019.109628</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-Tavenard2020">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Tavenard</surname><given-names>Romain</given-names></name>
+        <name><surname>Faouzi</surname><given-names>Johann</given-names></name>
+        <name><surname>Vandewiele</surname><given-names>Gilles</given-names></name>
+        <name><surname>Divo</surname><given-names>Felix</given-names></name>
+        <name><surname>Androz</surname><given-names>Guillaume</given-names></name>
+        <name><surname>Holtz</surname><given-names>Chester</given-names></name>
+        <name><surname>Payne</surname><given-names>Marie</given-names></name>
+        <name><surname>Yurchak</surname><given-names>Roman</given-names></name>
+        <name><surname>Rußwurm</surname><given-names>Marc</given-names></name>
+        <name><surname>Kolar</surname><given-names>Kushal</given-names></name>
+        <name><surname>Woods</surname><given-names>Eli</given-names></name>
+      </person-group>
+      <article-title>Tslearn, a machine learning toolkit for time series data</article-title>
+      <source>Journal of Machine Learning Research</source>
+      <year iso-8601-date="2020">2020</year>
+      <volume>21</volume>
+      <issue>118</issue>
+      <uri>http://jmlr.org/papers/v21/20-091.html</uri>
+      <fpage>1</fpage>
+      <lpage>6</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Huangfu2018">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Huangfu</surname><given-names>Q.</given-names></name>
+        <name><surname>Hall</surname><given-names>J. A. J.</given-names></name>
+      </person-group>
+      <article-title>Parallelizing the dual revised simplex method</article-title>
+      <source>Mathematical Programming Computation</source>
+      <publisher-name>Springer Verlag</publisher-name>
+      <year iso-8601-date="2018-03">2018</year><month>03</month>
+      <volume>10</volume>
+      <issue>1</issue>
+      <pub-id pub-id-type="doi">10.1007/s12532-017-0130-5</pub-id>
+      <fpage>119</fpage>
+      <lpage>142</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-gurobi">
+    <element-citation>
+      <person-group person-group-type="author">
+        <string-name>Gurobi Optimization, LLC</string-name>
+      </person-group>
+      <article-title>Gurobi Optimizer Reference Manual</article-title>
+      <year iso-8601-date="2024">2024</year>
+      <uri>https://www.gurobi.com/documentation/11.0/refman/</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-ROUSSEEUW198753">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Rousseeuw</surname><given-names>Peter J.</given-names></name>
+      </person-group>
+      <article-title>Silhouettes: A graphical aid to the interpretation and validation of cluster analysis</article-title>
+      <source>Journal of Computational and Applied Mathematics</source>
+      <year iso-8601-date="1987">1987</year>
+      <volume>20</volume>
+      <issn>0377-0427</issn>
+      <uri>https://www.sciencedirect.com/science/article/pii/0377042787901257</uri>
+      <pub-id pub-id-type="doi">10.1016/0377-0427(87)90125-7</pub-id>
+      <fpage>53</fpage>
+      <lpage>65</lpage>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
