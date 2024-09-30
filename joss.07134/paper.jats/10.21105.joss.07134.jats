@@ -1,0 +1,747 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">7134</article-id>
+<article-id pub-id-type="doi">10.21105/joss.07134</article-id>
+<title-group>
+<article-title>Bodge: Python package for efficient tight-binding
+modeling of superconducting nanostructures</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0002-3725-0885</contrib-id>
+<name>
+<surname>Ouassou</surname>
+<given-names>Jabir Ali</given-names>
+</name>
+<email>jabir.ali.ouassou@hvl.no</email>
+<xref ref-type="aff" rid="aff-1"/>
+<xref ref-type="aff" rid="aff-2"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Department of Computer Science, Electrical Engineering and
+Mathematical Sciences, Western Norway University of Applied Sciences,
+NO-5528 Haugesund, Norway</institution>
+</institution-wrap>
+</aff>
+<aff id="aff-2">
+<institution-wrap>
+<institution>Center for Quantum Spintronics, Department of Physics,
+Norwegian University of Science and Technology, NO-7491 Trondheim,
+Norway</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2024-07-12">
+<day>12</day>
+<month>7</month>
+<year>2024</year>
+</pub-date>
+<volume>9</volume>
+<issue>101</issue>
+<fpage>7134</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2022</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>python</kwd>
+<kwd>numerical physics</kwd>
+<kwd>condensed matter physics</kwd>
+<kwd>tight-binding models</kwd>
+<kwd>superconductivity</kwd>
+<kwd>sparse matrices</kwd>
+<kwd>bdg equations</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p><ext-link ext-link-type="uri" xlink:href="https://github.com/jabirali/bodge">Bodge</ext-link>
+  is a Python package for constructing <italic>large-scale real-space
+  tight-binding models</italic> for calculations in condensed matter
+  physics. “Large-scale” means that it should remain performant even for
+  lattices with millions of atoms, and “real-space” means that the model
+  is formulated in terms of individual lattice sites and not in
+  e.g. momentum space.</p>
+  <p>Although general tight-binding models can be constructed with this
+  package, the main focus is on the Bogoliubov-DeGennes (“BoDGe”)
+  Hamiltonian used to model superconductivity in the clean limit
+  (<xref alt="de Gennes, 1966" rid="ref-degennes_bdg_1966" ref-type="bibr">de
+  Gennes, 1966</xref>;
+  <xref alt="Zhu, 2016" rid="ref-zhu_bdg_2016" ref-type="bibr">Zhu,
+  2016</xref>). The package is designed to be easy to use, flexible, and
+  extensible – and very few lines of code are required to model
+  heterostructures containing e.g. conventional and unconventional
+  superconductors, ferromagnets and antiferromagnets, altermagnetism and
+  spin-orbit coupling, etc.</p>
+  <p>In other words: If you want a lattice model for superconducting
+  nanostructures, and want something that is computationally efficient
+  yet easy to use, Bodge should be a good choice.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p>In condensed matter physics, a standard methodology for modeling
+  materials is the <italic>tight-binding model</italic>. In the context
+  of electronic systems (e.g. metals), the electrons in such a model
+  typically “live” at one atomic site, but from time to time “hop” over
+  to neighboring atoms. By including a spin structure as well in this
+  formalism – meaning that we keep track of what spins each electron
+  has, and whether the spins “flip” during various interactions that are
+  permitted on this lattice – we can model a wide variety of physical
+  phenomena including superconductivity and magnetism. Mathematically,
+  this is often expressed in the language of quantum field theory: We
+  define one operator <inline-formula><alternatives>
+  <tex-math><![CDATA[c^\dagger_{i\sigma}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msubsup><mml:mi>c</mml:mi><mml:mrow><mml:mi>i</mml:mi><mml:mi>σ</mml:mi></mml:mrow><mml:mo>†</mml:mo></mml:msubsup></mml:math></alternatives></inline-formula>
+  that “puts” an electron with spin <inline-formula><alternatives>
+  <tex-math><![CDATA[\sigma \in \{\uparrow, \downarrow\}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>σ</mml:mi><mml:mo>∈</mml:mo><mml:mo stretchy="false" form="prefix">{</mml:mo><mml:mo>↑</mml:mo><mml:mo>,</mml:mo><mml:mo>↓</mml:mo><mml:mo stretchy="false" form="postfix">}</mml:mo></mml:mrow></mml:math></alternatives></inline-formula>
+  on an atomic site with some index <inline-formula><alternatives>
+  <tex-math><![CDATA[i]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>i</mml:mi></mml:math></alternatives></inline-formula>,
+  and another operator <inline-formula><alternatives>
+  <tex-math><![CDATA[c_{i\sigma}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>c</mml:mi><mml:mrow><mml:mi>i</mml:mi><mml:mi>σ</mml:mi></mml:mrow></mml:msub></mml:math></alternatives></inline-formula>
+  that “removes” a corresponding electron. The Hamiltonian operator
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[\mathcal{H}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>ℋ</mml:mi></mml:math></alternatives></inline-formula>
+  of the system is then constructed out of these electron operators –
+  and this can in turn be used to calculate e.g. the ground-state
+  energy, electric currents, superconducting order parameters, and other
+  relevant material properties.</p>
+  <p>To do anything useful with that Hamiltonian <italic>on a
+  computer</italic>, however, you typically have to translate it to a
+  matrix form. This is where Bodge enters the picture:</p>
+  <list list-type="bullet">
+    <list-item>
+      <p>It provides an easy-to-use Pythonic interface for constructing
+      the Hamiltonian of a tight-binding system. Particular focus has
+      been placed on making it easy to describe systems that include
+      various forms of superconductivity and magnetism, making it a
+      great choice for modeling e.g. superconductivity in magnetic
+      heterostructures.</p>
+    </list-item>
+    <list-item>
+      <p>It scales well to large systems. For efficiency, it uses SciPy
+      sparse matrices internally
+      (<xref alt="Virtanen et al., 2020" rid="ref-scipy_2020" ref-type="bibr">Virtanen
+      et al., 2020</xref>), and it constructs large Hamiltonians in
+      <inline-formula><alternatives>
+      <tex-math><![CDATA[\mathcal{O}(N)]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>𝒪</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>N</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>
+      time and memory where <inline-formula><alternatives>
+      <tex-math><![CDATA[N]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>N</mml:mi></mml:math></alternatives></inline-formula>
+      is the number of sites. According to
+      <ext-link ext-link-type="uri" xlink:href="https://jabirali.github.io/bodge/tutorial.html#numerical-details">my
+      benchmarks</ext-link>, the performance is similar to
+      <ext-link ext-link-type="uri" xlink:href="https://kwant-project.org/">Kwant</ext-link>
+      (<xref alt="Groth et al., 2014" rid="ref-groth_kwant_2014" ref-type="bibr">Groth
+      et al., 2014</xref>), which is the state of the art for numerical
+      condensed matter physics. The results can be returned in most
+      NumPy or SciPy matrix formats.</p>
+    </list-item>
+    <list-item>
+      <p>It is designed to be extensible. For instance, while Bodge
+      currently only implements square and cubic lattices (via the
+      <monospace>CubicLattice</monospace> class), it can be used to
+      construct Hamiltonians on e.g. triangular or hexagonal lattices if
+      you want: you just need to create your own subclass of the
+      <monospace>Lattice</monospace> base class and implement 2-3 short
+      iterators that describe how to iterate through your lattice.
+      (Specifically: the methods <monospace>.sites</monospace>,
+      <monospace>.bonds</monospace>, and <monospace>.edges</monospace>
+      need separate implementations per <monospace>Lattice</monospace>
+      type.)</p>
+    </list-item>
+    <list-item>
+      <p>Some convenience methods are provided to help you with the next
+      steps of your calculations: Extracting the local density of states
+      (LDOS), calculating the free energy, diagonalizing the
+      Hamiltonian, etc. (Some more advanced algorithms live on the
+      <monospace>develop</monospace> branch on GitHub, but have not yet
+      been assimilated into the official package.)</p>
+    </list-item>
+    <list-item>
+      <p>The code itself follows modern software development practices:
+      Full test coverage with continuous integration (via
+      <monospace>pytest</monospace>), fast runtime type checking (via
+      <monospace>beartype</monospace>), and PEP-8 compliance (via
+      <monospace>black</monospace>).</p>
+    </list-item>
+  </list>
+  <p>There are two main alternatives that arguably fill a similar niche
+  to Bodge: Kwant
+  (<xref alt="Groth et al., 2014" rid="ref-groth_kwant_2014" ref-type="bibr">Groth
+  et al., 2014</xref>) and Pybinding
+  (<xref alt="Moldovan et al., 2020" rid="ref-moldovan_pybinding_2020" ref-type="bibr">Moldovan
+  et al., 2020</xref>). Compared to these packages, the main benefit of
+  Bodge is the focus on the BdG Hamiltonian in particular. For instance,
+  using Kwant, it is up to the user to declare that each lattice site
+  has 4 degrees of freedom (spin-up electrons, spin-down electrons,
+  spin-up holes, and spin-down holes), and to ensure that you construct
+  a Hamiltonian with the correct particle-hole symmetries. Bodge,
+  however, <italic>assumes</italic> that these are the only relevant
+  degrees of freedom, and enforces the relevant symmetries by default.
+  In practice, this means that Kwant can be used to study a broader
+  variety of physical systems, whereas Bodge can provide a friendlier
+  syntax for users who work specifically on superconducting systems.
+  Both packages support both NumPy arrays and SciPy sparse matrices as
+  output formats, and both provide similar performance in the limit of
+  large systems.</p>
+  <p>Sparse matrices, including e.g. the <italic>Compressed Sparse
+  Row</italic> (CSR) format used below, have the advantage that they
+  only store the non-zero elements of a matrix. For a typical
+  tight-binding model with nearest-neighbor hopping terms, the
+  Hamiltonian matrix that describes a lattice with
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[N]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>N</mml:mi></mml:math></alternatives></inline-formula>
+  atoms has <inline-formula><alternatives>
+  <tex-math><![CDATA[\mathcal{O}(N^2)]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>𝒪</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msup><mml:mi>N</mml:mi><mml:mn>2</mml:mn></mml:msup><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>
+  elements where only <inline-formula><alternatives>
+  <tex-math><![CDATA[\mathcal{O}(N)]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>𝒪</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>N</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>
+  are non-zero. Thus, algorithms that leverage sparse matrices often
+  result in at least an <inline-formula><alternatives>
+  <tex-math><![CDATA[\mathcal{O}(N)]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>𝒪</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>N</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>
+  reduction in CPU and RAM requirements, which becomes highly
+  significant for large systems. Even larger performance enhancements
+  can be obtained in some limits
+  (<xref alt="Nagai, 2020" rid="ref-nagai_krylov_2020" ref-type="bibr">Nagai,
+  2020</xref>;
+  <xref alt="Weiße et al., 2006" rid="ref-weisse_chebyshev_2006" ref-type="bibr">Weiße
+  et al., 2006</xref>), although it depends on your system whether the
+  required approximations provide a good trade-off between accuracy and
+  speed. However, <italic>dense matrices</italic> (i.e. NumPy arrays)
+  allow for simpler solution algorithms based on e.g. full matrix
+  diagonalization, and can become faster than sparse matrix algorithms
+  for small systems or when leveraging GPU acceleration. Notably, the
+  computational complexity of sparse matrix algorithms often come with a
+  large constant prefactor (e.g. the order of a Chebyshev matrix
+  expansion), which can actually result in worse performance for smaller
+  systems. For this reason, both sparse and dense matrices are fully
+  supported by Bodge, allowing the user to pick the most suitable matrix
+  format for the task at hand.</p>
+</sec>
+<sec id="examples-and-workflows">
+  <title>Examples and workflows</title>
+  <p>Introductory examples of how to use Bodge are provided in the
+  <ext-link ext-link-type="uri" xlink:href="https://jabirali.github.io/bodge/">official
+  documentation</ext-link>. Examples of research problems that have been
+  studied using Bodge include superconductor/altermagnet
+  heterostructures
+  (<xref alt="Ouassou et al., 2023" rid="ref-ouassou_alt_2023" ref-type="bibr">Ouassou
+  et al., 2023</xref>) and RKKY interactions in unconventional
+  superconductors
+  (<xref alt="Ouassou et al., 2024b" rid="ref-ouassou_rkky_2024" ref-type="bibr">Ouassou
+  et al., 2024b</xref>,
+  <xref alt="2024a" rid="ref-ouassou_dmi_2024" ref-type="bibr">2024a</xref>).
+  These papers also describe some sparse matrix algorithms that can be
+  used together with Bodge, including Chebyshev expansion of the Fermi
+  matrix
+  (<xref alt="Benfenati, 2022" rid="ref-benfenati_fermi_2022" ref-type="bibr">Benfenati,
+  2022</xref>;
+  <xref alt="Goedecker &amp; Colombo, 1994" rid="ref-goedecker_fermi_1994" ref-type="bibr">Goedecker
+  &amp; Colombo, 1994</xref>;
+  <xref alt="Ouassou et al., 2023" rid="ref-ouassou_alt_2023" ref-type="bibr">Ouassou
+  et al., 2023</xref>;
+  <xref alt="Weiße et al., 2006" rid="ref-weisse_chebyshev_2006" ref-type="bibr">Weiße
+  et al., 2006</xref>) and a quick way to calculate the local density of
+  states
+  (<xref alt="Nagai et al., 2017" rid="ref-nagai_ldos_2017" ref-type="bibr">Nagai
+  et al., 2017</xref>;
+  <xref alt="Ouassou et al., 2024b" rid="ref-ouassou_rkky_2024" ref-type="bibr">Ouassou
+  et al., 2024b</xref>).</p>
+  <p>For a simple example of how this package can be used, consider a
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[64a\times64a]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mn>64</mml:mn><mml:mi>a</mml:mi><mml:mo>×</mml:mo><mml:mn>64</mml:mn><mml:mi>a</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>
+  square lattice. Let’s assume that the whole system is a metal with
+  chemical potential <inline-formula><alternatives>
+  <tex-math><![CDATA[\mu = 1.5t]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>μ</mml:mi><mml:mo>=</mml:mo><mml:mn>1.5</mml:mn><mml:mi>t</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>,
+  where <inline-formula><alternatives>
+  <tex-math><![CDATA[t=1]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>t</mml:mi><mml:mo>=</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>
+  is the hopping amplitude. Moreover, let’s assume that half the system
+  (<inline-formula><alternatives>
+  <tex-math><![CDATA[x < 32a]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>x</mml:mi><mml:mo>&lt;</mml:mo><mml:mn>32</mml:mn><mml:mi>a</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>)
+  is a conventional <inline-formula><alternatives>
+  <tex-math><![CDATA[s]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>s</mml:mi></mml:math></alternatives></inline-formula>-wave
+  superconductor with an order parameter <inline-formula><alternatives>
+  <tex-math><![CDATA[\Delta_s = 0.1t]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>Δ</mml:mi><mml:mi>s</mml:mi></mml:msub><mml:mo>=</mml:mo><mml:mn>0.1</mml:mn><mml:mi>t</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>,
+  whereas the other half is a ferromagnet with exchange field
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[\mathbf{M} = M_z \mathbf{e}_z]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>𝐌</mml:mi><mml:mo>=</mml:mo><mml:msub><mml:mi>M</mml:mi><mml:mi>z</mml:mi></mml:msub><mml:msub><mml:mi>𝐞</mml:mi><mml:mi>z</mml:mi></mml:msub></mml:mrow></mml:math></alternatives></inline-formula>.
+  To describe the Hamiltonian corresponding to this system we can use
+  the following code:</p>
+  <code language="python">from bodge import *
+
+# Tight-binding parameters
+t = 1
+μ = 1.5 * t
+Δs = 0.1 * t
+Mz = 0.5 * Δs
+
+# Construct the Hamiltonian
+lattice = CubicLattice((64, 64, 1))
+system = Hamiltonian(lattice)
+
+with system as (H, Δ):
+    for i, j in lattice.bonds():
+        H[i, j] = -t * σ0
+    for i in lattice.sites():
+        if i[0] &lt; 32:
+            H[i, i] = -μ * σ0
+            Δ[i, i] = -Δs * jσ2
+        else:
+            H[i, i] = -μ * σ0 - Mz * σ3</code>
+  <p>Note the use of a context manager
+  (<monospace>with</monospace>-block) to provide an intuitive array
+  syntax for accessing the relevant parts of the Hamiltonian matrix,
+  while abstracting away the underlying sparse matrix details.
+  Afterwards, there are many different ways to use the resulting
+  object.</p>
+  <p>Some physical observables can be directly calculated using the
+  methods provided in Bodge. For instance, one can use the method
+  <monospace>system.ldos(site, energies)</monospace> to directly
+  calculate the local density of states at a given lattice site, which
+  can then be used to check for spectral features such as e.g. a
+  <italic>superconducting gap</italic> or a <italic>zero-energy
+  peak</italic>. There is also a method
+  <monospace>system.free_energy(temperature)</monospace> which
+  calculates the <italic>free energy</italic> of the system. By varying
+  parameters in the Hamiltonian (e.g. the orientation of a magnetic
+  field) and then minimizing this free energy, one can e.g. determine
+  the ground state of the system.</p>
+  <p>Most calculations of interest, however, requires that the user
+  implements some code themselves. There are then two main approaches
+  one can take. The classic approach is <italic>matrix
+  diagonalization</italic> which uses dense matrices internally. Bodge
+  provides the method <monospace>diagonalize</monospace> for this
+  purpose:</p>
+  <code language="python">E, v = system.diagonalize()</code>
+  <p>The results above contain the positive energies
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[E_n]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>E</mml:mi><mml:mi>n</mml:mi></mml:msub></mml:math></alternatives></inline-formula>
+  and corresponding state vectors <inline-formula><alternatives>
+  <tex-math><![CDATA[\mathbf{v}_n]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>𝐯</mml:mi><mml:mi>n</mml:mi></mml:msub></mml:math></alternatives></inline-formula>
+  which satisfy the eigenvalue equation <inline-formula><alternatives>
+  <tex-math><![CDATA[\mathbf{H} \mathbf{v}_n = E_n \mathbf{v}_n]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>𝐇</mml:mi><mml:msub><mml:mi>𝐯</mml:mi><mml:mi>n</mml:mi></mml:msub><mml:mo>=</mml:mo><mml:msub><mml:mi>E</mml:mi><mml:mi>n</mml:mi></mml:msub><mml:msub><mml:mi>𝐯</mml:mi><mml:mi>n</mml:mi></mml:msub></mml:mrow></mml:math></alternatives></inline-formula>.
+  (Only positive eigenvalues are returned due to the “Nambu doubling” of
+  degrees of freedom in superconducting systems.) Once the eigenvalues
+  and eigenvectors have been obtained, the user can themselves calculate
+  physical properties of interest from these using equations from
+  standard textbooks on the “Bogoliubov–de Gennes” approach to modeling
+  superconductivity
+  (<xref alt="Zhu, 2016" rid="ref-zhu_bdg_2016" ref-type="bibr">Zhu,
+  2016</xref>). It is a future goal to incorporate more calculation
+  methods of this kind into the Bodge package itself. Support for matrix
+  diagonalization using GPUs via the CuPy package is also under
+  development.</p>
+  <p>Examples of physical observables that can be calculated from the
+  eigenvalues and eigenvectors include e.g. the superconducting order
+  parameter, electric currents, and spin currents. These can in turn be
+  used to calculate even more material properties. For instance, the
+  critical current of a Josephson junction is defined as the largest
+  electric current that can flow through it for any phase difference,
+  and the critical temperature of a bulk superconductor is defined as
+  the largest temperature at which the superconducting order parameter
+  remains non-zero. These observables can thus be determined via
+  numerical optimization of the electric current and superconducting
+  order parameter, respectively. For instance, the critical temperature
+  can be efficiently determined using a bisection method
+  (<xref alt="Ouassou et al., 2016" rid="ref-ouassou_bisect_2016" ref-type="bibr">Ouassou
+  et al., 2016</xref>;
+  <xref alt="Ouassou, 2019" rid="ref-ouassou_phd_2019" ref-type="bibr">Ouassou,
+  2019</xref>).</p>
+  <p>A modern alternative to matrix diagonalization is a series of
+  algorithms based on Chebyshev expansion of the Hamiltonian matrix
+  (<xref alt="Benfenati, 2022" rid="ref-benfenati_fermi_2022" ref-type="bibr">Benfenati,
+  2022</xref>;
+  <xref alt="Covaci et al., 2010" rid="ref-covaci_cbdg_2010" ref-type="bibr">Covaci
+  et al., 2010</xref>;
+  <xref alt="Nagai, 2020" rid="ref-nagai_krylov_2020" ref-type="bibr">Nagai,
+  2020</xref>;
+  <xref alt="Ouassou et al., 2023" rid="ref-ouassou_alt_2023" ref-type="bibr">Ouassou
+  et al., 2023</xref>;
+  <xref alt="Weiße et al., 2006" rid="ref-weisse_chebyshev_2006" ref-type="bibr">Weiße
+  et al., 2006</xref>). These algorithms take advantage of the extreme
+  sparsity of the Hamiltonian matrix, and thus typically provide a
+  significant performance benefit in the limit of very large lattices.
+  One of the main design goals behind Bodge has been to make it trivial
+  to construct sparse representations of the Hamiltonian matrix for this
+  purpose, and it is therefore straight-forward to export the result as
+  e.g. a CSR sparse matrix:</p>
+  <code language="python">H = system.matrix(format=&quot;csr&quot;)</code>
+  <p>The user can then easily use the resulting matrix
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[\mathbf{H}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>𝐇</mml:mi></mml:math></alternatives></inline-formula>
+  to formulate their own sparse matrix algorithms of this kind. For
+  instance, arbitrary matrix functions can typically be evaluated as a
+  Chebyshev expansion <inline-formula><alternatives>
+  <tex-math><![CDATA[f(\mathbf{H}) = \sum_{m=0}^{M-1} f_m T_m(\mathbf{H})]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>f</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>𝐇</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>=</mml:mo><mml:msubsup><mml:mo>∑</mml:mo><mml:mrow><mml:mi>m</mml:mi><mml:mo>=</mml:mo><mml:mn>0</mml:mn></mml:mrow><mml:mrow><mml:mi>M</mml:mi><mml:mo>−</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:msubsup><mml:msub><mml:mi>f</mml:mi><mml:mi>m</mml:mi></mml:msub><mml:msub><mml:mi>T</mml:mi><mml:mi>m</mml:mi></mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>𝐇</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>,
+  where the Chebyshev moments <inline-formula><alternatives>
+  <tex-math><![CDATA[f_m]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>f</mml:mi><mml:mi>m</mml:mi></mml:msub></mml:math></alternatives></inline-formula>
+  of the function <inline-formula><alternatives>
+  <tex-math><![CDATA[f(\,\cdot\,)]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>f</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mspace width="0.167em"></mml:mspace><mml:mo>⋅</mml:mo><mml:mspace width="0.167em"></mml:mspace><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>
+  are computationally inexpensive to obtain, whereas the Chebyshev
+  matrix polynomials <inline-formula><alternatives>
+  <tex-math><![CDATA[T_m(\,\cdot\,)]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>T</mml:mi><mml:mi>m</mml:mi></mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mspace width="0.167em"></mml:mspace><mml:mo>⋅</mml:mo><mml:mspace width="0.167em"></mml:mspace><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>
+  can be obtained via the recursion relation
+  (<xref alt="Weiße et al., 2006" rid="ref-weisse_chebyshev_2006" ref-type="bibr">Weiße
+  et al., 2006</xref>) <disp-formula><alternatives>
+  <tex-math><![CDATA[T_m(\mathbf{H}) = \begin{cases} \mathbf{H}^m & \text{if $0 \leq m \leq 1$,} \\ 2\mathbf{H}T_{m-1}(\mathbf{H}) - T_{m-2}(\mathbf{H}) & \text{if $m > 1$.} \end{cases}]]></tex-math>
+  <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>T</mml:mi><mml:mi>m</mml:mi></mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>𝐇</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>=</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">{</mml:mo><mml:mtable><mml:mtr><mml:mtd columnalign="left" style="text-align: left"><mml:msup><mml:mi>𝐇</mml:mi><mml:mi>m</mml:mi></mml:msup></mml:mtd><mml:mtd columnalign="left" style="text-align: left"><mml:mrow><mml:mtext mathvariant="normal">if </mml:mtext><mml:mspace width="0.333em"></mml:mspace></mml:mrow><mml:mrow><mml:mn>0</mml:mn><mml:mo>≤</mml:mo><mml:mi>m</mml:mi><mml:mo>≤</mml:mo><mml:mn>1</mml:mn></mml:mrow><mml:mtext mathvariant="normal">,</mml:mtext></mml:mtd></mml:mtr><mml:mtr><mml:mtd columnalign="left" style="text-align: left"><mml:mn>2</mml:mn><mml:mi>𝐇</mml:mi><mml:msub><mml:mi>T</mml:mi><mml:mrow><mml:mi>m</mml:mi><mml:mo>−</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>𝐇</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>−</mml:mo><mml:msub><mml:mi>T</mml:mi><mml:mrow><mml:mi>m</mml:mi><mml:mo>−</mml:mo><mml:mn>2</mml:mn></mml:mrow></mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>𝐇</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mtd><mml:mtd columnalign="left" style="text-align: left"><mml:mrow><mml:mtext mathvariant="normal">if </mml:mtext><mml:mspace width="0.333em"></mml:mspace></mml:mrow><mml:mrow><mml:mi>m</mml:mi><mml:mo>&gt;</mml:mo><mml:mn>1</mml:mn></mml:mrow><mml:mtext mathvariant="normal">.</mml:mtext></mml:mtd></mml:mtr></mml:mtable></mml:mrow></mml:mrow></mml:math></alternatives></disp-formula>
+  The trick is then to find a suitable matrix function
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[f(\mathbf{H})]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>f</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>𝐇</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>
+  to study your physical system. Using the “Kernel Polynomial Method”
+  (<xref alt="Weiße et al., 2006" rid="ref-weisse_chebyshev_2006" ref-type="bibr">Weiße
+  et al., 2006</xref>), the order <inline-formula><alternatives>
+  <tex-math><![CDATA[M]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>M</mml:mi></mml:math></alternatives></inline-formula>
+  of such a Chebyshev expansion can be decreased without serious
+  truncation errors.</p>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>I acknowledge very helpful discussions with my PostDoc supervisor
+  Prof. Jacob Linder when learning the BdG formalism, without which the
+  Bodge package would not exist today. I also thank Morten Amundsen,
+  Henning G. Hugdal, and Sol H. Jacobsen for useful discussions on
+  tight-binding modeling in general. Finally, I want to thank Mayeul
+  d’Avezac and Yue-Wen Fang for their constructive input during the
+  referee process, which has improved the Bodge software package and its
+  documentation.</p>
+  <p>This work was supported by the Research Council of Norway through
+  Grant No. 323766 and its Centres of Excellence funding scheme Grant
+  No. 262633 “QuSpin.” During the development of this package, some
+  numerical calculations were performed on resources provided by Sigma2
+  – the National Infrastructure for High Performance Computing and Data
+  Storage in Norway, Project No. NN9577K. The work presented in this
+  paper has also benefited from the Experimental Infrastructure for
+  Exploration of Exascale Computing (eX3), which is financially
+  supported by the Research Council of Norway under contract 270053.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <title></title>
+  <ref id="ref-benfenati_fermi_2022">
+    <element-citation publication-type="thesis">
+      <person-group person-group-type="author">
+        <name><surname>Benfenati</surname><given-names>Andrea Ludovico</given-names></name>
+      </person-group>
+      <article-title>Numerical solutions to non-linear inhomogeneous problems in superconductivity</article-title>
+      <publisher-name>KTH</publisher-name>
+      <publisher-loc>Stockholm, Sweden</publisher-loc>
+      <year iso-8601-date="2022">2022</year>
+      <uri>https://urn.kb.se/resolve?urn=urn:nbn:se:kth:diva-311403</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-covaci_cbdg_2010">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Covaci</surname><given-names>L.</given-names></name>
+        <name><surname>Peeters</surname><given-names>F. M.</given-names></name>
+        <name><surname>Berciu</surname><given-names>M.</given-names></name>
+      </person-group>
+      <article-title>Efficient numerical approach to inhomogeneous superconductivity: The Chebyshev–Bogoliubov–de Gennes method</article-title>
+      <source>Physical Review Letters</source>
+      <year iso-8601-date="2010">2010</year>
+      <volume>105</volume>
+      <issn>0031-9007</issn>
+      <pub-id pub-id-type="doi">10.1103/PhysRevLett.105.167006</pub-id>
+      <fpage>167006</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-degennes_bdg_1966">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>de Gennes</surname><given-names>Pierre Gilles</given-names></name>
+      </person-group>
+      <source>Superconductivity of metals and alloys</source>
+      <year iso-8601-date="1966">1966</year>
+      <isbn>9780429497032</isbn>
+      <pub-id pub-id-type="doi">10.1201/9780429497032</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-goedecker_fermi_1994">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Goedecker</surname><given-names>S.</given-names></name>
+        <name><surname>Colombo</surname><given-names>L.</given-names></name>
+      </person-group>
+      <article-title>Efficient linear scaling algorithm for tight-binding molecular dynamics</article-title>
+      <source>Physical Review Letters</source>
+      <year iso-8601-date="1994">1994</year>
+      <volume>73</volume>
+      <issn>0031-9007</issn>
+      <pub-id pub-id-type="doi">10.1103/PhysRevLett.73.122</pub-id>
+      <fpage>122</fpage>
+      <lpage>125</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-groth_kwant_2014">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Groth</surname><given-names>Christoph W</given-names></name>
+        <name><surname>Wimmer</surname><given-names>Michael</given-names></name>
+        <name><surname>Akhmerov</surname><given-names>Anton R</given-names></name>
+        <name><surname>Waintal</surname><given-names>Xavier</given-names></name>
+      </person-group>
+      <article-title>Kwant: A software package for quantum transport</article-title>
+      <source>New Journal of Physics</source>
+      <publisher-name>IOP Publishing</publisher-name>
+      <year iso-8601-date="2014">2014</year>
+      <volume>16</volume>
+      <pub-id pub-id-type="doi">10.1088/1367-2630/16/6/063065</pub-id>
+      <fpage>063065</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-moldovan_pybinding_2020">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Moldovan</surname><suffix>Dean</suffix></name>
+        <name><surname>Anđelković</surname><suffix>Miša</suffix></name>
+        <name><surname>Peeters</surname><given-names>Francois</given-names></name>
+      </person-group>
+      <article-title>Pybinding: A python package for tight-binding calculations</article-title>
+      <source>Zenodo</source>
+      <year iso-8601-date="2020">2020</year>
+      <pub-id pub-id-type="doi">10.5281/Zenodo.4010216</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-nagai_krylov_2020">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Nagai</surname><given-names>Yuki</given-names></name>
+      </person-group>
+      <article-title>N-independent localized Krylov–Bogoliubov-de Gennes method: Ultra-fast numerical approach to large-scale inhomogeneous superconductors</article-title>
+      <source>Journal of the Physical Society of Japan</source>
+      <year iso-8601-date="2020">2020</year>
+      <volume>89</volume>
+      <issn>0031-9015</issn>
+      <pub-id pub-id-type="doi">10.7566/JPSJ.89.074703</pub-id>
+      <fpage>074703</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-nagai_ldos_2017">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Nagai</surname><given-names>Yuki</given-names></name>
+        <name><surname>Shinohara</surname><given-names>Yasushi</given-names></name>
+        <name><surname>Futamura</surname><given-names>Yasunori</given-names></name>
+        <name><surname>Sakurai</surname><given-names>Tetsuya</given-names></name>
+      </person-group>
+      <article-title>Reduced-shifted conjugate-gradient method for a Green’s function: Efficient numerical approach in a nano-structured superconductor</article-title>
+      <source>Journal of the Physical Society of Japan</source>
+      <year iso-8601-date="2017">2017</year>
+      <volume>86</volume>
+      <issn>0031-9015</issn>
+      <pub-id pub-id-type="doi">10.7566/JPSJ.86.014708</pub-id>
+      <fpage>014708</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-ouassou_alt_2023">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Ouassou</surname><given-names>Jabir Ali</given-names></name>
+        <name><surname>Brataas</surname><given-names>Arne</given-names></name>
+        <name><surname>Linder</surname><given-names>Jacob</given-names></name>
+      </person-group>
+      <article-title>DC Josephson effect in altermagnets</article-title>
+      <source>Physical Review Letters</source>
+      <year iso-8601-date="2023">2023</year>
+      <volume>131</volume>
+      <issn>0031-9007</issn>
+      <pub-id pub-id-type="doi">10.1103/PhysRevLett.131.076003</pub-id>
+      <fpage>076003</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-ouassou_bisect_2016">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Ouassou</surname><given-names>Jabir Ali</given-names></name>
+        <name><surname>Bernardo</surname><given-names>Angelo Di</given-names></name>
+        <name><surname>Robinson</surname><given-names>Jason W. A.</given-names></name>
+        <name><surname>Linder</surname><given-names>Jacob</given-names></name>
+      </person-group>
+      <article-title>Electric control of superconducting transition through a spin-orbit coupled interface</article-title>
+      <source>Scientific Reports</source>
+      <year iso-8601-date="2016">2016</year>
+      <volume>6</volume>
+      <pub-id pub-id-type="doi">10.1038/SRep29312</pub-id>
+      <fpage>29312</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-ouassou_dmi_2024">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Ouassou</surname><given-names>Jabir Ali</given-names></name>
+        <name><surname>Yokoyama</surname><given-names>Takehito</given-names></name>
+        <name><surname>Linder</surname><given-names>Jacob</given-names></name>
+      </person-group>
+      <article-title>Dzyaloshinskii–Moriya spin–spin interaction from mixed-parity superconductivity</article-title>
+      <publisher-name>arXiv</publisher-name>
+      <year iso-8601-date="2024">2024</year>
+      <pub-id pub-id-type="doi">10.48550/arXiv.2407.07144</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-ouassou_phd_2019">
+    <element-citation publication-type="thesis">
+      <person-group person-group-type="author">
+        <name><surname>Ouassou</surname><given-names>Jabir Ali</given-names></name>
+      </person-group>
+      <article-title>Manipulating superconductivity in magnetic nanostructures in and out of equilibrium</article-title>
+      <publisher-name>NTNU</publisher-name>
+      <publisher-loc>Trondheim, Norway</publisher-loc>
+      <year iso-8601-date="2019">2019</year>
+      <uri>https://pvv.org/~jabirali/academic/phd.pdf</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-ouassou_rkky_2024">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Ouassou</surname><given-names>Jabir Ali</given-names></name>
+        <name><surname>Yokoyama</surname><given-names>Takehito</given-names></name>
+        <name><surname>Linder</surname><given-names>Jacob</given-names></name>
+      </person-group>
+      <article-title>RKKY interaction in triplet superconductors: Dzyaloshinskii–Moriya-type interaction mediated by spin-polarized Cooper pairs</article-title>
+      <source>Physical Review B</source>
+      <year iso-8601-date="2024">2024</year>
+      <volume>109</volume>
+      <issn>2469-9950</issn>
+      <pub-id pub-id-type="doi">10.1103/PhysRevB.109.174506</pub-id>
+      <fpage>174506</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-scipy_2020">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Virtanen</surname><given-names>Pauli</given-names></name>
+        <name><surname>Gommers</surname><given-names>Ralf</given-names></name>
+        <name><surname>Oliphant</surname><given-names>Travis E.</given-names></name>
+        <name><surname>Haberland</surname><given-names>Matt</given-names></name>
+        <name><surname>Reddy</surname><given-names>Tyler</given-names></name>
+        <name><surname>Cournapeau</surname><given-names>David</given-names></name>
+        <name><surname>Burovski</surname><given-names>Evgeni</given-names></name>
+        <name><surname>Peterson</surname><given-names>Pearu</given-names></name>
+        <name><surname>Weckesser</surname><given-names>Warren</given-names></name>
+        <name><surname>Bright</surname><given-names>Jonathan</given-names></name>
+        <name><surname>van der Walt</surname><given-names>Stéfan J.</given-names></name>
+        <name><surname>Brett</surname><given-names>Matthew</given-names></name>
+        <name><surname>Wilson</surname><given-names>Joshua</given-names></name>
+        <name><surname>Millman</surname><given-names>K. Jarrod</given-names></name>
+        <name><surname>Mayorov</surname><given-names>Nikolay</given-names></name>
+        <name><surname>Nelson</surname><given-names>Andrew R. J.</given-names></name>
+        <name><surname>Jones</surname><given-names>Eric</given-names></name>
+        <name><surname>Kern</surname><given-names>Robert</given-names></name>
+        <name><surname>Larson</surname><given-names>Eric</given-names></name>
+        <name><surname>Carey</surname><given-names>C J</given-names></name>
+        <name><surname>Polat</surname><given-names>İlhan</given-names></name>
+        <name><surname>Feng</surname><given-names>Yu</given-names></name>
+        <name><surname>Moore</surname><given-names>Eric W.</given-names></name>
+        <name><surname>VanderPlas</surname><given-names>Jake</given-names></name>
+        <name><surname>Laxalde</surname><given-names>Denis</given-names></name>
+        <name><surname>Perktold</surname><given-names>Josef</given-names></name>
+        <name><surname>Cimrman</surname><given-names>Robert</given-names></name>
+        <name><surname>Henriksen</surname><given-names>Ian</given-names></name>
+        <name><surname>Quintero</surname><given-names>E. A.</given-names></name>
+        <name><surname>Harris</surname><given-names>Charles R.</given-names></name>
+        <name><surname>Archibald</surname><given-names>Anne M.</given-names></name>
+        <name><surname>Ribeiro</surname><given-names>Antônio H.</given-names></name>
+        <name><surname>Pedregosa</surname><given-names>Fabian</given-names></name>
+        <name><surname>van Mulbregt</surname><given-names>Paul</given-names></name>
+        <string-name>SciPy 1.0 Contributors</string-name>
+      </person-group>
+      <article-title>SciPy 1.0: Fundamental Algorithms for Scientific Computing in Python</article-title>
+      <source>Nature Methods</source>
+      <year iso-8601-date="2020">2020</year>
+      <volume>17</volume>
+      <pub-id pub-id-type="doi">10.1038/S41592-019-0686-2</pub-id>
+      <fpage>261</fpage>
+      <lpage>272</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-weisse_chebyshev_2006">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Weiße</surname><given-names>Alexander</given-names></name>
+        <name><surname>Wellein</surname><given-names>Gerhard</given-names></name>
+        <name><surname>Alvermann</surname><given-names>Andreas</given-names></name>
+        <name><surname>Fehske</surname><given-names>Holger</given-names></name>
+      </person-group>
+      <article-title>The kernel polynomial method</article-title>
+      <source>Reviews of Modern Physics</source>
+      <year iso-8601-date="2006">2006</year>
+      <volume>78</volume>
+      <pub-id pub-id-type="doi">10.1103/RevModPhys.78.275</pub-id>
+      <fpage>275</fpage>
+      <lpage>306</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-zhu_bdg_2016">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Zhu</surname><given-names>Jian-Xin</given-names></name>
+      </person-group>
+      <source>Bogoliubov–de Gennes method and its applications</source>
+      <year iso-8601-date="2016">2016</year>
+      <isbn>9783319313122</isbn>
+      <pub-id pub-id-type="doi">10.1007/978-3-319-31314-6</pub-id>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
