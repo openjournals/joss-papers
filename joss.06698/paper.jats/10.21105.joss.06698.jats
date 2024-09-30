@@ -1,0 +1,544 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">6698</article-id>
+<article-id pub-id-type="doi">10.21105/joss.06698</article-id>
+<title-group>
+<article-title>MultiPrecisionArrays.jl: A Julia package for iterative
+refinement</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0003-2791-0648</contrib-id>
+<name>
+<surname>Kelley</surname>
+<given-names>C. T.</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>North Carolina State University, Raleigh NC,
+USA</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2024-04-15">
+<day>15</day>
+<month>4</month>
+<year>2024</year>
+</pub-date>
+<volume>9</volume>
+<issue>101</issue>
+<fpage>6698</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2022</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>Julia</kwd>
+<kwd>mathematics</kwd>
+<kwd>numerical analysis</kwd>
+<kwd>linear equations</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p><ext-link ext-link-type="uri" xlink:href="https://github.com/ctkelley/MultiPrecisionArrays.jl">MultiPrecisionArrays.jl</ext-link>
+  (<xref alt="Kelley, 2024b" rid="ref-kelleyU003A2024b" ref-type="bibr">Kelley,
+  2024b</xref>) provides data structures and solvers for several
+  variations of iterative refinement (IR). IR can speed up LU matrix
+  factorization for solving linear systems of equations by factoring a
+  low precision copy of the matrix and using that low precision
+  factorization in an iteration to solve the system. For example, if
+  high precision is double and low precision is single, then the
+  factorization time is cut in half. The additional storage cost is the
+  low precision copy, so IR is a time vs storage trade off. IR has a
+  long history, and a good account of the classical theory is in Higham
+  (<xref alt="1996" rid="ref-highamU003A1996" ref-type="bibr">1996</xref>).</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p>The solution of linear systems of equations is a ubiquitous task in
+  computational science and engineering. A common method for dense
+  systems is Gaussian elimination done via LU factorization,
+  (<xref alt="Higham, 1996" rid="ref-highamU003A1996" ref-type="bibr">Higham,
+  1996</xref>). Iterative refinement is a way to reduce the
+  factorization time at the cost of additional storage.
+  <ext-link ext-link-type="uri" xlink:href="https://github.com/ctkelley/MultiPrecisionArrays.jl">MultiPrecisionArrays.jl</ext-link>
+  enables IR with a simple interface in Julia
+  (<xref alt="Bezanson et al., 2017" rid="ref-JuliasirevU003A17" ref-type="bibr">Bezanson
+  et al., 2017</xref>) with an IR factorization object that one uses in
+  the same way as the one for LU. The package offers several variants of
+  IR, both classical
+  (<xref alt="Higham, 1996" rid="ref-highamU003A1996" ref-type="bibr">Higham,
+  1996</xref>;
+  <xref alt="Wilkinson, 1948" rid="ref-WilkinsonU003A48" ref-type="bibr">Wilkinson,
+  1948</xref>) and some from the recent literature
+  (<xref alt="Amestoy et al., 2024" rid="ref-amestoyU003A2024" ref-type="bibr">Amestoy
+  et al., 2024</xref>;
+  <xref alt="Carson &amp; Higham, 2017" rid="ref-CarsonHighamU003A2017" ref-type="bibr">Carson
+  &amp; Higham, 2017</xref>).</p>
+</sec>
+<sec id="algorithm">
+  <title>Algorithm</title>
+  <p>This package will make solving dense systems of linear equations
+  faster by using the LU factorization and IR. While other
+  factorizations can be used in IR, the package is limited to LU for
+  now. A very generic description of this for solving a linear system
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[A x = b]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>A</mml:mi><mml:mi>x</mml:mi><mml:mo>=</mml:mo><mml:mi>b</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>
+  in a high (working) precision is</p>
+  <p><bold>IR(A, b)</bold></p>
+  <list list-type="bullet">
+    <list-item>
+      <p><inline-formula><alternatives>
+      <tex-math><![CDATA[x = 0]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>x</mml:mi><mml:mo>=</mml:mo><mml:mn>0</mml:mn></mml:mrow></mml:math></alternatives></inline-formula></p>
+    </list-item>
+    <list-item>
+      <p><inline-formula><alternatives>
+      <tex-math><![CDATA[r = b]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>r</mml:mi><mml:mo>=</mml:mo><mml:mi>b</mml:mi></mml:mrow></mml:math></alternatives></inline-formula></p>
+    </list-item>
+    <list-item>
+      <p>Factor <inline-formula><alternatives>
+      <tex-math><![CDATA[A = LU]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>A</mml:mi><mml:mo>=</mml:mo><mml:mi>L</mml:mi><mml:mi>U</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>
+      in a lower precision</p>
+    </list-item>
+    <list-item>
+      <p>While <inline-formula><alternatives>
+      <tex-math><![CDATA[\| r \|]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mo stretchy="false" form="postfix">∥</mml:mo><mml:mi>r</mml:mi><mml:mo stretchy="false" form="postfix">∥</mml:mo></mml:mrow></mml:math></alternatives></inline-formula>
+      is too large</p>
+      <list list-type="bullet">
+        <list-item>
+          <p><inline-formula><alternatives>
+          <tex-math><![CDATA[d = (LU)^{-1} r]]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>d</mml:mi><mml:mo>=</mml:mo><mml:msup><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>L</mml:mi><mml:mi>U</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mrow><mml:mi>−</mml:mi><mml:mn>1</mml:mn></mml:mrow></mml:msup><mml:mi>r</mml:mi></mml:mrow></mml:math></alternatives></inline-formula></p>
+        </list-item>
+        <list-item>
+          <p><inline-formula><alternatives>
+          <tex-math><![CDATA[x = x + d]]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>x</mml:mi><mml:mo>=</mml:mo><mml:mi>x</mml:mi><mml:mo>+</mml:mo><mml:mi>d</mml:mi></mml:mrow></mml:math></alternatives></inline-formula></p>
+        </list-item>
+        <list-item>
+          <p><inline-formula><alternatives>
+          <tex-math><![CDATA[r = b - Ax]]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>r</mml:mi><mml:mo>=</mml:mo><mml:mi>b</mml:mi><mml:mo>−</mml:mo><mml:mi>A</mml:mi><mml:mi>x</mml:mi></mml:mrow></mml:math></alternatives></inline-formula></p>
+        </list-item>
+      </list>
+    </list-item>
+    <list-item>
+      <p>end</p>
+    </list-item>
+    <list-item>
+      <p>end</p>
+    </list-item>
+  </list>
+  <p>In Julia, a code to do this would solve the linear system
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[A x = b]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>A</mml:mi><mml:mi>x</mml:mi><mml:mo>=</mml:mo><mml:mi>b</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>
+  in the working precision, say double, by using a factorization in a
+  lower (factorization) precision, say single, within a residual
+  correction iteration. This means that one would need to allocate
+  storage for a copy of <inline-formula><alternatives>
+  <tex-math><![CDATA[A]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>A</mml:mi></mml:math></alternatives></inline-formula>
+  in the factorization precision and factor that copy.</p>
+  <p>The multiprecision factorization <monospace>mplu</monospace> makes
+  the low precision copy of the matrix, factors that copy, and allocates
+  some storage for the iteration. The original matrix and the low
+  precision factorization are stored in a factorization object that you
+  can use with <monospace>\</monospace>.</p>
+  <p>IR is a perfect example of a storage/time trade off. To solve a
+  linear system <inline-formula><alternatives>
+  <tex-math><![CDATA[A x = b]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>A</mml:mi><mml:mi>x</mml:mi><mml:mo>=</mml:mo><mml:mi>b</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>
+  in <inline-formula><alternatives>
+  <tex-math><![CDATA[R^N]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msup><mml:mi>R</mml:mi><mml:mi>N</mml:mi></mml:msup></mml:math></alternatives></inline-formula>
+  with IR, one incurs the storage penalty of making a low precision copy
+  of <inline-formula><alternatives>
+  <tex-math><![CDATA[A]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>A</mml:mi></mml:math></alternatives></inline-formula>
+  and reaps the benefit of only having to factor the low precision
+  copy.</p>
+</sec>
+<sec id="installation">
+  <title>Installation</title>
+  <p>The standard way to install a package is to type
+  <monospace>import.Pkg; Pkg.add(&quot;MultiPrecisionArrays&quot;)</monospace>
+  at the Julia prompt. One can run the unit tests with
+  <monospace>Pkg.test(&quot;MultiPrecisionArrays&quot;)</monospace>.
+  After installation, type
+  <monospace>using MultiPrecisionArrays</monospace> when you want to use
+  the functions in the package.</p>
+  <p>There are only two direct dependencies outside of the Julia
+  standard libraries. The factorization in half precision (Float16) uses
+  <ext-link ext-link-type="uri" xlink:href="https://github.com/JuliaFolds2/OhMyThreads.jl">OhMyThreads.jl</ext-link>.
+  The GMRES and Bi-CGSTAB solvers for Krylov-IR methods are taken from
+  <ext-link ext-link-type="uri" xlink:href="https://github.com/ctkelley/SIAMFANLEquations.jl">SIAMFANL.jl</ext-link>
+  (<xref alt="Kelley, 2022b" rid="ref-kelleyU003A2022c" ref-type="bibr">Kelley,
+  2022b</xref>).</p>
+</sec>
+<sec id="a-few-subtleties">
+  <title>A Few Subtleties</title>
+  <p>Within the algorithm one has to determine what the line
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[d = (LU)^{-1} r]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>d</mml:mi><mml:mo>=</mml:mo><mml:msup><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>L</mml:mi><mml:mi>U</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mrow><mml:mi>−</mml:mi><mml:mn>1</mml:mn></mml:mrow></mml:msup><mml:mi>r</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>
+  means. Does one cast <inline-formula><alternatives>
+  <tex-math><![CDATA[r]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>r</mml:mi></mml:math></alternatives></inline-formula>
+  into the lower precision before the solve or not? If one casts
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[r]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>r</mml:mi></mml:math></alternatives></inline-formula>
+  into the lower precision, then the solve is done entirely in the
+  factorization precision. If, however, <inline-formula><alternatives>
+  <tex-math><![CDATA[r]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>r</mml:mi></mml:math></alternatives></inline-formula>
+  remains in the working precision, then the LU factors are promoted to
+  the working precision on the fly. This makes little difference if TW
+  is double and TF is single and there is a modest performance benefit
+  to downcasting <inline-formula><alternatives>
+  <tex-math><![CDATA[r]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>r</mml:mi></mml:math></alternatives></inline-formula>
+  into single. Therefore that is the default behavior in that case. If
+  TF is half precision, <monospace>Float16</monospace>, then it is best
+  to do the interprecision transfers on the fly and if one is using one
+  of the Krylov-IR algorithms
+  (<xref alt="Amestoy et al., 2024" rid="ref-amestoyU003A2024" ref-type="bibr">Amestoy
+  et al., 2024</xref>) then one must do the interprecision transfers on
+  the fly and not downcast <inline-formula><alternatives>
+  <tex-math><![CDATA[r]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>r</mml:mi></mml:math></alternatives></inline-formula>.</p>
+  <p>There are two half precision (16 bit) formats. Julia has native
+  support for IEEE 16 bit floats (Float16). A second format (BFloat16)
+  has a larger exponent field and a smaller significand (mantissa),
+  thereby trading precision for range. In fact, the exponent field in
+  BFloat is the same size (8 bits) as that for single precision
+  (Float32). The significand, however, is only 8 bits. Compare this to
+  the size of the exponent fields for Float16 (11 bits) and single (24
+  bits). The size of the significand means that you can get in real
+  trouble with half precision in either format and that IR is more
+  likely to fail to converge. GMRES-IR can mitigate the convergence
+  problems
+  (<xref alt="Amestoy et al., 2024" rid="ref-amestoyU003A2024" ref-type="bibr">Amestoy
+  et al., 2024</xref>) by using the low-precision solve as a
+  preconditioner. We support both GMRES
+  (<xref alt="Saad &amp; Schultz, 1986" rid="ref-saadU003A1986" ref-type="bibr">Saad
+  &amp; Schultz, 1986</xref>) and BiCGSTAB
+  (<xref alt="van der Vorst, 1992" rid="ref-VanderVorstU003A1992" ref-type="bibr">van
+  der Vorst, 1992</xref>) as solvers for Krylov-IR methods. One should
+  also know that LAPACK and the BLAS do not yet support half precision
+  arrays, so working in Float16 will be slower than using Float64.</p>
+  <p>The classic algorithm from Wilkinson
+  (<xref alt="1948" rid="ref-WilkinsonU003A48" ref-type="bibr">1948</xref>)
+  and its recent extension from Carson &amp; Higham
+  (<xref alt="2017" rid="ref-CarsonHighamU003A2017" ref-type="bibr">2017</xref>)
+  evaluate the residual in a higher precision that the working
+  precision. This can give improved accuracy for ill-conditioned
+  problems at a cost of the interprecision transfers in the residual
+  computation. This needs to be implemented with some care and Demmel et
+  al.
+  (<xref alt="2006" rid="ref-demmelU003A06" ref-type="bibr">2006</xref>)
+  has an excellent account of the details.</p>
+  <p><bold>MultiPrecisionArrays.jl</bold> provides infrastructure to
+  manage these things and we refer the reader to Kelley
+  (<xref alt="2024b" rid="ref-kelleyU003A2024b" ref-type="bibr">2024b</xref>)
+  for the details.</p>
+</sec>
+<sec id="projects-using-multiprecisionarrays.jl.">
+  <title>Projects using <bold>MultiPrecisionArrays.jl</bold>.</title>
+  <p>This package was motivated by the use of low-precision
+  factorizations in Newton’s method
+  (<xref alt="Kelley, 2022a" rid="ref-kelleyU003A2022a" ref-type="bibr">Kelley,
+  2022a</xref>,
+  <xref alt="2022c" rid="ref-kelleyU003A2022b" ref-type="bibr">2022c</xref>)
+  and the interface between a preliminary version of this package and
+  the solvers from Kelley
+  (<xref alt="2022c" rid="ref-kelleyU003A2022b" ref-type="bibr">2022c</xref>)
+  and Kelley
+  (<xref alt="2022b" rid="ref-kelleyU003A2022c" ref-type="bibr">2022b</xref>)
+  was reported in Kelley
+  (<xref alt="2023" rid="ref-kelleyU003A2023" ref-type="bibr">2023</xref>).
+  That paper used a three precision form of IR (TF=half, TW=single,
+  nonlinear residual computed in double) and required direct use of
+  multiprecision constructors that we do not export in
+  <bold>MultiPrecisionArrays.jl</bold>. We will fully support the
+  application to nonlinear solvers in a future version. We give a
+  detailed account of interprecision transfers in Kelley
+  (<xref alt="2024a" rid="ref-kelleyU003A2024c" ref-type="bibr">2024a</xref>)
+  and use <bold>MultiPrecisionArrays.jl</bold> to generate the table in
+  that paper.</p>
+</sec>
+<sec id="other-julia-packages-for-ir">
+  <title>Other Julia Packages for IR</title>
+  <p>The package
+  <ext-link ext-link-type="uri" xlink:href="https://github.com/RalphAS/IterativeRefinement.jl">IterativeRefinement.jl</ext-link>
+  is an implementation of the IR method from Dongarra et al.
+  (<xref alt="1983" rid="ref-dongarraU003A1983" ref-type="bibr">1983</xref>).
+  It has not been updated in four years.</p>
+  <p>The unregistered package
+  <ext-link ext-link-type="uri" xlink:href="https://github.com/bvieuble/Itref.jl">Itref.jl</ext-link>
+  implements IR and the GMRES-IR method from Amestoy et al.
+  (<xref alt="2024" rid="ref-amestoyU003A2024" ref-type="bibr">2024</xref>)
+  and was used to obtain the numerical results in that paper. It does
+  not provide the data structures for preallocation that we do and does
+  not seem to have been updated lately.</p>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>This work was partially supported by Department of Energy grant
+  DE-NA003967. Any opinions, findings, and conclusions or
+  recommendations expressed in this material are those of the author and
+  do not necessarily reflect the views of the United States Department
+  of Energy.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <title></title>
+  <ref id="ref-amestoyU003A2024">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Amestoy</surname><given-names>Patrick</given-names></name>
+        <name><surname>Buttari</surname><given-names>Alfredo</given-names></name>
+        <name><surname>Higham</surname><given-names>Nicholas J.</given-names></name>
+        <name><surname>L’Excellent</surname><given-names>Jean-Yves</given-names></name>
+        <name><surname>Mary</surname><given-names>Theo</given-names></name>
+        <name><surname>Vieublé</surname><given-names>Bastien</given-names></name>
+      </person-group>
+      <article-title>Five-precision GMRES-based iterative refinement</article-title>
+      <source>SIAM Journal on Matrix Analysis and Applications</source>
+      <year iso-8601-date="2024">2024</year>
+      <volume>45</volume>
+      <issue>1</issue>
+      <pub-id pub-id-type="doi">10.1137/23M1549079</pub-id>
+      <fpage>529</fpage>
+      <lpage>552</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-CarsonHighamU003A2017">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Carson</surname><given-names>E.</given-names></name>
+        <name><surname>Higham</surname><given-names>N. J.</given-names></name>
+      </person-group>
+      <article-title>A new analysis of iterative refinement and its application of accurate solution of ill-conditioned sparse linear systems</article-title>
+      <source>SIAM Journal on Scientific Computing</source>
+      <year iso-8601-date="2017">2017</year>
+      <volume>39</volume>
+      <issue>6</issue>
+      <pub-id pub-id-type="doi">10.1137/17M1122918</pub-id>
+      <fpage>A2834</fpage>
+      <lpage>A2856</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-dongarraU003A1983">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Dongarra</surname><given-names>J. J.</given-names></name>
+        <name><surname>Moler</surname><given-names>C. B.</given-names></name>
+        <name><surname>Wilkinson</surname><given-names>J. H.</given-names></name>
+      </person-group>
+      <article-title>Improving the accuracy of computed eigenvalues and eigenvectors</article-title>
+      <source>SIAM Journal on Numerical Analysis</source>
+      <year iso-8601-date="1983">1983</year>
+      <volume>20</volume>
+      <pub-id pub-id-type="doi">10.1137/0720002</pub-id>
+      <fpage>23</fpage>
+      <lpage>45</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-WilkinsonU003A48">
+    <element-citation publication-type="report">
+      <person-group person-group-type="author">
+        <name><surname>Wilkinson</surname><given-names>J. H.</given-names></name>
+      </person-group>
+      <article-title>Progress report on the automatic computing engine</article-title>
+      <publisher-name>Mathematics Division, Department of Scientific; Industrial Research, National Physical Laboratory, Teddington, UK</publisher-name>
+      <year iso-8601-date="1948">1948</year>
+      <uri>http://www.alanturing.net/turing_archive/archive/l/l10/l10.php</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-highamU003A1996">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Higham</surname><given-names>N. J.</given-names></name>
+      </person-group>
+      <source>Accuracy and stability of numerical algorithms</source>
+      <publisher-name>Society for Industrial; Applied Mathematics</publisher-name>
+      <publisher-loc>Philadelphia, PA, USA</publisher-loc>
+      <year iso-8601-date="1996">1996</year>
+      <isbn>0-89871-355-2</isbn>
+      <uri>http://www.ma.man.ac.uk/~higham/asna.html</uri>
+      <pub-id pub-id-type="doi">10.1137/1.9780898718027</pub-id>
+      <fpage>xxviii+688</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-kelleyU003A2022a">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Kelley</surname><given-names>C. T.</given-names></name>
+      </person-group>
+      <article-title>Newton’s method in mixed precision</article-title>
+      <source>SIAM Review</source>
+      <year iso-8601-date="2022">2022</year>
+      <volume>64</volume>
+      <pub-id pub-id-type="doi">10.1137/20M1342902</pub-id>
+      <fpage>191</fpage>
+      <lpage>211</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-kelleyU003A2022b">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Kelley</surname><given-names>C. T.</given-names></name>
+      </person-group>
+      <source>Solving Nonlinear Equations with Iterative Methods: Solvers and Examples in Julia</source>
+      <publisher-name>SIAM, Philadelphia</publisher-name>
+      <publisher-loc>Philadelphia</publisher-loc>
+      <year iso-8601-date="2022">2022</year>
+      <isbn>978-1-61197-726-4</isbn>
+      <pub-id pub-id-type="doi">10.1137/1.9781611977271</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-kelleyU003A2022c">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Kelley</surname><given-names>C. T.</given-names></name>
+      </person-group>
+      <article-title>SIAMFANLEquations.jl</article-title>
+      <publisher-name>https://github.com/ctkelley/SIAMFANLEquations.jl</publisher-name>
+      <year iso-8601-date="2022">2022</year>
+      <uri>https://github.com/ctkelley/SIAMFANLEquations.jl</uri>
+      <pub-id pub-id-type="doi">10.5281/zenodo.4284807</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-kelleyU003A2023">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Kelley</surname><given-names>C. T.</given-names></name>
+      </person-group>
+      <article-title>Newton’s method in three precisions</article-title>
+      <year iso-8601-date="2023">2023</year>
+      <uri>https://arxiv.org/abs/2307.16051</uri>
+      <pub-id pub-id-type="doi">10.48550/arXiv.2307.16051</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-kelleyU003A2024b">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Kelley</surname><given-names>C. T.</given-names></name>
+      </person-group>
+      <article-title>Using MultiPrecisionArrays.jl: Iterative refinement in Julia</article-title>
+      <year iso-8601-date="2024">2024</year>
+      <uri>https://arxiv.org/abs/2311.14616</uri>
+      <pub-id pub-id-type="doi">10.48550/arXiv.2311.14616</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-JuliasirevU003A17">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Bezanson</surname><given-names>J.</given-names></name>
+        <name><surname>Edelman</surname><given-names>A.</given-names></name>
+        <name><surname>Karpinski</surname><given-names>S.</given-names></name>
+        <name><surname>Shah</surname><given-names>V. B.</given-names></name>
+      </person-group>
+      <article-title>Julia: A fresh approach to numerical computing</article-title>
+      <source>SIAM Review</source>
+      <year iso-8601-date="2017">2017</year>
+      <volume>59</volume>
+      <pub-id pub-id-type="doi">10.1137/141000671</pub-id>
+      <fpage>65</fpage>
+      <lpage>98</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-demmelU003A06">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Demmel</surname><given-names>James</given-names></name>
+        <name><surname>Hida</surname><given-names>Yozo</given-names></name>
+        <name><surname>Kahan</surname><given-names>William</given-names></name>
+      </person-group>
+      <article-title>Error bounds from extra-precise iterative refinement</article-title>
+      <source>ACM Trans. Math. Soft.</source>
+      <year iso-8601-date="2006">2006</year>
+      <pub-id pub-id-type="doi">10.1145/1141885.1141894</pub-id>
+      <fpage>325</fpage>
+      <lpage>351</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-VanderVorstU003A1992">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>van der Vorst</surname><given-names>H. A.</given-names></name>
+      </person-group>
+      <article-title>Bi-CGSTAB: A fast and smoothly converging variant to Bi-CG for the solution of nonsymmetric systems</article-title>
+      <source>SIAM J. Sci. Stat. Comp.</source>
+      <year iso-8601-date="1992">1992</year>
+      <volume>13</volume>
+      <pub-id pub-id-type="doi">10.1137/0913035</pub-id>
+      <fpage>631</fpage>
+      <lpage>644</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-saadU003A1986">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Saad</surname><given-names>Y.</given-names></name>
+        <name><surname>Schultz</surname><given-names>M. H.</given-names></name>
+      </person-group>
+      <article-title>GMRES a generalized minimal residual algorithm for solving nonsymmetric linear systems</article-title>
+      <source>SIAM J. Sci. Stat. Comp.</source>
+      <year iso-8601-date="1986">1986</year>
+      <volume>7</volume>
+      <pub-id pub-id-type="doi">10.1137/0907058</pub-id>
+      <fpage>856</fpage>
+      <lpage>869</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-kelleyU003A2024c">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Kelley</surname><given-names>C. T.</given-names></name>
+      </person-group>
+      <article-title>Interprecision transfers in iterative refinement</article-title>
+      <year iso-8601-date="2024">2024</year>
+      <uri>https://arxiv.org/abs/2407.00827</uri>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
