@@ -1,0 +1,800 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">7162</article-id>
+<article-id pub-id-type="doi">10.21105/joss.07162</article-id>
+<title-group>
+<article-title>GridapSolvers.jl: Scalable multiphysics finite element
+solvers in Julia</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author" equal-contrib="yes" corresp="yes">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0002-0178-3890</contrib-id>
+<name>
+<surname>Manyer</surname>
+<given-names>Jordi</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+<xref ref-type="corresp" rid="cor-1"><sup>*</sup></xref>
+</contrib>
+<contrib contrib-type="author" equal-contrib="yes">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0001-5751-4561</contrib-id>
+<name>
+<surname>Martín</surname>
+<given-names>Alberto F.</given-names>
+</name>
+<xref ref-type="aff" rid="aff-2"/>
+</contrib>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0003-2391-4086</contrib-id>
+<name>
+<surname>Badia</surname>
+<given-names>Santiago</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>School of Mathematics, Monash University, Clayton,
+Victoria, 3800, Australia.</institution>
+</institution-wrap>
+</aff>
+<aff id="aff-2">
+<institution-wrap>
+<institution>School of Computing, Australian National University,
+Canberra, ACT, 2600, Australia</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<author-notes>
+<corresp id="cor-1">* E-mail: <email></email></corresp>
+</author-notes>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2024-08-01">
+<day>1</day>
+<month>8</month>
+<year>2024</year>
+</pub-date>
+<volume>9</volume>
+<issue>102</issue>
+<fpage>7162</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2022</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>Julia</kwd>
+<kwd>pdes</kwd>
+<kwd>finite elements</kwd>
+<kwd>hpc</kwd>
+<kwd>solvers</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary-and-statement-of-need">
+  <title>Summary and statement of need</title>
+  <p>The ever-increasing demand for resolution and accuracy in
+  mathematical models of physical processes governed by systems of
+  Partial Differential Equations (PDEs) can only be addressed using
+  fully-parallel advanced numerical discretization methods and scalable
+  solvers, thus able to exploit the vast amount of computational
+  resources in state-of-the-art supercomputers.</p>
+  <p>One of the biggest scalability bottlenecks within Finite Element
+  (FE) parallel codes is the solution of linear systems arising from the
+  discretization of PDEs. The implementation of exact
+  factorization-based solvers in parallel environments is an extremely
+  challenging task, and even state-of-the-art libraries such as MUMPS
+  (<xref alt="Amestoy et al., 2001" rid="ref-MUMPS1" ref-type="bibr">Amestoy
+  et al., 2001</xref>,
+  <xref alt="2019" rid="ref-MUMPS2" ref-type="bibr">2019</xref>) or
+  PARDISO
+  (<xref alt="Schenk &amp; Gärtner, 2011" rid="ref-PARDISO" ref-type="bibr">Schenk
+  &amp; Gärtner, 2011</xref>) have severe limitations in terms of
+  scalability and memory consumption above a certain number of CPU
+  cores. Hence the use of iterative methods is crucial to maintain
+  scalability of FE codes. Unfortunately, the convergence of iterative
+  methods is not guaranteed and rapidly deteriorates as the size of the
+  linear system increases. To retain performance, the use of highly
+  scalable preconditioners is mandatory. For simple problems, algebraic
+  solvers and preconditioners (i.e based solely on the algebraic system)
+  are enough to obtain robust convergence. Many well-known libraries
+  providing algebraic solvers already exist, such as PETSc
+  (<xref alt="Balay et al., 2021" rid="ref-petsc-user-ref" ref-type="bibr">Balay
+  et al., 2021</xref>), Trilinos
+  (<xref alt="2020" rid="ref-trilinos" ref-type="bibr">2020</xref>), or
+  Hypre
+  (<xref alt="Hypre, n.d." rid="ref-hypre" ref-type="bibr"><italic><italic>Hypre</italic></italic>,
+  n.d.</xref>). However, algebraic solvers are not always suited to deal
+  with more challenging problems.</p>
+  <p>In these cases, solvers that exploit the physics and mathematical
+  discretization of the particular problem are required. This is the
+  case of many multiphysics problems involving differential operators
+  with a large kernel such as the divergence
+  (<xref alt="Arnold et al., 1997" rid="ref-Arnold1" ref-type="bibr">Arnold
+  et al., 1997</xref>) and the curl
+  (<xref alt="Arnold et al., 2000" rid="ref-Arnold2" ref-type="bibr">Arnold
+  et al., 2000</xref>). Examples can be found amongst highly relevant
+  problems such as Navier-Stokes, Maxwell or Darcy. Scalable solvers for
+  this type of multiphysics problems rely on exploiting the block
+  structure of such systems to find a spectrally equivalent
+  block-preconditioner, and are often tied to a specific discretization
+  of the underlying equations.</p>
+  <p>As a consequence, high-quality open-source parallel finite element
+  packages like FEniCS
+  (<xref alt="Logg et al., 2012" rid="ref-fenics-book" ref-type="bibr">Logg
+  et al., 2012</xref>) or deal.II
+  (<xref alt="Arndt et al., 2021" rid="ref-dealII93" ref-type="bibr">Arndt
+  et al., 2021</xref>) already provide implementations of several
+  state-of-the-art physics-informed solvers
+  (<xref alt="Cui et al., 2024" rid="ref-dealII-patch" ref-type="bibr">Cui
+  et al., 2024</xref>;
+  <xref alt="Farrell et al., 2021" rid="ref-fenics-patch" ref-type="bibr">Farrell
+  et al., 2021</xref>). The Gridap ecosystem
+  (<xref alt="Badia &amp; Verdugo, 2020" rid="ref-Badia2020" ref-type="bibr">Badia
+  &amp; Verdugo, 2020</xref>) aims to provide a similar level of
+  functionality within the Julia programming language
+  (<xref alt="Bezanson et al., 2017" rid="ref-Bezanson2017" ref-type="bibr">Bezanson
+  et al., 2017</xref>).</p>
+  <p>To this end, GridapSolvers is a registered Julia software package
+  which provides highly scalable physics-informed solvers tailored for
+  the FE numerical solution of PDEs on parallel computers within the
+  Gridap ecosystem of packages. Emphasis is put on the modular design of
+  the library, which easily allows new preconditioners to be designed
+  from the user’s specific problem.</p>
+</sec>
+<sec id="building-blocks-and-composability">
+  <title>Building blocks and composability</title>
+  <p><xref alt="[fig:packages]" rid="figU003Apackages">[fig:packages]</xref>
+  depicts the relation among GridapDistributed and other packages in the
+  Julia package ecosystem.</p>
+  <p>The core library Gridap
+  (<xref alt="Badia &amp; Verdugo, 2020" rid="ref-Badia2020" ref-type="bibr">Badia
+  &amp; Verdugo, 2020</xref>) provides all necessary abstraction and
+  interfaces needed for the FE solution of PDEs
+  (<xref alt="Verdugo &amp; Badia, 2022" rid="ref-Verdugo2021" ref-type="bibr">Verdugo
+  &amp; Badia, 2022</xref>) for serial computing. GridapDistributed
+  (<xref alt="Badia et al., 2022" rid="ref-gridapdistributed" ref-type="bibr">Badia
+  et al., 2022</xref>) provides distributed-memory counterparts for
+  these abstractions, while leveraging the serial implementations in
+  Gridap to handle the local portion on each parallel task.
+  GridapDistributed relies on PartitionedArrays
+  (<xref alt="Verdugo, 2021" rid="ref-parrays" ref-type="bibr">Verdugo,
+  2021</xref>) in order to handle the parallel execution model (e.g.,
+  message-passing via the Message Passing Interface (MPI)
+  (<xref alt="Message Passing Interface Forum, 2021" rid="ref-mpi40" ref-type="bibr">Message
+  Passing Interface Forum, 2021</xref>)), global data distribution
+  layout, and communication among tasks. PartitionedArrays also provides
+  a parallel implementation of partitioned global linear systems (i.e.,
+  linear algebra vectors and sparse matrices) as needed in grid-based
+  numerical simulations. This parallel framework does however not
+  include any performant solver for the resulting linear systems. This
+  was delegated to GridapPETSc
+  (<xref alt="Verdugo et al., 2021" rid="ref-gridapetsc" ref-type="bibr">Verdugo
+  et al., 2021</xref>), which provides a plethora of highly-scalable and
+  efficient algebraic solvers through a high-level interface to the
+  Portable, Extensible Toolkit for Scientific Computation (PETSc)
+  (<xref alt="Balay et al., 2021" rid="ref-petsc-user-ref" ref-type="bibr">Balay
+  et al., 2021</xref>).</p>
+  <p>GridapSolvers complements GridapPETSc with a modular and extensible
+  interface for the design of physics-informed solvers. Some of the
+  highlights of the library are:</p>
+  <list list-type="bullet">
+    <list-item>
+      <p>A set of HPC-first implementations for popular Krylov-based
+      iterative solvers. These solvers extend Gridap’s API and are fully
+      compatible with PartitionedArrays.</p>
+    </list-item>
+    <list-item>
+      <p>A modular, high-level interface for designing block-based
+      preconditioners for multiphysics problems. These preconditioners
+      can be used together with any solver compliant with Gridap’s API,
+      including those provided by GridapPETSc.</p>
+    </list-item>
+    <list-item>
+      <p>A generic interface to handle multi-level distributed meshes,
+      with full support for Adaptative Mesh Refinement (AMR) using p4est
+      (<xref alt="Burstedde et al., 2011" rid="ref-p4est" ref-type="bibr">Burstedde
+      et al., 2011</xref>) through GridapP4est
+      (<xref alt="Martin, 2021" rid="ref-gridap4est" ref-type="bibr">Martin,
+      2021</xref>).</p>
+    </list-item>
+    <list-item>
+      <p>A modular implementation of Geometric MultiGrid (GMG) solvers
+      (<xref alt="Briggs et al., 2000" rid="ref-gmg-book" ref-type="bibr">Briggs
+      et al., 2000</xref>), allowing different types of smoothers and
+      restriction/prolongation operators.</p>
+    </list-item>
+    <list-item>
+      <p>A generic interface for patch-based subdomain decomposition
+      methods, and an implementation of patch-based smoothers for GMG
+      solvers. Here the term “patch-based” refers to the use of local
+      overlapping subdomains (patches) built by aggregation of cells
+      around a given vertex, face or cell. See
+      (<xref alt="Cui et al., 2024" rid="ref-dealII-patch" ref-type="bibr">Cui
+      et al., 2024</xref>;
+      <xref alt="Farrell et al., 2021" rid="ref-fenics-patch" ref-type="bibr">Farrell
+      et al., 2021</xref>) for more details.</p>
+    </list-item>
+  </list>
+  <fig>
+    <caption><p>GridapSolvers and its relation to other packages in the
+    Julia package ecosystem. In this diagram, each node represents a
+    Julia package, while the (directed) arrows represent relations
+    (dependencies) among packages. Dashed arrows mean the package can be
+    used, but is not required.
+    <styled-content id="figU003Apackages"></styled-content></p></caption>
+    <graphic mimetype="image" mime-subtype="png" xlink:href="packages.png" />
+  </fig>
+</sec>
+<sec id="demo">
+  <title>Demo</title>
+  <p>The following code snippet shows how to solve a 2D incompressible
+  Stokes cavity problem in a cartesian domain
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[\Omega = [0,1]^2]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>Ω</mml:mi><mml:mo>=</mml:mo><mml:msup><mml:mrow><mml:mo stretchy="true" form="prefix">[</mml:mo><mml:mn>0</mml:mn><mml:mo>,</mml:mo><mml:mn>1</mml:mn><mml:mo stretchy="true" form="postfix">]</mml:mo></mml:mrow><mml:mn>2</mml:mn></mml:msup></mml:mrow></mml:math></alternatives></inline-formula>.
+  We discretize the velocity and pressure in
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[H^1(\Omega)]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msup><mml:mi>H</mml:mi><mml:mn>1</mml:mn></mml:msup><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>Ω</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>
+  and <inline-formula><alternatives>
+  <tex-math><![CDATA[L^2(\Omega)]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msup><mml:mi>L</mml:mi><mml:mn>2</mml:mn></mml:msup><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>Ω</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>
+  respectively, and use the well known stable element pair
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[Q_k \times P_{k-1}^{-}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>Q</mml:mi><mml:mi>k</mml:mi></mml:msub><mml:mo>×</mml:mo><mml:msubsup><mml:mi>P</mml:mi><mml:mrow><mml:mi>k</mml:mi><mml:mo>−</mml:mo><mml:mn>1</mml:mn></mml:mrow><mml:mo>−</mml:mo></mml:msubsup></mml:mrow></mml:math></alternatives></inline-formula>
+  with <inline-formula><alternatives>
+  <tex-math><![CDATA[k=2]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>k</mml:mi><mml:mo>=</mml:mo><mml:mn>2</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>.
+  For the cavity problem, we fix the velocity to
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[u_t = \hat{x}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>u</mml:mi><mml:mi>t</mml:mi></mml:msub><mml:mo>=</mml:mo><mml:mover><mml:mi>x</mml:mi><mml:mo accent="true">̂</mml:mo></mml:mover></mml:mrow></mml:math></alternatives></inline-formula>
+  on the top boundary <inline-formula><alternatives>
+  <tex-math><![CDATA[\Gamma_t = (0,1)\times\{1\}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>Γ</mml:mi><mml:mi>t</mml:mi></mml:msub><mml:mo>=</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mn>0</mml:mn><mml:mo>,</mml:mo><mml:mn>1</mml:mn><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>×</mml:mo><mml:mo stretchy="false" form="prefix">{</mml:mo><mml:mn>1</mml:mn><mml:mo stretchy="false" form="postfix">}</mml:mo></mml:mrow></mml:math></alternatives></inline-formula>,
+  and homogeneous Dirichlet boundary conditions elsewhere. We impose a
+  zero-mean pressure constraint to have a solvable system of equations.
+  Given discrete spaces <inline-formula><alternatives>
+  <tex-math><![CDATA[V \times Q_0]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>V</mml:mi><mml:mo>×</mml:mo><mml:msub><mml:mi>Q</mml:mi><mml:mn>0</mml:mn></mml:msub></mml:mrow></mml:math></alternatives></inline-formula>,
+  we find <inline-formula><alternatives>
+  <tex-math><![CDATA[(u,p) \in V \times Q_0]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>u</mml:mi><mml:mo>,</mml:mo><mml:mi>p</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>∈</mml:mo><mml:mi>V</mml:mi><mml:mo>×</mml:mo><mml:msub><mml:mi>Q</mml:mi><mml:mn>0</mml:mn></mml:msub></mml:mrow></mml:math></alternatives></inline-formula>
+  such that</p>
+  <p><disp-formula><alternatives>
+  <tex-math><![CDATA[
+    \int_{\Omega} \nabla v : \nabla u - (\nabla \cdot v) p - (\nabla \cdot u) q = \int_{\Omega} v \cdot f \quad \forall v \in V_0, q \in Q_0
+  ]]></tex-math>
+  <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mo>∫</mml:mo><mml:mi>Ω</mml:mi></mml:msub><mml:mi>∇</mml:mi><mml:mi>v</mml:mi><mml:mo>:</mml:mo><mml:mi>∇</mml:mi><mml:mi>u</mml:mi><mml:mo>−</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>∇</mml:mi><mml:mo>⋅</mml:mo><mml:mi>v</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mi>p</mml:mi><mml:mo>−</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>∇</mml:mi><mml:mo>⋅</mml:mo><mml:mi>u</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mi>q</mml:mi><mml:mo>=</mml:mo><mml:msub><mml:mo>∫</mml:mo><mml:mi>Ω</mml:mi></mml:msub><mml:mi>v</mml:mi><mml:mo>⋅</mml:mo><mml:mi>f</mml:mi><mml:mspace width="1.0em"></mml:mspace><mml:mo>∀</mml:mo><mml:mi>v</mml:mi><mml:mo>∈</mml:mo><mml:msub><mml:mi>V</mml:mi><mml:mn>0</mml:mn></mml:msub><mml:mo>,</mml:mo><mml:mi>q</mml:mi><mml:mo>∈</mml:mo><mml:msub><mml:mi>Q</mml:mi><mml:mn>0</mml:mn></mml:msub></mml:mrow></mml:math></alternatives></disp-formula></p>
+  <p>where <inline-formula><alternatives>
+  <tex-math><![CDATA[V_0]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>V</mml:mi><mml:mn>0</mml:mn></mml:msub></mml:math></alternatives></inline-formula>
+  is the space of velocity functions with homogeneous boundary
+  conditions everywhere.</p>
+  <p>The system is block-assembled and solved using a flexible
+  Generalised Minimum Residual (F-GMRES) solver, together with a
+  block-triangular Schur-complement-based preconditioner. We eliminate
+  the velocity block and approximate the resulting Schur complement by a
+  pressure mass matrix. A more detailed overview of this preconditioner
+  as well as its spectral analysis can be found in
+  (<xref alt="Elman et al., 2014" rid="ref-Elman2014" ref-type="bibr">Elman
+  et al., 2014</xref>). The resulting block structure for the system
+  matrix <inline-formula><alternatives>
+  <tex-math><![CDATA[\mathcal{A}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>𝒜</mml:mi></mml:math></alternatives></inline-formula>
+  and our preconditioner <inline-formula><alternatives>
+  <tex-math><![CDATA[\mathcal{P}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>𝒫</mml:mi></mml:math></alternatives></inline-formula>
+  is</p>
+  <p><disp-formula><alternatives>
+  <tex-math><![CDATA[
+  \mathcal{A} = \begin{bmatrix}
+    A & B^T \\
+    B & 0
+  \end{bmatrix}
+  ,\quad
+  \mathcal{P} = \begin{bmatrix}
+    A & B^T \\
+    0 & -M
+  \end{bmatrix}
+  ]]></tex-math>
+  <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>𝒜</mml:mi><mml:mo>=</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">[</mml:mo><mml:mtable><mml:mtr><mml:mtd columnalign="center" style="text-align: center"><mml:mi>A</mml:mi></mml:mtd><mml:mtd columnalign="center" style="text-align: center"><mml:msup><mml:mi>B</mml:mi><mml:mi>T</mml:mi></mml:msup></mml:mtd></mml:mtr><mml:mtr><mml:mtd columnalign="center" style="text-align: center"><mml:mi>B</mml:mi></mml:mtd><mml:mtd columnalign="center" style="text-align: center"><mml:mn>0</mml:mn></mml:mtd></mml:mtr></mml:mtable><mml:mo stretchy="true" form="postfix">]</mml:mo></mml:mrow><mml:mo>,</mml:mo><mml:mspace width="1.0em"></mml:mspace><mml:mi>𝒫</mml:mi><mml:mo>=</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">[</mml:mo><mml:mtable><mml:mtr><mml:mtd columnalign="center" style="text-align: center"><mml:mi>A</mml:mi></mml:mtd><mml:mtd columnalign="center" style="text-align: center"><mml:msup><mml:mi>B</mml:mi><mml:mi>T</mml:mi></mml:msup></mml:mtd></mml:mtr><mml:mtr><mml:mtd columnalign="center" style="text-align: center"><mml:mn>0</mml:mn></mml:mtd><mml:mtd columnalign="center" style="text-align: center"><mml:mi>−</mml:mi><mml:mi>M</mml:mi></mml:mtd></mml:mtr></mml:mtable><mml:mo stretchy="true" form="postfix">]</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></disp-formula></p>
+  <p>with <inline-formula><alternatives>
+  <tex-math><![CDATA[A]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>A</mml:mi></mml:math></alternatives></inline-formula>
+  the velocity laplacian block, and <inline-formula><alternatives>
+  <tex-math><![CDATA[M]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>M</mml:mi></mml:math></alternatives></inline-formula>
+  a pressure mass matrix.</p>
+  <p>Application of the above block-preconditioner requires both
+  diagonal sub-matrices to be solved. The pressure block
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[M]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>M</mml:mi></mml:math></alternatives></inline-formula>
+  is solved using a Conjugate Gradient (CG) solver with Jacobi
+  preconditioner. The velocity block <inline-formula><alternatives>
+  <tex-math><![CDATA[A]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>A</mml:mi></mml:math></alternatives></inline-formula>
+  is solved by a 2-level V-cycle GMG solver, where the coarsest level is
+  solved exactly in a single processor. The code for this example can be
+  found
+  <ext-link ext-link-type="uri" xlink:href="https://github.com/gridap/GridapSolvers.jl/tree/joss-paper/joss_paper/demo.jl">here</ext-link>.
+  It is set up to run in parallel with 4 MPI tasks and can be executed
+  with the following command:
+  <monospace>mpiexec -n 4 julia --project=. demo.jl</monospace>.</p>
+</sec>
+<sec id="parallel-scaling-benchmark">
+  <title>Parallel scaling benchmark</title>
+  <p>The following section shows scalability results for the demo
+  problem discussed above. We run our code on the Gadi supercomputer,
+  which is part of the Australian National Computational Infrastructure
+  (NCI). We use Intel’s Cascade Lake 2x24-core Xeon Platinum 8274 nodes.
+  Scalability is shown for up to 64 nodes, for a fixed local problem
+  size of 48x64 quadrangle cells per processor. This amounts to a
+  maximum size of approximately 37M cells and 415M degrees of freedom
+  distributed amongst 3072 processors. Within the GMG solver, the number
+  of coarsening levels is progressively increased to keep the global
+  size of the coarsest solve (approximately) constant. The coarsest
+  solve is then performed by a CG solver preconditioned by an Algebraic
+  MultiGrid (AMG) solver, provided by PETSc
+  (<xref alt="Balay et al., 2021" rid="ref-petsc-user-ref" ref-type="bibr">Balay
+  et al., 2021</xref>) through the package GridapPETSc.jl.</p>
+  <p>The results in
+  <xref alt="[fig:scalability]" rid="figU003Ascalability">[fig:scalability]</xref>
+  show that the code scales relatively well up to 3072 processors, with
+  loss in performance mostly tied to the number of GMG levels used for
+  the velocity solver. The number of F-GMRES iterations required for
+  convergence is also shown to be relatively constant (and even
+  decreasing for bigger problem sizes), indicating that the
+  preconditioner is robust with respect to the problem size.</p>
+  <p>The code used to create these results can be found
+  <ext-link ext-link-type="uri" xlink:href="https://github.com/gridap/GridapSolvers.jl/tree/joss-paper/joss_paper/scalability">here</ext-link>.
+  The exact releases for the packages used are provided by Julia’s
+  <monospace>Manifest.toml</monospace> file.</p>
+  <fig>
+    <caption><p><bold>Top</bold>: Weak scalability for a Stokes problem
+    in 2D. Time is given per F-GMRES iteration, as a function of the
+    number of processors. <bold>Middle</bold>: Number of coarsening
+    levels for the GMG solver, as a function of the number of
+    processors. <bold>Bottom</bold>: Number of F-GMRES iterations
+    required for convergence.
+    <styled-content id="figU003Ascalability"></styled-content></p></caption>
+    <graphic mimetype="image" mime-subtype="png" xlink:href="weakScalability.png" />
+  </fig>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>This research was partially funded by the Australian Government
+  through the Australian Research Council (project number DP210103092).
+  This work was also supported by computational resources provided by
+  the Australian Government through NCI under the National Computational
+  Merit Allocation Scheme (NCMAS), the Monash-NCI partnership scheme and
+  the ANU Merit Allocation Scheme (ANUMAS).</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <title></title>
+  <ref id="ref-petsc-user-ref">
+    <element-citation publication-type="report">
+      <person-group person-group-type="author">
+        <name><surname>Balay</surname><given-names>Satish</given-names></name>
+        <name><surname>Abhyankar</surname><given-names>Shrirang</given-names></name>
+        <name><surname>Adams</surname><given-names>Mark F.</given-names></name>
+        <name><surname>Benson</surname><given-names>Steven</given-names></name>
+        <name><surname>Brown</surname><given-names>Jed</given-names></name>
+        <name><surname>Brune</surname><given-names>Peter</given-names></name>
+        <name><surname>Buschelman</surname><given-names>Kris</given-names></name>
+        <name><surname>Constantinescu</surname><given-names>Emil</given-names></name>
+        <name><surname>Dalcin</surname><given-names>Lisandro</given-names></name>
+        <name><surname>Dener</surname><given-names>Alp</given-names></name>
+        <name><surname>Eijkhout</surname><given-names>Victor</given-names></name>
+        <name><surname>Gropp</surname><given-names>William D.</given-names></name>
+        <name><surname>Hapla</surname><given-names>Václav</given-names></name>
+        <name><surname>Isaac</surname><given-names>Tobin</given-names></name>
+        <name><surname>Jolivet</surname><given-names>Pierre</given-names></name>
+        <name><surname>Karpeev</surname><given-names>Dmitry</given-names></name>
+        <name><surname>Kaushik</surname><given-names>Dinesh</given-names></name>
+        <name><surname>Knepley</surname><given-names>Matthew G.</given-names></name>
+        <name><surname>Kong</surname><given-names>Fande</given-names></name>
+        <name><surname>Kruger</surname><given-names>Scott</given-names></name>
+        <name><surname>May</surname><given-names>Dave A.</given-names></name>
+        <name><surname>McInnes</surname><given-names>Lois Curfman</given-names></name>
+        <name><surname>Mills</surname><given-names>Richard Tran</given-names></name>
+        <name><surname>Mitchell</surname><given-names>Lawrence</given-names></name>
+        <name><surname>Munson</surname><given-names>Todd</given-names></name>
+        <name><surname>Roman</surname><given-names>Jose E.</given-names></name>
+        <name><surname>Rupp</surname><given-names>Karl</given-names></name>
+        <name><surname>Sanan</surname><given-names>Patrick</given-names></name>
+        <name><surname>Sarich</surname><given-names>Jason</given-names></name>
+        <name><surname>Smith</surname><given-names>Barry F.</given-names></name>
+        <name><surname>Zampini</surname><given-names>Stefano</given-names></name>
+        <name><surname>Zhang</surname><given-names>Hong</given-names></name>
+        <name><surname>Zhang</surname><given-names>Hong</given-names></name>
+        <name><surname>Zhang</surname><given-names>Junchao</given-names></name>
+      </person-group>
+      <article-title>PETSc/TAO users manual</article-title>
+      <publisher-name>Argonne National Laboratory</publisher-name>
+      <year iso-8601-date="2021">2021</year>
+    </element-citation>
+  </ref>
+  <ref id="ref-mpi40">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <string-name>Message Passing Interface Forum</string-name>
+      </person-group>
+      <source>MPI: A message-passing interface standard version 4.0</source>
+      <year iso-8601-date="2021-06">2021</year><month>06</month>
+      <uri>https://www.mpi-forum.org/docs/mpi-4.0/mpi40-report.pdf</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-Verdugo2021">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Verdugo</surname><given-names>F.</given-names></name>
+        <name><surname>Badia</surname><given-names>S.</given-names></name>
+      </person-group>
+      <article-title>The software design of Gridap: A finite element package based on the Julia JIT compiler</article-title>
+      <source>Computer Physics Communications</source>
+      <publisher-name>Elsevier BV</publisher-name>
+      <year iso-8601-date="2022-07">2022</year><month>07</month>
+      <volume>276</volume>
+      <uri>https://doi.org/10.1016/j.cpc.2022.108341</uri>
+      <pub-id pub-id-type="doi">10.1016/j.cpc.2022.108341</pub-id>
+      <fpage>108341</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-gridapetsc">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Verdugo</surname><given-names>F.</given-names></name>
+        <name><surname>Sande</surname><given-names>V.</given-names></name>
+        <name><surname>Martin</surname><given-names>A. F.</given-names></name>
+      </person-group>
+      <article-title>GridapPETSc</article-title>
+      <source>GitHub repository</source>
+      <publisher-name>GitHub</publisher-name>
+      <year iso-8601-date="2021">2021</year>
+      <uri>https://github.com/gridap/GridapPETSc.jl</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-gridap4est">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Martin</surname><given-names>A. F.</given-names></name>
+      </person-group>
+      <article-title>GridapP4est</article-title>
+      <source>GitHub repository</source>
+      <publisher-name>GitHub</publisher-name>
+      <year iso-8601-date="2021">2021</year>
+      <uri>https://github.com/gridap/GridapP4est.jl</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-parrays">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Verdugo</surname><given-names>F.</given-names></name>
+      </person-group>
+      <article-title>PartitionedArrays</article-title>
+      <source>GitHub repository</source>
+      <publisher-name>GitHub</publisher-name>
+      <year iso-8601-date="2021">2021</year>
+      <uri>https://github.com/fverdugo/PartitionedArrays.jl</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-Bezanson2017">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Bezanson</surname><given-names>Jeff</given-names></name>
+        <name><surname>Edelman</surname><given-names>Alan</given-names></name>
+        <name><surname>Karpinski</surname><given-names>Stefan</given-names></name>
+        <name><surname>Shah</surname><given-names>Viral B.</given-names></name>
+      </person-group>
+      <article-title>Julia: A fresh approach to numerical computing</article-title>
+      <source>SIAM Review</source>
+      <publisher-name>Society for Industrial; Applied Mathematics</publisher-name>
+      <year iso-8601-date="2017-02">2017</year><month>02</month>
+      <volume>59</volume>
+      <issue>1</issue>
+      <uri>https://arxiv.org/abs/1411.1607</uri>
+      <pub-id pub-id-type="doi">10.1137/141000671</pub-id>
+      <fpage>65</fpage>
+      <lpage>98</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Badia2020">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Badia</surname><given-names>Santiago</given-names></name>
+        <name><surname>Verdugo</surname><given-names>Francesc</given-names></name>
+      </person-group>
+      <article-title>Gridap: An extensible finite element toolbox in Julia</article-title>
+      <source>Journal of Open Source Software</source>
+      <publisher-name>The Open Journal</publisher-name>
+      <year iso-8601-date="2020-08">2020</year><month>08</month>
+      <volume>5</volume>
+      <issue>52</issue>
+      <issn>2475-9066</issn>
+      <uri>https://joss.theoj.org/papers/10.21105/joss.02520</uri>
+      <pub-id pub-id-type="doi">10.21105/JOSS.02520</pub-id>
+      <fpage>2520</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-p4est">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Burstedde</surname><given-names>Carsten</given-names></name>
+        <name><surname>Wilcox</surname><given-names>Lucas C.</given-names></name>
+        <name><surname>Ghattas</surname><given-names>Omar</given-names></name>
+      </person-group>
+      <article-title>p4est: Scalable algorithms for parallel adaptive mesh refinement on forests of octrees</article-title>
+      <source>SIAM Journal on Scientific Computing</source>
+      <publisher-name>Society for Industrial; Applied Mathematics</publisher-name>
+      <year iso-8601-date="2011-05">2011</year><month>05</month>
+      <volume>33</volume>
+      <issue>3</issue>
+      <pub-id pub-id-type="doi">10.1137/100791634</pub-id>
+      <fpage>1103</fpage>
+      <lpage>1133</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-dealII93">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Arndt</surname><given-names>Daniel</given-names></name>
+        <name><surname>Bangerth</surname><given-names>Wolfgang</given-names></name>
+        <name><surname>Blais</surname><given-names>Bruno</given-names></name>
+        <name><surname>Fehling</surname><given-names>Marc</given-names></name>
+        <name><surname>Gassmöller</surname><given-names>Rene</given-names></name>
+        <name><surname>Heister</surname><given-names>Timo</given-names></name>
+        <name><surname>Heltai</surname><given-names>Luca</given-names></name>
+        <name><surname>Köcher</surname><given-names>Uwe</given-names></name>
+        <name><surname>Kronbichler</surname><given-names>Martin</given-names></name>
+        <name><surname>Maier</surname><given-names>Matthias</given-names></name>
+        <name><surname>Munch</surname><given-names>Peter</given-names></name>
+        <name><surname>Pelteret</surname><given-names>Jean-Paul</given-names></name>
+        <name><surname>Proell</surname><given-names>Sebastian</given-names></name>
+        <name><surname>Simon</surname><given-names>Konrad</given-names></name>
+        <name><surname>Turcksin</surname><given-names>Bruno</given-names></name>
+        <name><surname>Wells</surname><given-names>David</given-names></name>
+        <name><surname>Zhang</surname><given-names>Jiaqi</given-names></name>
+      </person-group>
+      <article-title>The deal.II library, version 9.3</article-title>
+      <source>Journal of Numerical Mathematics</source>
+      <year iso-8601-date="2021">2021</year>
+      <volume>29</volume>
+      <issue>3</issue>
+      <uri>https://dealii.org/deal93-preprint.pdf</uri>
+      <pub-id pub-id-type="doi">10.1515/jnma-2021-0081</pub-id>
+      <fpage>171</fpage>
+      <lpage>186</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-fenics-book">
+    <element-citation publication-type="book">
+      <source>Automated solution of differential equations by the finite element method</source>
+      <person-group person-group-type="editor">
+        <name><surname>Logg</surname><given-names>Anders</given-names></name>
+        <name><surname>Mardal</surname><given-names>Kent-Andre</given-names></name>
+        <name><surname>Wells</surname><given-names>Garth</given-names></name>
+      </person-group>
+      <publisher-name>Springer Berlin Heidelberg</publisher-name>
+      <year iso-8601-date="2012">2012</year>
+      <uri>https://doi.org/10.1007/978-3-642-23099-8</uri>
+      <pub-id pub-id-type="doi">10.1007/978-3-642-23099-8</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-Elman2014">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Elman</surname><given-names>Howard</given-names></name>
+        <name><surname>Silvester</surname><given-names>David</given-names></name>
+        <name><surname>Wathen</surname><given-names>Andy</given-names></name>
+      </person-group>
+      <source>Finite Elements and Fast Iterative Solvers: with Applications in Incompressible Fluid Dynamics</source>
+      <publisher-name>Oxford University Press</publisher-name>
+      <year iso-8601-date="2014-06">2014</year><month>06</month>
+      <isbn>9780199678792</isbn>
+      <uri>https://doi.org/10.1093/acprof:oso/9780199678792.001.0001</uri>
+      <pub-id pub-id-type="doi">10.1093/acprof:oso/9780199678792.001.0001</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-gmg-book">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Briggs</surname><given-names>William L.</given-names></name>
+        <name><surname>Henson</surname><given-names>Van Emden</given-names></name>
+        <name><surname>McCormick</surname><given-names>Steve F.</given-names></name>
+      </person-group>
+      <source>A multigrid tutorial, second edition</source>
+      <publisher-name>Society for Industrial; Applied Mathematics</publisher-name>
+      <year iso-8601-date="2000">2000</year>
+      <edition>Second</edition>
+      <uri>https://epubs.siam.org/doi/abs/10.1137/1.9780898719505</uri>
+      <pub-id pub-id-type="doi">10.1137/1.9780898719505</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-trilinos">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><given-names>The Trilinos Project Team</given-names></name>
+      </person-group>
+      <source>The Trilinos Project Website</source>
+      <year iso-8601-date="2020">2020</year>
+      <uri>https://trilinos.github.io</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-hypre">
+    <element-citation>
+      <article-title>hypre: High performance preconditioners</article-title>
+    </element-citation>
+  </ref>
+  <ref id="ref-PARDISO">
+    <element-citation publication-type="chapter">
+      <person-group person-group-type="author">
+        <name><surname>Schenk</surname><given-names>Olaf</given-names></name>
+        <name><surname>Gärtner</surname><given-names>Klaus</given-names></name>
+      </person-group>
+      <article-title>PARDISO</article-title>
+      <source>Encyclopedia of parallel computing</source>
+      <person-group person-group-type="editor">
+        <name><surname>Padua</surname><given-names>David</given-names></name>
+      </person-group>
+      <publisher-name>Springer US</publisher-name>
+      <publisher-loc>Boston, MA</publisher-loc>
+      <year iso-8601-date="2011">2011</year>
+      <isbn>978-0-387-09766-4</isbn>
+      <uri>https://doi.org/10.1007/978-0-387-09766-4_90</uri>
+      <pub-id pub-id-type="doi">10.1007/978-0-387-09766-4_90</pub-id>
+      <fpage>1458</fpage>
+      <lpage>1464</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-MUMPS1">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Amestoy</surname><given-names>P. R.</given-names></name>
+        <name><surname>Duff</surname><given-names>I. S.</given-names></name>
+        <name><surname>Koster</surname><given-names>J.</given-names></name>
+        <name><surname>L’Excellent</surname><given-names>J.-Y.</given-names></name>
+      </person-group>
+      <article-title>A fully asynchronous multifrontal solver using distributed dynamic scheduling</article-title>
+      <source>SIAM Journal on Matrix Analysis and Applications</source>
+      <year iso-8601-date="2001">2001</year>
+      <volume>23</volume>
+      <issue>1</issue>
+      <pub-id pub-id-type="doi">10.1137/s0895479899358194</pub-id>
+      <fpage>15</fpage>
+      <lpage>41</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-MUMPS2">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Amestoy</surname><given-names>P. R.</given-names></name>
+        <name><surname>Buttari</surname><given-names>A.</given-names></name>
+        <name><surname>L’Excellent</surname><given-names>J.-Y.</given-names></name>
+        <name><surname>Mary</surname><given-names>T.</given-names></name>
+      </person-group>
+      <article-title>Performance and scalability of the block low-rank multifrontal factorization on multicore architectures</article-title>
+      <source>ACM Transactions on Mathematical Software</source>
+      <year iso-8601-date="2019">2019</year>
+      <volume>45</volume>
+      <pub-id pub-id-type="doi">10.1145/3242094</pub-id>
+      <fpage>2:1</fpage>
+      <lpage>2:26</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-gridapdistributed">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Badia</surname><given-names>Santiago</given-names></name>
+        <name><surname>Martín</surname><given-names>Alberto F.</given-names></name>
+        <name><surname>Verdugo</surname><given-names>Francesc</given-names></name>
+      </person-group>
+      <article-title>GridapDistributed: A massively parallel finite element toolbox in Julia</article-title>
+      <source>Journal of Open Source Software</source>
+      <publisher-name>The Open Journal</publisher-name>
+      <year iso-8601-date="2022">2022</year>
+      <volume>7</volume>
+      <issue>74</issue>
+      <uri>https://doi.org/10.21105/joss.04157</uri>
+      <pub-id pub-id-type="doi">10.21105/joss.04157</pub-id>
+      <fpage>4157</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Arnold1">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Arnold</surname><given-names>D. N.</given-names></name>
+        <name><surname>Falk</surname><given-names>R. S.</given-names></name>
+        <name><surname>Winther</surname><given-names>R.</given-names></name>
+      </person-group>
+      <article-title>Preconditing in H(div) and applications</article-title>
+      <year iso-8601-date="1997">1997</year>
+      <uri>https://api.semanticscholar.org/CorpusID:12559456</uri>
+      <pub-id pub-id-type="doi">10.1090/S0025-5718-97-00826-0</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-Arnold2">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Arnold</surname><given-names>D. N.</given-names></name>
+        <name><surname>Falk</surname><given-names>R. S.</given-names></name>
+        <name><surname>Winther</surname><given-names>R.</given-names></name>
+      </person-group>
+      <article-title>Multigrid in H(div) and H(curl)</article-title>
+      <source>Numerische Mathematik</source>
+      <year iso-8601-date="2000">2000</year>
+      <volume>85</volume>
+      <uri>https://api.semanticscholar.org/CorpusID:14301688</uri>
+      <pub-id pub-id-type="doi">10.1007/PL00005386</pub-id>
+      <fpage>197</fpage>
+      <lpage>217</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-fenics-patch">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Farrell</surname><given-names>Patrick E.</given-names></name>
+        <name><surname>Knepley</surname><given-names>Matthew G.</given-names></name>
+        <name><surname>Mitchell</surname><given-names>Lawrence</given-names></name>
+        <name><surname>Wechsung</surname><given-names>Florian</given-names></name>
+      </person-group>
+      <article-title>PCPATCH: Software for the topological construction of multigrid relaxation methods</article-title>
+      <source>ACM Transactions on Mathematical Software</source>
+      <publisher-name>Association for Computing Machinery (ACM)</publisher-name>
+      <year iso-8601-date="2021-06">2021</year><month>06</month>
+      <volume>47</volume>
+      <issue>3</issue>
+      <issn>1557-7295</issn>
+      <uri>http://dx.doi.org/10.1145/3445791</uri>
+      <pub-id pub-id-type="doi">10.1145/3445791</pub-id>
+      <fpage>1</fpage>
+      <lpage>22</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-dealII-patch">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Cui</surname><given-names>Cu</given-names></name>
+        <name><surname>Grosse-Bley</surname><given-names>Paul</given-names></name>
+        <name><surname>Kanschat</surname><given-names>Guido</given-names></name>
+        <name><surname>Strzodka</surname><given-names>Robert</given-names></name>
+      </person-group>
+      <article-title>An implementation of tensor product patch smoothers on GPU</article-title>
+      <year iso-8601-date="2024">2024</year>
+      <uri>https://arxiv.org/abs/2405.19004</uri>
+      <pub-id pub-id-type="doi">10.48550/arXiv.2405.19004</pub-id>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
