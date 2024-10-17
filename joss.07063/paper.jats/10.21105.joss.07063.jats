@@ -1,0 +1,590 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">7063</article-id>
+<article-id pub-id-type="doi">10.21105/joss.07063</article-id>
+<title-group>
+<article-title>gotranx: General ODE translator</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author" corresp="yes">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0001-6489-8858</contrib-id>
+<name>
+<surname>Finsberg</surname>
+<given-names>Henrik</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+<xref ref-type="corresp" rid="cor-1"><sup>*</sup></xref>
+</contrib>
+<contrib contrib-type="author">
+<name>
+<surname>Hake</surname>
+<given-names>Johan</given-names>
+</name>
+<xref ref-type="aff" rid="aff-2"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Simula Research Laboratory, Oslo, Norway</institution>
+</institution-wrap>
+</aff>
+<aff id="aff-2">
+<institution-wrap>
+<institution>Oslo Katedralskole, Oslo, Norway</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<author-notes>
+<corresp id="cor-1">* E-mail: <email></email></corresp>
+</author-notes>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2024-03-20">
+<day>20</day>
+<month>3</month>
+<year>2024</year>
+</pub-date>
+<volume>9</volume>
+<issue>102</issue>
+<fpage>7063</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2022</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>Python</kwd>
+<kwd>code generation</kwd>
+<kwd>ordinary differential equations</kwd>
+<kwd>parser</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p>We introduce <monospace>gotranx</monospace>, a General ODE
+  Translator for automatic code generation of ordinary differential
+  equations (ODEs). The user writes the ODE in a markup language with
+  the file extension <monospace>.ode</monospace> and the tool generates
+  code with numerical schemes for solving the ODE in different
+  programming languages.</p>
+  <p><monospace>gotranx</monospace> implements a domain specific
+  language (DSL) using
+  <ext-link ext-link-type="uri" xlink:href="https://github.com/lark-parser/lark">Lark</ext-link>
+  for representing ODEs. It can parse the variables and equations into a
+  symbolic representation
+  (<xref alt="Meurer et al., 2017" rid="ref-meurer2017sympy" ref-type="bibr">Meurer
+  et al., 2017</xref>), and generate numerical schemes based on
+  codeprinters from Sympy, in particular the Rush-Larsen scheme
+  (<xref alt="Rush &amp; Larsen, 1978" rid="ref-rush1978practical" ref-type="bibr">Rush
+  &amp; Larsen, 1978</xref>) which is very popular in the field of
+  computational biology.</p>
+  <fig>
+    <caption><p>Logo of the software that illustrates that you taka a
+    dynamical system (i.e an ODE) and uses
+    <monospace>gotranx</monospace> (i.e a black box) to turn the ODE
+    into computer code</p></caption>
+    <graphic mimetype="image" mime-subtype="png" xlink:href="../docs/_static/logo.png" />
+  </fig>
+  <p>The vision for <monospace>gotranx</monospace> is to implement the
+  same features in <monospace>gotranx</monospace> as found in
+  <ext-link ext-link-type="uri" xlink:href="https://github.com/ComputationalPhysiology/gotran"><monospace>gotran</monospace></ext-link>
+  along with additional features.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p>Systems of ordinary differential equations (ODEs) are equations of
+  the form <disp-formula><alternatives>
+  <tex-math><![CDATA[
+  y'(t) = f(t, y),
+  ]]></tex-math>
+  <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>y</mml:mi><mml:mi>′</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>t</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>=</mml:mo><mml:mi>f</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>t</mml:mi><mml:mo>,</mml:mo><mml:mi>y</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>,</mml:mo></mml:mrow></mml:math></alternatives></disp-formula>
+  where <inline-formula><alternatives>
+  <tex-math><![CDATA[t]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>t</mml:mi></mml:math></alternatives></inline-formula>
+  represents time and <inline-formula><alternatives>
+  <tex-math><![CDATA[y]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>y</mml:mi></mml:math></alternatives></inline-formula>
+  is a vector of state variables. These equations are a fundamental
+  concept in mathematics and science, and play a critical role in
+  various fields such as physics, engineering, and economics.</p>
+  <p>Solving ODEs can be done analytically in simple cases but for most
+  real world applications one needs to apply numerical methods
+  (<xref alt="Ascher &amp; Petzold, 1998" rid="ref-ascher1998computer" ref-type="bibr">Ascher
+  &amp; Petzold, 1998</xref>). For this, a suite of well-established
+  software exists, such as <monospace>scipy</monospace>
+  (<xref alt="Virtanen et al., 2020" rid="ref-virtanen2020scipy" ref-type="bibr">Virtanen
+  et al., 2020</xref>) for Python,
+  <monospace>Differentialequations.jl</monospace>
+  (<xref alt="Rackauckas &amp; Nie, 2017" rid="ref-rackauckas2017differentialequations" ref-type="bibr">Rackauckas
+  &amp; Nie, 2017</xref>) for Julia, and Sundials
+  (<xref alt="Hindmarsh et al., 2005" rid="ref-hindmarsh2005sundials" ref-type="bibr">Hindmarsh
+  et al., 2005</xref>) for <monospace>C</monospace> and
+  <monospace>C++</monospace> .</p>
+  <p>Computational biology is one field where ODEs play an essential
+  role, for example in models of heart cells. The resulting ODEs can, in
+  these cases, be quite involved with many parameters and state
+  variables. For example, one of the more recent models of human heart
+  cells
+  (<xref alt="Tomek et al., 2019" rid="ref-tomek2019development" ref-type="bibr">Tomek
+  et al., 2019</xref>) has 112 parameters, 45 state variables, and 276
+  intermediate variables. Solutions of the state equations of these
+  membrane models typically allows for specialized exponential
+  integrators
+  (<xref alt="Rush &amp; Larsen, 1978" rid="ref-rush1978practical" ref-type="bibr">Rush
+  &amp; Larsen, 1978</xref>) that are implemented as a numerical scheme
+  in <monospace>gotranx</monospace>.</p>
+  <p>Furthermore, such models of a single heart cell are typically
+  embedded into a spatial model, such as the Monodomain or Bidomain
+  model
+  (<xref alt="Sundnes et al., 2007" rid="ref-sundnes2007computing" ref-type="bibr">Sundnes
+  et al., 2007</xref>), where each point in a 3D geometry represents a
+  cell. This means that thousands or even millions of such ODEs needs to
+  be coupled and solved in a larger systems. In these cases, traditional
+  solvers are usually unsuitable and custom code are often developed to
+  solve the ODEs. An alternative to this approach is to use an existing
+  framework specialized for these types of problems
+  (<xref alt="Cooper et al., 2020" rid="ref-cooper2020chaste" ref-type="bibr">Cooper
+  et al., 2020</xref>;
+  <xref alt="Plank et al., 2021" rid="ref-plank2021opencarp" ref-type="bibr">Plank
+  et al., 2021</xref>). However, introducing a big framework might not
+  be ideal if the user wants to do a lot of customization. With
+  <monospace>gotranx</monospace> you can easily generate framework
+  independent code that can easily be integrated into most simulation
+  pipelines. One example is
+  <ext-link ext-link-type="uri" xlink:href="https://github.com/finsberg/fenics-beat"><monospace>fenics-beat</monospace></ext-link>
+  (<xref alt="Finsberg, 2024" rid="ref-Finsberg_fenics-beat_2024" ref-type="bibr">Finsberg,
+  2024</xref>), which uses <monospace>gotranx</monospace> to generate
+  code solving ODEs in a Monodomain model.</p>
+  <p>While such models are typically developed in one programming
+  language, different research groups use different programming
+  languages to integrate and solve their models. To make these models
+  programming language independent, it is common practice to write them
+  in a markup language
+  (<xref alt="Keating et al., 2020" rid="ref-keating2020sbml" ref-type="bibr">Keating
+  et al., 2020</xref>;
+  <xref alt="Lloyd et al., 2004" rid="ref-lloyd2004cellml" ref-type="bibr">Lloyd
+  et al., 2004</xref>). However, when translating the models to a new
+  programming language, user typically need to do this manually, which
+  is likely to introduce errors in the code. Since
+  <monospace>gotranx</monospace> also implements converters, e.g., for
+  CellML through MyoKit
+  (<xref alt="Clerx et al., 2016" rid="ref-clerx2016myokit" ref-type="bibr">Clerx
+  et al., 2016</xref>), it already supports most models that are used
+  today.</p>
+  <p><monospace>gotranx</monospace> is a full rewrite of
+  <ext-link ext-link-type="uri" xlink:href="https://github.com/ComputationalPhysiology/gotran"><monospace>gotran</monospace></ext-link>,
+  which was first developed in 2012, primarily for generating code for
+  solving problems in cardiac electrophysiology.
+  <monospace>gotran</monospace> is very tightly coupled to
+  <ext-link ext-link-type="uri" xlink:href="https://www.sympy.org/en/index.html"><monospace>sympy</monospace></ext-link>
+  and at one point we were unable to upgrade the version of
+  <monospace>sympy</monospace>, which drastically limited its usage.
+  This was the main motivation for the upgrade. You can read more about
+  this background in the
+  <ext-link ext-link-type="uri" xlink:href="https://finsberg.github.io/gotranx/docs/history.html">documentation</ext-link>.</p>
+  <sec id="features">
+    <title>Features</title>
+    <p>The core idea behind <monospace>gotranx</monospace> is</p>
+    <list list-type="order">
+      <list-item>
+        <p>to define your ODE in a high level language (so called
+        <monospace>.ode</monospace> file), and</p>
+      </list-item>
+      <list-item>
+        <p>to generate code for solving the ODE in different programming
+        languages</p>
+      </list-item>
+    </list>
+    <p>The <monospace>.ode</monospace> format is text based and high
+    level stripped for details. For example the following
+    <monospace>.ode</monospace> file</p>
+    <preformat>states(x=1, y=0)
+parameters(a=1.0)
+
+dx_dt = a * y
+dy_dt = -x</preformat>
+    <p>defines the ODE system</p>
+    <p><disp-formula><alternatives>
+    <tex-math><![CDATA[
+    \begin{aligned}
+    \frac{dx}{dt} &= ay \\
+    \frac{dy}{dt} &= -x
+    \end{aligned}
+    ]]></tex-math>
+    <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mtable><mml:mtr><mml:mtd columnalign="right" style="text-align: right"><mml:mfrac><mml:mrow><mml:mi>d</mml:mi><mml:mi>x</mml:mi></mml:mrow><mml:mrow><mml:mi>d</mml:mi><mml:mi>t</mml:mi></mml:mrow></mml:mfrac></mml:mtd><mml:mtd columnalign="left" style="text-align: left"><mml:mo>=</mml:mo><mml:mi>a</mml:mi><mml:mi>y</mml:mi></mml:mtd></mml:mtr><mml:mtr><mml:mtd columnalign="right" style="text-align: right"><mml:mfrac><mml:mrow><mml:mi>d</mml:mi><mml:mi>y</mml:mi></mml:mrow><mml:mrow><mml:mi>d</mml:mi><mml:mi>t</mml:mi></mml:mrow></mml:mfrac></mml:mtd><mml:mtd columnalign="left" style="text-align: left"><mml:mo>=</mml:mo><mml:mi>−</mml:mi><mml:mi>x</mml:mi></mml:mtd></mml:mtr></mml:mtable></mml:math></alternatives></disp-formula></p>
+    <p>with the initial conditions <inline-formula><alternatives>
+    <tex-math><![CDATA[x(0) = 1]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>x</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mn>0</mml:mn><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>=</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>
+    and <inline-formula><alternatives>
+    <tex-math><![CDATA[y(0) = 0]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>y</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mn>0</mml:mn><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>=</mml:mo><mml:mn>0</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>
+    and the parameter <inline-formula><alternatives>
+    <tex-math><![CDATA[a]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>a</mml:mi></mml:math></alternatives></inline-formula>
+    with a value of 1.0. We can now generate code for solving the ODE
+    using the Generalized Rush-Larsen scheme
+    (<xref alt="Sundnes et al., 2009" rid="ref-sundnes2009second" ref-type="bibr">Sundnes
+    et al., 2009</xref>) with the following command (assuming you wrote
+    the ODE in the file <monospace>file.ode</monospace>)</p>
+    <preformat>gotranx ode2py file.ode --scheme generalized_rush_larsen -o file.py</preformat>
+    <p>which will output the code a new python file named
+    <monospace>file.py</monospace>. We can now use this code as follows
+    to solve the ODE</p>
+    <fig>
+      <caption><p>Example of code from loading and solving an ODE with
+      the code generated from <monospace>gotranx</monospace>. On the
+      right we see the solution.</p></caption>
+      <graphic mimetype="image" mime-subtype="png" xlink:href="ode_example.png" />
+    </fig>
+    <p>At the time of writing, <monospace>gotranx</monospace> support
+    code generation to C and Python, with backends for
+    <ext-link ext-link-type="uri" xlink:href="https://numpy.org"><monospace>numpy</monospace></ext-link>
+    and
+    <ext-link ext-link-type="uri" xlink:href="https://jax.readthedocs.io/"><monospace>jax</monospace></ext-link>.
+    It also supports conversion to and from
+    <ext-link ext-link-type="uri" xlink:href="https://www.cellml.org">CellML</ext-link>
+    via
+    <ext-link ext-link-type="uri" xlink:href="https://myokit.org">MyoKit</ext-link>
+    (at the time of writing we still do not support unit conversion from
+    gotranx to MyoKit). For a list of all features and the roadmap,
+    please see the
+    <ext-link ext-link-type="uri" xlink:href="https://finsberg.github.io/gotranx/docs/roadmap.html">roadmap</ext-link>.</p>
+  </sec>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>Henrik Finsberg is the main developer of
+  <monospace>gotranx</monospace>. The original gotran library was
+  created by Johan Hake, and he is acknowledged with co-authorship for
+  this. We would also like to acknowledge Kristian Hustad for valuable
+  discussions and contributions to the original gotran library. This
+  work has been financially supported by Simula Research Laboratory.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <title></title>
+  <ref id="ref-ascher1998computer">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Ascher</surname><given-names>Uri M</given-names></name>
+        <name><surname>Petzold</surname><given-names>Linda R</given-names></name>
+      </person-group>
+      <source>Computer methods for ordinary differential equations and differential-algebraic equations</source>
+      <publisher-name>SIAM</publisher-name>
+      <year iso-8601-date="1998">1998</year>
+      <pub-id pub-id-type="doi">10.1137/1.9781611971224</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-hindmarsh2005sundials">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Hindmarsh</surname><given-names>Alan C</given-names></name>
+        <name><surname>Brown</surname><given-names>Peter N</given-names></name>
+        <name><surname>Grant</surname><given-names>Keith E</given-names></name>
+        <name><surname>Lee</surname><given-names>Steven L</given-names></name>
+        <name><surname>Serban</surname><given-names>Radu</given-names></name>
+        <name><surname>Shumaker</surname><given-names>Dan E</given-names></name>
+        <name><surname>Woodward</surname><given-names>Carol S</given-names></name>
+      </person-group>
+      <article-title>SUNDIALS: Suite of nonlinear and differential/algebraic equation solvers</article-title>
+      <source>ACM Transactions on Mathematical Software (TOMS)</source>
+      <publisher-name>ACM New York, NY, USA</publisher-name>
+      <year iso-8601-date="2005">2005</year>
+      <volume>31</volume>
+      <issue>3</issue>
+      <pub-id pub-id-type="doi">10.1145/1089014.1089020</pub-id>
+      <fpage>363</fpage>
+      <lpage>396</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-virtanen2020scipy">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Virtanen</surname><given-names>Pauli</given-names></name>
+        <name><surname>Gommers</surname><given-names>Ralf</given-names></name>
+        <name><surname>Oliphant</surname><given-names>Travis E</given-names></name>
+        <name><surname>Haberland</surname><given-names>Matt</given-names></name>
+        <name><surname>Reddy</surname><given-names>Tyler</given-names></name>
+        <name><surname>Cournapeau</surname><given-names>David</given-names></name>
+        <name><surname>Burovski</surname><given-names>Evgeni</given-names></name>
+        <name><surname>Peterson</surname><given-names>Pearu</given-names></name>
+        <name><surname>Weckesser</surname><given-names>Warren</given-names></name>
+        <name><surname>Bright</surname><given-names>Jonathan</given-names></name>
+        <name><surname>others</surname></name>
+      </person-group>
+      <article-title>SciPy 1.0: Fundamental algorithms for scientific computing in Python</article-title>
+      <source>Nature methods</source>
+      <publisher-name>Nature Publishing Group</publisher-name>
+      <year iso-8601-date="2020">2020</year>
+      <volume>17</volume>
+      <issue>3</issue>
+      <pub-id pub-id-type="doi">10.1038/s41592-019-0686-2</pub-id>
+      <fpage>261</fpage>
+      <lpage>272</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-rackauckas2017differentialequations">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Rackauckas</surname><given-names>Christopher</given-names></name>
+        <name><surname>Nie</surname><given-names>Qing</given-names></name>
+      </person-group>
+      <article-title>Differentialequations.jl – a performant and feature-rich ecosystem for solving differential equations in julia</article-title>
+      <source>Journal of open research software</source>
+      <year iso-8601-date="2017">2017</year>
+      <volume>5</volume>
+      <issue>1</issue>
+      <pub-id pub-id-type="doi">10.5334/jors.151</pub-id>
+      <fpage>15</fpage>
+      <lpage>15</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-tomek2019development">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Tomek</surname><given-names>Jakub</given-names></name>
+        <name><surname>Bueno-Orovio</surname><given-names>Alfonso</given-names></name>
+        <name><surname>Passini</surname><given-names>Elisa</given-names></name>
+        <name><surname>Zhou</surname><given-names>Xin</given-names></name>
+        <name><surname>Minchole</surname><given-names>Ana</given-names></name>
+        <name><surname>Britton</surname><given-names>Oliver</given-names></name>
+        <name><surname>Bartolucci</surname><given-names>Chiara</given-names></name>
+        <name><surname>Severi</surname><given-names>Stefano</given-names></name>
+        <name><surname>Shrier</surname><given-names>Alvin</given-names></name>
+        <name><surname>Virag</surname><given-names>Laszlo</given-names></name>
+        <name><surname>others</surname></name>
+      </person-group>
+      <article-title>Development, calibration, and validation of a novel human ventricular myocyte model in health, disease, and drug block</article-title>
+      <source>Elife</source>
+      <publisher-name>eLife Sciences Publications, Ltd</publisher-name>
+      <year iso-8601-date="2019">2019</year>
+      <volume>8</volume>
+      <pub-id pub-id-type="doi">10.7554/eLife.48890</pub-id>
+      <fpage>e48890</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-sundnes2007computing">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Sundnes</surname><given-names>Joakim</given-names></name>
+        <name><surname>Lines</surname><given-names>Glenn Terje</given-names></name>
+        <name><surname>Cai</surname><given-names>Xing</given-names></name>
+        <name><surname>Nielsen</surname><given-names>Bjørn Frederik</given-names></name>
+        <name><surname>Mardal</surname><given-names>Kent-Andre</given-names></name>
+        <name><surname>Tveito</surname><given-names>Aslak</given-names></name>
+      </person-group>
+      <source>Computing the electrical activity in the heart</source>
+      <publisher-name>Springer Science &amp; Business Media</publisher-name>
+      <year iso-8601-date="2007">2007</year>
+      <volume>1</volume>
+      <pub-id pub-id-type="doi">10.1007/3-540-33437-8</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-cooper2020chaste">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Cooper</surname><given-names>Fergus R</given-names></name>
+        <name><surname>Baker</surname><given-names>Ruth E</given-names></name>
+        <name><surname>Bernabeu</surname><given-names>Miguel O</given-names></name>
+        <name><surname>Bordas</surname><given-names>Rafel</given-names></name>
+        <name><surname>Bowler</surname><given-names>Louise</given-names></name>
+        <name><surname>Bueno-Orovio</surname><given-names>Alfonso</given-names></name>
+        <name><surname>Byrne</surname><given-names>Helen M</given-names></name>
+        <name><surname>Carapella</surname><given-names>Valentina</given-names></name>
+        <name><surname>Cardone-Noott</surname><given-names>Louie</given-names></name>
+        <name><surname>Jonatha</surname><given-names>Cooper</given-names></name>
+        <name><surname>others</surname></name>
+      </person-group>
+      <article-title>Chaste: Cancer, heart and soft tissue environment</article-title>
+      <source>Journal of Open Source Software</source>
+      <publisher-name>Europe PMC Funders</publisher-name>
+      <year iso-8601-date="2020">2020</year>
+      <volume>5</volume>
+      <issue>47</issue>
+      <pub-id pub-id-type="doi">10.21105/joss.01848</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-plank2021opencarp">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Plank</surname><given-names>Gernot</given-names></name>
+        <name><surname>Loewe</surname><given-names>Axel</given-names></name>
+        <name><surname>Neic</surname><given-names>Aurel</given-names></name>
+        <name><surname>Augustin</surname><given-names>Christoph</given-names></name>
+        <name><surname>Huang</surname><given-names>Yung-Lin</given-names></name>
+        <name><surname>Gsell</surname><given-names>Matthias AF</given-names></name>
+        <name><surname>Karabelas</surname><given-names>Elias</given-names></name>
+        <name><surname>Nothstein</surname><given-names>Mark</given-names></name>
+        <name><surname>Prassl</surname><given-names>Anton J</given-names></name>
+        <name><surname>Sánchez</surname><given-names>Jorge</given-names></name>
+        <name><surname>others</surname></name>
+      </person-group>
+      <article-title>The openCARP simulation environment for cardiac electrophysiology</article-title>
+      <source>Computer methods and Programs in Biomedicine</source>
+      <publisher-name>Elsevier</publisher-name>
+      <year iso-8601-date="2021">2021</year>
+      <volume>208</volume>
+      <pub-id pub-id-type="doi">10.1016/j.cmpb.2021.106223</pub-id>
+      <fpage>106223</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-lloyd2004cellml">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Lloyd</surname><given-names>Catherine M</given-names></name>
+        <name><surname>Halstead</surname><given-names>Matt DB</given-names></name>
+        <name><surname>Nielsen</surname><given-names>Poul F</given-names></name>
+      </person-group>
+      <article-title>CellML: Its future, present and past</article-title>
+      <source>Progress in biophysics and molecular biology</source>
+      <publisher-name>Elsevier</publisher-name>
+      <year iso-8601-date="2004">2004</year>
+      <volume>85</volume>
+      <issue>2-3</issue>
+      <pub-id pub-id-type="doi">10.1016/j.pbiomolbio.2004.01.004</pub-id>
+      <fpage>433</fpage>
+      <lpage>450</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-keating2020sbml">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Keating</surname><given-names>Sarah M</given-names></name>
+        <name><surname>Waltemath</surname><given-names>Dagmar</given-names></name>
+        <name><surname>König</surname><given-names>Matthias</given-names></name>
+        <name><surname>Zhang</surname><given-names>Fengkai</given-names></name>
+        <name><surname>Dräger</surname><given-names>Andreas</given-names></name>
+        <name><surname>Chaouiya</surname><given-names>Claudine</given-names></name>
+        <name><surname>Bergmann</surname><given-names>Frank T</given-names></name>
+        <name><surname>Finney</surname><given-names>Andrew</given-names></name>
+        <name><surname>Gillespie</surname><given-names>Colin S</given-names></name>
+        <name><surname>Helikar</surname><given-names>Tomáš</given-names></name>
+        <name><surname>others</surname></name>
+      </person-group>
+      <article-title>SBML level 3: An extensible format for the exchange and reuse of biological models</article-title>
+      <source>Molecular systems biology</source>
+      <year iso-8601-date="2020">2020</year>
+      <volume>16</volume>
+      <issue>8</issue>
+      <pub-id pub-id-type="doi">10.15252/msb.20199110</pub-id>
+      <fpage>e9110</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-meurer2017sympy">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Meurer</surname><given-names>Aaron</given-names></name>
+        <name><surname>Smith</surname><given-names>Christopher P</given-names></name>
+        <name><surname>Paprocki</surname><given-names>Mateusz</given-names></name>
+        <name><surname>Čertı́k</surname><given-names>Ondřej</given-names></name>
+        <name><surname>Kirpichev</surname><given-names>Sergey B</given-names></name>
+        <name><surname>Rocklin</surname><given-names>Matthew</given-names></name>
+        <name><surname>Kumar</surname><given-names>AMiT</given-names></name>
+        <name><surname>Ivanov</surname><given-names>Sergiu</given-names></name>
+        <name><surname>Moore</surname><given-names>Jason K</given-names></name>
+        <name><surname>Singh</surname><given-names>Sartaj</given-names></name>
+        <name><surname>others</surname></name>
+      </person-group>
+      <article-title>SymPy: Symbolic computing in Python</article-title>
+      <source>PeerJ Computer Science</source>
+      <publisher-name>PeerJ Inc.</publisher-name>
+      <year iso-8601-date="2017">2017</year>
+      <volume>3</volume>
+      <pub-id pub-id-type="doi">10.7717/peerj-cs.103</pub-id>
+      <fpage>e103</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-clerx2016myokit">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Clerx</surname><given-names>Michael</given-names></name>
+        <name><surname>Collins</surname><given-names>Pieter</given-names></name>
+        <name><surname>De Lange</surname><given-names>Enno</given-names></name>
+        <name><surname>Volders</surname><given-names>Paul GA</given-names></name>
+      </person-group>
+      <article-title>Myokit: A simple interface to cardiac cellular electrophysiology</article-title>
+      <source>Progress in biophysics and molecular biology</source>
+      <publisher-name>Elsevier</publisher-name>
+      <year iso-8601-date="2016">2016</year>
+      <volume>120</volume>
+      <issue>1-3</issue>
+      <pub-id pub-id-type="doi">10.1016/j.pbiomolbio.2015.12.008</pub-id>
+      <fpage>100</fpage>
+      <lpage>114</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-rush1978practical">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Rush</surname><given-names>Stanley</given-names></name>
+        <name><surname>Larsen</surname><given-names>Hugh</given-names></name>
+      </person-group>
+      <article-title>A practical algorithm for solving dynamic membrane equations</article-title>
+      <source>IEEE Transactions on Biomedical Engineering</source>
+      <publisher-name>IEEE</publisher-name>
+      <year iso-8601-date="1978">1978</year>
+      <issue>4</issue>
+      <pub-id pub-id-type="doi">10.1109/TBME.1978.326270</pub-id>
+      <fpage>389</fpage>
+      <lpage>392</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-sundnes2009second">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Sundnes</surname><given-names>Joakim</given-names></name>
+        <name><surname>Artebrant</surname><given-names>Robert</given-names></name>
+        <name><surname>Skavhaug</surname><given-names>Ola</given-names></name>
+        <name><surname>Tveito</surname><given-names>Aslak</given-names></name>
+      </person-group>
+      <article-title>A second-order algorithm for solving dynamic cell membrane equations</article-title>
+      <source>IEEE Transactions on Biomedical Engineering</source>
+      <publisher-name>IEEE</publisher-name>
+      <year iso-8601-date="2009">2009</year>
+      <volume>56</volume>
+      <issue>10</issue>
+      <pub-id pub-id-type="doi">10.1109/TBME.2009.2014739</pub-id>
+      <fpage>2546</fpage>
+      <lpage>2548</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Finsberg_fenics-beat_2024">
+    <element-citation publication-type="software">
+      <person-group person-group-type="author">
+        <name><surname>Finsberg</surname><given-names>Henrik</given-names></name>
+      </person-group>
+      <article-title>fenics-beat</article-title>
+      <year iso-8601-date="2024-08">2024</year><month>08</month>
+      <uri>https://github.com/finsberg/fenics-beat</uri>
+      <pub-id pub-id-type="doi">10.5281/zenodo.13323643</pub-id>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
