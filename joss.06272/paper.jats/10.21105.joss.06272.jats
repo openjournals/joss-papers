@@ -1,0 +1,788 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">6272</article-id>
+<article-id pub-id-type="doi">10.21105/joss.06272</article-id>
+<title-group>
+<article-title>Finding and removing introns from RNA-Seq de novo
+assemblies with IntronSeeker</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author" corresp="yes">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0001-6453-902X</contrib-id>
+<name>
+<surname>Maman</surname>
+<given-names>Sarah</given-names>
+</name>
+<email>sarah.maman@inrae.fr</email>
+<xref ref-type="aff" rid="aff-1"/>
+<xref ref-type="corresp" rid="cor-1"><sup>*</sup></xref>
+</contrib>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0002-0004-0251</contrib-id>
+<name>
+<surname>Bardou</surname>
+<given-names>Philippe</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<contrib contrib-type="author">
+<name>
+<surname>Lasguignes</surname>
+<given-names>Emilien</given-names>
+</name>
+<xref ref-type="aff" rid="aff-2"/>
+</contrib>
+<contrib contrib-type="author">
+<name>
+<surname>Oudin</surname>
+<given-names>Faustine</given-names>
+</name>
+<xref ref-type="aff" rid="aff-2"/>
+</contrib>
+<contrib contrib-type="author">
+<name>
+<surname>Cabanettes</surname>
+<given-names>Floréal</given-names>
+</name>
+<xref ref-type="aff" rid="aff-2"/>
+</contrib>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0001-7126-5477</contrib-id>
+<name>
+<surname>Klopp</surname>
+<given-names>Christophe</given-names>
+</name>
+<xref ref-type="aff" rid="aff-2"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Sigenae, GenPhySE, Université de Toulouse, INRAE, ENVT,
+F-31326, Castanet Tolosan, France.</institution>
+</institution-wrap>
+</aff>
+<aff id="aff-2">
+<institution-wrap>
+<institution>Université Fédérale de Toulouse, INRAE, BioinfOmics,
+GenoToul Bioinformatics facility, Sigenae, 31326, Castanet-Tolosan,
+France</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<author-notes>
+<corresp id="cor-1">* E-mail: <email>sarah.maman@inrae.fr</email></corresp>
+</author-notes>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2023-01-01">
+<day>1</day>
+<month>1</month>
+<year>2023</year>
+</pub-date>
+<volume>9</volume>
+<issue>102</issue>
+<fpage>6272</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2022</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>RNA-Seq</kwd>
+<kwd>de novo</kwd>
+<kwd>assembly</kwd>
+<kwd>retained introns</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p>intronSeeker identifies potentially retained introns in <italic>de
+  novo</italic> RNA-seq assembly in order to quantify and remove them.
+  To use it you have to provide a set of contigs resulting of a de novo
+  transcriptome assembly and a set of RNA-Seq reads. The reads will be
+  aligned on the contigs, splices sites will be searched and tested to
+  check if they correspond to valid intron retention events. The tool
+  works by aligning user-provided reads to contigs from a de novo
+  transcriptome assembly. Splice sites are then searched and tested to
+  check if they correspond to valid intron retention events.
+  intronSeeker provides a list of potential intron candidates, it
+  filters them and outputs a clean reference without introns in Fasta
+  format.</p>
+</sec>
+<sec id="introduction">
+  <title>Introduction</title>
+  <p>Short read RNA sequencing (RNA-Seq) is now routinely used to study
+  gene expression. When a reference genome is available, RNA-Seq reads
+  can be splice-aligned to the assembly and gene abundances can be
+  measured by counting alignments found in each gene location. When no
+  reference genome assembly is available, reads are usually assembled to
+  build a reference transcriptome contig set. In this de novo approach
+  reads are then aligned on the contigs without using a splice-aware
+  aligner because they originate from mature transcripts.</p>
+  <p>In order not to sequence very abundant ribosomal RNAs, commonly
+  used protocols include oligo(dT) transcript enrichment. Transcript
+  poly-adhenylation and splicing take place in the nucleus before
+  transfer in the cytoplasm. PolyA tail selection retrieves mainly
+  mature spliced transcripts. Introns spanning reads are still found in
+  most RNA-Seq sets as shown by
+   (<xref alt="Ameur et al., 2011" rid="ref-Ameur2011" ref-type="bibr">Ameur
+  et al., 2011</xref>).</p>
+  <p>Intron retention is also a known biological gene regulation or
+  alternative splicing mechanism. In plants it has been shown to
+  increase the number of transcript splicing forms
+   (<xref alt="Jia et al., 2020" rid="ref-Jia2020" ref-type="bibr">Jia
+  et al., 2020</xref>).
+   (<xref alt="Braunschweig et al., 2014" rid="ref-Braunschweig2014" ref-type="bibr">Braunschweig
+  et al., 2014</xref>) have shown that, even in mammals, there is
+  widespread intron retention linked with gene expression
+  regulation.</p>
+  <p>Reads located on intron/exon boundaries harbor specific splice
+  motifs. These splice motifs are di-nucleotides located at both intron
+  ends. They can be canonical (GT/AG) or not. Canonical motifs are found
+  in most site of most species.</p>
+  <p>Intron retention can be seen as an artefact or a biologically
+  relevant mechanism; in both cases it is interesting to monitor. This
+  is easy with a reference genome assembly because one can quantify
+  reads aligned in introns. This is more complicated in the de novo
+  approach in which the assembler can produce contigs with and without
+  intron for the same transcript.</p>
+  <p>Contigs with introns are more difficult to annotated because
+  introns split coding sequences (CDS) and can generate several shorter
+  protein alignments rather than a unique long match.</p>
+  <p>Canonical splice motifs presence, number of reads splicing at the
+  same location, the minimum number of splice events and overlaps can be
+  used to reduce faulty detection.</p>
+  <p>We present IntronSeeker; a software package that enables the user
+  to search and remove introns from de novo assembled RNA-Seq
+  contigs.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p>RNA-Seq de novo assemblies are widely used to study transcription
+  in species lacking a reference genome. The classical extraction
+  protocol collects RNA fragments using their PolyA tails and therefore
+  should only gather mature RNAs. Unfortunately part of the extracted
+  RNA molecules still comprise retained introns which can therefore be
+  present in some assembled contigs. These introns can generate
+  transcript frameshifts and thus render annotation more difficult.
+  IntronSeeker searches introns by splice-realigning reads on contigs.
+  Introns candidates usually show canonical intron/exon boundaries
+  supported by several sequences. IntronSeeker found between 0.02 and
+  11.96% of putative introns in twenty publicly available RNA-Seq de
+  novo assembled samples. IntronSeeker produces an intron cleaned contig
+  fasta file as well as a cleaning report. IntronSeeeker can be
+  downloaded from
+  <ext-link ext-link-type="uri" xlink:href="https://github.com/Bios4Biol/intronSeeker/tree/master">GitHub
+  intronSeeker</ext-link>.</p>
+  <sec id="searching-retained-introns-in-public-datasets">
+    <title>Searching retained introns in public datasets</title>
+    <p>The twenty public TSA contigs sets processed by IntronSeeker are
+    classified in three Fungi, six Plantae, nine Animalia kingdoms and
+    two Eukaryote superkingdoms. The number of contigs ranged from
+    thirty thousand to three hundred thousand. The number of reads
+    ranged from six millions to three hundred thirty millions. The
+    proportion of retained intron candidates ranged from 0.02 to 11.96%.
+    The figures are presented in Table 1.</p>
+    <table-wrap>
+      <caption>
+        <p>Rates of public contigs with introns, data from NCBI
+        Transcript Shotgun Archive (TSA) and Short Read Archive
+        (SRA).</p>
+      </caption>
+      <table>
+        <colgroup>
+          <col width="11%" />
+          <col width="17%" />
+          <col width="17%" />
+          <col width="17%" />
+          <col width="17%" />
+          <col width="11%" />
+          <col width="11%" />
+        </colgroup>
+        <thead>
+          <tr>
+            <th align="left">Species</th>
+            <th align="center">(super)kingdom</th>
+            <th align="center">TSA id</th>
+            <th align="center">Nb contigs</th>
+            <th align="center">SRA and link to HTML intronSeeker
+            report</th>
+            <th align="left">Nb reads.</th>
+            <th align="left">% cwi</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td align="left">Salvia m.</td>
+            <td align="center">Plantae</td>
+            <td align="center">GJJN01</td>
+            <td align="center">69 705</td>
+            <td align="center"><ext-link ext-link-type="uri" xlink:href="http://htmlpreview.github.io/?https://github.com/Bios4Biol/intronSeeker/blob/master/public/report_Salvia_m_GJJN01.html">SRR15718805</ext-link></td>
+            <td align="left">23 086 599</td>
+            <td align="left"><bold>11.96%</bold></td>
+          </tr>
+          <tr>
+            <td align="left">Platichthys s.</td>
+            <td align="center">Animalia</td>
+            <td align="center">GAPK01</td>
+            <td align="center">30 630</td>
+            <td align="center"><ext-link ext-link-type="uri" xlink:href="http://htmlpreview.github.io/?https://github.com/Bios4Biol/intronSeeker/blob/master/public/report_Platichthys_s_GAPK01.html">SRR1023744</ext-link></td>
+            <td align="left">516 791 904</td>
+            <td align="left"><bold>10,71%</bold></td>
+          </tr>
+          <tr>
+            <td align="left">Rigidoporus m.</td>
+            <td align="center">Fungi</td>
+            <td align="center">GDMN01</td>
+            <td align="center">34 441</td>
+            <td align="center"><ext-link ext-link-type="uri" xlink:href="http://htmlpreview.github.io/?https://github.com/Bios4Biol/intronSeeker/blob/master/public/report_Rigidoporus_m_GDMN01.html">SRR2187438</ext-link></td>
+            <td align="left">75 600 628</td>
+            <td align="left"><bold>5,97%</bold></td>
+          </tr>
+          <tr>
+            <td align="left">Isatis t.</td>
+            <td align="center">Plantae</td>
+            <td align="center">GARR01</td>
+            <td align="center">33 238</td>
+            <td align="center"><ext-link ext-link-type="uri" xlink:href="http://htmlpreview.github.io/?https://github.com/Bios4Biol/intronSeeker/blob/master/public/report_Isatis_t_GARR01.html">SRR1051997</ext-link></td>
+            <td align="left">113 134 348</td>
+            <td align="left"><bold>5,41%</bold></td>
+          </tr>
+          <tr>
+            <td align="left">Goniomonas a.</td>
+            <td align="center">Eukaryota</td>
+            <td align="center">GGUN01</td>
+            <td align="center">48 844</td>
+            <td align="center"><ext-link ext-link-type="uri" xlink:href="http://htmlpreview.github.io/?https://github.com/Bios4Biol/intronSeeker/blob/master/public/report_Goniomonas_a_GGUN01.html">SRR7601946</ext-link></td>
+            <td align="left">82 416 944</td>
+            <td align="left"><bold>5,27%</bold></td>
+          </tr>
+          <tr>
+            <td align="left">Vriesea c.</td>
+            <td align="center">Plantae</td>
+            <td align="center">GHCB01</td>
+            <td align="center">41 228</td>
+            <td align="center"><ext-link ext-link-type="uri" xlink:href="http://htmlpreview.github.io/?https://github.com/Bios4Biol/intronSeeker/blob/master/public/report_Vriesea_c_GHCB01.html">SRR500874</ext-link></td>
+            <td align="left">85 726 288</td>
+            <td align="left"><bold>3,94%</bold></td>
+          </tr>
+          <tr>
+            <td align="left">Graminella n.</td>
+            <td align="center">Animalia</td>
+            <td align="center">GAQX01</td>
+            <td align="center">37 537</td>
+            <td align="center"><ext-link ext-link-type="uri" xlink:href="http://htmlpreview.github.io/?https://github.com/Bios4Biol/intronSeeker/blob/master/public/report_Graminella_n_GAQX01.html">SRR857257</ext-link></td>
+            <td align="left">43 693 708</td>
+            <td align="left"><bold>2,88%</bold></td>
+          </tr>
+          <tr>
+            <td align="left">Carassius g.</td>
+            <td align="center">Animalia</td>
+            <td align="center">GJKR01</td>
+            <td align="center">109 966</td>
+            <td align="center"><ext-link ext-link-type="uri" xlink:href="http://htmlpreview.github.io/?https://github.com/Bios4Biol/intronSeeker/blob/master/public/report_Carassius_g_GJKR01.html">SRR12596368</ext-link></td>
+            <td align="left">21 661 960</td>
+            <td align="left"><bold>2.72%</bold></td>
+          </tr>
+          <tr>
+            <td align="left">Rhizopus a.</td>
+            <td align="center">Fungi</td>
+            <td align="center">GDUK01</td>
+            <td align="center">30 601</td>
+            <td align="center"><ext-link ext-link-type="uri" xlink:href="http://htmlpreview.github.io/?https://github.com/Bios4Biol/intronSeeker/blob/master/public/report_Rhizopus_a_GDUK01.html">SRR2104505</ext-link></td>
+            <td align="left">64 801 576</td>
+            <td align="left"><bold>2,51%</bold></td>
+          </tr>
+          <tr>
+            <td align="left">Diplonema p.</td>
+            <td align="center">Eukaryota</td>
+            <td align="center">GJNJ01</td>
+            <td align="center">114 037</td>
+            <td align="center"><ext-link ext-link-type="uri" xlink:href="http://htmlpreview.github.io/?https://github.com/Bios4Biol/intronSeeker/blob/master/public/report_Diplonema_p_GJNJ01.html">SRR14933372</ext-link></td>
+            <td align="left">63 775 926</td>
+            <td align="left"><bold>2.35%</bold></td>
+          </tr>
+          <tr>
+            <td align="left">Azolla f.</td>
+            <td align="center">Plantae</td>
+            <td align="center">GBTV01</td>
+            <td align="center">36 091</td>
+            <td align="center"><ext-link ext-link-type="uri" xlink:href="http://htmlpreview.github.io/?https://github.com/Bios4Biol/intronSeeker/blob/master/public/report_Azolla_f_GBTV01.html">SRR1618559</ext-link></td>
+            <td align="left">122 059 452</td>
+            <td align="left"><bold>1,97%</bold></td>
+          </tr>
+          <tr>
+            <td align="left">Tripidium r.</td>
+            <td align="center">Plantae</td>
+            <td align="center">GJDA01</td>
+            <td align="center">106 494</td>
+            <td align="center"><ext-link ext-link-type="uri" xlink:href="http://htmlpreview.github.io/?https://github.com/Bios4Biol/intronSeeker/blob/master/public/report_Tripidium_r_GJDA01.html">SRR14143372</ext-link></td>
+            <td align="left">15 357 748</td>
+            <td align="left"><bold>1.50%</bold></td>
+          </tr>
+          <tr>
+            <td align="left">Cimex l.</td>
+            <td align="center">Animalia</td>
+            <td align="center">GBYH01</td>
+            <td align="center">39 124</td>
+            <td align="center"><ext-link ext-link-type="uri" xlink:href="http://htmlpreview.github.io/?https://github.com/Bios4Biol/intronSeeker/blob/master/public/report_Cimex_l_GBYH01.html">SRR1660436</ext-link></td>
+            <td align="left">329 875 624</td>
+            <td align="left"><bold>1,24%</bold></td>
+          </tr>
+          <tr>
+            <td align="left">Trichoplax sp. H2</td>
+            <td align="center">Animalia</td>
+            <td align="center">GFSF01</td>
+            <td align="center">43 376</td>
+            <td align="center"><ext-link ext-link-type="uri" xlink:href="http://htmlpreview.github.io/?https://github.com/Bios4Biol/intronSeeker/blob/master/public/report_Trichoplax_sp_H2_GFSF01.html">SRR5819939</ext-link></td>
+            <td align="left">128 665 904</td>
+            <td align="left"><bold>1,24%</bold></td>
+          </tr>
+          <tr>
+            <td align="left">Phytophthora c.</td>
+            <td align="center">Plantae</td>
+            <td align="center">GBGX01</td>
+            <td align="center">21 662</td>
+            <td align="center"><ext-link ext-link-type="uri" xlink:href="http://htmlpreview.github.io/?https://github.com/Bios4Biol/intronSeeker/blob/master/public/report_Phytophtora_c_GBGX01.html">SRR1206033</ext-link></td>
+            <td align="left">14 346 946</td>
+            <td align="left"><bold>1.15%</bold></td>
+          </tr>
+          <tr>
+            <td align="left">Piromyces sp.</td>
+            <td align="center">Fungi</td>
+            <td align="center">GGXH01</td>
+            <td align="center">124 096</td>
+            <td align="center"><ext-link ext-link-type="uri" xlink:href="http://htmlpreview.github.io/?https://github.com/Bios4Biol/intronSeeker/blob/master/public/report_Piromyces_sp_GGXH01.html">SRR7819335</ext-link></td>
+            <td align="left">15 615 535</td>
+            <td align="left"><bold>0.50%</bold></td>
+          </tr>
+          <tr>
+            <td align="left">Sander l.</td>
+            <td align="center">Animalia</td>
+            <td align="center">GJIW01</td>
+            <td align="center">56 196</td>
+            <td align="center">SRR15372351 (too large file)</td>
+            <td align="left">48 694 199</td>
+            <td align="left"><bold>0.36%</bold></td>
+          </tr>
+          <tr>
+            <td align="left">Rhodnius n.</td>
+            <td align="center">Animalia</td>
+            <td align="center">GJJI01</td>
+            <td align="center">67 217</td>
+            <td align="center"><ext-link ext-link-type="uri" xlink:href="http://htmlpreview.github.io/?https://github.com/Bios4Biol/intronSeeker/blob/master/public/report_Rhodnius_n__SRR15602387.html">SRR15602387</ext-link></td>
+            <td align="left">6 775 534</td>
+            <td align="left"><bold>0.11%</bold></td>
+          </tr>
+          <tr>
+            <td align="left">Choromytilus c.</td>
+            <td align="center">Animalia</td>
+            <td align="center">GJJD01</td>
+            <td align="center">106 298</td>
+            <td align="center"><ext-link ext-link-type="uri" xlink:href="http://htmlpreview.github.io/?https://github.com/Bios4Biol/intronSeeker/blob/master/public/report_Choromytilus_c_GJJD01.html">SRR15058678</ext-link></td>
+            <td align="left">10 490 833</td>
+            <td align="left"><bold>0.10%</bold></td>
+          </tr>
+          <tr>
+            <td align="left">Bombus t.</td>
+            <td align="center">Animalia</td>
+            <td align="center">GHFS01</td>
+            <td align="center">48 241</td>
+            <td align="center"><ext-link ext-link-type="uri" xlink:href="http://htmlpreview.github.io/?https://github.com/Bios4Biol/intronSeeker/blob/master/public/report_Bombus_t_GHFS01.html">SRR6148374</ext-link></td>
+            <td align="left">15 547 444</td>
+            <td align="left"><bold>0.02%</bold></td>
+          </tr>
+        </tbody>
+      </table>
+    </table-wrap>
+    <p>NCBI taxonomy browser, superkingdom used when kingdom not
+    provided.</p>
+    <p>intronSeeker files are available in “master” branch :
+    intronSeeker / data / REAL_DATA</p>
+    <p>Fraction of contigs with introns (cwi) = Nb of contigs PASS / Nb
+    total of contigs</p>
+  </sec>
+</sec>
+<sec id="implementation">
+  <title>Implementation</title>
+  <sec id="general-overview">
+    <title>General overview</title>
+    <p>IntronSeeker is a python script which includes three steps
+    enabling to align read on contigs, find and remove retained introns
+    and produce an html report. Figure 1. presents theses steps with
+    input and output file formats.</p>
+    <p>IntronSeeker is open source (GNU General Public License) and can
+    be download
+    <ext-link ext-link-type="uri" xlink:href="https://github.com/Bios4Biol/intronSeeker/blob/master/LICENSE">here</ext-link>.</p>
+    <fig>
+      <caption><p>IntronSeeker steps diagram</p></caption>
+      <graphic mimetype="image" mime-subtype="png" xlink:href="IS_pipeline.png" />
+    </fig>
+  </sec>
+  <sec id="conda-based-installation-procedure">
+    <title>Conda based installation procedure</title>
+    <p>To ease installation, intronSeeker includes an installation
+    script (setup.sh) which run the installation of all the dependencies
+    (1) but one (grinder) using conda and then installs grinder in the
+    conda environment. Conda must be installed beforehand. Installation
+    can be checked using intronSeeker checkInstall program which will
+    verify the presence and version of all dependencies. To run
+    intronSeeker one has first to load the ISeeker_environment using
+    conda ‘source activate ISeeker_environment’ command. An example data
+    set named reduced_real_dataset is also provided in the data
+    directory. It includes the result files which will enable manual
+    comparison of the reference and produced intron files after
+    complying the test. The installation procedure and the test command
+    line can be found on the main page of the intronSeeker GITHUB
+    WEB-page.</p>
+    <p>(1) IntronSeeker dependencies include seven software packages :
+    grinder (<xref alt="Angly et al., 2012" rid="ref-angly2012grinder" ref-type="bibr">Angly
+    et al., 2012</xref>),
+    gffread (<xref alt="Pertea, 2019" rid="ref-gffread" ref-type="bibr">Pertea,
+    2019</xref>),
+    hisat2 (<xref alt="Kim et al., 2015" rid="ref-kim2015hisat" ref-type="bibr">Kim
+    et al., 2015</xref>),
+    STAR (<xref alt="Dobin et al., 2013" rid="ref-dobin2013star" ref-type="bibr">Dobin
+    et al., 2013</xref>),
+    samtools (<xref alt="Li et al., 2009" rid="ref-li2009sequence" ref-type="bibr">Li
+    et al., 2009</xref>),
+    TransDecoder (<xref alt="Haas et al., 2013" rid="ref-haas2013novo" ref-type="bibr">Haas
+    et al., 2013</xref>),
+    diamond (<xref alt="Buchfink et al., 2015" rid="ref-buchfink2015fast" ref-type="bibr">Buchfink
+    et al., 2015</xref>).</p>
+    <p>Versions required before installation: - Python version 3.6 or
+    above. - Miniconda 23.3.3 or above.</p>
+    <preformat>#Clone intronSeeker code from Git:
+$ git clone https://forgemia.inra.fr/emilien.lasguignes/intronSeeker.git
+
+#Load our miniconda environment and use libmamba
+$ conda activate
+$ conda update -n base conda
+$ conda install -n base --override-channels -c conda-forge mamba 'python_abi=*=*cp*'
+
+# Set up intronSeeker
+$ cd intronSeeker/
+$ CONDA_SOLVER=&quot;libmamba&quot; /bin/bash ./setup.sh
+
+#Activate ISeeker_environment and check installation
+$ conda activate ISeeker_environment 
+$ intronSeeker checkInstall 
+
+# Command line help
+$ intronSeeker -h</preformat>
+  </sec>
+  <sec id="setting-default-detection-parameters">
+    <title>Setting default detection parameters</title>
+    <p>Detected introns are filtered according to thresholds (number of
+    reads overlapping an intron and maximum length), canonical junction
+    (GT_AG or CT_AC), and complexity (too long or overlapping
+    introns).</p>
+    <p>Different GBS simulations where performed to find the best
+    possible thresholds for minimum number of splice events, maximum
+    intron spanning size, presence of canonical splice sites and minimum
+    overlap size to call a splice event an intron retention
+    candidate.</p>
+    <fig>
+      <caption><p>GBS parameters impacts</p></caption>
+      <graphic mimetype="image" mime-subtype="png" xlink:href="GBS_params_impacts.png" />
+    </fig>
+    <p>IntronSeeker parameters impacts. Graphics have been built on 10
+    samples of Arabidopsis thaliana data with powerlow abundance (1.2).
+    Details are available in data/ directory.</p>
+    <p><bold>A</bold> Impact of coverage on detection. Increased
+    coverage means that false candidates are quickly lost, with very
+    limited impact on the number of true candidates (tested with
+    Arabidopsis thaliana data and powerlow abundance).</p>
+    <p><bold>B</bold> Filtering candidates on the border enhances
+    detection. DPratio is calculated as follows :
+    <disp-formula><alternatives>
+    <tex-math><![CDATA[\frac{DP_{in}}{(DP_{before} + DP_{after})}]]></tex-math>
+    <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mfrac><mml:mrow><mml:mi>D</mml:mi><mml:msub><mml:mi>P</mml:mi><mml:mrow><mml:mi>i</mml:mi><mml:mi>n</mml:mi></mml:mrow></mml:msub></mml:mrow><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>D</mml:mi><mml:msub><mml:mi>P</mml:mi><mml:mrow><mml:mi>b</mml:mi><mml:mi>e</mml:mi><mml:mi>f</mml:mi><mml:mi>o</mml:mi><mml:mi>r</mml:mi><mml:mi>e</mml:mi></mml:mrow></mml:msub><mml:mo>+</mml:mo><mml:mi>D</mml:mi><mml:msub><mml:mi>P</mml:mi><mml:mrow><mml:mi>a</mml:mi><mml:mi>f</mml:mi><mml:mi>t</mml:mi><mml:mi>e</mml:mi><mml:mi>r</mml:mi></mml:mrow></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mfrac></mml:math></alternatives></disp-formula>
+    With DPbefore corresponding to the mean DP for 10bp before the
+    candidate, DPin to the mean DP of candidate and DPafter to the mean
+    DP for 10bp after the candidate.</p>
+    <p><bold>C</bold> Filter candidates on candidat length.</p>
+    <p><bold>D</bold> Filter candidates on retained intron ratio
+    (candidat length / contig length).</p>
+  </sec>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>We are grateful to the Genotoul bioinformatics platform Toulouse
+  Occitanie (1) for providing help, computing and storage resources. We
+  are grateful to Philippe BORDRON (2) and Patrice DEHAIS (3) for
+  testing and validating the intronSeeker installation procedure.</p>
+  <list list-type="order">
+    <list-item>
+      <label>(1)</label>
+      <p>Bioinfo Genotoul, doi: 10.15454/1.5572369328961167E12</p>
+    </list-item>
+    <list-item>
+      <label>(2)</label>
+      <list list-type="bullet">
+        <list-item>
+          <p>Université de Toulouse, INRAE, BioinfOmics, GenoToul
+          Bioinformatics Facility, Castanet-Tolosan, France,</p>
+        </list-item>
+        <list-item>
+          <p>Université de Toulouse, INRAE, UR 875 MIAT,
+          Castanet-Tolosan, France</p>
+        </list-item>
+      </list>
+    </list-item>
+    <list-item>
+      <label>(3)</label>
+      <p>Sigenae, GenPhySE, Université de Toulouse, INRAE, ENVT,
+      F-31326, Castanet Tolosan, France</p>
+    </list-item>
+  </list>
+</sec>
+<sec id="acknowledgement-of-financial-support">
+  <title>Acknowledgement of financial support</title>
+  <p>The non permanent positions of Floréal Cabanette and Emilien
+  Lasguignes were financed by projet France Génomique n° 31000523 and
+  projet France Génomique n° 15000079.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <title></title>
+  <ref id="ref-Ameur2011">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Ameur</surname><given-names>Adam</given-names></name>
+        <name><surname>Zaghlool</surname><given-names>Ammar</given-names></name>
+        <name><surname>Halvardson</surname><given-names>Jonatan</given-names></name>
+        <name><surname>Wetterbom</surname><given-names>Anna</given-names></name>
+        <name><surname>Gyllensten</surname><given-names>Ulf</given-names></name>
+        <name><surname>Cavelier</surname><given-names>Lucia</given-names></name>
+        <name><surname>Feuk</surname><given-names>Lars</given-names></name>
+      </person-group>
+      <article-title>Total RNA sequencing reveals nascent transcription and widespread co-transcriptional splicing in the human brain</article-title>
+      <source>Nature Structural Molecular Biology</source>
+      <publisher-name>Springer Science; Business Media LLC</publisher-name>
+      <year iso-8601-date="2011-11">2011</year><month>11</month>
+      <volume>18</volume>
+      <issue>12</issue>
+      <uri>https://doi.org/10.1038/nsmb.2143</uri>
+      <pub-id pub-id-type="doi">10.1038/nsmb.2143</pub-id>
+      <fpage>1435</fpage>
+      <lpage>1440</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Jia2020">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Jia</surname><given-names>Jinbu</given-names></name>
+        <name><surname>Long</surname><given-names>Yanping</given-names></name>
+        <name><surname>Zhang</surname><given-names>Hong</given-names></name>
+        <name><surname>Li</surname><given-names>Zhuowen</given-names></name>
+        <name><surname>Liu</surname><given-names>Zhijian</given-names></name>
+        <name><surname>Zhao</surname><given-names>Yan</given-names></name>
+        <name><surname>Lu</surname><given-names>Dongdong</given-names></name>
+        <name><surname>Jin</surname><given-names>Xianhao</given-names></name>
+        <name><surname>Deng</surname><given-names>Xian</given-names></name>
+        <name><surname>Xia</surname><given-names>Rui</given-names></name>
+        <name><surname>Cao</surname><given-names>Xiaofeng</given-names></name>
+        <name><surname>Zhai</surname><given-names>Jixian</given-names></name>
+      </person-group>
+      <article-title>Post-transcriptional splicing of nascent RNA contributes to widespread intron retention in plants</article-title>
+      <source>Nature Plants</source>
+      <publisher-name>Springer Science; Business Media LLC</publisher-name>
+      <year iso-8601-date="2020-06">2020</year><month>06</month>
+      <volume>6</volume>
+      <issue>7</issue>
+      <uri>https://doi.org/10.1038/s41477-020-0688-1</uri>
+      <pub-id pub-id-type="doi">10.1038/s41477-020-0688-1</pub-id>
+      <fpage>780</fpage>
+      <lpage>788</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Braunschweig2014">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Braunschweig</surname><given-names>Ulrich</given-names></name>
+        <name><surname>Barbosa-Morais</surname><given-names>Nuno L.</given-names></name>
+        <name><surname>Pan</surname><given-names>Qun</given-names></name>
+        <name><surname>Nachman</surname><given-names>Emil N.</given-names></name>
+        <name><surname>Alipanahi</surname><given-names>Babak</given-names></name>
+        <name><surname>Gonatopoulos-Pournatzis</surname><given-names>Thomas</given-names></name>
+        <name><surname>Frey</surname><given-names>Brendan</given-names></name>
+        <name><surname>Irimia</surname><given-names>Manuel</given-names></name>
+        <name><surname>Blencowe</surname><given-names>Benjamin J.</given-names></name>
+      </person-group>
+      <article-title>Widespread intron retention in mammals functionally tunes transcriptomes</article-title>
+      <source>Genome Research</source>
+      <publisher-name>Cold Spring Harbor Laboratory</publisher-name>
+      <year iso-8601-date="2014-09">2014</year><month>09</month>
+      <volume>24</volume>
+      <issue>11</issue>
+      <uri>https://doi.org/10.1101/gr.177790.114</uri>
+      <pub-id pub-id-type="doi">10.1101/gr.177790.114</pub-id>
+      <fpage>1774</fpage>
+      <lpage>1786</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-li2009sequence">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Li</surname><given-names>Heng</given-names></name>
+        <name><surname>Handsaker</surname><given-names>Bob</given-names></name>
+        <name><surname>Wysoker</surname><given-names>Alec</given-names></name>
+        <name><surname>Fennell</surname><given-names>Tim</given-names></name>
+        <name><surname>Ruan</surname><given-names>Jue</given-names></name>
+        <name><surname>Homer</surname><given-names>Nils</given-names></name>
+        <name><surname>Marth</surname><given-names>Gabor</given-names></name>
+        <name><surname>Abecasis</surname><given-names>Goncalo</given-names></name>
+        <name><surname>Durbin</surname><given-names>Richard</given-names></name>
+      </person-group>
+      <article-title>The sequence alignment/map format and SAMtools</article-title>
+      <source>Bioinformatics</source>
+      <publisher-name>Oxford University Press</publisher-name>
+      <year iso-8601-date="2009">2009</year>
+      <volume>25</volume>
+      <issue>16</issue>
+      <pub-id pub-id-type="doi">10.1093/bioinformatics/btp352</pub-id>
+      <fpage>2078</fpage>
+      <lpage>2079</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-kim2015hisat">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Kim</surname><given-names>Daehwan</given-names></name>
+        <name><surname>Langmead</surname><given-names>Ben</given-names></name>
+        <name><surname>Salzberg</surname><given-names>Steven L</given-names></name>
+      </person-group>
+      <article-title>HISAT: A fast spliced aligner with low memory requirements</article-title>
+      <source>Nature methods</source>
+      <publisher-name>Nature Publishing Group</publisher-name>
+      <year iso-8601-date="2015">2015</year>
+      <volume>12</volume>
+      <issue>4</issue>
+      <pub-id pub-id-type="doi">10.1038/nmeth.3317</pub-id>
+      <fpage>357</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-dobin2013star">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Dobin</surname><given-names>Alexander</given-names></name>
+        <name><surname>Davis</surname><given-names>Carrie A</given-names></name>
+        <name><surname>Schlesinger</surname><given-names>Felix</given-names></name>
+        <name><surname>Drenkow</surname><given-names>Jorg</given-names></name>
+        <name><surname>Zaleski</surname><given-names>Chris</given-names></name>
+        <name><surname>Jha</surname><given-names>Sonali</given-names></name>
+        <name><surname>Batut</surname><given-names>Philippe</given-names></name>
+        <name><surname>Chaisson</surname><given-names>Mark</given-names></name>
+        <name><surname>Gingeras</surname><given-names>Thomas R</given-names></name>
+      </person-group>
+      <article-title>STAR: Ultrafast universal RNA-seq aligner</article-title>
+      <source>Bioinformatics</source>
+      <publisher-name>Oxford University Press</publisher-name>
+      <year iso-8601-date="2013">2013</year>
+      <volume>29</volume>
+      <issue>1</issue>
+      <pub-id pub-id-type="doi">10.1093/bioinformatics/bts635</pub-id>
+      <fpage>15</fpage>
+      <lpage>21</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-angly2012grinder">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Angly</surname><given-names>Florent E</given-names></name>
+        <name><surname>Willner</surname><given-names>Dana</given-names></name>
+        <name><surname>Rohwer</surname><given-names>Forest</given-names></name>
+        <name><surname>Hugenholtz</surname><given-names>Philip</given-names></name>
+        <name><surname>Tyson</surname><given-names>Gene W</given-names></name>
+      </person-group>
+      <article-title>Grinder: A versatile amplicon and shotgun sequence simulator</article-title>
+      <source>Nucleic acids research</source>
+      <publisher-name>Oxford University Press</publisher-name>
+      <year iso-8601-date="2012">2012</year>
+      <volume>40</volume>
+      <issue>12</issue>
+      <pub-id pub-id-type="doi">10.1093/nar/gks251</pub-id>
+      <fpage>e94</fpage>
+      <lpage>e94</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-buchfink2015fast">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Buchfink</surname><given-names>Benjamin</given-names></name>
+        <name><surname>Xie</surname><given-names>Chao</given-names></name>
+        <name><surname>Huson</surname><given-names>Daniel H</given-names></name>
+      </person-group>
+      <article-title>Fast and sensitive protein alignment using DIAMOND</article-title>
+      <source>Nature methods</source>
+      <publisher-name>Nature Publishing Group</publisher-name>
+      <year iso-8601-date="2015">2015</year>
+      <volume>12</volume>
+      <issue>1</issue>
+      <pub-id pub-id-type="doi">10.1038/nmeth.3176</pub-id>
+      <fpage>59</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-haas2013novo">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Haas</surname><given-names>Brian J</given-names></name>
+        <name><surname>Papanicolaou</surname><given-names>Alexie</given-names></name>
+        <name><surname>Yassour</surname><given-names>Moran</given-names></name>
+        <name><surname>Grabherr</surname><given-names>Manfred</given-names></name>
+        <name><surname>Blood</surname><given-names>Philip D</given-names></name>
+        <name><surname>Bowden</surname><given-names>Joshua</given-names></name>
+        <name><surname>Couger</surname><given-names>Matthew Brian</given-names></name>
+        <name><surname>Eccles</surname><given-names>David</given-names></name>
+        <name><surname>Li</surname><given-names>Bo</given-names></name>
+        <name><surname>Lieber</surname><given-names>Matthias</given-names></name>
+        <name><surname>others</surname></name>
+      </person-group>
+      <article-title>De novo transcript sequence reconstruction from RNA-seq using the trinity platform for reference generation and analysis</article-title>
+      <source>Nature protocols</source>
+      <publisher-name>Nature Publishing Group</publisher-name>
+      <year iso-8601-date="2013">2013</year>
+      <volume>8</volume>
+      <issue>8</issue>
+      <fpage>1494</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-gffread">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Pertea</surname><given-names>Geo</given-names></name>
+      </person-group>
+      <article-title>GFF/GTF parsing utility providing format conversions, region filtering, FASTA sequence extraction and more.</article-title>
+      <publisher-name>https://github.com/gpertea/gffread/</publisher-name>
+      <year iso-8601-date="2019">2019</year>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
