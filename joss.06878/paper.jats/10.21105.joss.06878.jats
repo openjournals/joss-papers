@@ -1,0 +1,729 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">6878</article-id>
+<article-id pub-id-type="doi">10.21105/joss.06878</article-id>
+<title-group>
+<article-title>SpatialGEV: Fast Bayesian inference for spatial extreme
+value models in
+<named-content content-type="sans-serif">R</named-content></article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author" corresp="yes">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0003-1012-5352</contrib-id>
+<name>
+<surname>Chen</surname>
+<given-names>Meixi</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+<xref ref-type="corresp" rid="cor-1"><sup>*</sup></xref>
+</contrib>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0001-9974-1121</contrib-id>
+<name>
+<surname>Lysy</surname>
+<given-names>Martin</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0003-0450-3249</contrib-id>
+<name>
+<surname>Ramezan</surname>
+<given-names>Reza</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Department of Statistics and Actuarial Science, University
+of Waterloo</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<author-notes>
+<corresp id="cor-1">* E-mail: <email></email></corresp>
+</author-notes>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2024-11-08">
+<day>8</day>
+<month>11</month>
+<year>2024</year>
+</pub-date>
+<volume>9</volume>
+<issue>103</issue>
+<fpage>6878</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2024</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>R</kwd>
+<kwd>Bayesian inference</kwd>
+<kwd>spatial model</kwd>
+<kwd>extreme value</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p>Extreme weather phenomena such as floods and hurricanes are of
+  great concern due to their potential to cause extensive damage. To
+  develop more reliable damage prevention protocols, statistical models
+  are often used to infer the chance of observing an extreme weather
+  event at a given location
+  (<xref alt="Coles &amp; Casson, 1998" rid="ref-coles98" ref-type="bibr">Coles
+  &amp; Casson, 1998</xref>;
+  <xref alt="Cooley et al., 2007" rid="ref-cooley07" ref-type="bibr">Cooley
+  et al., 2007</xref>;
+  <xref alt="Sang &amp; Gelfand, 2010" rid="ref-sang-gelfand10" ref-type="bibr">Sang
+  &amp; Gelfand, 2010</xref>). Here we present <bold>SpatialGEV</bold>,
+  an <named-content content-type="sans-serif">R</named-content> package
+  providing a fast and convenient toolset for analyzing spatial extreme
+  values using a hierarchical Bayesian modeling framework. In this
+  framework, the marginal behavior of the extremes is given by a
+  generalized extreme value (GEV) distribution, whereas the spatial
+  dependence between locations is captured by modeling the GEV
+  parameters as spatially varying random effects following a Gaussian
+  process (GP). Model inference is carried out using an efficient
+  implementation of the Laplace approximation, which produces highly
+  accurate posterior estimates several orders of magnitude faster than
+  Markov Chain Monte Carlo (MCMC) methods. Users are provided with a
+  streamlined way to build and fit various GEV-GP models in
+  <named-content content-type="sans-serif">R</named-content>, which are
+  compiled in
+  <named-content content-type="sans-serif">C++</named-content> under the
+  hood. For downstream analyses, the package offers methods for Bayesian
+  parameter estimation and forecasting of extreme events.</p>
+</sec>
+<sec id="background">
+  <title>Background</title>
+  <p>Let <inline-formula><alternatives>
+  <tex-math><![CDATA[y_{ij}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>y</mml:mi><mml:mrow><mml:mi>i</mml:mi><mml:mi>j</mml:mi></mml:mrow></mml:msub></mml:math></alternatives></inline-formula>
+  denote observation <inline-formula><alternatives>
+  <tex-math><![CDATA[j]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>j</mml:mi></mml:math></alternatives></inline-formula>
+  of an extreme weather event at spatial location
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[i]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>i</mml:mi></mml:math></alternatives></inline-formula>,
+  of which the two-dimensional spatial coordinates are
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[{\boldsymbol{x}}_i]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>𝐱</mml:mi><mml:mi>i</mml:mi></mml:msub></mml:math></alternatives></inline-formula>.
+  The general form of the GEV-GP models that can be fit using
+  <bold>SpatialGEV</bold> is <disp-formula><alternatives>
+  <tex-math><![CDATA[\begin{aligned}
+    y_{ij} &{\overset{\mathrm{iid}}{\sim}}\operatorname{GEV}(a({\boldsymbol{x}}_i), \exp(b({\boldsymbol{x}}_i)), s({\boldsymbol{x}}_i)),\\
+    u({\boldsymbol{x}}) &\sim \operatorname{GP}(\boldsymbol{c}_u({\boldsymbol{x}})^T\boldsymbol{\beta}_u({\boldsymbol{x}}), \ \mathcal{K}({\boldsymbol{x}},{\boldsymbol{x}}' \mid \boldsymbol{\eta}_u)),
+  \end{aligned}]]></tex-math>
+  <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mtable><mml:mtr><mml:mtd columnalign="right" style="text-align: right"><mml:msub><mml:mi>y</mml:mi><mml:mrow><mml:mi>i</mml:mi><mml:mi>j</mml:mi></mml:mrow></mml:msub></mml:mtd><mml:mtd columnalign="left" style="text-align: left"><mml:mover><mml:mo>∼</mml:mo><mml:mrow><mml:mi mathvariant="normal">i</mml:mi><mml:mi mathvariant="normal">i</mml:mi><mml:mi mathvariant="normal">d</mml:mi></mml:mrow></mml:mover><mml:mo>GEV</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>a</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>𝐱</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>,</mml:mo><mml:mo>exp</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>b</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>𝐱</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>,</mml:mo><mml:mi>s</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>𝐱</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>,</mml:mo></mml:mtd></mml:mtr><mml:mtr><mml:mtd columnalign="right" style="text-align: right"><mml:mi>u</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>𝐱</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mtd><mml:mtd columnalign="left" style="text-align: left"><mml:mo>∼</mml:mo><mml:mo>GP</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>𝐜</mml:mi><mml:mi>u</mml:mi></mml:msub><mml:msup><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>𝐱</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mi>T</mml:mi></mml:msup><mml:msub><mml:mi>𝛃</mml:mi><mml:mi>u</mml:mi></mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>𝐱</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>,</mml:mo><mml:mspace width="0.222em"></mml:mspace><mml:mi>𝒦</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>𝐱</mml:mi><mml:mo>,</mml:mo><mml:mi>𝐱</mml:mi><mml:mi>′</mml:mi><mml:mo>∣</mml:mo><mml:msub><mml:mi>𝛈</mml:mi><mml:mi>u</mml:mi></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>,</mml:mo></mml:mtd></mml:mtr></mml:mtable></mml:math></alternatives></disp-formula>
+  where <inline-formula><alternatives>
+  <tex-math><![CDATA[\operatorname{GEV}(a, b, s)]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mo>GEV</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>a</mml:mi><mml:mo>,</mml:mo><mml:mi>b</mml:mi><mml:mo>,</mml:mo><mml:mi>s</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>
+  denotes a GEV distribution with location parameter
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[a]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>a</mml:mi></mml:math></alternatives></inline-formula>,
+  positive scale parameter <inline-formula><alternatives>
+  <tex-math><![CDATA[b]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>b</mml:mi></mml:math></alternatives></inline-formula>
+  and shape parameter <inline-formula><alternatives>
+  <tex-math><![CDATA[s]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>s</mml:mi></mml:math></alternatives></inline-formula>,
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[\operatorname{GP}(\mu({\boldsymbol{x}}), \mathcal{K}({\boldsymbol{x}},{\boldsymbol{x}}'))]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mo>GP</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>μ</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>𝐱</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>,</mml:mo><mml:mi>𝒦</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>𝐱</mml:mi><mml:mo>,</mml:mo><mml:mi>𝐱</mml:mi><mml:mi>′</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>
+  is a Gaussian process with mean function
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[\mu({\boldsymbol{x}})]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>μ</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>𝐱</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>
+  and covariance kernel <inline-formula><alternatives>
+  <tex-math><![CDATA[\mathcal{K}({\boldsymbol{x}},{\boldsymbol{x}}')]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>𝒦</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>𝐱</mml:mi><mml:mo>,</mml:mo><mml:mi>𝐱</mml:mi><mml:mi>′</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>,
+  and <inline-formula><alternatives>
+  <tex-math><![CDATA[u\in\{a,b,s\}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>u</mml:mi><mml:mo>∈</mml:mo><mml:mo stretchy="false" form="prefix">{</mml:mo><mml:mi>a</mml:mi><mml:mo>,</mml:mo><mml:mi>b</mml:mi><mml:mo>,</mml:mo><mml:mi>s</mml:mi><mml:mo stretchy="false" form="postfix">}</mml:mo></mml:mrow></mml:math></alternatives></inline-formula>
+  is any subset of the GEV parameters to be modelled as spatially
+  varying. The GEV-GP model has important applications in meteorological
+  studies. For example, to forecast extreme rainfalls, it is often of
+  interest for meteorologists to estimate the
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[1/p]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mn>1</mml:mn><mml:mi>/</mml:mi><mml:mi>p</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>-year
+  rainfall return level <inline-formula><alternatives>
+  <tex-math><![CDATA[z_p({\boldsymbol{x}})]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>z</mml:mi><mml:mi>p</mml:mi></mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>𝐱</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>,
+  which is the value above which precipitation levels at location
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[{\boldsymbol{x}}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>𝐱</mml:mi></mml:math></alternatives></inline-formula>
+  occur with probability <inline-formula><alternatives>
+  <tex-math><![CDATA[p]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>p</mml:mi></mml:math></alternatives></inline-formula>,
+  i.e.,
+  <named-content id="eqU003Areturn-level" content-type="equation"><disp-formula><alternatives>
+  <tex-math><![CDATA[\Pr\big(y({\boldsymbol{x}}) > z_p({\boldsymbol{x}})\big) = 1-F\big(z_p({\boldsymbol{x}})\mid a({\boldsymbol{x}}), b({\boldsymbol{x}}), s({\boldsymbol{x}})\big) = p,
+  ]]></tex-math>
+  <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mo>Pr</mml:mo><mml:mo minsize="1.2" maxsize="1.2" stretchy="false" form="prefix">(</mml:mo><mml:mi>y</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>𝐱</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>&gt;</mml:mo><mml:msub><mml:mi>z</mml:mi><mml:mi>p</mml:mi></mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>𝐱</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo minsize="1.2" maxsize="1.2" stretchy="false" form="postfix">)</mml:mo><mml:mo>=</mml:mo><mml:mn>1</mml:mn><mml:mo>−</mml:mo><mml:mi>F</mml:mi><mml:mo minsize="1.2" maxsize="1.2" stretchy="false" form="prefix">(</mml:mo><mml:msub><mml:mi>z</mml:mi><mml:mi>p</mml:mi></mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>𝐱</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>∣</mml:mo><mml:mi>a</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>𝐱</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>,</mml:mo><mml:mi>b</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>𝐱</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>,</mml:mo><mml:mi>s</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>𝐱</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo minsize="1.2" maxsize="1.2" stretchy="false" form="postfix">)</mml:mo><mml:mo>=</mml:mo><mml:mi>p</mml:mi><mml:mo>,</mml:mo></mml:mrow></mml:math></alternatives></disp-formula></named-content>
+  where <inline-formula><alternatives>
+  <tex-math><![CDATA[F\big(z_p({\boldsymbol{x}})\mid a({\boldsymbol{x}}), b({\boldsymbol{x}}), s({\boldsymbol{x}})\big)]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>F</mml:mi><mml:mo minsize="1.2" maxsize="1.2" stretchy="false" form="prefix">(</mml:mo><mml:msub><mml:mi>z</mml:mi><mml:mi>p</mml:mi></mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>𝐱</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>∣</mml:mo><mml:mi>a</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>𝐱</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>,</mml:mo><mml:mi>b</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>𝐱</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>,</mml:mo><mml:mi>s</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>𝐱</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo minsize="1.2" maxsize="1.2" stretchy="false" form="postfix">)</mml:mo></mml:mrow></mml:math></alternatives></inline-formula>
+  is the cumulative density function of the GEV distribution specific to
+  location <inline-formula><alternatives>
+  <tex-math><![CDATA[{\boldsymbol{x}}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>𝐱</mml:mi></mml:math></alternatives></inline-formula>.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p>In a Bayesian context, the posterior distribution
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[p(z_p({\boldsymbol{x}})\mid {\boldsymbol{Y}})]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>p</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>z</mml:mi><mml:mi>p</mml:mi></mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>𝐱</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>∣</mml:mo><mml:mi>𝐘</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>
+  conditional on all data <inline-formula><alternatives>
+  <tex-math><![CDATA[{\boldsymbol{Y}}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>𝐘</mml:mi></mml:math></alternatives></inline-formula>
+  is very useful for forecasting extreme weather events. Traditionally,
+  MCMC methods are used to sample from the posterior distribution of the
+  GEV model (e.g.,
+  <xref alt="Cooley et al., 2007" rid="ref-cooley07" ref-type="bibr">Cooley
+  et al., 2007</xref>;
+  <xref alt="Dyrrdal et al., 2015" rid="ref-dyrrdal15" ref-type="bibr">Dyrrdal
+  et al., 2015</xref>;
+  <xref alt="Schliep et al., 2010" rid="ref-schliep10" ref-type="bibr">Schliep
+  et al., 2010</xref>). However, this can be extremely computationally
+  intensive when the number of locations is large.
+  <bold>SpatialGEV</bold> implements an approximate Bayesian inference
+  approach as an alternative to MCMC, making large-scale spatial
+  analyses orders of magnitude faster while achieving roughly the same
+  accuracy as MCMC. We construct a Normal approximation to the joint
+  posterior distribution of both GEV parameters and GP hyperparameters
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[p(u({\boldsymbol{x}}), \boldsymbol{\eta}_u, \boldsymbol{\beta}_u\mid {\boldsymbol{Y}})]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>p</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>u</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>𝐱</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>,</mml:mo><mml:msub><mml:mi>𝛈</mml:mi><mml:mi>u</mml:mi></mml:msub><mml:mo>,</mml:mo><mml:msub><mml:mi>𝛃</mml:mi><mml:mi>u</mml:mi></mml:msub><mml:mo>∣</mml:mo><mml:mi>𝐘</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>,
+  which is then used to estimate the return level posterior. This is
+  done via an efficient Laplace approximation to the marginal
+  hyperparameter posterior <inline-formula><alternatives>
+  <tex-math><![CDATA[p(\boldsymbol{\eta}_u, \boldsymbol{\beta}_u \mid {\boldsymbol{Y}})]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>p</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>𝛈</mml:mi><mml:mi>u</mml:mi></mml:msub><mml:mo>,</mml:mo><mml:msub><mml:mi>𝛃</mml:mi><mml:mi>u</mml:mi></mml:msub><mml:mo>∣</mml:mo><mml:mi>𝐘</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>
+  transforming a high-dimensional MCMC into a nested optimization
+  problem that is faster to solve
+  (<xref alt="Chen et al., 2024" rid="ref-chen-etal24" ref-type="bibr">Chen
+  et al., 2024</xref>;
+  <xref alt="Kristensen et al., 2016" rid="ref-kristensen16" ref-type="bibr">Kristensen
+  et al., 2016</xref>;
+  <xref alt="Tierney &amp; Kadane, 1986" rid="ref-tierney-kadane86" ref-type="bibr">Tierney
+  &amp; Kadane, 1986</xref>). The Laplace approximation is carried out
+  using the
+  <named-content content-type="sans-serif">R</named-content>/<named-content content-type="sans-serif">C++</named-content>
+  package <bold>TMB</bold>
+  (<xref alt="Kristensen et al., 2016" rid="ref-kristensen16" ref-type="bibr">Kristensen
+  et al., 2016</xref>). Details of the inference method can be found in
+  Chen et al.
+  (<xref alt="2024" rid="ref-chen-etal24" ref-type="bibr">2024</xref>).</p>
+  <p>The <named-content content-type="sans-serif">R</named-content>
+  package <bold>SpatialExtremes</bold>
+  (<xref alt="Ribatet et al., 2022" rid="ref-spatialextremes" ref-type="bibr">Ribatet
+  et al., 2022</xref>) is a popular software for fitting spatial extreme
+  value models including GEV-GP. Although it supports a wider range of
+  model classes, its inference for GEV-GP models relies on a basic Gibbs
+  sampler updating each of the hyperparameters and random effects one at
+  a time, which tends to converge very slowly since these variables are
+  highly correlated with each other. Furthermore, GP computation in
+  <bold>SpatialExtremes</bold> scales as <inline-formula><alternatives>
+  <tex-math><![CDATA[\mathcal{O}(n^3)]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>𝒪</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msup><mml:mi>n</mml:mi><mml:mn>3</mml:mn></mml:msup><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>
+  with the number of locations <inline-formula><alternatives>
+  <tex-math><![CDATA[n]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>n</mml:mi></mml:math></alternatives></inline-formula>,
+  whereas <bold>SpatialGEV</bold> offers an option for approximate GP
+  computation scaling as <inline-formula><alternatives>
+  <tex-math><![CDATA[O(n^{3/2})]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>O</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msup><mml:mi>n</mml:mi><mml:mrow><mml:mn>3</mml:mn><mml:mi>/</mml:mi><mml:mn>2</mml:mn></mml:mrow></mml:msup><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>
+  (<xref alt="Lindgren et al., 2011" rid="ref-lindgren-etal11" ref-type="bibr">Lindgren
+  et al., 2011</xref>). Coupled with the Laplace approximation, this
+  allows <bold>SpatialGEV</bold> to fit GEV-GP models to several
+  hundreds spatial locations on a personal computer in minutes
+  (<xref alt="Chen et al., 2024" rid="ref-chen-etal24" ref-type="bibr">Chen
+  et al., 2024</xref>). A more efficient MCMC algorithm for hierarchical
+  spatial models is Hamiltonian Monte Carlo and its variants
+  (<xref alt="Hoffman &amp; Gelman, 2014" rid="ref-hoffman-gelman14" ref-type="bibr">Hoffman
+  &amp; Gelman, 2014</xref>;
+  <xref alt="Neal, 2011" rid="ref-neal11" ref-type="bibr">Neal,
+  2011</xref>), for which a highly efficient and self-tuning
+  implementation is provided by the
+  <named-content content-type="sans-serif">R</named-content>/<named-content content-type="sans-serif">C++</named-content>
+  package <bold>RStan</bold>
+  (<xref alt="Stan Development Team, 2020" rid="ref-rstan" ref-type="bibr">Stan
+  Development Team, 2020</xref>). Chen et al.
+  (<xref alt="2024" rid="ref-chen-etal24" ref-type="bibr">2024</xref>)
+  compares the speed and accuracy of the Laplace method implemented in
+  <bold>SpatialGEV</bold> to <bold>RStan</bold>. It is found that, while
+  <bold>SpatialGEV</bold> tends to underestimate the posterior variance
+  of the hyperparameters, it accurately estimates the posteriors of both
+  GEV parameters and return levels – and does this three orders of
+  magnitude faster than <bold>RStan</bold>. A well-known alternative to
+  MCMC is the integrated Laplace approximation (INLA) method, whose
+  <named-content content-type="sans-serif">R</named-content>
+  implementation is provided in the <bold>R-INLA</bold> package
+  (<xref alt="Lindgren &amp; Rue, 2015" rid="ref-lindgren-rue15" ref-type="bibr">Lindgren
+  &amp; Rue, 2015</xref>). As an extension of the Laplace approximation,
+  INLA is typically more accurate. However, <bold>R-INLA</bold> is
+  inapplicable to GEV-GP models in which two or more GEV parameters are
+  modeled as random effects following different Gaussian processes. In
+  contrast, <bold>SpatialGEV</bold> offers more flexibility as it is
+  straightforward for the user to choose what GEV parameters are spatial
+  random effects. Wood
+  (<xref alt="2023" rid="ref-mgcv" ref-type="bibr">2023</xref>) and
+  Youngman
+  (<xref alt="2022" rid="ref-youngman22" ref-type="bibr">2022</xref>)
+  provide another means for estimating spatially varying GEV parameters
+  via a scalable basis representation reducing the number of random
+  effects in the model. Compared to <bold>SpatialGEV</bold> which keeps
+  all random effects for inference, the basis function expansion
+  approach is less accurate for estimating spatial processes that are
+  not smooth or exhibit short-range correlation
+  (<xref alt="Lindgren et al., 2021" rid="ref-lindgren-etal21" ref-type="bibr">Lindgren
+  et al., 2021</xref>;
+  <xref alt="Wood, 2020" rid="ref-wood20" ref-type="bibr">Wood,
+  2020</xref>).</p>
+</sec>
+<sec id="example">
+  <title>Example</title>
+  <p>The main functions of the <bold>SpatialGEV</bold> package are
+  <monospace>spatialGEV_fit()</monospace>,
+  <monospace>spatialGEV_sample()</monospace>, and
+  <monospace>spatialGEV_predict()</monospace>. This example shows how to
+  apply these functions to analyze a simulated dataset with
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[400]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mn>400</mml:mn></mml:math></alternatives></inline-formula>
+  locations using the GEV-GP model. The GEV location parameter
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[a({\boldsymbol{x}})]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>a</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>𝐱</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>
+  and the scale parameter <inline-formula><alternatives>
+  <tex-math><![CDATA[b({\boldsymbol{x}})]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>b</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>𝐱</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>
+  are generated from surfaces depicted in Figure
+  <xref alt="[fig:sim-par]" rid="figU003Asim-par">[fig:sim-par]</xref>,
+  whereas the shape parameter <inline-formula><alternatives>
+  <tex-math><![CDATA[s]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>s</mml:mi></mml:math></alternatives></inline-formula>
+  is a constant <inline-formula><alternatives>
+  <tex-math><![CDATA[\exp(-2)]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mo>exp</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>−</mml:mi><mml:mn>2</mml:mn><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>
+  across space. The simulated data is provided by the package as a list
+  called <monospace>simulatedData</monospace>, whose values are
+  calibrated to the level of total daily precipitation in mm.</p>
+  <fig>
+    <caption><p>The simulated GEV location parameters
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[a({\boldsymbol{x}}_i)]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>a</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>𝐱</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>
+    and scale parameters <inline-formula><alternatives>
+    <tex-math><![CDATA[b({\boldsymbol{x}}_i)]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>b</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>𝐱</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>
+    plotted on regular
+    lattices.<styled-content id="figU003Asim-par"></styled-content></p></caption>
+    <graphic mimetype="image" mime-subtype="png" xlink:href="sim-plot-ab.png" />
+  </fig>
+  <p>The GEV-GP model is fit by calling
+  <monospace>spatialGEV_fit()</monospace>. By specifying
+  <monospace>random=&quot;ab&quot;</monospace>, only the GEV parameters
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[a]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>a</mml:mi></mml:math></alternatives></inline-formula>
+  and <inline-formula><alternatives>
+  <tex-math><![CDATA[b]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>b</mml:mi></mml:math></alternatives></inline-formula>
+  are considered spatiallying varying. The argument
+  <monospace>reparam_s=&quot;positive&quot;</monospace> means we
+  constrain the shape parameter to be positive. The GP kernel function
+  is chosen using <monospace>kernel=&quot;exp&quot;</monospace>. Other
+  kernel function options are the Matérn kernel and the approximate GP
+  computation method employing an SPDE approximation to the Matérn
+  (<xref alt="Lindgren et al., 2011" rid="ref-lindgren-etal11" ref-type="bibr">Lindgren
+  et al., 2011</xref>). Covariates to include in the mean functions can
+  be provided in a matrix form to <monospace>X_{a/b}</monospace>.
+  Further details about the arguments are given in the
+  <ext-link ext-link-type="uri" xlink:href="https://cran.r-project.org/web/packages/SpatialGEV/vignettes/SpatialGEV-vignette.html">vignette</ext-link>.</p>
+  <code language="r script">set.seed(123) 
+library(SpatialGEV) 
+n_loc &lt;- 50                           # number of locations
+locs &lt;- simulatedData$locs[1:n_loc,]  # location coordinates
+a &lt;- simulatedData$a[1:n_loc]         # true GEV location parameters
+logb &lt;- simulatedData$logb[1:n_loc]   # true GEV (log) scale parameters
+logs &lt;- simulatedData$logs            # true GEV (log) shape parameter
+y &lt;- simulatedData$y[1:n_loc]         # simulated observations
+# Model fitting
+fit &lt;- spatialGEV_fit(data = y, locs = locs, random = &quot;ab&quot;,
+                      init_param = list(a = rep(4, n_loc),
+                                        log_b = rep(0,n_loc),
+                                        s = -2,
+                                        beta_a = 4, beta_b = 0,
+                                        log_sigma_a = 0, log_ell_a = 1,
+                                        log_sigma_b = 0, log_ell_b = 1),
+                      reparam_s = &quot;positive&quot;, kernel=&quot;exp&quot;,
+                      X_a = matrix(1, nrow=n_loc, ncol=1),
+                      X_b = matrix(1, nrow=n_loc, ncol=1),
+                      silent=T)                
+print(fit)
+#&gt; Model fitting took 8.78002285957336 seconds 
+#&gt; The model has reached relative convergence 
+#&gt; The model uses a exp kernel 
+#&gt; Number of fixed effects in the model is 7 
+#&gt; Number of random effects in the model is 100 
+#&gt; Hessian matrix is positive definite. 
+#&gt; Use spatialGEV_sample to obtain posterior samples </code>
+  <p>Posterior sampling from the joint posterior distribution of the GEV
+  parameters using the function
+  <monospace>spatialGEV_sample()</monospace>, which takes in the list
+  output by <monospace>spatialGEV_fit()</monospace> as an argument.</p>
+  <code language="r script">sam &lt;- spatialGEV_sample(model = fit, n_draw = 2000, observation = TRUE)
+print(sam)
+#&gt; The samples contains 2000 draws of 107 parameters 
+#&gt; The samples contains 2000 draws of response at 50 locations 
+#&gt; Use summary() to obtain summary statistics of the samples
+pos_summary &lt;- summary(sam)</code>
+  <p>The samples are then used to calculate the posterior mean estimate
+  of the 10-year return level at each location, e.g., using the
+  <monospace>qgev()</monospace> function from the <bold>evd</bold>
+  package
+  (<xref alt="Stephenson, 2002" rid="ref-evd" ref-type="bibr">Stephenson,
+  2002</xref>). See Figure
+  <xref alt="[fig:sim-return-level]" rid="figU003Asim-return-level">[fig:sim-return-level]</xref>.</p>
+  <fig>
+    <caption><p>Posterior mean estimates of the 10-year return level
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[z_{10}({\boldsymbol{x}})]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>z</mml:mi><mml:mn>10</mml:mn></mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>𝐱</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>
+    plotted against the true values at different
+    locations.<styled-content id="figU003Asim-return-level"></styled-content></p></caption>
+    <graphic mimetype="image" mime-subtype="png" xlink:href="sim-return-level.png" />
+  </fig>
+</sec>
+<sec id="conclusion">
+  <title>Conclusion</title>
+  <p>As shown in Figure
+  <xref alt="[fig:sim-return-level]" rid="figU003Asim-return-level">[fig:sim-return-level]</xref>,
+  and based on other evidence in Chen et al.
+  (<xref alt="2024" rid="ref-chen-etal24" ref-type="bibr">2024</xref>),
+  <bold>SpatialGEV</bold> provides approximate Bayesian inference
+  methods for fitting a flexible class of spatial extreme value models.
+  Its computational efficiency over MCMC makes it suitable for analyzing
+  large datasets such as extreme weather data.</p>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>This work was supported by the Natural Sciences and Engineering
+  Research Council of Canada, grant numbers RGPIN-2018-04376 (Ramezan),
+  DGECR-2018-00349 (Ramezan) and RGPIN-2020-04364 (Lysy).</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <title></title>
+  <ref id="ref-chen-etal24">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Chen</surname><given-names>M.</given-names></name>
+        <name><surname>Ramezan</surname><given-names>R.</given-names></name>
+        <name><surname>Lysy</surname><given-names>M.</given-names></name>
+      </person-group>
+      <article-title>Fast and scalable approximate inference for spatial extreme value models</article-title>
+      <source>Canadian Journal of Statistics (Accepted)</source>
+      <year iso-8601-date="2024">2024</year>
+      <pub-id pub-id-type="doi">10.1002/cjs.11829</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-tierney-kadane86">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Tierney</surname><given-names>L.</given-names></name>
+        <name><surname>Kadane</surname><given-names>J.</given-names></name>
+      </person-group>
+      <article-title>Accurate approximations for posterior moments and marginal densities</article-title>
+      <source>Journal of the American Statistical Association</source>
+      <year iso-8601-date="1986">1986</year>
+      <volume>81</volume>
+      <pub-id pub-id-type="doi">10.1080/01621459.1986.10478240</pub-id>
+      <fpage>82</fpage>
+      <lpage>86</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-coles98">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Coles</surname><given-names>S. G.</given-names></name>
+        <name><surname>Casson</surname><given-names>E.</given-names></name>
+      </person-group>
+      <article-title>Extreme value modelling of hurricane wind speeds</article-title>
+      <source>Structural Safety</source>
+      <year iso-8601-date="1998">1998</year>
+      <volume>20</volume>
+      <pub-id pub-id-type="doi">10.1111/1467-9876.00189</pub-id>
+      <fpage>283</fpage>
+      <lpage>296</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-cooley07">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Cooley</surname><given-names>D.</given-names></name>
+        <name><surname>Nychka</surname><given-names>D.</given-names></name>
+        <name><surname>Naveau</surname><given-names>P.</given-names></name>
+      </person-group>
+      <article-title>Bayesian spatial modeling of extreme precipitation return levels</article-title>
+      <source>Journal of the American Statistical Association</source>
+      <year iso-8601-date="2007">2007</year>
+      <volume>102</volume>
+      <pub-id pub-id-type="doi">10.1198/016214506000000780</pub-id>
+      <fpage>824</fpage>
+      <lpage>840</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-sang-gelfand10">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Sang</surname><given-names>H.</given-names></name>
+        <name><surname>Gelfand</surname><given-names>A. E.</given-names></name>
+      </person-group>
+      <article-title>Continuous spatial process models for spatial extreme values</article-title>
+      <source>Journal of Agricultural, Biological, and Environmental Statistics</source>
+      <year iso-8601-date="2010">2010</year>
+      <volume>15</volume>
+      <pub-id pub-id-type="doi">10.1007/s13253-009-0010-1</pub-id>
+      <fpage>49</fpage>
+      <lpage>56</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-wood20">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Wood</surname><given-names>Simon N.</given-names></name>
+      </person-group>
+      <article-title>Inference and computation with generalized additive models and their extensions</article-title>
+      <source>Test</source>
+      <year iso-8601-date="2020">2020</year>
+      <volume>29</volume>
+      <pub-id pub-id-type="doi">10.1007/s11749-020-00711-5</pub-id>
+      <fpage>307</fpage>
+      <lpage>339</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-lindgren-etal21">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Lindgren</surname><given-names>F. K.</given-names></name>
+        <name><surname>Bolin</surname><given-names>D.</given-names></name>
+        <name><surname>Rue</surname><given-names>H.</given-names></name>
+      </person-group>
+      <article-title>The SPDE approach for Gaussian and non-Gaussian fields: 10 years and still running</article-title>
+      <source>Spatial Statistics</source>
+      <year iso-8601-date="2021">2021</year>
+      <pub-id pub-id-type="doi">10.1016/j.spasta.2022.100599</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-schliep10">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Schliep</surname><given-names>E. M.</given-names></name>
+        <name><surname>Cooley</surname><given-names>D.</given-names></name>
+        <name><surname>Sain</surname><given-names>S. R.</given-names></name>
+        <name><surname>Hoeting</surname><given-names>J. A.</given-names></name>
+      </person-group>
+      <article-title>A comparison study of extreme precipitation from six different regional climate models via spatial hierarchical modeling</article-title>
+      <source>Extremes</source>
+      <year iso-8601-date="2010">2010</year>
+      <volume>13</volume>
+      <pub-id pub-id-type="doi">10.1007/s10687-009-0098-2</pub-id>
+      <fpage>219</fpage>
+      <lpage>239</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-dyrrdal15">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Dyrrdal</surname><given-names>A. V.</given-names></name>
+        <name><surname>Lenkoski</surname><given-names>A.</given-names></name>
+        <name><surname>Thorarinsdottir</surname><given-names>T. L.</given-names></name>
+        <name><surname>Stordal</surname><given-names>F.</given-names></name>
+      </person-group>
+      <article-title>Bayesian hierarchical modeling of extreme hourly precipitation in Norway</article-title>
+      <source>Environmetrics</source>
+      <year iso-8601-date="2015">2015</year>
+      <volume>26</volume>
+      <pub-id pub-id-type="doi">10.1002/env.2301</pub-id>
+      <fpage>89</fpage>
+      <lpage>106</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-neal11">
+    <element-citation publication-type="chapter">
+      <person-group person-group-type="author">
+        <name><surname>Neal</surname><given-names>R. M</given-names></name>
+      </person-group>
+      <article-title>MCMC using Hamiltonian dynamics</article-title>
+      <source>The handbook of Markov Chain Monte Carlo</source>
+      <publisher-name>Chapman &amp; Hall / CRC Press</publisher-name>
+      <year iso-8601-date="2011">2011</year>
+      <pub-id pub-id-type="doi">10.1201/b10905</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-hoffman-gelman14">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Hoffman</surname><given-names>M. D.</given-names></name>
+        <name><surname>Gelman</surname><given-names>A.</given-names></name>
+      </person-group>
+      <article-title>The No-U-Turn sampler: Adaptively setting path lengths in Hamiltonian Monte Carlo</article-title>
+      <source>Journal of Machine Learning Research</source>
+      <year iso-8601-date="2014">2014</year>
+      <volume>15</volume>
+      <uri>https://dl.acm.org/doi/10.5555/2627435.2638586</uri>
+      <fpage>1593</fpage>
+      <lpage>1623</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-rstan">
+    <element-citation>
+      <person-group person-group-type="author">
+        <string-name>Stan Development Team</string-name>
+      </person-group>
+      <article-title>RStan: The R interface to Stan</article-title>
+      <year iso-8601-date="2020">2020</year>
+      <uri>http://mc-stan.org/</uri>
+      <pub-id pub-id-type="doi">10.32614/CRAN.package.rstan</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-lindgren-rue15">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Lindgren</surname><given-names>F. K.</given-names></name>
+        <name><surname>Rue</surname><given-names>H.</given-names></name>
+      </person-group>
+      <article-title>Bayesian spatial modelling with R-INLA</article-title>
+      <source>Journal of Statistical Software</source>
+      <year iso-8601-date="2015">2015</year>
+      <volume>63</volume>
+      <pub-id pub-id-type="doi">10.18637/jss.v063.i19</pub-id>
+      <fpage>1</fpage>
+      <lpage>25</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-lindgren-etal11">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Lindgren</surname><given-names>F. K.</given-names></name>
+        <name><surname>Rue</surname><given-names>H.</given-names></name>
+        <name><surname>Lindström</surname><given-names>J.</given-names></name>
+      </person-group>
+      <article-title>An explicit link between Gaussian fields and Gaussian Markov random fields: The stochastic partial differential equation approach</article-title>
+      <source>Journal of the Royal Statistical Society, Series B</source>
+      <year iso-8601-date="2011">2011</year>
+      <volume>73</volume>
+      <pub-id pub-id-type="doi">10.1111/j.1467-9868.2011.00777.x</pub-id>
+      <fpage>423</fpage>
+      <lpage>498</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-kristensen16">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Kristensen</surname><given-names>K.</given-names></name>
+        <name><surname>Nielsen</surname><given-names>A.</given-names></name>
+        <name><surname>Berg</surname><given-names>C. W.</given-names></name>
+        <name><surname>Skaug</surname><given-names>H.</given-names></name>
+        <name><surname>Bell</surname><given-names>B. M</given-names></name>
+      </person-group>
+      <article-title>TMB: Automatic differentiation and Laplace approximation</article-title>
+      <source>Journal of Statistical Software</source>
+      <year iso-8601-date="2016">2016</year>
+      <volume>70</volume>
+      <issue>5</issue>
+      <pub-id pub-id-type="doi">10.18637/jss.v070.i05</pub-id>
+      <fpage>1</fpage>
+      <lpage>21</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-spatialextremes">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Ribatet</surname><given-names>M.</given-names></name>
+        <name><surname>Singleton</surname><given-names>R.</given-names></name>
+        <string-name>R Core team</string-name>
+      </person-group>
+      <source>SpatialExtremes: Modelling spatial extremes</source>
+      <publisher-name>Version 2.1-0. https://CRAN.R-project.org/package=SpatialExtremes</publisher-name>
+      <year iso-8601-date="2022">2022</year>
+      <pub-id pub-id-type="doi">10.32614/CRAN.package.SpatialExtremes</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-mgcv">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Wood</surname><given-names>Simon N.</given-names></name>
+      </person-group>
+      <source>Mgcv: Mixed GAM computation vehicle with automatic smoothness estimation</source>
+      <publisher-name>Version 1.9-1. https://CRAN.R-project.org/package=mgcv</publisher-name>
+      <year iso-8601-date="2023">2023</year>
+      <pub-id pub-id-type="doi">10.32614/CRAN.package.mgcv</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-youngman22">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Youngman</surname><given-names>Benjamin D.</given-names></name>
+      </person-group>
+      <article-title>evgam: An R package for generalized additive extreme value models</article-title>
+      <source>Journal of Statistical Software</source>
+      <year iso-8601-date="2022">2022</year>
+      <volume>103</volume>
+      <pub-id pub-id-type="doi">10.18637/jss.v103.i03</pub-id>
+      <fpage>1</fpage>
+      <lpage>26</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-evd">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Stephenson</surname><given-names>A. G.</given-names></name>
+      </person-group>
+      <article-title>Evd: Extreme value distributions</article-title>
+      <source>R News</source>
+      <year iso-8601-date="2002">2002</year>
+      <volume>2</volume>
+      <issue>2</issue>
+      <issn>1609-3631</issn>
+      <pub-id pub-id-type="doi">10.32614/CRAN.package.evd</pub-id>
+      <fpage>31</fpage>
+      <lpage>32</lpage>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
