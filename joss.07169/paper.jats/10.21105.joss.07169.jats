@@ -1,0 +1,779 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">7169</article-id>
+<article-id pub-id-type="doi">10.21105/joss.07169</article-id>
+<title-group>
+<article-title>Simple DFT-D3: Library first implementation of the D3
+dispersion correction</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author" corresp="yes">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0001-7809-771X</contrib-id>
+<name>
+<surname>Ehlert</surname>
+<given-names>Sebastian</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+<xref ref-type="corresp" rid="cor-1"><sup>*</sup></xref>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Microsoft Research, AI for Science, The
+Netherlands</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<author-notes>
+<corresp id="cor-1">* E-mail: <email></email></corresp>
+</author-notes>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2024-07-27">
+<day>27</day>
+<month>7</month>
+<year>2024</year>
+</pub-date>
+<volume>9</volume>
+<issue>103</issue>
+<fpage>7169</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2024</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>Fortran</kwd>
+<kwd>Python</kwd>
+<kwd>computational chemistry</kwd>
+<kwd>density functional theory</kwd>
+<kwd>dispersion correction</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p>The simulation of chemical reactions or processes provides a
+  fundamental approach to understanding chemistry. The application of
+  Kohn-Sham density functional theory (KSDFT)
+  (<xref alt="Kohn &amp; Sham, 1965" rid="ref-kohn1965" ref-type="bibr">Kohn
+  &amp; Sham, 1965</xref>) has become an indispensable tool for
+  computational modeling. However, semilocal KS-DFT often fails to
+  accurately describe long-range correlation effects, such as dispersion
+  interactions, in many exchange-correlation functionals
+  (<xref alt="Stefan Grimme et al., 2016" rid="ref-grimme2016" ref-type="bibr">Stefan
+  Grimme et al., 2016</xref>). Additive dispersion corrections, like the
+  D3
+  (<xref alt="S. Grimme et al., 2010" rid="ref-grimme2010" ref-type="bibr">S.
+  Grimme et al., 2010</xref>) or D4
+  (<xref alt="Caldeweyher et al., 2019" rid="ref-caldeweyher2019" ref-type="bibr">Caldeweyher
+  et al., 2019</xref>) methods, effectively account for these
+  effects.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of Need</title>
+  <p>The D3 method is one of the most widely used dispersion
+  corrections, however the original implementation
+  (<xref alt="S. Grimme et al., 2010" rid="ref-grimme2010" ref-type="bibr">S.
+  Grimme et al., 2010</xref>) has been forked and modified many times to
+  include specific adaptations needed for integration as a library in
+  different electronic structure software packages. Here, we present a
+  reimplementation of the D3 method, focusing on providing a simple,
+  library-first version with APIs defined in Fortran, C, and Python,
+  including the latest parameters for many D3 method variants.</p>
+  <p>The <monospace>simple-dftd3</monospace> library implements several
+  variants of the D3 method, including the original zero damping D3(0)
+  (<xref alt="S. Grimme et al., 2010" rid="ref-grimme2010" ref-type="bibr">S.
+  Grimme et al., 2010</xref>), rational damping D3(BJ)
+  (<xref alt="S. Grimme et al., 2011" rid="ref-grimme2011" ref-type="bibr">S.
+  Grimme et al., 2011</xref>), modified zero damping D3M(0)
+  (<xref alt="D. G. Smith et al., 2016" rid="ref-smith2016" ref-type="bibr">D.
+  G. Smith et al., 2016</xref>), and optimized power damping D3(op)
+  (<xref alt="Witte et al., 2017" rid="ref-witte2017" ref-type="bibr">Witte
+  et al., 2017</xref>). The main library is written in modern Fortran
+  (<xref alt="Kedward et al., 2022" rid="ref-kedward2022" ref-type="bibr">Kedward
+  et al., 2022</xref>), with additional APIs for C via Fortran-C
+  interoperable functions and for Python via the CFFI library. A command
+  line interface is also available for standalone usage.</p>
+</sec>
+<sec id="usage">
+  <title>Usage</title>
+  <p>The <monospace>simple-dftd3</monospace> library has been
+  successfully adopted by several electronic structure software
+  packages, such as DFTB+ (since version 21.2)
+  (<xref alt="Hourahine et al., 2020" rid="ref-hourahine2020" ref-type="bibr">Hourahine
+  et al., 2020</xref>), Psi4 (since version 1.9.0)
+  (<xref alt="D. G. A. Smith et al., 2020" rid="ref-smith2020" ref-type="bibr">D.
+  G. A. Smith et al., 2020</xref>), and Siesta (since version 5.0.0)
+  (<xref alt="García et al., 2020" rid="ref-garcia2020" ref-type="bibr">García
+  et al., 2020</xref>), including recently published packages like
+  Accelerated DFT
+  (<xref alt="Ju et al., 2024" rid="ref-ju2024" ref-type="bibr">Ju et
+  al., 2024</xref>) and gpu4pyscf
+  (<xref alt="Wu et al., 2024" rid="ref-wu2024" ref-type="bibr">Wu et
+  al., 2024</xref>). Additionally, the Python API provides interfaces
+  for usage in ASE
+  (<xref alt="Larsen et al., 2017" rid="ref-larsen2017" ref-type="bibr">Larsen
+  et al., 2017</xref>), PySCF
+  (<xref alt="Sun et al., 2020" rid="ref-sun2020" ref-type="bibr">Sun et
+  al., 2020</xref>), and QCEngine
+  (<xref alt="D. G. A. Smith et al., 2021" rid="ref-smith2021" ref-type="bibr">D.
+  G. A. Smith et al., 2021</xref>). Given the accessibility of the code
+  base, new method improvements, like the recent extension of the D3
+  method to actinide elements
+  (<xref alt="Wittmann et al., 2024" rid="ref-wittmann2024" ref-type="bibr">Wittmann
+  et al., 2024</xref>), are easily integrated. The package is already
+  cited as tool for example in benchmark studies
+  (<xref alt="Gorges et al., 2022" rid="ref-gorges2022" ref-type="bibr">Gorges
+  et al., 2022</xref>) or for supporting experimental studies
+  (<xref alt="Yu et al., 2024" rid="ref-yu2024" ref-type="bibr">Yu et
+  al., 2024</xref>). With its simplicity and availability, the library
+  is a valuable tool for the community to include dispersion corrections
+  in their electronic structure calculations.</p>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>S.E. acknowledges contributions from Lori Burns, Robert Cohn,
+  Marvin Friede, Igor Gerasimov, Alex Izvorski, Kjell Jorner, Eisuke
+  Kawashima, Federico Pedron, Wanja Schulze, Qiming Sun, Jonathon
+  Vandezande, Thijs Vogels, Shirong Wang, and Lukas Wittmann to the
+  project.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <title></title>
+  <ref id="ref-grimme2010">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Grimme</surname><given-names>S.</given-names></name>
+        <name><surname>Antony</surname><given-names>J.</given-names></name>
+        <name><surname>Ehrlich</surname><given-names>S.</given-names></name>
+        <name><surname>Krieg</surname><given-names>H.</given-names></name>
+      </person-group>
+      <article-title>A consistent and accurate ab initio parametrization of density functional dispersion correction (DFT-D) for the 94 elements H-Pu</article-title>
+      <source>J. Chem. Phys.</source>
+      <year iso-8601-date="2010">2010</year>
+      <volume>132</volume>
+      <uri>https://aip.scitation.org/doi/full/10.1063/1.3382344</uri>
+      <pub-id pub-id-type="doi">10.1063/1.3382344</pub-id>
+      <fpage>154104</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-grimme2011">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Grimme</surname><given-names>S.</given-names></name>
+        <name><surname>Ehrlich</surname><given-names>S.</given-names></name>
+        <name><surname>Goerigk</surname><given-names>L.</given-names></name>
+      </person-group>
+      <article-title>Effect of the damping function in dispersion corrected density functional theory</article-title>
+      <source>J. Comput. Chem.</source>
+      <year iso-8601-date="2011">2011</year>
+      <volume>32</volume>
+      <uri>https://onlinelibrary.wiley.com/doi/abs/10.1002/jcc.21759</uri>
+      <pub-id pub-id-type="doi">10.1002/jcc.21759</pub-id>
+      <fpage>1456</fpage>
+      <lpage>1465</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-smith2016">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Smith</surname><given-names>Daniel GA</given-names></name>
+        <name><surname>Burns</surname><given-names>Lori A</given-names></name>
+        <name><surname>Patkowski</surname><given-names>Konrad</given-names></name>
+        <name><surname>Sherrill</surname><given-names>C David</given-names></name>
+      </person-group>
+      <article-title>Revised damping parameters for the D3 dispersion correction to density functional theory</article-title>
+      <source>J. Phys. Chem. Lett.</source>
+      <publisher-name>ACS Publications</publisher-name>
+      <year iso-8601-date="2016">2016</year>
+      <volume>7</volume>
+      <issue>12</issue>
+      <uri>https://doi.org/10.1021/acs.jpclett.6b00780</uri>
+      <pub-id pub-id-type="doi">10.1021/acs.jpclett.6b00780</pub-id>
+      <fpage>2197</fpage>
+      <lpage>2203</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-witte2017">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Witte</surname><given-names>Jonathon</given-names></name>
+        <name><surname>Mardirossian</surname><given-names>Narbe</given-names></name>
+        <name><surname>Neaton</surname><given-names>Jeffrey B</given-names></name>
+        <name><surname>Head-Gordon</surname><given-names>Martin</given-names></name>
+      </person-group>
+      <article-title>Assessing DFT-D3 damping functions across widely used density functionals: Can we do better?</article-title>
+      <source>J. Chem. Theory Comput.</source>
+      <publisher-name>ACS Publications</publisher-name>
+      <year iso-8601-date="2017">2017</year>
+      <volume>13</volume>
+      <issue>5</issue>
+      <uri>https://pubs.acs.org/doi/10.1021/acs.jctc.7b00176</uri>
+      <pub-id pub-id-type="doi">10.1021/acs.jctc.7b00176</pub-id>
+      <fpage>2043</fpage>
+      <lpage>2052</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-garcia2020">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>García</surname><given-names>Alberto</given-names></name>
+        <name><surname>Papior</surname><given-names>Nick</given-names></name>
+        <name><surname>Akhtar</surname><given-names>Arsalan</given-names></name>
+        <name><surname>Artacho</surname><given-names>Emilio</given-names></name>
+        <name><surname>Blum</surname><given-names>Volker</given-names></name>
+        <name><surname>Bosoni</surname><given-names>Emanuele</given-names></name>
+        <name><surname>Brandimarte</surname><given-names>Pedro</given-names></name>
+        <name><surname>Brandbyge</surname><given-names>Mads</given-names></name>
+        <name><surname>Cerdá</surname><given-names>J. I.</given-names></name>
+        <name><surname>Corsetti</surname><given-names>Fabiano</given-names></name>
+        <name><surname>Cuadrado</surname><given-names>Ramón</given-names></name>
+        <name><surname>Dikan</surname><given-names>Vladimir</given-names></name>
+        <name><surname>Ferrer</surname><given-names>Jaime</given-names></name>
+        <name><surname>Gale</surname><given-names>Julian</given-names></name>
+        <name><surname>García-Fernández</surname><given-names>Pablo</given-names></name>
+        <name><surname>García-Suárez</surname><given-names>V. M.</given-names></name>
+        <name><surname>García</surname><given-names>Sandra</given-names></name>
+        <name><surname>Huhs</surname><given-names>Georg</given-names></name>
+        <name><surname>Illera</surname><given-names>Sergio</given-names></name>
+        <name><surname>Korytár</surname><given-names>Richard</given-names></name>
+        <name><surname>Koval</surname><given-names>Peter</given-names></name>
+        <name><surname>Lebedeva</surname><given-names>Irina</given-names></name>
+        <name><surname>Lin</surname><given-names>Lin</given-names></name>
+        <name><surname>López-Tarifa</surname><given-names>Pablo</given-names></name>
+        <name><surname>Mayo</surname><given-names>Sara G.</given-names></name>
+        <name><surname>Mohr</surname><given-names>Stephan</given-names></name>
+        <name><surname>Ordejón</surname><given-names>Pablo</given-names></name>
+        <name><surname>Postnikov</surname><given-names>Andrei</given-names></name>
+        <name><surname>Pouillon</surname><given-names>Yann</given-names></name>
+        <name><surname>Pruneda</surname><given-names>Miguel</given-names></name>
+        <name><surname>Robles</surname><given-names>Roberto</given-names></name>
+        <name><surname>Sánchez-Portal</surname><given-names>Daniel</given-names></name>
+        <name><surname>Soler</surname><given-names>Jose M.</given-names></name>
+        <name><surname>Ullah</surname><given-names>Rafi</given-names></name>
+        <name><surname>Yu</surname><given-names>Victor Wen-zhe</given-names></name>
+        <name><surname>Junquera</surname><given-names>Javier</given-names></name>
+      </person-group>
+      <article-title>Siesta: Recent developments and applications</article-title>
+      <source>J. Chem. Phys.</source>
+      <year iso-8601-date="2020-05">2020</year><month>05</month>
+      <volume>152</volume>
+      <issue>20</issue>
+      <issn>0021-9606</issn>
+      <uri>https://doi.org/10.1063/5.0005077</uri>
+      <pub-id pub-id-type="doi">10.1063/5.0005077</pub-id>
+      <fpage>204108</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-sun2020">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Sun</surname><given-names>Qiming</given-names></name>
+        <name><surname>Zhang</surname><given-names>Xing</given-names></name>
+        <name><surname>Banerjee</surname><given-names>Samragni</given-names></name>
+        <name><surname>Bao</surname><given-names>Peng</given-names></name>
+        <name><surname>Barbry</surname><given-names>Marc</given-names></name>
+        <name><surname>Blunt</surname><given-names>Nick S.</given-names></name>
+        <name><surname>Bogdanov</surname><given-names>Nikolay A.</given-names></name>
+        <name><surname>Booth</surname><given-names>George H.</given-names></name>
+        <name><surname>Chen</surname><given-names>Jia</given-names></name>
+        <name><surname>Cui</surname><given-names>Zhi-Hao</given-names></name>
+        <name><surname>Eriksen</surname><given-names>Janus J.</given-names></name>
+        <name><surname>Gao</surname><given-names>Yang</given-names></name>
+        <name><surname>Guo</surname><given-names>Sheng</given-names></name>
+        <name><surname>Hermann</surname><given-names>Jan</given-names></name>
+        <name><surname>Hermes</surname><given-names>Matthew R.</given-names></name>
+        <name><surname>Koh</surname><given-names>Kevin</given-names></name>
+        <name><surname>Koval</surname><given-names>Peter</given-names></name>
+        <name><surname>Lehtola</surname><given-names>Susi</given-names></name>
+        <name><surname>Li</surname><given-names>Zhendong</given-names></name>
+        <name><surname>Liu</surname><given-names>Junzi</given-names></name>
+        <name><surname>Mardirossian</surname><given-names>Narbe</given-names></name>
+        <name><surname>McClain</surname><given-names>James D.</given-names></name>
+        <name><surname>Motta</surname><given-names>Mario</given-names></name>
+        <name><surname>Mussard</surname><given-names>Bastien</given-names></name>
+        <name><surname>Pham</surname><given-names>Hung Q.</given-names></name>
+        <name><surname>Pulkin</surname><given-names>Artem</given-names></name>
+        <name><surname>Purwanto</surname><given-names>Wirawan</given-names></name>
+        <name><surname>Robinson</surname><given-names>Paul J.</given-names></name>
+        <name><surname>Ronca</surname><given-names>Enrico</given-names></name>
+        <name><surname>Sayfutyarova</surname><given-names>Elvira R.</given-names></name>
+        <name><surname>Scheurer</surname><given-names>Maximilian</given-names></name>
+        <name><surname>Schurkus</surname><given-names>Henry F.</given-names></name>
+        <name><surname>Smith</surname><given-names>James E. T.</given-names></name>
+        <name><surname>Sun</surname><given-names>Chong</given-names></name>
+        <name><surname>Sun</surname><given-names>Shi-Ning</given-names></name>
+        <name><surname>Upadhyay</surname><given-names>Shiv</given-names></name>
+        <name><surname>Wagner</surname><given-names>Lucas K.</given-names></name>
+        <name><surname>Wang</surname><given-names>Xiao</given-names></name>
+        <name><surname>White</surname><given-names>Alec</given-names></name>
+        <name><surname>Whitfield</surname><given-names>James Daniel</given-names></name>
+        <name><surname>Williamson</surname><given-names>Mark J.</given-names></name>
+        <name><surname>Wouters</surname><given-names>Sebastian</given-names></name>
+        <name><surname>Yang</surname><given-names>Jun</given-names></name>
+        <name><surname>Yu</surname><given-names>Jason M.</given-names></name>
+        <name><surname>Zhu</surname><given-names>Tianyu</given-names></name>
+        <name><surname>Berkelbach</surname><given-names>Timothy C.</given-names></name>
+        <name><surname>Sharma</surname><given-names>Sandeep</given-names></name>
+        <name><surname>Sokolov</surname><given-names>Alexander Yu.</given-names></name>
+        <name><surname>Chan</surname><given-names>Garnet Kin-Lic</given-names></name>
+      </person-group>
+      <article-title>Recent developments in the PySCF program package</article-title>
+      <source>J. Chem. Phys.</source>
+      <year iso-8601-date="2020-07">2020</year><month>07</month>
+      <volume>153</volume>
+      <issue>2</issue>
+      <issn>0021-9606</issn>
+      <uri>https://doi.org/10.1063/5.0006074</uri>
+      <pub-id pub-id-type="doi">10.1063/5.0006074</pub-id>
+      <fpage>024109</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-smith2020">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Smith</surname><given-names>Daniel G. A.</given-names></name>
+        <name><surname>Burns</surname><given-names>Lori A.</given-names></name>
+        <name><surname>Simmonett</surname><given-names>Andrew C.</given-names></name>
+        <name><surname>Parrish</surname><given-names>Robert M.</given-names></name>
+        <name><surname>Schieber</surname><given-names>Matthew C.</given-names></name>
+        <name><surname>Galvelis</surname><given-names>Raimondas</given-names></name>
+        <name><surname>Kraus</surname><given-names>Peter</given-names></name>
+        <name><surname>Kruse</surname><given-names>Holger</given-names></name>
+        <name><surname>Di Remigio</surname><given-names>Roberto</given-names></name>
+        <name><surname>Alenaizan</surname><given-names>Asem</given-names></name>
+        <name><surname>James</surname><given-names>Andrew M.</given-names></name>
+        <name><surname>Lehtola</surname><given-names>Susi</given-names></name>
+        <name><surname>Misiewicz</surname><given-names>Jonathon P.</given-names></name>
+        <name><surname>Scheurer</surname><given-names>Maximilian</given-names></name>
+        <name><surname>Shaw</surname><given-names>Robert A.</given-names></name>
+        <name><surname>Schriber</surname><given-names>Jeffrey B.</given-names></name>
+        <name><surname>Xie</surname><given-names>Yi</given-names></name>
+        <name><surname>Glick</surname><given-names>Zachary L.</given-names></name>
+        <name><surname>Sirianni</surname><given-names>Dominic A.</given-names></name>
+        <name><surname>O’Brien</surname><given-names>Joseph Senan</given-names></name>
+        <name><surname>Waldrop</surname><given-names>Jonathan M.</given-names></name>
+        <name><surname>Kumar</surname><given-names>Ashutosh</given-names></name>
+        <name><surname>Hohenstein</surname><given-names>Edward G.</given-names></name>
+        <name><surname>Pritchard</surname><given-names>Benjamin P.</given-names></name>
+        <name><surname>Brooks</surname><given-names>Bernard R.</given-names></name>
+        <name><surname>Schaefer</surname><given-names>III</given-names><suffix>Henry F.</suffix></name>
+        <name><surname>Sokolov</surname><given-names>Alexander Yu.</given-names></name>
+        <name><surname>Patkowski</surname><given-names>Konrad</given-names></name>
+        <name><surname>DePrince</surname><given-names>III</given-names><suffix>A. Eugene</suffix></name>
+        <name><surname>Bozkaya</surname><given-names>Uğur</given-names></name>
+        <name><surname>King</surname><given-names>Rollin A.</given-names></name>
+        <name><surname>Evangelista</surname><given-names>Francesco A.</given-names></name>
+        <name><surname>Turney</surname><given-names>Justin M.</given-names></name>
+        <name><surname>Crawford</surname><given-names>T. Daniel</given-names></name>
+        <name><surname>Sherrill</surname><given-names>C. David</given-names></name>
+      </person-group>
+      <article-title>PSI4 1.4: Open-source software for high-throughput quantum chemistry</article-title>
+      <source>J. Chem. Phys.</source>
+      <year iso-8601-date="2020-05">2020</year><month>05</month>
+      <volume>152</volume>
+      <issue>18</issue>
+      <issn>0021-9606</issn>
+      <uri>https://doi.org/10.1063/5.0006002</uri>
+      <pub-id pub-id-type="doi">10.1063/5.0006002</pub-id>
+      <fpage>184108</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-smith2021">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Smith</surname><given-names>Daniel G. A.</given-names></name>
+        <name><surname>Lolinco</surname><given-names>Annabelle T.</given-names></name>
+        <name><surname>Glick</surname><given-names>Zachary L.</given-names></name>
+        <name><surname>Lee</surname><given-names>Jiyoung</given-names></name>
+        <name><surname>Alenaizan</surname><given-names>Asem</given-names></name>
+        <name><surname>Barnes</surname><given-names>Taylor A.</given-names></name>
+        <name><surname>Borca</surname><given-names>Carlos H.</given-names></name>
+        <name><surname>Di Remigio</surname><given-names>Roberto</given-names></name>
+        <name><surname>Dotson</surname><given-names>David L.</given-names></name>
+        <name><surname>Ehlert</surname><given-names>Sebastian</given-names></name>
+        <name><surname>Heide</surname><given-names>Alexander G.</given-names></name>
+        <name><surname>Herbst</surname><given-names>Michael F.</given-names></name>
+        <name><surname>Hermann</surname><given-names>Jan</given-names></name>
+        <name><surname>Hicks</surname><given-names>Colton B.</given-names></name>
+        <name><surname>Horton</surname><given-names>Joshua T.</given-names></name>
+        <name><surname>Hurtado</surname><given-names>Adrian G.</given-names></name>
+        <name><surname>Kraus</surname><given-names>Peter</given-names></name>
+        <name><surname>Kruse</surname><given-names>Holger</given-names></name>
+        <name><surname>Lee</surname><given-names>Sebastian J. R.</given-names></name>
+        <name><surname>Misiewicz</surname><given-names>Jonathon P.</given-names></name>
+        <name><surname>Naden</surname><given-names>Levi N.</given-names></name>
+        <name><surname>Ramezanghorbani</surname><given-names>Farhad</given-names></name>
+        <name><surname>Scheurer</surname><given-names>Maximilian</given-names></name>
+        <name><surname>Schriber</surname><given-names>Jeffrey B.</given-names></name>
+        <name><surname>Simmonett</surname><given-names>Andrew C.</given-names></name>
+        <name><surname>Steinmetzer</surname><given-names>Johannes</given-names></name>
+        <name><surname>Wagner</surname><given-names>Jeffrey R.</given-names></name>
+        <name><surname>Ward</surname><given-names>Logan</given-names></name>
+        <name><surname>Welborn</surname><given-names>Matthew</given-names></name>
+        <name><surname>Altarawy</surname><given-names>Doaa</given-names></name>
+        <name><surname>Anwar</surname><given-names>Jamshed</given-names></name>
+        <name><surname>Chodera</surname><given-names>John D.</given-names></name>
+        <name><surname>Dreuw</surname><given-names>Andreas</given-names></name>
+        <name><surname>Kulik</surname><given-names>Heather J.</given-names></name>
+        <name><surname>Liu</surname><given-names>Fang</given-names></name>
+        <name><surname>Martínez</surname><given-names>Todd J.</given-names></name>
+        <name><surname>Matthews</surname><given-names>Devin A.</given-names></name>
+        <name><surname>Schaefer</surname><given-names>III</given-names><suffix>Henry F.</suffix></name>
+        <name><surname>Šponer</surname><given-names>Jiří</given-names></name>
+        <name><surname>Turney</surname><given-names>Justin M.</given-names></name>
+        <name><surname>Wang</surname><given-names>Lee-Ping</given-names></name>
+        <name><surname>De Silva</surname><given-names>Nuwan</given-names></name>
+        <name><surname>King</surname><given-names>Rollin A.</given-names></name>
+        <name><surname>Stanton</surname><given-names>John F.</given-names></name>
+        <name><surname>Gordon</surname><given-names>Mark S.</given-names></name>
+        <name><surname>Windus</surname><given-names>Theresa L.</given-names></name>
+        <name><surname>Sherrill</surname><given-names>C. David</given-names></name>
+        <name><surname>Burns</surname><given-names>Lori A.</given-names></name>
+      </person-group>
+      <article-title>Quantum chemistry common driver and databases (QCDB) and quantum chemistry engine (QCEngine): Automation and interoperability among computational chemistry programs</article-title>
+      <source>J. Chem. Phys.</source>
+      <year iso-8601-date="2021-11">2021</year><month>11</month>
+      <volume>155</volume>
+      <issue>20</issue>
+      <issn>0021-9606</issn>
+      <uri>https://doi.org/10.1063/5.0059356</uri>
+      <pub-id pub-id-type="doi">10.1063/5.0059356</pub-id>
+      <fpage>204801</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-hourahine2020">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Hourahine</surname><given-names>B.</given-names></name>
+        <name><surname>Aradi</surname><given-names>B.</given-names></name>
+        <name><surname>Blum</surname><given-names>V.</given-names></name>
+        <name><surname>Bonafé</surname><given-names>F.</given-names></name>
+        <name><surname>Buccheri</surname><given-names>A.</given-names></name>
+        <name><surname>Camacho</surname><given-names>C.</given-names></name>
+        <name><surname>Cevallos</surname><given-names>C.</given-names></name>
+        <name><surname>Deshaye</surname><given-names>M. Y.</given-names></name>
+        <name><surname>Dumitrică</surname><given-names>T.</given-names></name>
+        <name><surname>Dominguez</surname><given-names>A.</given-names></name>
+        <name><surname>Ehlert</surname><given-names>S.</given-names></name>
+        <name><surname>Elstner</surname><given-names>M.</given-names></name>
+        <name><surname>Heide</surname><given-names>T. van der</given-names></name>
+        <name><surname>Hermann</surname><given-names>J.</given-names></name>
+        <name><surname>Irle</surname><given-names>S.</given-names></name>
+        <name><surname>Kranz</surname><given-names>J. J.</given-names></name>
+        <name><surname>Köhler</surname><given-names>C.</given-names></name>
+        <name><surname>Kowalczyk</surname><given-names>T.</given-names></name>
+        <name><surname>Kubař</surname><given-names>T.</given-names></name>
+        <name><surname>Lee</surname><given-names>I. S.</given-names></name>
+        <name><surname>Lutsker</surname><given-names>V.</given-names></name>
+        <name><surname>Maurer</surname><given-names>R. J.</given-names></name>
+        <name><surname>Min</surname><given-names>S. K.</given-names></name>
+        <name><surname>Mitchell</surname><given-names>I.</given-names></name>
+        <name><surname>Negre</surname><given-names>C.</given-names></name>
+        <name><surname>Niehaus</surname><given-names>T. A.</given-names></name>
+        <name><surname>Niklasson</surname><given-names>A. M. N.</given-names></name>
+        <name><surname>Page</surname><given-names>A. J.</given-names></name>
+        <name><surname>Pecchia</surname><given-names>A.</given-names></name>
+        <name><surname>Penazzi</surname><given-names>G.</given-names></name>
+        <name><surname>Persson</surname><given-names>M. P.</given-names></name>
+        <name><surname>Řezáč</surname><given-names>J.</given-names></name>
+        <name><surname>Sánchez</surname><given-names>C. G.</given-names></name>
+        <name><surname>Sternberg</surname><given-names>M.</given-names></name>
+        <name><surname>Stöhr</surname><given-names>M.</given-names></name>
+        <name><surname>Stuckenberg</surname><given-names>F.</given-names></name>
+        <name><surname>Tkatchenko</surname><given-names>A.</given-names></name>
+        <name><surname>Yu</surname><given-names>V. W.-z.</given-names></name>
+        <name><surname>Frauenheim</surname><given-names>T.</given-names></name>
+      </person-group>
+      <article-title>DFTB+, a software package for efficient approximate density functional theory based atomistic simulations</article-title>
+      <source>J. Chem. Phys.</source>
+      <year iso-8601-date="2020-03">2020</year><month>03</month>
+      <volume>152</volume>
+      <issue>12</issue>
+      <issn>0021-9606</issn>
+      <uri>https://doi.org/10.1063/1.5143190</uri>
+      <pub-id pub-id-type="doi">10.1063/1.5143190</pub-id>
+      <fpage>124101</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-grimme2016">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Grimme</surname><given-names>Stefan</given-names></name>
+        <name><surname>Hansen</surname><given-names>Andreas</given-names></name>
+        <name><surname>Brandenburg</surname><given-names>Jan Gerit</given-names></name>
+        <name><surname>Bannwarth</surname><given-names>Christoph</given-names></name>
+      </person-group>
+      <article-title>Dispersion-corrected mean-field electronic structure methods</article-title>
+      <source>Chem. Rev.</source>
+      <publisher-name>ACS Publications</publisher-name>
+      <year iso-8601-date="2016">2016</year>
+      <volume>116</volume>
+      <issue>9</issue>
+      <uri>https://doi.org/10.1021/acs.chemrev.5b00533</uri>
+      <pub-id pub-id-type="doi">10.1021/acs.chemrev.5b00533</pub-id>
+      <fpage>5105</fpage>
+      <lpage>5154</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-kohn1965">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Kohn</surname><given-names>Walter</given-names></name>
+        <name><surname>Sham</surname><given-names>Lu Jeu</given-names></name>
+      </person-group>
+      <article-title>Self-consistent equations including exchange and correlation effects</article-title>
+      <source>Phys. Rev.</source>
+      <publisher-name>APS</publisher-name>
+      <year iso-8601-date="1965">1965</year>
+      <volume>140</volume>
+      <issue>4A</issue>
+      <uri>https://doi.org/10.1103/PhysRev.140.A1133</uri>
+      <pub-id pub-id-type="doi">10.1103/PhysRev.140.A1133</pub-id>
+      <fpage>A1133</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-caldeweyher2019">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Caldeweyher</surname><given-names>Eike</given-names></name>
+        <name><surname>Ehlert</surname><given-names>Sebastian</given-names></name>
+        <name><surname>Hansen</surname><given-names>Andreas</given-names></name>
+        <name><surname>Neugebauer</surname><given-names>Hagen</given-names></name>
+        <name><surname>Spicher</surname><given-names>Sebastian</given-names></name>
+        <name><surname>Bannwarth</surname><given-names>Christoph</given-names></name>
+        <name><surname>Grimme</surname><given-names>Stefan</given-names></name>
+      </person-group>
+      <article-title>A generally applicable atomic-charge dependent london dispersion correction</article-title>
+      <source>J. Chem. Phys.</source>
+      <publisher-name>AIP Publishing</publisher-name>
+      <year iso-8601-date="2019">2019</year>
+      <volume>150</volume>
+      <issue>15</issue>
+      <uri>https://doi.org/10.1063/1.5090222</uri>
+      <pub-id pub-id-type="doi">10.1063/1.5090222</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-kedward2022">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Kedward</surname><given-names>Laurence J</given-names></name>
+        <name><surname>Aradi</surname><given-names>Balint</given-names></name>
+        <name><surname>Čertı́k</surname><given-names>Ondřej</given-names></name>
+        <name><surname>Curcic</surname><given-names>Milan</given-names></name>
+        <name><surname>Ehlert</surname><given-names>Sebastian</given-names></name>
+        <name><surname>Engel</surname><given-names>Philipp</given-names></name>
+        <name><surname>Goswami</surname><given-names>Rohit</given-names></name>
+        <name><surname>Hirsch</surname><given-names>Michael</given-names></name>
+        <name><surname>Lozada-Blanco</surname><given-names>Asdrubal</given-names></name>
+        <name><surname>Magnin</surname><given-names>Vincent</given-names></name>
+        <name><surname>Markus</surname><given-names>Arjen</given-names></name>
+        <name><surname>Pagone</surname><given-names>Emanuele</given-names></name>
+        <name><surname>Pribec</surname><given-names>Ivan</given-names></name>
+        <name><surname>Richardson</surname><given-names>Brad</given-names></name>
+        <name><surname>Snyder</surname><given-names>Harris</given-names></name>
+        <name><surname>Urban</surname><given-names>John</given-names></name>
+        <name><surname>Vandenplas</surname><given-names>Jérémie</given-names></name>
+      </person-group>
+      <article-title>The state of Fortran</article-title>
+      <source>Comput. Sci. Eng.</source>
+      <publisher-name>IEEE</publisher-name>
+      <year iso-8601-date="2022">2022</year>
+      <volume>24</volume>
+      <issue>2</issue>
+      <uri>https://doi.org/10.1109/MCSE.2022.3159862</uri>
+      <pub-id pub-id-type="doi">10.1109/MCSE.2022.3159862</pub-id>
+      <fpage>63</fpage>
+      <lpage>72</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-larsen2017">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Larsen</surname><given-names>Ask Hjorth</given-names></name>
+        <name><surname>Mortensen</surname><given-names>Jens Jørgen</given-names></name>
+        <name><surname>Blomqvist</surname><given-names>Jakob</given-names></name>
+        <name><surname>Castelli</surname><given-names>Ivano E</given-names></name>
+        <name><surname>Christensen</surname><given-names>Rune</given-names></name>
+        <name><surname>Dułak</surname><given-names>Marcin</given-names></name>
+        <name><surname>Friis</surname><given-names>Jesper</given-names></name>
+        <name><surname>Groves</surname><given-names>Michael N</given-names></name>
+        <name><surname>Hammer</surname><given-names>Bjørk</given-names></name>
+        <name><surname>Hargus</surname><given-names>Cory</given-names></name>
+        <name><surname>Hermes</surname><given-names>Eric D</given-names></name>
+        <name><surname>Jennings</surname><given-names>Paul C</given-names></name>
+        <name><surname>Jensen</surname><given-names>Peter Bjerre</given-names></name>
+        <name><surname>Kermode</surname><given-names>James</given-names></name>
+        <name><surname>Kitchin</surname><given-names>John R</given-names></name>
+        <name><surname>Kolsbjerg</surname><given-names>Esben Leonhard</given-names></name>
+        <name><surname>Kubal</surname><given-names>Joseph</given-names></name>
+        <name><surname>Kaasbjerg</surname><given-names>Kristen</given-names></name>
+        <name><surname>Lysgaard</surname><given-names>Steen</given-names></name>
+        <name><surname>Maronsson</surname><given-names>Jón Bergmann</given-names></name>
+        <name><surname>Maxson</surname><given-names>Tristan</given-names></name>
+        <name><surname>Olsen</surname><given-names>Thomas</given-names></name>
+        <name><surname>Pastewka</surname><given-names>Lars</given-names></name>
+        <name><surname>Peterson</surname><given-names>Andrew</given-names></name>
+        <name><surname>Rostgaard</surname><given-names>Carsten</given-names></name>
+        <name><surname>Schiøtz</surname><given-names>Jakob</given-names></name>
+        <name><surname>Schütt</surname><given-names>Ole</given-names></name>
+        <name><surname>Strange</surname><given-names>Mikkel</given-names></name>
+        <name><surname>Thygesen</surname><given-names>Kristian S</given-names></name>
+        <name><surname>Vegge</surname><given-names>Tejs</given-names></name>
+        <name><surname>Vilhelmsen</surname><given-names>Lasse</given-names></name>
+        <name><surname>Walter</surname><given-names>Michael</given-names></name>
+        <name><surname>Zeng</surname><given-names>Zhenhua</given-names></name>
+        <name><surname>Jacobsen</surname><given-names>Karsten W</given-names></name>
+      </person-group>
+      <article-title>The atomic simulation environment—a Python library for working with atoms</article-title>
+      <source>J. Phys.: Condens. Matter</source>
+      <publisher-name>IOP Publishing</publisher-name>
+      <year iso-8601-date="2017">2017</year>
+      <volume>29</volume>
+      <issue>27</issue>
+      <uri>https://doi.org/10.1088/1361-648X/aa680e</uri>
+      <pub-id pub-id-type="doi">10.1088/1361-648X/aa680e</pub-id>
+      <fpage>273002</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-wittmann2024">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Wittmann</surname><given-names>Lukas</given-names></name>
+        <name><surname>Gordiy</surname><given-names>Igor</given-names></name>
+        <name><surname>Friede</surname><given-names>Marvin</given-names></name>
+        <name><surname>Helmich-Paris</surname><given-names>Benjamin</given-names></name>
+        <name><surname>Grimme</surname><given-names>Stefan</given-names></name>
+        <name><surname>Hansen</surname><given-names>Andreas</given-names></name>
+        <name><surname>Bursch</surname><given-names>Markus</given-names></name>
+      </person-group>
+      <article-title>Extension of the D3 and D4 london dispersion corrections to the full actinides series</article-title>
+      <source>Phys. Chem. Chem. Phys.</source>
+      <publisher-name>Royal Society of Chemistry</publisher-name>
+      <year iso-8601-date="2024">2024</year>
+      <uri>https://doi.org/10.1039/D4CP01514B</uri>
+      <pub-id pub-id-type="doi">10.1039/D4CP01514B</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-gorges2022">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Gorges</surname><given-names>Johannes</given-names></name>
+        <name><surname>Grimme</surname><given-names>Stefan</given-names></name>
+        <name><surname>Hansen</surname><given-names>Andreas</given-names></name>
+      </person-group>
+      <article-title>Reliable prediction of association (free) energies of supramolecular complexes with heavy main group elements–the HS13L benchmark set</article-title>
+      <source>Phys. Chem. Chem. Phys.</source>
+      <publisher-name>Royal Society of Chemistry</publisher-name>
+      <year iso-8601-date="2022">2022</year>
+      <volume>24</volume>
+      <issue>47</issue>
+      <uri>https://doi.org/10.1039/D2CP04049B</uri>
+      <pub-id pub-id-type="doi">10.1039/D2CP04049B</pub-id>
+      <fpage>28831</fpage>
+      <lpage>28843</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-yu2024">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Yu</surname><given-names>Siying</given-names></name>
+        <name><surname>Gautam</surname><given-names>Ankit Kumar</given-names></name>
+        <name><surname>Gao</surname><given-names>Di</given-names></name>
+        <name><surname>Kuhn</surname><given-names>Andrew N</given-names></name>
+        <name><surname>He</surname><given-names>Haozhen</given-names></name>
+        <name><surname>Mironenko</surname><given-names>Alexander V</given-names></name>
+        <name><surname>Yang</surname><given-names>Hong</given-names></name>
+      </person-group>
+      <article-title>Implication of surface oxidation of nanoscale molybdenum carbide on electrocatalytic activity</article-title>
+      <source>J. Mater. Chem. A</source>
+      <publisher-name>Royal Society of Chemistry</publisher-name>
+      <year iso-8601-date="2024">2024</year>
+      <uri>https://doi.org/10.1039/D4TA01746C</uri>
+      <pub-id pub-id-type="doi">10.1039/D4TA01746C</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-wu2024">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Wu</surname><given-names>Xiaojie</given-names></name>
+        <name><surname>Sun</surname><given-names>Qiming</given-names></name>
+        <name><surname>Pu</surname><given-names>Zhichen</given-names></name>
+        <name><surname>Zheng</surname><given-names>Tianze</given-names></name>
+        <name><surname>Ma</surname><given-names>Wenzhi</given-names></name>
+        <name><surname>Yan</surname><given-names>Wen</given-names></name>
+        <name><surname>Yu</surname><given-names>Xia</given-names></name>
+        <name><surname>Wu</surname><given-names>Zhengxiao</given-names></name>
+        <name><surname>Huo</surname><given-names>Mian</given-names></name>
+        <name><surname>Li</surname><given-names>Xiang</given-names></name>
+        <name><surname>Ren</surname><given-names>Weiluo</given-names></name>
+        <name><surname>Gong</surname><given-names>Sheng</given-names></name>
+        <name><surname>Zhang</surname><given-names>Yumin</given-names></name>
+        <name><surname>Gao</surname><given-names>Weihao</given-names></name>
+      </person-group>
+      <article-title>Enhancing GPU-acceleration in the Python-based simulations of chemistry framework</article-title>
+      <year iso-8601-date="2024">2024</year>
+      <uri>https://arxiv.org/abs/2404.09452</uri>
+      <pub-id pub-id-type="doi">10.48550/arXiv.2404.09452</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-ju2024">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Ju</surname><given-names>Fusong</given-names></name>
+        <name><surname>Wei</surname><given-names>Xinran</given-names></name>
+        <name><surname>Huang</surname><given-names>Lin</given-names></name>
+        <name><surname>Jenkins</surname><given-names>Andrew J.</given-names></name>
+        <name><surname>Xia</surname><given-names>Leo</given-names></name>
+        <name><surname>Zhang</surname><given-names>Jia</given-names></name>
+        <name><surname>Zhu</surname><given-names>Jianwei</given-names></name>
+        <name><surname>Yang</surname><given-names>Han</given-names></name>
+        <name><surname>Shao</surname><given-names>Bin</given-names></name>
+        <name><surname>Dai</surname><given-names>Peggy</given-names></name>
+        <name><surname>Mayya</surname><given-names>Ashwin</given-names></name>
+        <name><surname>Hooshmand</surname><given-names>Zahra</given-names></name>
+        <name><surname>Efimovskaya</surname><given-names>Alexandra</given-names></name>
+        <name><surname>Baker</surname><given-names>Nathan A.</given-names></name>
+        <name><surname>Troyer</surname><given-names>Matthias</given-names></name>
+        <name><surname>Liu</surname><given-names>Hongbin</given-names></name>
+      </person-group>
+      <article-title>Acceleration without disruption: DFT software as a service</article-title>
+      <year iso-8601-date="2024">2024</year>
+      <uri>https://arxiv.org/abs/2406.11185</uri>
+      <pub-id pub-id-type="doi">10.48550/arXiv.2406.11185</pub-id>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
