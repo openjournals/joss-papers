@@ -1,0 +1,541 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">7522</article-id>
+<article-id pub-id-type="doi">10.21105/joss.07522</article-id>
+<title-group>
+<article-title>DiffOpt: Parallel optimization of Jax
+models</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0001-9820-9619</contrib-id>
+<name>
+<surname>Pearl</surname>
+<given-names>Alan N.</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0002-4392-8920</contrib-id>
+<name>
+<surname>Beltz-Mohrmann</surname>
+<given-names>Gillian D.</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0003-2219-6852</contrib-id>
+<name>
+<surname>Hearin</surname>
+<given-names>Andrew P.</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>HEP Division, Argonne National Laboratory, 9700 South Cass
+Avenue, Lemont, IL 60439, USA</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2024-10-09">
+<day>9</day>
+<month>10</month>
+<year>2024</year>
+</pub-date>
+<volume>9</volume>
+<issue>104</issue>
+<fpage>7522</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2024</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>Python</kwd>
+<kwd>Jax</kwd>
+<kwd>MPI</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p><monospace>diffopt</monospace> is a Python package which
+  facilitates in the optimization of data-parallelized, differentiable
+  models using the Jax
+  (<xref alt="Bradbury et al., 2018" rid="ref-jax2018github" ref-type="bibr">Bradbury
+  et al., 2018</xref>) framework. It is composed of three subpackages,
+  <monospace>multigrad</monospace>, <monospace>kdescent</monospace>, and
+  <monospace>multiswarm</monospace>. Leveraging MPI (Message Passing
+  Interface), <monospace>multigrad</monospace> efficiently sums and
+  propagates gradients of custom-defined summary statistics across
+  processors and computing nodes. <monospace>kdescent</monospace>
+  utilizes mini-batched kernel density estimates to perform stochastic
+  gradient descent to fit a full model distribution to an N-dimensional
+  training dataset. A massively parallelizable implementation of
+  particle swarm optimization (PSO) is provided by
+  <monospace>multiswarm</monospace>, enabling global optimization of
+  even high-dimensional, non-convex loss surfaces. Our simple yet
+  flexible design makes these methods applicable to a wide variety of
+  problems requiring solutions scalable to large amounts of data through
+  both gradient- and non-gradient-based optimization techniques. Visit
+  our
+  <ext-link ext-link-type="uri" xlink:href="https://diffopt.readthedocs.io">documentation
+  page</ext-link> to learn the usage.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of Need</title>
+  <p>In and beyond the field of cosmology, parameterized models can
+  describe complex systems, provided that the parameters have been tuned
+  adequately to fit the model to observational data. Fitting
+  capabilities can be increased dramatically by gradient-based
+  techniques, particularly in high-dimensional parameter spaces.
+  Existing gradient descent tools in Jax do not inherently support
+  data-parallelism with MPI, creating a speed and memory bottleneck for
+  such computations.</p>
+  <p><monospace>multigrad</monospace> addresses this need by providing
+  an easy-to-use interface for implementing data-parallelized models. It
+  handles the MPI reductions as well as the mathematical complexities
+  involved in propagating chain rules required to compute the gradient
+  of the loss, which is a function of parallelized summary statistics,
+  which are in turn functions of the model parameters. At the same time,
+  it is very flexible in that it allows users to define their own
+  functions to compute their summary statistics and loss. As a result,
+  this package can enable scalability through parallelization to the
+  optimization routine of nearly any big-data model.
+  <monospace>kdescent</monospace> and <monospace>multiswarm</monospace>
+  each provide powerful fitting tools which are fully compatible with
+  the parallelization framework laid out by
+  <monospace>multigrad</monospace>.</p>
+  <p>Past efforts have already been made towards parallelization of Jax
+  (<monospace>mpi4jax</monospace>,
+  <xref alt="Häfner &amp; Vicentini, 2021" rid="ref-HafnerU003A2021" ref-type="bibr">Häfner
+  &amp; Vicentini, 2021</xref>), parallel gradient descent (e.g.,
+  <xref alt="Gray et al., 2019" rid="ref-GrayU003A2019" ref-type="bibr">Gray
+  et al., 2019</xref>), and parallel PSO
+  (<xref alt="Blank &amp; Deb, 2020" rid="ref-BlankU003A2020" ref-type="bibr">Blank
+  &amp; Deb, 2020</xref>;
+  <xref alt="Li &amp; Wada, 2005" rid="ref-LiU003A2005" ref-type="bibr">Li
+  &amp; Wada, 2005</xref>). Our approach combines many of these features
+  and more into one easy-to-use, documented Python module with all the
+  tools to optimize arbitrarily complex models that the user has
+  implemented in the Jax framework. Additionally, while the fundamental
+  MPI reductions available through <monospace>mpi4jax</monospace> are
+  generally sufficient, our <monospace>multigrad</monospace> procedure
+  provides significant convenience for problems in which complex summary
+  statistics are computed in parallel before being applied to a
+  differentiable loss function.</p>
+</sec>
+<sec id="method">
+  <title>Method</title>
+  <sec id="multigrad">
+    <title><monospace>multigrad</monospace></title>
+    <p><monospace>multigrad</monospace> allows the user to implement a
+    loss term, which is a function of summary statistics, which are
+    functions of parameters, <inline-formula><alternatives>
+    <tex-math><![CDATA[L(\vec{y}(\vec{x}))]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>L</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mover><mml:mi>y</mml:mi><mml:mo accent="true">→</mml:mo></mml:mover><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mover><mml:mi>x</mml:mi><mml:mo accent="true">→</mml:mo></mml:mover><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>
+    where the summary statistics are summed over multiple MPI-linked
+    processes: <inline-formula><alternatives>
+    <tex-math><![CDATA[\vec{y} = \sum_i\vec{y}_{(i)}]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mover><mml:mi>y</mml:mi><mml:mo accent="true">→</mml:mo></mml:mover><mml:mo>=</mml:mo><mml:msub><mml:mo>∑</mml:mo><mml:mi>i</mml:mi></mml:msub><mml:msub><mml:mover><mml:mi>y</mml:mi><mml:mo accent="true">→</mml:mo></mml:mover><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>i</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:msub></mml:mrow></mml:math></alternatives></inline-formula>
+    where <inline-formula><alternatives>
+    <tex-math><![CDATA[i]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>i</mml:mi></mml:math></alternatives></inline-formula>
+    is the index of each process. In this section, we will derive the
+    gradient of the loss <inline-formula><alternatives>
+    <tex-math><![CDATA[\vec{\nabla} L]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mover><mml:mi>∇</mml:mi><mml:mo accent="true">→</mml:mo></mml:mover><mml:mi>L</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>
+    with respect to the parameters and as a sum of terms that each
+    process can compute independently.</p>
+    <p>We will begin from the definition of the multivariate chain
+    rule,</p>
+    <p><disp-formula><alternatives>
+    <tex-math><![CDATA[ \frac{\partial L}{\partial x_j} = \sum\limits_{k} \frac{\partial L}
+    {\partial y_k} \frac{\partial y_k}{\partial x_j} ]]></tex-math>
+    <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mfrac><mml:mrow><mml:mi>∂</mml:mi><mml:mi>L</mml:mi></mml:mrow><mml:mrow><mml:mi>∂</mml:mi><mml:msub><mml:mi>x</mml:mi><mml:mi>j</mml:mi></mml:msub></mml:mrow></mml:mfrac><mml:mo>=</mml:mo><mml:munder><mml:mo>∑</mml:mo><mml:mi>k</mml:mi></mml:munder><mml:mfrac><mml:mrow><mml:mi>∂</mml:mi><mml:mi>L</mml:mi></mml:mrow><mml:mrow><mml:mi>∂</mml:mi><mml:msub><mml:mi>y</mml:mi><mml:mi>k</mml:mi></mml:msub></mml:mrow></mml:mfrac><mml:mfrac><mml:mrow><mml:mi>∂</mml:mi><mml:msub><mml:mi>y</mml:mi><mml:mi>k</mml:mi></mml:msub></mml:mrow><mml:mrow><mml:mi>∂</mml:mi><mml:msub><mml:mi>x</mml:mi><mml:mi>j</mml:mi></mml:msub></mml:mrow></mml:mfrac></mml:mrow></mml:math></alternatives></disp-formula></p>
+    <p>where <inline-formula><alternatives>
+    <tex-math><![CDATA[\partial y_k]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>∂</mml:mi><mml:msub><mml:mi>y</mml:mi><mml:mi>k</mml:mi></mml:msub></mml:mrow></mml:math></alternatives></inline-formula>
+    = <inline-formula><alternatives>
+    <tex-math><![CDATA[\sum_i\partial y_{k (i)}]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mo>∑</mml:mo><mml:mi>i</mml:mi></mml:msub><mml:mi>∂</mml:mi><mml:msub><mml:mi>y</mml:mi><mml:mrow><mml:mi>k</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>i</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:msub></mml:mrow></mml:math></alternatives></inline-formula>.
+    By pulling out the MPI summation over <inline-formula><alternatives>
+    <tex-math><![CDATA[i]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>i</mml:mi></mml:math></alternatives></inline-formula>,</p>
+    <p><disp-formula><alternatives>
+    <tex-math><![CDATA[ \frac{\partial L}{\partial x_j} = \sum\limits_{i} \sum\limits_{k} 
+    \frac{\partial L}{\partial y_k} \frac{\partial y_{k (i)}}{\partial x_j} ]]></tex-math>
+    <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mfrac><mml:mrow><mml:mi>∂</mml:mi><mml:mi>L</mml:mi></mml:mrow><mml:mrow><mml:mi>∂</mml:mi><mml:msub><mml:mi>x</mml:mi><mml:mi>j</mml:mi></mml:msub></mml:mrow></mml:mfrac><mml:mo>=</mml:mo><mml:munder><mml:mo>∑</mml:mo><mml:mi>i</mml:mi></mml:munder><mml:munder><mml:mo>∑</mml:mo><mml:mi>k</mml:mi></mml:munder><mml:mfrac><mml:mrow><mml:mi>∂</mml:mi><mml:mi>L</mml:mi></mml:mrow><mml:mrow><mml:mi>∂</mml:mi><mml:msub><mml:mi>y</mml:mi><mml:mi>k</mml:mi></mml:msub></mml:mrow></mml:mfrac><mml:mfrac><mml:mrow><mml:mi>∂</mml:mi><mml:msub><mml:mi>y</mml:mi><mml:mrow><mml:mi>k</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>i</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:msub></mml:mrow><mml:mrow><mml:mi>∂</mml:mi><mml:msub><mml:mi>x</mml:mi><mml:mi>j</mml:mi></mml:msub></mml:mrow></mml:mfrac></mml:mrow></mml:math></alternatives></disp-formula></p>
+    <p>and by rewriting this as vector-matrix multiplication,</p>
+    <p><disp-formula><alternatives>
+    <tex-math><![CDATA[ \vec{\nabla_x} L = \sum\limits_{i} (\vec{\nabla_y} L)^T J_{(i)} ]]></tex-math>
+    <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mover><mml:msub><mml:mi>∇</mml:mi><mml:mi>x</mml:mi></mml:msub><mml:mo accent="true">→</mml:mo></mml:mover><mml:mi>L</mml:mi><mml:mo>=</mml:mo><mml:munder><mml:mo>∑</mml:mo><mml:mi>i</mml:mi></mml:munder><mml:msup><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mover><mml:msub><mml:mi>∇</mml:mi><mml:mi>y</mml:mi></mml:msub><mml:mo accent="true">→</mml:mo></mml:mover><mml:mi>L</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mi>T</mml:mi></mml:msup><mml:msub><mml:mi>J</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>i</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:msub></mml:mrow></mml:math></alternatives></disp-formula></p>
+    <p>we can clearly identify that each process has to perform a
+    vector-Jacobian product (VJP), where <inline-formula><alternatives>
+    <tex-math><![CDATA[J_{(i)}]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>J</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>i</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:msub></mml:math></alternatives></inline-formula>
+    is the Jacobian matrix such that <inline-formula><alternatives>
+    <tex-math><![CDATA[J_{kj (i)} = \frac{\partial y_{k (i)}}{\partial x_j}]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>J</mml:mi><mml:mrow><mml:mi>k</mml:mi><mml:mi>j</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>i</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:msub><mml:mo>=</mml:mo><mml:mfrac><mml:mrow><mml:mi>∂</mml:mi><mml:msub><mml:mi>y</mml:mi><mml:mrow><mml:mi>k</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>i</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:msub></mml:mrow><mml:mrow><mml:mi>∂</mml:mi><mml:msub><mml:mi>x</mml:mi><mml:mi>j</mml:mi></mml:msub></mml:mrow></mml:mfrac></mml:mrow></mml:math></alternatives></inline-formula>.
+    Fortunately, this is a computation that Jax can perform very
+    efficiently, without the need to explicitly calculate the full
+    Jacobian matrix by making use of the
+    <ext-link ext-link-type="uri" xlink:href="https://jax.readthedocs.io/en/latest/_autosummary/jax.vjp.html"><monospace>jax.vjp</monospace></ext-link>
+    feature, saving us orders of magnitude of time and memory
+    requirements.</p>
+  </sec>
+  <sec id="kdescent">
+    <title><monospace>kdescent</monospace></title>
+    <p>Mini-batching techniques often compute the loss function with
+    only a small subset of the training data taken into account. In
+    <monospace>kdescent</monospace>, the density of the full training
+    dataset is measured around a “mini-batched” sample of kernel
+    centers, which are drawn from points in the training data. With each
+    iteration of stochastic gradient descent, a new sample of (20 by
+    default) kernels is selected at positions
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[\vec{\mu}_k]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mover><mml:mi>μ</mml:mi><mml:mo accent="true">→</mml:mo></mml:mover><mml:mi>k</mml:mi></mml:msub></mml:math></alternatives></inline-formula>
+    for each kernel <inline-formula><alternatives>
+    <tex-math><![CDATA[k]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>k</mml:mi></mml:math></alternatives></inline-formula>.</p>
+    <p>Using the <monospace>compare_kde_counts</monospace> method, the
+    “true” and “model” counts are each computed around each kernel using
+    the same equation below, where <inline-formula><alternatives>
+    <tex-math><![CDATA[x_i]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>x</mml:mi><mml:mi>i</mml:mi></mml:msub></mml:math></alternatives></inline-formula>
+    is the
+    <inline-formula><tex-math><![CDATA[i^{\rm th}]]></tex-math></inline-formula>
+    point in the training data or model data, respectively:</p>
+    <p><disp-formula><alternatives>
+    <tex-math><![CDATA[ N_k = \sum\limits_i \mathcal{N}(\vec{x}_i \; | \; \vec{\mu}_k, \Sigma) ]]></tex-math>
+    <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>N</mml:mi><mml:mi>k</mml:mi></mml:msub><mml:mo>=</mml:mo><mml:munder><mml:mo>∑</mml:mo><mml:mi>i</mml:mi></mml:munder><mml:mi>𝒩</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mover><mml:mi>x</mml:mi><mml:mo accent="true">→</mml:mo></mml:mover><mml:mi>i</mml:mi></mml:msub><mml:mspace width="0.278em"></mml:mspace><mml:mo stretchy="false" form="prefix">|</mml:mo><mml:mspace width="0.278em"></mml:mspace><mml:msub><mml:mover><mml:mi>μ</mml:mi><mml:mo accent="true">→</mml:mo></mml:mover><mml:mi>k</mml:mi></mml:msub><mml:mo>,</mml:mo><mml:mi>Σ</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></disp-formula></p>
+    <p>where <inline-formula><alternatives>
+    <tex-math><![CDATA[\mathcal{N}]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>𝒩</mml:mi></mml:math></alternatives></inline-formula>
+    is the multivariate-normal distribution with mean
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[\vec{\mu}_k]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mover><mml:mi>μ</mml:mi><mml:mo accent="true">→</mml:mo></mml:mover><mml:mi>k</mml:mi></mml:msub></mml:math></alternatives></inline-formula>
+    and covariance matrix <inline-formula><alternatives>
+    <tex-math><![CDATA[\Sigma]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>Σ</mml:mi></mml:math></alternatives></inline-formula>
+    (where the covariance is calculated using Scott’s rule for kernel
+    density estimation of the training dataset; Scott
+    (<xref alt="1992" rid="ref-ScottU003A1992" ref-type="bibr">1992</xref>)).
+    It is then up to the user to define their own loss function
+    comparing the counts of
+    <inline-formula><tex-math><![CDATA[N_{k, \rm truth}]]></tex-math></inline-formula>
+    to
+    <inline-formula><tex-math><![CDATA[N_{k, \rm model}]]></tex-math></inline-formula>.
+    Note that these are extrinsic quantities (as is necessary to be
+    parallelizable through <monospace>multigrad</monospace>) which can
+    be reduced to intrinsic quantities for PDF-level comparisons by
+    simply dividing by the total number of training and model data,
+    respectively.</p>
+    <p>The analogous <monospace>compare_fourier_counts</monospace>
+    method can provide additional loss terms relating to differences in
+    the empirical characteristic function (ECF; Cramer
+    (<xref alt="1954" rid="ref-CramerU003A1954" ref-type="bibr">1954</xref>)).
+    It is evaluated at a random sample of (20 by default) Fourier-space
+    positions, <inline-formula><alternatives>
+    <tex-math><![CDATA[\vec{\tilde{x}}_k]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mover><mml:mover><mml:mi>x</mml:mi><mml:mo accent="true">̃</mml:mo></mml:mover><mml:mo accent="true">→</mml:mo></mml:mover><mml:mi>k</mml:mi></mml:msub></mml:math></alternatives></inline-formula>,
+    for both the “true” and “model” Fourier counts:</p>
+    <p><disp-formula><alternatives>
+    <tex-math><![CDATA[ \tilde{N}_k = \sum\limits_i \exp(i \vec{\tilde{x}}_k \cdot \vec{x}_i). ]]></tex-math>
+    <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mover><mml:mi>N</mml:mi><mml:mo accent="true">̃</mml:mo></mml:mover><mml:mi>k</mml:mi></mml:msub><mml:mo>=</mml:mo><mml:munder><mml:mo>∑</mml:mo><mml:mi>i</mml:mi></mml:munder><mml:mo>exp</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>i</mml:mi><mml:msub><mml:mover><mml:mover><mml:mi>x</mml:mi><mml:mo accent="true">̃</mml:mo></mml:mover><mml:mo accent="true">→</mml:mo></mml:mover><mml:mi>k</mml:mi></mml:msub><mml:mo>⋅</mml:mo><mml:msub><mml:mover><mml:mi>x</mml:mi><mml:mo accent="true">→</mml:mo></mml:mover><mml:mi>i</mml:mi></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mi>.</mml:mi></mml:mrow></mml:math></alternatives></disp-formula></p>
+  </sec>
+  <sec id="multiswarm">
+    <title><monospace>multiswarm</monospace></title>
+    <p>Particle swarm optimization (PSO; Kennedy &amp; Eberhart
+    (<xref alt="1995" rid="ref-KennedyU003A1995" ref-type="bibr">1995</xref>))
+    is a highly exploratory fitting algorithm in which a set of (100 by
+    default) particles are initialized with randomized velocities and
+    positions with Latin-Hypercube spacing over the loss function’s
+    parameter space. Each particle has an inertial weight
+    (<inline-formula><alternatives>
+    <tex-math><![CDATA[w_I = 1]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>w</mml:mi><mml:mi>I</mml:mi></mml:msub><mml:mo>=</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>
+    by default), a cognitive weight, (<inline-formula><alternatives>
+    <tex-math><![CDATA[w_C = 0.21]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>w</mml:mi><mml:mi>C</mml:mi></mml:msub><mml:mo>=</mml:mo><mml:mn>0.21</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>
+    by default), and a social weight, (<inline-formula><alternatives>
+    <tex-math><![CDATA[w_S = 0.07]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>w</mml:mi><mml:mi>S</mml:mi></mml:msub><mml:mo>=</mml:mo><mml:mn>0.07</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>
+    by default). The default parameters have been hand-tuned to optimize
+    parameter exploration performed by 100 particles before converging
+    over roughly 100 time steps in a 4D Ackley loss function
+    <ext-link ext-link-type="uri" xlink:href="https://diffopt.readthedocs.io/en/latest/multiswarm/intro.html">demonstrated
+    in our documentation</ext-link>.</p>
+    <p>Within each PSO iteration: (1) Each particle’s position is
+    updated according to its current velocity
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[x_{i+1} = x_i + v_i]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>x</mml:mi><mml:mrow><mml:mi>i</mml:mi><mml:mo>+</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:msub><mml:mo>=</mml:mo><mml:msub><mml:mi>x</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mo>+</mml:mo><mml:msub><mml:mi>v</mml:mi><mml:mi>i</mml:mi></mml:msub></mml:mrow></mml:math></alternatives></inline-formula>.
+    (2) Positions and velocities are then reflected accordingly across
+    any axes in which they have left the boundaries, if applicable. (3)
+    Finally, the particle’s velocity is slightly pulled in the direction
+    of its personal best
+    <inline-formula><tex-math><![CDATA[x_{\rm PB}]]></tex-math></inline-formula>
+    and global best
+    <inline-formula><tex-math><![CDATA[x_{\rm GB}]]></tex-math></inline-formula>
+    loss found, according to the following equation:</p>
+    <p><disp-formula><tex-math><![CDATA[ v_{i+1} = w_I v_i + w_C (x_{\rm PB} - x_{i+1}) 
+    + w_S (x_{\rm GB} - x_{i+1}) ]]></tex-math></disp-formula></p>
+    <p>The <monospace>multiswarm</monospace> implementation of PSO
+    allows users to conveniently distribute the loss function
+    computations performed by each particle across MPI ranks. Particles
+    are evenly distributed across all ranks by default, but users
+    needing further control can provide a custom MPI communicator
+    object, and/or specify the <monospace>ranks_per_particle</monospace>
+    argument to manually control intra-particle parallelization.</p>
+  </sec>
+</sec>
+<sec id="science-use-case">
+  <title>Science Use Case</title>
+  <p><monospace>diffopt</monospace> was developed to aid in parameter
+  optimization for high-dimensional differentiable models applied to
+  large datasets. It has enabled the scaling to cosmological volumes of
+  a differentiable forward modeling pipeline which predicts galaxy
+  properties based on a simulated dark matter density field (Diffmah:
+  Hearin et al.
+  (<xref alt="2021" rid="ref-HearinU003A2021" ref-type="bibr">2021</xref>);
+  Diffstar: Alarcon et al.
+  (<xref alt="2023" rid="ref-AlarconU003A2023" ref-type="bibr">2023</xref>);
+  DSPS: Hearin et al.
+  (<xref alt="2023" rid="ref-HearinU003A2023" ref-type="bibr">2023</xref>)).
+  Ongoing research is currently utilizing <monospace>diffopt</monospace>
+  to optimize the parameters of this pipeline to reproduce observed
+  galaxy properties (e.g. Beltz-Mohrmann et al.  in prep.). More
+  broadly, <monospace>diffopt</monospace> has useful applications for
+  any scientific research that focuses on fitting high-dimensional
+  models to large datasets and would benefit from computing parameter
+  gradients in parallel.</p>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>This work was supported in part by the OpenUniverse effort, which
+  is funded by NASA under JPL Contract Task 70-711320, ‘Maximizing
+  Science Exploitation of Simulated Cosmological Survey Data Across
+  Surveys’, and by the DOE contract DE-AC02-06CH11357. We gratefully
+  acknowledge the HPC resources operated by the Laboratory Computing
+  Resource Center at Argonne National Laboratory.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <title></title>
+  <ref id="ref-jax2018github">
+    <element-citation publication-type="software">
+      <person-group person-group-type="author">
+        <name><surname>Bradbury</surname><given-names>James</given-names></name>
+        <name><surname>Frostig</surname><given-names>Roy</given-names></name>
+        <name><surname>Hawkins</surname><given-names>Peter</given-names></name>
+        <name><surname>Johnson</surname><given-names>Matthew James</given-names></name>
+        <name><surname>Leary</surname><given-names>Chris</given-names></name>
+        <name><surname>Maclaurin</surname><given-names>Dougal</given-names></name>
+        <name><surname>Necula</surname><given-names>George</given-names></name>
+        <name><surname>Paszke</surname><given-names>Adam</given-names></name>
+        <name><surname>VanderPlas</surname><given-names>Jake</given-names></name>
+        <name><surname>Wanderman-Milne</surname><given-names>Skye</given-names></name>
+        <name><surname>Zhang</surname><given-names>Qiao</given-names></name>
+      </person-group>
+      <article-title>JAX: Composable transformations of Python+NumPy programs</article-title>
+      <year iso-8601-date="2018">2018</year>
+      <uri>http://github.com/google/jax</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-HearinU003A2021">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Hearin</surname><given-names>Andrew P.</given-names></name>
+        <name><surname>Chaves-Montero</surname><given-names>Jonás</given-names></name>
+        <name><surname>Becker</surname><given-names>Mathew R.</given-names></name>
+        <name><surname>Alarcon</surname><given-names>Alex</given-names></name>
+      </person-group>
+      <article-title>A Differentiable Model of the Assembly of Individual and Populations of Dark Matter Halos</article-title>
+      <source>The Open Journal of Astrophysics</source>
+      <year iso-8601-date="2021">2021</year>
+      <volume>4</volume>
+      <issue>1</issue>
+      <uri>https://arxiv.org/abs/2105.05859</uri>
+      <pub-id pub-id-type="doi">10.21105/astro.2105.05859</pub-id>
+      <fpage>7</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-AlarconU003A2023">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Alarcon</surname><given-names>Alex</given-names></name>
+        <name><surname>Hearin</surname><given-names>Andrew P.</given-names></name>
+        <name><surname>Becker</surname><given-names>Matthew R.</given-names></name>
+        <name><surname>Chaves-Montero</surname><given-names>Jonás</given-names></name>
+      </person-group>
+      <article-title>Diffstar: a fully parametric physical model for galaxy assembly history</article-title>
+      <source></source>
+      <year iso-8601-date="2023">2023</year>
+      <volume>518</volume>
+      <issue>1</issue>
+      <uri>https://arxiv.org/abs/2205.04273</uri>
+      <pub-id pub-id-type="doi">10.1093/mnras/stac3118</pub-id>
+      <fpage>562</fpage>
+      <lpage>584</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-HearinU003A2023">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Hearin</surname><given-names>Andrew P.</given-names></name>
+        <name><surname>Chaves-Montero</surname><given-names>Jonás</given-names></name>
+        <name><surname>Alarcon</surname><given-names>Alex</given-names></name>
+        <name><surname>Becker</surname><given-names>Matthew R.</given-names></name>
+        <name><surname>Benson</surname><given-names>Andrew</given-names></name>
+      </person-group>
+      <article-title>DSPS: Differentiable stellar population synthesis</article-title>
+      <source></source>
+      <year iso-8601-date="2023-05">2023</year><month>05</month>
+      <volume>521</volume>
+      <issue>2</issue>
+      <uri>https://arxiv.org/abs/2112.06830</uri>
+      <pub-id pub-id-type="doi">10.1093/mnras/stad456</pub-id>
+      <fpage>1741</fpage>
+      <lpage>1756</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-ScottU003A1992">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Scott</surname><given-names>D. W.</given-names></name>
+      </person-group>
+      <source>Multivariate density estimation: Theory, practice, and visualization</source>
+      <publisher-name>Wiley</publisher-name>
+      <year iso-8601-date="1992">1992</year>
+      <isbn>9780471547709</isbn>
+      <uri>https://books.google.com/books?id=7crCUS_F2ocC</uri>
+      <pub-id pub-id-type="doi">10.2307/1270280</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-CramerU003A1954">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Cramer</surname><given-names>Harald</given-names></name>
+      </person-group>
+      <source>Mathematical methods of statistics</source>
+      <publisher-name>Princeton Univ. Press</publisher-name>
+      <publisher-loc>Princeton, NJ</publisher-loc>
+      <year iso-8601-date="1954">1954</year>
+      <uri>https://cds.cern.ch/record/107581</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-KennedyU003A1995">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Kennedy</surname><given-names>J.</given-names></name>
+        <name><surname>Eberhart</surname><given-names>R.</given-names></name>
+      </person-group>
+      <article-title>Particle swarm optimization</article-title>
+      <source>Proceedings of ICNN’95 - international conference on neural networks</source>
+      <year iso-8601-date="1995">1995</year>
+      <volume>4</volume>
+      <pub-id pub-id-type="doi">10.1109/ICNN.1995.488968</pub-id>
+      <fpage>1942</fpage>
+      <lpage>1948 vol.4</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-HafnerU003A2021">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Häfner</surname><given-names>Dion</given-names></name>
+        <name><surname>Vicentini</surname><given-names>Filippo</given-names></name>
+      </person-group>
+      <article-title>mpi4jax: Zero-copy MPI communication of JAX arrays</article-title>
+      <source>Journal of Open Source Software</source>
+      <publisher-name>The Open Journal</publisher-name>
+      <year iso-8601-date="2021">2021</year>
+      <volume>6</volume>
+      <issue>65</issue>
+      <uri>https://doi.org/10.21105/joss.03419</uri>
+      <pub-id pub-id-type="doi">10.21105/joss.03419</pub-id>
+      <fpage>3419</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-GrayU003A2019">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Gray</surname><given-names>Justin S.</given-names></name>
+        <name><surname>Hwang</surname><given-names>John T.</given-names></name>
+        <name><surname>Martins</surname><given-names>Joaquim R. R. A.</given-names></name>
+        <name><surname>Moore</surname><given-names>Kenneth T.</given-names></name>
+        <name><surname>Naylor</surname><given-names>Bret A.</given-names></name>
+      </person-group>
+      <article-title>OpenMDAO: An open-source framework for multidisciplinary design, analysis, and optimization</article-title>
+      <source>Structural and Multidisciplinary Optimization</source>
+      <year iso-8601-date="2019">2019</year>
+      <volume>59</volume>
+      <issue>4</issue>
+      <pub-id pub-id-type="doi">10.1007/s00158-019-02211-z</pub-id>
+      <fpage>1075</fpage>
+      <lpage>1104</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-LiU003A2005">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Li</surname><given-names>Bo</given-names></name>
+        <name><surname>Wada</surname><given-names>Koichi</given-names></name>
+      </person-group>
+      <article-title>Parallelizing particle swarm optimization</article-title>
+      <source>PACRIM. 2005 IEEE pacific rim conference on communications, computers and signal processing, 2005.</source>
+      <year iso-8601-date="2005">2005</year>
+      <volume></volume>
+      <pub-id pub-id-type="doi">10.1109/PACRIM.2005.1517282</pub-id>
+      <fpage>288</fpage>
+      <lpage>291</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-BlankU003A2020">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Blank</surname><given-names>J.</given-names></name>
+        <name><surname>Deb</surname><given-names>K.</given-names></name>
+      </person-group>
+      <article-title>Pymoo: Multi-objective optimization in Python</article-title>
+      <source>IEEE Access</source>
+      <year iso-8601-date="2020">2020</year>
+      <volume>8</volume>
+      <issue></issue>
+      <pub-id pub-id-type="doi">10.1109/access.2020.2990567</pub-id>
+      <fpage>89497</fpage>
+      <lpage>89509</lpage>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
