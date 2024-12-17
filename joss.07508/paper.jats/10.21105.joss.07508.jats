@@ -1,0 +1,514 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">7508</article-id>
+<article-id pub-id-type="doi">10.21105/joss.07508</article-id>
+<title-group>
+<article-title>CurvilinearGrids.jl: A Julia package for curvilinear
+coordinate transformations</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0001-6452-2308</contrib-id>
+<name>
+<surname>Miller</surname>
+<given-names>Samuel C.</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Laboratory for Laser Energetics, University of Rochester,
+Rochester, NY USA</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2024-10-13">
+<day>13</day>
+<month>10</month>
+<year>2024</year>
+</pub-date>
+<volume>9</volume>
+<issue>104</issue>
+<fpage>7508</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2024</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>Julia</kwd>
+<kwd>mesh</kwd>
+<kwd>grids</kwd>
+<kwd>curvilinear</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p>Finite-difference discretizations of partial differential equations
+  are widespread throughout the scientific community. Oftentimes
+  finite-differences are used to compute spatial gradients of fields on
+  a discrete grid, which is typically a uniform or rectilinear Cartesian
+  mesh. <italic>Arbitrary</italic> multidimensional geometry is
+  difficult to discretize directly with finite differences, however, due
+  to non-uniform grid spacing and non-orthogonality. Curvilinear
+  coordinate transformations can be used as a strategy to enable
+  arbitrary geometry – see for example, applications to the Euler and
+  Navier-Stokes equations
+  (<xref alt="Chandravamsi et al., 2023" rid="ref-chandravamsi2023" ref-type="bibr">Chandravamsi
+  et al., 2023</xref>;
+  <xref alt="Visbal &amp; Gaitonde, 2002" rid="ref-visbal2002" ref-type="bibr">Visbal
+  &amp; Gaitonde, 2002</xref>). While these curvilinear transformations
+  are straightforward, the governing PDEs require additional terms
+  (metrics) and must adhere to strict conservation laws; these criteria
+  complicate the application of the transformation and require careful
+  implementation.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of Need</title>
+  <p><monospace>CurvilinearGrids.jl</monospace> is a Julia
+  (<xref alt="Bezanson et al., 2017" rid="ref-julia" ref-type="bibr">Bezanson
+  et al., 2017</xref>) package designed to facilitate curvilinear
+  coordinate transformations and the generation of metrics for arbitrary
+  1D, 2D, and 3D geometry. The API is designed for simple grid
+  construction with minimal user effort; the backend handles the
+  complicated book-keeping associated with metric computation and
+  ensures strict adherence to geometric conservation laws when required.
+  While Julia packages exist to facilitate standard finite-differences,
+  there are few, if any, that provide conservative metrics for
+  curvilinear transformations.</p>
+  <p>Grid metric computation is typically directly embedded into a
+  particular simulation framework, rather than provided as a standalone
+  library, since the metric and PDE discretizations must be consistent.
+  Third-party grid generation software exists to provide complex
+  multi-block structured grids for multi-physics codes but metrics are
+  not provided – metric computation must be tailored to the
+  discretization of the simulation library.
+  <monospace>CurvilinearGrids.jl</monospace> is unique in that it can be
+  imported into existing Julia simulation libraries and immediately
+  provide the ability to use curvilinear geometry (as long as the
+  governing equations are appropriately modified). New discretization
+  schemes (6th-order central finite-difference, 5th-order upwind, etc.)
+  can be added in a straightforward manner to expand the capabilities of
+  <monospace>CurvilinearGrids.jl</monospace>.</p>
+</sec>
+<sec id="example-use">
+  <title>Example Use</title>
+  <p>Users provide <monospace>CurvilinearGrids.jl</monospace> with
+  discrete coordinate points defined in real-space
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[(x,y,z)]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>x</mml:mi><mml:mo>,</mml:mo><mml:mi>y</mml:mi><mml:mo>,</mml:mo><mml:mi>z</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:math></alternatives></inline-formula>.
+  These coordinates are then used to compute the transformation to a
+  uniform computational coordinate space <inline-formula><alternatives>
+  <tex-math><![CDATA[(\xi,\eta,\zeta)]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>ξ</mml:mi><mml:mo>,</mml:mo><mml:mi>η</mml:mi><mml:mo>,</mml:mo><mml:mi>ζ</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:math></alternatives></inline-formula>.
+  A common example of this is to use a body-fit or conformal grid and
+  transform it so that it becomes a uniform grid in
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[(\xi,\eta,\zeta)]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>ξ</mml:mi><mml:mo>,</mml:mo><mml:mi>η</mml:mi><mml:mo>,</mml:mo><mml:mi>ζ</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:math></alternatives></inline-formula>.
+  Standard finite-difference stencils can be used on the uniform
+  transformed grid.
+  <xref alt="[fig:grid]" rid="figU003Agrid">[fig:grid]</xref> shows an
+  example of a curvilinear grid defined in real-space and its
+  representation in computational space.</p>
+  <fig>
+    <caption><p>Curvilinear grid
+    transformation.<styled-content id="figU003Agrid"></styled-content></p></caption>
+    <graphic mimetype="image" mime-subtype="png" xlink:href="mesh.png" />
+  </fig>
+  <p>The grid in
+  <xref alt="[fig:grid]" rid="figU003Agrid">[fig:grid]</xref> is
+  generated by the following code snippet.</p>
+  <code language="julia">using CurvilinearGrids
+
+function wavygrid(ni, nj, nhalo=1)
+  Lx = Ly = 12
+  n_xy = n_yx = 6
+  xmin, ymin = (-Lx / 2, -Ly / 2)
+  Δx0,  Δy0 = (Lx / (ni - 1), Ly / (nj - 1))
+  Ax, Ay = (0.4 / Δx0, 0.8 / Δy0)
+
+  # coordinate arrays
+  x = zeros(ni, nj)
+  y = zeros(ni, nj)
+
+  @inbounds for idx in CartesianIndices(x)
+    i,j = idx.I
+    x[i, j] = xmin + Δx0 * (
+        (i - 1) + Ax * sinpi((n_xy * (j - 1) * Δy0) / Ly)
+    )
+      
+    y[i, j] = ymin + Δy0 * (
+        (j - 1) + Ay * sinpi((n_yx * (i - 1) * Δx0) / Lx)
+    )
+  end
+
+  scheme = :meg6
+  return CurvilinearGrid2D(x, y, scheme)
+end
+
+# number of nodes/vertices in each dimension
+nx, ny = (30, 40)
+
+nhalo = 2 # halo cells needed for stencils (can be set to 0)
+grid = wavygrid(nx, ny, nhalo)</code>
+</sec>
+<sec id="coordinate-transformations">
+  <title>Coordinate Transformations</title>
+  <p>Coordinate transformations require Jacobian matrices; terminology
+  in the literature can be conflicting, but the “Jacobian matrix” is the
+  matrix of partial derivatives that describe the forward or inverse
+  transformation, and uses a bold-face <inline-formula><alternatives>
+  <tex-math><![CDATA[\textbf{J}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mtext mathvariant="bold">𝐉</mml:mtext></mml:math></alternatives></inline-formula>.
+  The “Jacobian” then refers to the determinant of the Jacobian matrix,
+  and is the non-bolded <inline-formula><alternatives>
+  <tex-math><![CDATA[J]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>J</mml:mi></mml:math></alternatives></inline-formula>.
+  Some authors refer to the matrix as the “Jacobi matrix” as well. The
+  forward transformation, or <inline-formula><alternatives>
+  <tex-math><![CDATA[T: (\xi,\eta,\zeta) \rightarrow (x,y,z)]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>T</mml:mi><mml:mo>:</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>ξ</mml:mi><mml:mo>,</mml:mo><mml:mi>η</mml:mi><mml:mo>,</mml:mo><mml:mi>ζ</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>→</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>x</mml:mi><mml:mo>,</mml:mo><mml:mi>y</mml:mi><mml:mo>,</mml:mo><mml:mi>z</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>
+  is defined as <disp-formula><alternatives>
+  <tex-math><![CDATA[
+  \textbf{J} = 
+  \begin{bmatrix}
+  x_\xi & x_\eta & x_\zeta \\
+  y_\xi & y_\eta & y_\zeta \\
+  z_\xi & z_\eta & z_\zeta
+  \end{bmatrix}, \quad J = \det [\textbf{J}]
+  ]]></tex-math>
+  <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mtext mathvariant="bold">𝐉</mml:mtext><mml:mo>=</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">[</mml:mo><mml:mtable><mml:mtr><mml:mtd columnalign="center" style="text-align: center"><mml:msub><mml:mi>x</mml:mi><mml:mi>ξ</mml:mi></mml:msub></mml:mtd><mml:mtd columnalign="center" style="text-align: center"><mml:msub><mml:mi>x</mml:mi><mml:mi>η</mml:mi></mml:msub></mml:mtd><mml:mtd columnalign="center" style="text-align: center"><mml:msub><mml:mi>x</mml:mi><mml:mi>ζ</mml:mi></mml:msub></mml:mtd></mml:mtr><mml:mtr><mml:mtd columnalign="center" style="text-align: center"><mml:msub><mml:mi>y</mml:mi><mml:mi>ξ</mml:mi></mml:msub></mml:mtd><mml:mtd columnalign="center" style="text-align: center"><mml:msub><mml:mi>y</mml:mi><mml:mi>η</mml:mi></mml:msub></mml:mtd><mml:mtd columnalign="center" style="text-align: center"><mml:msub><mml:mi>y</mml:mi><mml:mi>ζ</mml:mi></mml:msub></mml:mtd></mml:mtr><mml:mtr><mml:mtd columnalign="center" style="text-align: center"><mml:msub><mml:mi>z</mml:mi><mml:mi>ξ</mml:mi></mml:msub></mml:mtd><mml:mtd columnalign="center" style="text-align: center"><mml:msub><mml:mi>z</mml:mi><mml:mi>η</mml:mi></mml:msub></mml:mtd><mml:mtd columnalign="center" style="text-align: center"><mml:msub><mml:mi>z</mml:mi><mml:mi>ζ</mml:mi></mml:msub></mml:mtd></mml:mtr></mml:mtable><mml:mo stretchy="true" form="postfix">]</mml:mo></mml:mrow><mml:mo>,</mml:mo><mml:mspace width="1.0em"></mml:mspace><mml:mi>J</mml:mi><mml:mo>=</mml:mo><mml:mo>det</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">[</mml:mo><mml:mtext mathvariant="bold">𝐉</mml:mtext><mml:mo stretchy="true" form="postfix">]</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></disp-formula>
+  The inverse transformation <inline-formula><alternatives>
+  <tex-math><![CDATA[T^{-1}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msup><mml:mi>T</mml:mi><mml:mrow><mml:mi>−</mml:mi><mml:mn>1</mml:mn></mml:mrow></mml:msup></mml:math></alternatives></inline-formula>:
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[(x,y,z) \rightarrow (\xi,\eta,\zeta)]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>x</mml:mi><mml:mo>,</mml:mo><mml:mi>y</mml:mi><mml:mo>,</mml:mo><mml:mi>z</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>→</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>ξ</mml:mi><mml:mo>,</mml:mo><mml:mi>η</mml:mi><mml:mo>,</mml:mo><mml:mi>ζ</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>
+  is defined as <disp-formula><alternatives>
+  <tex-math><![CDATA[
+  \textbf{J}^{-1} = 
+  \begin{bmatrix}
+  \xi_x   & \xi_y   & \xi_z   \\
+  \eta_x  & \eta_y  & \eta_z  \\
+  \zeta_x & \zeta_y & \zeta_z
+  \end{bmatrix}, \quad J^{-1} = \det [\textbf{J}^{-1}]
+  ]]></tex-math>
+  <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msup><mml:mtext mathvariant="bold">𝐉</mml:mtext><mml:mrow><mml:mi>−</mml:mi><mml:mn>1</mml:mn></mml:mrow></mml:msup><mml:mo>=</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">[</mml:mo><mml:mtable><mml:mtr><mml:mtd columnalign="center" style="text-align: center"><mml:msub><mml:mi>ξ</mml:mi><mml:mi>x</mml:mi></mml:msub></mml:mtd><mml:mtd columnalign="center" style="text-align: center"><mml:msub><mml:mi>ξ</mml:mi><mml:mi>y</mml:mi></mml:msub></mml:mtd><mml:mtd columnalign="center" style="text-align: center"><mml:msub><mml:mi>ξ</mml:mi><mml:mi>z</mml:mi></mml:msub></mml:mtd></mml:mtr><mml:mtr><mml:mtd columnalign="center" style="text-align: center"><mml:msub><mml:mi>η</mml:mi><mml:mi>x</mml:mi></mml:msub></mml:mtd><mml:mtd columnalign="center" style="text-align: center"><mml:msub><mml:mi>η</mml:mi><mml:mi>y</mml:mi></mml:msub></mml:mtd><mml:mtd columnalign="center" style="text-align: center"><mml:msub><mml:mi>η</mml:mi><mml:mi>z</mml:mi></mml:msub></mml:mtd></mml:mtr><mml:mtr><mml:mtd columnalign="center" style="text-align: center"><mml:msub><mml:mi>ζ</mml:mi><mml:mi>x</mml:mi></mml:msub></mml:mtd><mml:mtd columnalign="center" style="text-align: center"><mml:msub><mml:mi>ζ</mml:mi><mml:mi>y</mml:mi></mml:msub></mml:mtd><mml:mtd columnalign="center" style="text-align: center"><mml:msub><mml:mi>ζ</mml:mi><mml:mi>z</mml:mi></mml:msub></mml:mtd></mml:mtr></mml:mtable><mml:mo stretchy="true" form="postfix">]</mml:mo></mml:mrow><mml:mo>,</mml:mo><mml:mspace width="1.0em"></mml:mspace><mml:msup><mml:mi>J</mml:mi><mml:mrow><mml:mi>−</mml:mi><mml:mn>1</mml:mn></mml:mrow></mml:msup><mml:mo>=</mml:mo><mml:mo>det</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">[</mml:mo><mml:msup><mml:mtext mathvariant="bold">𝐉</mml:mtext><mml:mrow><mml:mi>−</mml:mi><mml:mn>1</mml:mn></mml:mrow></mml:msup><mml:mo stretchy="true" form="postfix">]</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></disp-formula></p>
+</sec>
+<sec id="grid-metrics">
+  <title>Grid Metrics</title>
+  <p>When solving transformed PDEs in computational coordinates
+  (<inline-formula><alternatives>
+  <tex-math><![CDATA[\xi,\eta,\zeta]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>ξ</mml:mi><mml:mo>,</mml:mo><mml:mi>η</mml:mi><mml:mo>,</mml:mo><mml:mi>ζ</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>),
+  grid metrics <bold>must</bold> be included. Care must be taken if
+  advection or motion is included in the governing equations so that the
+  geometric conservation law (GCL) is observed
+  (<xref alt="Thomas &amp; Lombard, 1979" rid="ref-thomas1979" ref-type="bibr">Thomas
+  &amp; Lombard, 1979</xref>). If the scheme does not follow the GCL,
+  errors will build up and ultimately corrupt the solution. In the case
+  of fluid dynamics, the mesh and governing equation discretizations
+  must follow the same scheme and be <italic>conservative</italic>
+  (<xref alt="Visbal &amp; Gaitonde, 2002" rid="ref-visbal2002" ref-type="bibr">Visbal
+  &amp; Gaitonde, 2002</xref>). One such conservative scheme is the
+  Monotone Explicit Gradient (MEG) based reconstruction
+  (<xref alt="Chamarthi, 2023" rid="ref-chamarthi2023" ref-type="bibr">Chamarthi,
+  2023</xref>;
+  <xref alt="Chandravamsi et al., 2023" rid="ref-chandravamsi2023" ref-type="bibr">Chandravamsi
+  et al., 2023</xref>), which is included in
+  <monospace>CurvilinearGrids.jl</monospace>. Other common schemes
+  include weighted essentially non-oscillatory (WENO) schemes of various
+  order (<xref alt="Ma et al., 2024" rid="ref-ma2024" ref-type="bibr">Ma
+  et al., 2024</xref>). There is no restriction to particular schemes
+  which can be added in the future.</p>
+  <p>The grid metrics (derivative terms in
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[\textbf{J}, \textbf{J}^{-1}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mtext mathvariant="bold">𝐉</mml:mtext><mml:mo>,</mml:mo><mml:msup><mml:mtext mathvariant="bold">𝐉</mml:mtext><mml:mrow><mml:mi>−</mml:mi><mml:mn>1</mml:mn></mml:mrow></mml:msup></mml:mrow></mml:math></alternatives></inline-formula>)
+  at each cell-center or edge are accessed through the
+  <monospace>AbstractCurvilinearGrid</monospace> types exported by
+  <monospace>CurvilinearGrids.jl</monospace>. The API currently supports
+  1D, 2D, and 3D geometry, with axisymmetric modes for 1D (spherical and
+  cylindrical) and 2D (cylindrical RZ). Metrics (entries in the
+  forward/inverse Jacobian matrices) are contained in
+  <monospace>StructArrays</monospace> for each dimension; forward
+  metrics <inline-formula><alternatives>
+  <tex-math><![CDATA[(x_\xi, y_\xi, ...)]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>x</mml:mi><mml:mi>ξ</mml:mi></mml:msub><mml:mo>,</mml:mo><mml:msub><mml:mi>y</mml:mi><mml:mi>ξ</mml:mi></mml:msub><mml:mo>,</mml:mo><mml:mi>.</mml:mi><mml:mi>.</mml:mi><mml:mi>.</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:math></alternatives></inline-formula>,
+  inverse metrics <inline-formula><alternatives>
+  <tex-math><![CDATA[(\xi_x, \xi_y, ...)]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>ξ</mml:mi><mml:mi>x</mml:mi></mml:msub><mml:mo>,</mml:mo><mml:msub><mml:mi>ξ</mml:mi><mml:mi>y</mml:mi></mml:msub><mml:mo>,</mml:mo><mml:mi>.</mml:mi><mml:mi>.</mml:mi><mml:mi>.</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:math></alternatives></inline-formula>,
+  and normalized inverse metrics <inline-formula><alternatives>
+  <tex-math><![CDATA[(\hat{\xi}_x \equiv J\xi_x)]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mover><mml:mi>ξ</mml:mi><mml:mo accent="true">̂</mml:mo></mml:mover><mml:mi>x</mml:mi></mml:msub><mml:mo>≡</mml:mo><mml:mi>J</mml:mi><mml:msub><mml:mi>ξ</mml:mi><mml:mi>x</mml:mi></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:math></alternatives></inline-formula>.
+  Some authors define the normalized metric as
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[\hat{\xi}_x \equiv \xi_x/J]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mover><mml:mi>ξ</mml:mi><mml:mo accent="true">̂</mml:mo></mml:mover><mml:mi>x</mml:mi></mml:msub><mml:mo>≡</mml:mo><mml:msub><mml:mi>ξ</mml:mi><mml:mi>x</mml:mi></mml:msub><mml:mi>/</mml:mi><mml:mi>J</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>,
+  but the definition of the forward and inverse Jacobians are swapped.
+  Chapter 3 in Huang &amp; Russell
+  (<xref alt="2011" rid="ref-huang2011" ref-type="bibr">2011</xref>) has
+  a particularly lucid description of how these metrics can be included
+  in PDE discretizations.</p>
+  <p>Each grid type includes the following metrics:</p>
+  <list list-type="bullet">
+    <list-item>
+      <p>Cell centered metrics: <inline-formula><alternatives>
+      <tex-math><![CDATA[(\eta_y, y_\xi, ...)]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>η</mml:mi><mml:mi>y</mml:mi></mml:msub><mml:mo>,</mml:mo><mml:msub><mml:mi>y</mml:mi><mml:mi>ξ</mml:mi></mml:msub><mml:mo>,</mml:mo><mml:mi>.</mml:mi><mml:mi>.</mml:mi><mml:mi>.</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:math></alternatives></inline-formula>
+      via <monospace>grid.cell_center_metrics</monospace></p>
+    </list-item>
+    <list-item>
+      <p>Edge centered metrics
+      (<monospace>grid.edge_metrics</monospace>): Inverse
+      <inline-formula><alternatives>
+      <tex-math><![CDATA[\xi_x]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>ξ</mml:mi><mml:mi>x</mml:mi></mml:msub></mml:math></alternatives></inline-formula>,
+      and normalized inverse <inline-formula><alternatives>
+      <tex-math><![CDATA[\hat{\xi}_x]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mover><mml:mi>ξ</mml:mi><mml:mo accent="true">̂</mml:mo></mml:mover><mml:mi>x</mml:mi></mml:msub></mml:math></alternatives></inline-formula>
+      at <inline-formula><alternatives>
+      <tex-math><![CDATA[i+1/2, j+1/2, k+1/2]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>i</mml:mi><mml:mo>+</mml:mo><mml:mn>1</mml:mn><mml:mi>/</mml:mi><mml:mn>2</mml:mn><mml:mo>,</mml:mo><mml:mi>j</mml:mi><mml:mo>+</mml:mo><mml:mn>1</mml:mn><mml:mi>/</mml:mi><mml:mn>2</mml:mn><mml:mo>,</mml:mo><mml:mi>k</mml:mi><mml:mo>+</mml:mo><mml:mn>1</mml:mn><mml:mi>/</mml:mi><mml:mn>2</mml:mn></mml:mrow></mml:math></alternatives></inline-formula></p>
+    </list-item>
+    <list-item>
+      <p>Temporal metrics: <inline-formula><alternatives>
+      <tex-math><![CDATA[\xi_t, \eta_t, \zeta_t]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>ξ</mml:mi><mml:mi>t</mml:mi></mml:msub><mml:mo>,</mml:mo><mml:msub><mml:mi>η</mml:mi><mml:mi>t</mml:mi></mml:msub><mml:mo>,</mml:mo><mml:msub><mml:mi>ζ</mml:mi><mml:mi>t</mml:mi></mml:msub></mml:mrow></mml:math></alternatives></inline-formula>
+      for both cell-centered and edge metrics.</p>
+    </list-item>
+  </list>
+  <p>Both edge and cell-centered metrics are required for many PDE
+  discretizations – the interpolation from cell-center to edge must be
+  consistent, i.e., the same interpolation scheme must be shared by the
+  PDE discretization and mesh metric computation. One such scheme that
+  is included in <monospace>CurvilinearGrids.jl</monospace> is the
+  6th-order MEG scheme. Finding the forward metric
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[(\phi_\xi = \phi_{i+1/2} - \phi_{i-1/2})]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>ϕ</mml:mi><mml:mi>ξ</mml:mi></mml:msub><mml:mo>=</mml:mo><mml:msub><mml:mi>ϕ</mml:mi><mml:mrow><mml:mi>i</mml:mi><mml:mo>+</mml:mo><mml:mn>1</mml:mn><mml:mi>/</mml:mi><mml:mn>2</mml:mn></mml:mrow></mml:msub><mml:mo>−</mml:mo><mml:msub><mml:mi>ϕ</mml:mi><mml:mrow><mml:mi>i</mml:mi><mml:mo>−</mml:mo><mml:mn>1</mml:mn><mml:mi>/</mml:mi><mml:mn>2</mml:mn></mml:mrow></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:math></alternatives></inline-formula>
+  is accomplished by the following:</p>
+  <p><disp-formula><alternatives>
+  <tex-math><![CDATA[
+  \begin{aligned}
+  \phi_{i+1/2} &= \frac{1}{2} \left ( \phi^L_{i+1/2} + \phi^R_{i+1/2} \right) \\
+               &= \frac{1}{2} \left [ 
+                  \left (\phi_{i} + \frac{1}{2} \phi'_{i} + \frac{1}{12} \phi''_{i} \right ) +
+                  \left (\phi_{i+1} + \frac{1}{2} \phi'_{i+1} + \frac{1}{12} \phi''_{i+1} \right )
+               \right ]
+  \\
+  \phi_{i-1/2} &= \frac{1}{2} \left ( \phi^L_{i-1/2} + \phi^R_{i-1/2} \right) \\
+               &= \frac{1}{2} \left [ 
+                  \left (\phi_{i-1} + \frac{1}{2} \phi'_{i-1} + \frac{1}{12} \phi''_{i-1} \right ) +
+                  \left (\phi_{i} + \frac{1}{2} \phi'_{i} + \frac{1}{12} \phi''_{i} \right )
+               \right ]
+  \end{aligned}
+  ]]></tex-math>
+  <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mtable><mml:mtr><mml:mtd columnalign="right" style="text-align: right"><mml:msub><mml:mi>ϕ</mml:mi><mml:mrow><mml:mi>i</mml:mi><mml:mo>+</mml:mo><mml:mn>1</mml:mn><mml:mi>/</mml:mi><mml:mn>2</mml:mn></mml:mrow></mml:msub></mml:mtd><mml:mtd columnalign="left" style="text-align: left"><mml:mo>=</mml:mo><mml:mfrac><mml:mn>1</mml:mn><mml:mn>2</mml:mn></mml:mfrac><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msubsup><mml:mi>ϕ</mml:mi><mml:mrow><mml:mi>i</mml:mi><mml:mo>+</mml:mo><mml:mn>1</mml:mn><mml:mi>/</mml:mi><mml:mn>2</mml:mn></mml:mrow><mml:mi>L</mml:mi></mml:msubsup><mml:mo>+</mml:mo><mml:msubsup><mml:mi>ϕ</mml:mi><mml:mrow><mml:mi>i</mml:mi><mml:mo>+</mml:mo><mml:mn>1</mml:mn><mml:mi>/</mml:mi><mml:mn>2</mml:mn></mml:mrow><mml:mi>R</mml:mi></mml:msubsup><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mtd></mml:mtr><mml:mtr><mml:mtd columnalign="right" style="text-align: right"></mml:mtd><mml:mtd columnalign="left" style="text-align: left"><mml:mo>=</mml:mo><mml:mfrac><mml:mn>1</mml:mn><mml:mn>2</mml:mn></mml:mfrac><mml:mrow><mml:mo stretchy="true" form="prefix">[</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>ϕ</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mo>+</mml:mo><mml:mfrac><mml:mn>1</mml:mn><mml:mn>2</mml:mn></mml:mfrac><mml:mi>ϕ</mml:mi><mml:msub><mml:mi>′</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mo>+</mml:mo><mml:mfrac><mml:mn>1</mml:mn><mml:mn>12</mml:mn></mml:mfrac><mml:mi>ϕ</mml:mi><mml:msub><mml:mi>″</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>+</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>ϕ</mml:mi><mml:mrow><mml:mi>i</mml:mi><mml:mo>+</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:msub><mml:mo>+</mml:mo><mml:mfrac><mml:mn>1</mml:mn><mml:mn>2</mml:mn></mml:mfrac><mml:mi>ϕ</mml:mi><mml:msub><mml:mi>′</mml:mi><mml:mrow><mml:mi>i</mml:mi><mml:mo>+</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:msub><mml:mo>+</mml:mo><mml:mfrac><mml:mn>1</mml:mn><mml:mn>12</mml:mn></mml:mfrac><mml:mi>ϕ</mml:mi><mml:msub><mml:mi>″</mml:mi><mml:mrow><mml:mi>i</mml:mi><mml:mo>+</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo stretchy="true" form="postfix">]</mml:mo></mml:mrow></mml:mtd></mml:mtr><mml:mtr><mml:mtd columnalign="right" style="text-align: right"><mml:msub><mml:mi>ϕ</mml:mi><mml:mrow><mml:mi>i</mml:mi><mml:mo>−</mml:mo><mml:mn>1</mml:mn><mml:mi>/</mml:mi><mml:mn>2</mml:mn></mml:mrow></mml:msub></mml:mtd><mml:mtd columnalign="left" style="text-align: left"><mml:mo>=</mml:mo><mml:mfrac><mml:mn>1</mml:mn><mml:mn>2</mml:mn></mml:mfrac><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msubsup><mml:mi>ϕ</mml:mi><mml:mrow><mml:mi>i</mml:mi><mml:mo>−</mml:mo><mml:mn>1</mml:mn><mml:mi>/</mml:mi><mml:mn>2</mml:mn></mml:mrow><mml:mi>L</mml:mi></mml:msubsup><mml:mo>+</mml:mo><mml:msubsup><mml:mi>ϕ</mml:mi><mml:mrow><mml:mi>i</mml:mi><mml:mo>−</mml:mo><mml:mn>1</mml:mn><mml:mi>/</mml:mi><mml:mn>2</mml:mn></mml:mrow><mml:mi>R</mml:mi></mml:msubsup><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mtd></mml:mtr><mml:mtr><mml:mtd columnalign="right" style="text-align: right"></mml:mtd><mml:mtd columnalign="left" style="text-align: left"><mml:mo>=</mml:mo><mml:mfrac><mml:mn>1</mml:mn><mml:mn>2</mml:mn></mml:mfrac><mml:mrow><mml:mo stretchy="true" form="prefix">[</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>ϕ</mml:mi><mml:mrow><mml:mi>i</mml:mi><mml:mo>−</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:msub><mml:mo>+</mml:mo><mml:mfrac><mml:mn>1</mml:mn><mml:mn>2</mml:mn></mml:mfrac><mml:mi>ϕ</mml:mi><mml:msub><mml:mi>′</mml:mi><mml:mrow><mml:mi>i</mml:mi><mml:mo>−</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:msub><mml:mo>+</mml:mo><mml:mfrac><mml:mn>1</mml:mn><mml:mn>12</mml:mn></mml:mfrac><mml:mi>ϕ</mml:mi><mml:msub><mml:mi>″</mml:mi><mml:mrow><mml:mi>i</mml:mi><mml:mo>−</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>+</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>ϕ</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mo>+</mml:mo><mml:mfrac><mml:mn>1</mml:mn><mml:mn>2</mml:mn></mml:mfrac><mml:mi>ϕ</mml:mi><mml:msub><mml:mi>′</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mo>+</mml:mo><mml:mfrac><mml:mn>1</mml:mn><mml:mn>12</mml:mn></mml:mfrac><mml:mi>ϕ</mml:mi><mml:msub><mml:mi>″</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo stretchy="true" form="postfix">]</mml:mo></mml:mrow></mml:mtd></mml:mtr></mml:mtable></mml:math></alternatives></disp-formula>
+  Where the first derivative is defined as <disp-formula><alternatives>
+  <tex-math><![CDATA[
+  \begin{aligned}
+   \left ( \frac{\partial \phi}{\partial \xi} \right )_i  = 
+   \frac{3}{4}  (\phi_{i+1} + \phi_{i-1}) +
+   \frac{3}{20} (\phi_{i+2} + \phi_{i-2}) +
+   \frac{1}{60} (\phi_{i+3} + \phi_{i-3}),
+  \end{aligned}
+  ]]></tex-math>
+  <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mtable><mml:mtr><mml:mtd columnalign="right" style="text-align: right"><mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mfrac><mml:mrow><mml:mi>∂</mml:mi><mml:mi>ϕ</mml:mi></mml:mrow><mml:mrow><mml:mi>∂</mml:mi><mml:mi>ξ</mml:mi></mml:mrow></mml:mfrac><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mi>i</mml:mi></mml:msub><mml:mo>=</mml:mo><mml:mfrac><mml:mn>3</mml:mn><mml:mn>4</mml:mn></mml:mfrac><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>ϕ</mml:mi><mml:mrow><mml:mi>i</mml:mi><mml:mo>+</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:msub><mml:mo>+</mml:mo><mml:msub><mml:mi>ϕ</mml:mi><mml:mrow><mml:mi>i</mml:mi><mml:mo>−</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>+</mml:mo><mml:mfrac><mml:mn>3</mml:mn><mml:mn>20</mml:mn></mml:mfrac><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>ϕ</mml:mi><mml:mrow><mml:mi>i</mml:mi><mml:mo>+</mml:mo><mml:mn>2</mml:mn></mml:mrow></mml:msub><mml:mo>+</mml:mo><mml:msub><mml:mi>ϕ</mml:mi><mml:mrow><mml:mi>i</mml:mi><mml:mo>−</mml:mo><mml:mn>2</mml:mn></mml:mrow></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>+</mml:mo><mml:mfrac><mml:mn>1</mml:mn><mml:mn>60</mml:mn></mml:mfrac><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>ϕ</mml:mi><mml:mrow><mml:mi>i</mml:mi><mml:mo>+</mml:mo><mml:mn>3</mml:mn></mml:mrow></mml:msub><mml:mo>+</mml:mo><mml:msub><mml:mi>ϕ</mml:mi><mml:mrow><mml:mi>i</mml:mi><mml:mo>−</mml:mo><mml:mn>3</mml:mn></mml:mrow></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>,</mml:mo></mml:mtd></mml:mtr></mml:mtable></mml:math></alternatives></disp-formula>
+  and the second derivative is <disp-formula><alternatives>
+  <tex-math><![CDATA[
+  \begin{aligned}
+   \left ( \frac{\partial^2 \phi}{\partial \xi^2} \right )_i  = 
+   2(\phi_{i+1} - 2\phi_i + \phi_{i-1}) +
+   \frac{1}{2} \left [ \left ( \frac{\partial \phi}{\partial \xi} \right )_{i+1} - 
+   \left ( \frac{\partial \phi}{\partial \xi} \right )_{i-1} \right ].
+  \end{aligned}
+  ]]></tex-math>
+  <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mtable><mml:mtr><mml:mtd columnalign="right" style="text-align: right"><mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mfrac><mml:mrow><mml:msup><mml:mi>∂</mml:mi><mml:mn>2</mml:mn></mml:msup><mml:mi>ϕ</mml:mi></mml:mrow><mml:mrow><mml:mi>∂</mml:mi><mml:msup><mml:mi>ξ</mml:mi><mml:mn>2</mml:mn></mml:msup></mml:mrow></mml:mfrac><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mi>i</mml:mi></mml:msub><mml:mo>=</mml:mo><mml:mn>2</mml:mn><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>ϕ</mml:mi><mml:mrow><mml:mi>i</mml:mi><mml:mo>+</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:msub><mml:mo>−</mml:mo><mml:mn>2</mml:mn><mml:msub><mml:mi>ϕ</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mo>+</mml:mo><mml:msub><mml:mi>ϕ</mml:mi><mml:mrow><mml:mi>i</mml:mi><mml:mo>−</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>+</mml:mo><mml:mfrac><mml:mn>1</mml:mn><mml:mn>2</mml:mn></mml:mfrac><mml:mrow><mml:mo stretchy="true" form="prefix">[</mml:mo><mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mfrac><mml:mrow><mml:mi>∂</mml:mi><mml:mi>ϕ</mml:mi></mml:mrow><mml:mrow><mml:mi>∂</mml:mi><mml:mi>ξ</mml:mi></mml:mrow></mml:mfrac><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mrow><mml:mi>i</mml:mi><mml:mo>+</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:msub><mml:mo>−</mml:mo><mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mfrac><mml:mrow><mml:mi>∂</mml:mi><mml:mi>ϕ</mml:mi></mml:mrow><mml:mrow><mml:mi>∂</mml:mi><mml:mi>ξ</mml:mi></mml:mrow></mml:mfrac><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mrow><mml:mi>i</mml:mi><mml:mo>−</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:msub><mml:mo stretchy="true" form="postfix">]</mml:mo></mml:mrow><mml:mi>.</mml:mi></mml:mtd></mml:mtr></mml:mtable></mml:math></alternatives></disp-formula>
+  At boundaries, one-sided or partially one-sided finite difference
+  equations must be used. In future releases, additional discretization
+  schemes will be included.</p>
+</sec>
+<sec id="acknowledgments">
+  <title>Acknowledgments</title>
+  <p>This material is based upon work supported by the Department of
+  Energy [National Nuclear Security Administration] University of
+  Rochester “National Inertial Confinement Fusion Program” under Award
+  Number(s) DE-NA0004144.</p>
+  <p>This report was prepared as an account of work sponsored by an
+  agency of the United States Government. Neither the United States
+  Government nor any agency thereof, nor any of their employees, makes
+  any warranty, express or implied, or assumes any legal liability or
+  responsibility for the accuracy, completeness, or usefulness of any
+  information, apparatus, product, or process disclosed, or represents
+  that its use would not infringe privately owned rights. Reference
+  herein to any specific commercial product, process, or service by
+  trade name, trademark, manufacturer, or otherwise does not necessarily
+  constitute or imply its endorsement, recommendation, or favoring by
+  the United States Government or any agency thereof. The views and
+  opinions of authors expressed herein do not necessarily state or
+  reflect those of the United States Government or any agency
+  thereof.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <title></title>
+  <ref id="ref-thomas1979">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Thomas</surname><given-names>P. D.</given-names></name>
+        <name><surname>Lombard</surname><given-names>C. K.</given-names></name>
+      </person-group>
+      <article-title>Geometric conservation law and its application to flow computations on moving grids</article-title>
+      <source>AIAA Journal</source>
+      <year iso-8601-date="1979-10">1979</year><month>10</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2022-10-13">2022</year><month>10</month><day>13</day></date-in-citation>
+      <volume>17</volume>
+      <issue>10</issue>
+      <issn>0001-1452</issn>
+      <uri>https://arc.aiaa.org/doi/10.2514/3.61273</uri>
+      <pub-id pub-id-type="doi">10.2514/3.61273</pub-id>
+      <fpage>1030</fpage>
+      <lpage>1037</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-visbal2002">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Visbal</surname><given-names>Miguel R</given-names></name>
+        <name><surname>Gaitonde</surname><given-names>Datta V</given-names></name>
+      </person-group>
+      <article-title>On the use of higher-order finite-difference schemes on curvilinear and deforming meshes</article-title>
+      <source>Journal of Computational Physics</source>
+      <year iso-8601-date="2002-09">2002</year><month>09</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2023-06-25">2023</year><month>06</month><day>25</day></date-in-citation>
+      <volume>181</volume>
+      <issue>1</issue>
+      <uri>https://linkinghub.elsevier.com/retrieve/pii/S0021999102971172</uri>
+      <pub-id pub-id-type="doi">10.1006/jcph.2002.7117</pub-id>
+      <fpage>155</fpage>
+      <lpage>185</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-chandravamsi2023">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Chandravamsi</surname><given-names>Hemanth</given-names></name>
+        <name><surname>Chamarthi</surname><given-names>Amareshwara Sainadh</given-names></name>
+        <name><surname>Hoffmann</surname><given-names>Natan</given-names></name>
+        <name><surname>Frankel</surname><given-names>Steven H.</given-names></name>
+      </person-group>
+      <article-title>On the application of gradient based reconstruction for flow simulations on generalized curvilinear and dynamic mesh domains</article-title>
+      <source>Computers &amp; Fluids</source>
+      <year iso-8601-date="2023-05">2023</year><month>05</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2023-05-04">2023</year><month>05</month><day>04</day></date-in-citation>
+      <volume>258</volume>
+      <uri>https://linkinghub.elsevier.com/retrieve/pii/S0045793023000841</uri>
+      <pub-id pub-id-type="doi">10.1016/j.compfluid.2023.105859</pub-id>
+      <fpage>105859</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-chamarthi2023">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Chamarthi</surname><given-names>Amareshwara Sainadh</given-names></name>
+      </person-group>
+      <article-title>Gradient based reconstruction: Inviscid and viscous flux discretizations, shock capturing, and its application to single and multicomponent flows</article-title>
+      <source>Computers &amp; Fluids</source>
+      <year iso-8601-date="2023-01">2023</year><month>01</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2023-05-04">2023</year><month>05</month><day>04</day></date-in-citation>
+      <volume>250</volume>
+      <uri>https://linkinghub.elsevier.com/retrieve/pii/S0045793022002997</uri>
+      <pub-id pub-id-type="doi">10.1016/j.compfluid.2022.105706</pub-id>
+      <fpage>105706</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-ma2024">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Ma</surname><given-names>Wenhua</given-names></name>
+        <name><surname>Luo</surname><given-names>Dongmi</given-names></name>
+        <name><surname>Li</surname><given-names>Shiyi</given-names></name>
+        <name><surname>Qiu</surname><given-names>Jianxian</given-names></name>
+        <name><surname>Ni</surname><given-names>Guoxi</given-names></name>
+        <name><surname>Chen</surname><given-names>Yibing</given-names></name>
+      </person-group>
+      <article-title>High-order adaptive multi-resolution method on curvilinear grids I: Finite difference framework</article-title>
+      <source>Journal of Computational Physics</source>
+      <year iso-8601-date="2024-02">2024</year><month>02</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2024-01-16">2024</year><month>01</month><day>16</day></date-in-citation>
+      <volume>498</volume>
+      <uri>https://linkinghub.elsevier.com/retrieve/pii/S0021999123007490</uri>
+      <pub-id pub-id-type="doi">10.1016/j.jcp.2023.112654</pub-id>
+      <fpage>112654</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-huang2011">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Huang</surname><given-names>Weizhang</given-names></name>
+        <name><surname>Russell</surname><given-names>Robert D.</given-names></name>
+      </person-group>
+      <source>Adaptive moving mesh methods</source>
+      <publisher-name>Springer</publisher-name>
+      <publisher-loc>New York, NY</publisher-loc>
+      <year iso-8601-date="2011">2011</year>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2023-12-06">2023</year><month>12</month><day>06</day></date-in-citation>
+      <volume>174</volume>
+      <isbn>978-1-4419-7916-2</isbn>
+      <pub-id pub-id-type="doi">10.1007/978-1-4419-7916-2</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-julia">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Bezanson</surname><given-names>Jeff</given-names></name>
+        <name><surname>Edelman</surname><given-names>Alan</given-names></name>
+        <name><surname>Karpinski</surname><given-names>Stefan</given-names></name>
+        <name><surname>Shah</surname><given-names>Viral B.</given-names></name>
+      </person-group>
+      <article-title>Julia: A fresh approach to numerical computing</article-title>
+      <source>SIAM Review</source>
+      <publisher-name>Society for Industrial &amp; Applied Mathematics (SIAM)</publisher-name>
+      <year iso-8601-date="2017-01">2017</year><month>01</month>
+      <volume>59</volume>
+      <issue>1</issue>
+      <uri>https://doi.org/10.1137%2F141000671</uri>
+      <pub-id pub-id-type="doi">10.1137/141000671</pub-id>
+      <fpage>65</fpage>
+      <lpage>98</lpage>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
