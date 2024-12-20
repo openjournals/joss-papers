@@ -1,0 +1,1182 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">6962</article-id>
+<article-id pub-id-type="doi">10.21105/joss.06962</article-id>
+<title-group>
+<article-title>gratia: An R package for exploring generalized additive
+models</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0002-9084-8413</contrib-id>
+<name>
+<surname>Simpson</surname>
+<given-names>Gavin L.</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Department of Animal and Veterinary Science, Aarhus
+University, Denmark</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2024-06-26">
+<day>26</day>
+<month>6</month>
+<year>2024</year>
+</pub-date>
+<volume>9</volume>
+<issue>104</issue>
+<fpage>6962</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2024</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>R</kwd>
+<kwd>splines</kwd>
+<kwd>generalized additive models</kwd>
+<kwd>posterior simulation</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p>Generalized additive models (GAMs,
+  <xref alt="Hastie &amp; Tibshirani, 1990" rid="ref-Hastie1990-bx" ref-type="bibr">Hastie
+  &amp; Tibshirani, 1990</xref>;
+  <xref alt="Wood, 2017" rid="ref-Wood2017-qi" ref-type="bibr">Wood,
+  2017</xref>) are an extension of generalized linear models that allows
+  the effects of covariates to be modelled as smooth functions. GAMs are
+  increasingly used in many areas of science (e.g.
+  <xref alt="Pedersen, Miller, Simpson, &amp; Ross, 2019" rid="ref-Pedersen2019-ff" ref-type="bibr">Pedersen,
+  Miller, Simpson, &amp; Ross, 2019</xref>;
+  <xref alt="Simpson, 2018" rid="ref-Simpson2018-wc" ref-type="bibr">Simpson,
+  2018</xref>) because the smooth functions allow nonlinear
+  relationships between covariates and the response to be learned from
+  the data through the use of penalized splines. Within the R
+  (<xref alt="R Core Team, 2024" rid="ref-rcore2024" ref-type="bibr">R
+  Core Team, 2024</xref>) ecosystem, Simon Wood’s <italic>mgcv</italic>
+  package
+  (<xref alt="Wood, 2017" rid="ref-Wood2017-qi" ref-type="bibr">Wood,
+  2017</xref>) is widely used to fit GAMs and is a
+  <italic>Recommended</italic> package that ships with R as part of the
+  default install. A growing number of other R packages build upon
+  <italic>mgcv</italic>, for example as an engine to fit specialised
+  models not handled by <italic>mgcv</italic> itself
+  (e.g. <italic>GJMR</italic>,
+  <xref alt="Marra &amp; Radice, 2023" rid="ref-Marra2023-gjrm" ref-type="bibr">Marra
+  &amp; Radice, 2023</xref>), or to make use of the wide range of
+  splines available in <italic>mgcv</italic>
+  (e.g. <italic>brms</italic>,
+  <xref alt="Bürkner, 2017" rid="ref-Burkner2017-ms" ref-type="bibr">Bürkner,
+  2017</xref>).</p>
+  <p>The <italic>gratia</italic> package builds upon
+  <italic>mgcv</italic> by providing functions that make working with
+  GAMs easier. <italic>gratia</italic> takes a <italic>tidy</italic>
+  approach
+  (<xref alt="Wickham, 2014" rid="ref-Wickham2014-ev" ref-type="bibr">Wickham,
+  2014</xref>) providing <italic>ggplot2</italic>
+  (<xref alt="Wickham, 2016" rid="ref-Wickham2016-dg" ref-type="bibr">Wickham,
+  2016</xref>) replacements for <italic>mgcv</italic>’s base
+  graphics-based plots, functions for model diagnostics and exploration
+  of fitted models, and a family of functions for drawing samples from
+  the posterior distribution of a fitted GAM. Additional functionality
+  is provided to facilitate the teaching and understanding of GAMs. The
+  overall aim of <italic>gratia</italic> is to abstract away some of the
+  complexity of working with GAMs fitted using <italic>mgcv</italic> to
+  allow researchers to focus on using and interrogating their model
+  rather than the technical R programming needed to achieve this.</p>
+</sec>
+<sec id="generalized-additive-models">
+  <title>Generalized additive models</title>
+  <p>A GAM has the form <disp-formula><alternatives>
+  <tex-math><![CDATA[\begin{aligned}
+  y_i &\sim    \mathcal{D}(\mu_i, \phi) \\
+  g(\mu_i) &=  \mathbf{A}_i\boldsymbol{\gamma} + f_1(x_{1i}) + f_2(x_{2i}) + f_3(x_{3i}, x_{4i}) + \cdots
+  \end{aligned}]]></tex-math>
+  <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mtable><mml:mtr><mml:mtd columnalign="right" style="text-align: right"><mml:msub><mml:mi>y</mml:mi><mml:mi>i</mml:mi></mml:msub></mml:mtd><mml:mtd columnalign="left" style="text-align: left"><mml:mo>∼</mml:mo><mml:mi>𝒟</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>μ</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mo>,</mml:mo><mml:mi>ϕ</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mtd></mml:mtr><mml:mtr><mml:mtd columnalign="right" style="text-align: right"><mml:mi>g</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>μ</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mtd><mml:mtd columnalign="left" style="text-align: left"><mml:mo>=</mml:mo><mml:msub><mml:mi>𝐀</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mi>𝛄</mml:mi><mml:mo>+</mml:mo><mml:msub><mml:mi>f</mml:mi><mml:mn>1</mml:mn></mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>x</mml:mi><mml:mrow><mml:mn>1</mml:mn><mml:mi>i</mml:mi></mml:mrow></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>+</mml:mo><mml:msub><mml:mi>f</mml:mi><mml:mn>2</mml:mn></mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>x</mml:mi><mml:mrow><mml:mn>2</mml:mn><mml:mi>i</mml:mi></mml:mrow></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>+</mml:mo><mml:msub><mml:mi>f</mml:mi><mml:mn>3</mml:mn></mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>x</mml:mi><mml:mrow><mml:mn>3</mml:mn><mml:mi>i</mml:mi></mml:mrow></mml:msub><mml:mo>,</mml:mo><mml:msub><mml:mi>x</mml:mi><mml:mrow><mml:mn>4</mml:mn><mml:mi>i</mml:mi></mml:mrow></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>+</mml:mo><mml:mi>⋯</mml:mi></mml:mtd></mml:mtr></mml:mtable></mml:math></alternatives></disp-formula>
+  where observations <inline-formula><alternatives>
+  <tex-math><![CDATA[y_i]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>y</mml:mi><mml:mi>i</mml:mi></mml:msub></mml:math></alternatives></inline-formula>
+  are assumed to be conditionally distributed
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[\mathcal{D}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>𝒟</mml:mi></mml:math></alternatives></inline-formula>
+  with expectation <inline-formula><alternatives>
+  <tex-math><![CDATA[\mathbb{E}(y_i) = \mu_i]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>𝔼</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>y</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>=</mml:mo><mml:msub><mml:mi>μ</mml:mi><mml:mi>i</mml:mi></mml:msub></mml:mrow></mml:math></alternatives></inline-formula>
+  and dispersion parameter <inline-formula><alternatives>
+  <tex-math><![CDATA[\phi]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>ϕ</mml:mi></mml:math></alternatives></inline-formula>.
+  The expectation of <inline-formula><alternatives>
+  <tex-math><![CDATA[y_i]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>y</mml:mi><mml:mi>i</mml:mi></mml:msub></mml:math></alternatives></inline-formula>
+  is given by a linear predictor of strictly parametric terms, whose
+  model matrix is <inline-formula><alternatives>
+  <tex-math><![CDATA[\mathbf{A}_i]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>𝐀</mml:mi><mml:mi>i</mml:mi></mml:msub></mml:math></alternatives></inline-formula>
+  with parameters <inline-formula><alternatives>
+  <tex-math><![CDATA[\boldsymbol{\gamma}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>𝛄</mml:mi></mml:math></alternatives></inline-formula>,
+  plus a sum of <inline-formula><alternatives>
+  <tex-math><![CDATA[j = 1, \dots, J]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>j</mml:mi><mml:mo>=</mml:mo><mml:mn>1</mml:mn><mml:mo>,</mml:mo><mml:mi>…</mml:mi><mml:mo>,</mml:mo><mml:mi>J</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>
+  smooth functions of covariates <inline-formula><alternatives>
+  <tex-math><![CDATA[f_j()]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>f</mml:mi><mml:mi>j</mml:mi></mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>.
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[g()]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>g</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>
+  is a link function mapping values on the linear predictor to the scale
+  of the response.</p>
+  <p>The smooth functions <inline-formula><alternatives>
+  <tex-math><![CDATA[f_j]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>f</mml:mi><mml:mi>j</mml:mi></mml:msub></mml:math></alternatives></inline-formula>
+  are represented in the GAM using penalised splines, which are
+  themselves formed as weighted sums of basis functions,
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[b_k()]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>b</mml:mi><mml:mi>k</mml:mi></mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>,
+  (<xref alt="De Boor, 2001" rid="ref-De-Boor2001-vg" ref-type="bibr">De
+  Boor, 2001</xref>) e.g. <disp-formula><alternatives>
+  <tex-math><![CDATA[
+  f_j(x_{ij}) = \sum_{k=1}^{K} \beta_{jk} b_{jk}(x_{ij})
+  ]]></tex-math>
+  <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>f</mml:mi><mml:mi>j</mml:mi></mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>x</mml:mi><mml:mrow><mml:mi>i</mml:mi><mml:mi>j</mml:mi></mml:mrow></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>=</mml:mo><mml:munderover><mml:mo>∑</mml:mo><mml:mrow><mml:mi>k</mml:mi><mml:mo>=</mml:mo><mml:mn>1</mml:mn></mml:mrow><mml:mi>K</mml:mi></mml:munderover><mml:msub><mml:mi>β</mml:mi><mml:mrow><mml:mi>j</mml:mi><mml:mi>k</mml:mi></mml:mrow></mml:msub><mml:msub><mml:mi>b</mml:mi><mml:mrow><mml:mi>j</mml:mi><mml:mi>k</mml:mi></mml:mrow></mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>x</mml:mi><mml:mrow><mml:mi>i</mml:mi><mml:mi>j</mml:mi></mml:mrow></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></disp-formula>
+  for a univariate spline. The weights, <inline-formula><alternatives>
+  <tex-math><![CDATA[\beta_k]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>β</mml:mi><mml:mi>k</mml:mi></mml:msub></mml:math></alternatives></inline-formula>,
+  are model coefficients to be estimated alongside
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[\boldsymbol{\gamma}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>𝛄</mml:mi></mml:math></alternatives></inline-formula>.
+  To avoid overfitting, estimates <inline-formula><alternatives>
+  <tex-math><![CDATA[\hat{\beta}_{jk}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mover><mml:mi>β</mml:mi><mml:mo accent="true">̂</mml:mo></mml:mover><mml:mrow><mml:mi>j</mml:mi><mml:mi>k</mml:mi></mml:mrow></mml:msub></mml:math></alternatives></inline-formula>
+  and <inline-formula><alternatives>
+  <tex-math><![CDATA[\hat{\boldsymbol{\gamma}}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mover><mml:mi>𝛄</mml:mi><mml:mo accent="true">̂</mml:mo></mml:mover></mml:math></alternatives></inline-formula>
+  are sought to minimise the penalised log-likelihood of the model
+  <disp-formula><alternatives>
+  <tex-math><![CDATA[
+  \ell_p(\boldsymbol{\beta}) = \ell(\boldsymbol{\beta}) - \frac{1}{2\phi} \sum_{j} \lambda_{j} \boldsymbol{\beta}^{\mathsf{T}}_j \mathbf{S}_j \boldsymbol{\beta}_j
+  ]]></tex-math>
+  <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mo>ℓ</mml:mo><mml:mi>p</mml:mi></mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>𝛃</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>=</mml:mo><mml:mo>ℓ</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>𝛃</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>−</mml:mo><mml:mfrac><mml:mn>1</mml:mn><mml:mrow><mml:mn>2</mml:mn><mml:mi>ϕ</mml:mi></mml:mrow></mml:mfrac><mml:munder><mml:mo>∑</mml:mo><mml:mi>j</mml:mi></mml:munder><mml:msub><mml:mi>λ</mml:mi><mml:mi>j</mml:mi></mml:msub><mml:msubsup><mml:mi>𝛃</mml:mi><mml:mi>j</mml:mi><mml:mi>𝖳</mml:mi></mml:msubsup><mml:msub><mml:mi>𝐒</mml:mi><mml:mi>j</mml:mi></mml:msub><mml:msub><mml:mi>𝛃</mml:mi><mml:mi>j</mml:mi></mml:msub></mml:mrow></mml:math></alternatives></disp-formula>
+  where <inline-formula><alternatives>
+  <tex-math><![CDATA[\ell]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mo>ℓ</mml:mo></mml:math></alternatives></inline-formula>
+  and <inline-formula><alternatives>
+  <tex-math><![CDATA[\ell_p]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mo>ℓ</mml:mo><mml:mi>p</mml:mi></mml:msub></mml:math></alternatives></inline-formula>
+  are the log likelihood and penalized log likelihood, respectively, of
+  the data at the parameter estimates, <inline-formula><alternatives>
+  <tex-math><![CDATA[\mathbf{S}_j]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>𝐒</mml:mi><mml:mi>j</mml:mi></mml:msub></mml:math></alternatives></inline-formula>
+  are penalty matrices and <inline-formula><alternatives>
+  <tex-math><![CDATA[\lambda_{j}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>λ</mml:mi><mml:mi>j</mml:mi></mml:msub></mml:math></alternatives></inline-formula>
+  are smoothing parameters associated with each smooth. Note that
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[\boldsymbol{\beta}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>𝛃</mml:mi></mml:math></alternatives></inline-formula>
+  now contains the coefficients <inline-formula><alternatives>
+  <tex-math><![CDATA[\boldsymbol{\gamma}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>𝛄</mml:mi></mml:math></alternatives></inline-formula>
+  and <inline-formula><alternatives>
+  <tex-math><![CDATA[\beta_{jk}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>β</mml:mi><mml:mrow><mml:mi>j</mml:mi><mml:mi>k</mml:mi></mml:mrow></mml:msub></mml:math></alternatives></inline-formula>.
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[\boldsymbol{\beta}^{\mathsf{T}}_j \mathbf{S}_j \boldsymbol{\beta}_j]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msubsup><mml:mi>𝛃</mml:mi><mml:mi>j</mml:mi><mml:mi>𝖳</mml:mi></mml:msubsup><mml:msub><mml:mi>𝐒</mml:mi><mml:mi>j</mml:mi></mml:msub><mml:msub><mml:mi>𝛃</mml:mi><mml:mi>j</mml:mi></mml:msub></mml:mrow></mml:math></alternatives></inline-formula>
+  measures the wiggliness of <inline-formula><alternatives>
+  <tex-math><![CDATA[f_j]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>f</mml:mi><mml:mi>j</mml:mi></mml:msub></mml:math></alternatives></inline-formula>,
+  which, with the default basis-penalty combination, is the integrated
+  squared second derivative of <inline-formula><alternatives>
+  <tex-math><![CDATA[f_j]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>f</mml:mi><mml:mi>j</mml:mi></mml:msub></mml:math></alternatives></inline-formula>.
+  The smoothing parameters, <inline-formula><alternatives>
+  <tex-math><![CDATA[\boldsymbol{\lambda}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>𝛌</mml:mi></mml:math></alternatives></inline-formula>,
+  control the trade-off between fit to the data and the complexity of
+  the estimated functions.</p>
+  <p>The default spline created by <italic>mgcv</italic>’s
+  <monospace>s()</monospace> is a low rank, thin plate regression spline
+  (<xref alt="Wood, 2003" rid="ref-Wood2003-qy" ref-type="bibr">Wood,
+  2003</xref>). Figure
+  <xref alt="[fig:basis-funs]" rid="figU003Abasis-funs">[fig:basis-funs]</xref>,
+  shows the basis functions for such a spline fitted to data simulated
+  from the function
+  <named-content id="gwf2" content-type="equation"><disp-formula><alternatives>
+  <tex-math><![CDATA[
+  f = 0.2x^{11}\{10(1 - x)\}^6 + 10(10x)^3(1 - x)^{10} 
+  ]]></tex-math>
+  <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>f</mml:mi><mml:mo>=</mml:mo><mml:mn>0.2</mml:mn><mml:msup><mml:mi>x</mml:mi><mml:mn>11</mml:mn></mml:msup><mml:mo stretchy="false" form="prefix">{</mml:mo><mml:mn>10</mml:mn><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mn>1</mml:mn><mml:mo>−</mml:mo><mml:mi>x</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:msup><mml:mo stretchy="false" form="postfix">}</mml:mo><mml:mn>6</mml:mn></mml:msup><mml:mo>+</mml:mo><mml:mn>10</mml:mn><mml:msup><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mn>10</mml:mn><mml:mi>x</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mn>3</mml:mn></mml:msup><mml:msup><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mn>1</mml:mn><mml:mo>−</mml:mo><mml:mi>x</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mn>10</mml:mn></mml:msup></mml:mrow></mml:math></alternatives></disp-formula></named-content>
+  with additive Gaussian noise (<inline-formula><alternatives>
+  <tex-math><![CDATA[\mu = 0, \sigma = 1]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>μ</mml:mi><mml:mo>=</mml:mo><mml:mn>0</mml:mn><mml:mo>,</mml:mo><mml:mi>σ</mml:mi><mml:mo>=</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>),
+  and the associated penalty matrix, prepared using functions from
+  <italic>gratia</italic>.</p>
+  <fig>
+    <caption><p><styled-content id="figU003Abasis-funs"></styled-content>Basis
+    functions (a) and associated penalty matrix (b) for a penalised, low
+    rank, thin plate regression spline. a) shows the individual basis
+    functions (thin coloured lines; numbers indicate which basis
+    function each line represents) multiplied by their respective model
+    coefficients, as well as the data (black points) to which the GAM
+    was fitted. The estimated smooth is shown as the thick grey line. b)
+    shows the penalty matrix for the basis shown in a). Note the 9th
+    basis function (labelled ‘F9’, which is the linear function at the
+    lower left to upper right in a), is not affected by the penalty as
+    it has 0 second derivative everywhere, and hence the resulting
+    penalty for this function is 0.</p></caption>
+    <graphic mimetype="application" mime-subtype="pdf" xlink:href="penalised-spline-basis-and-penalty-1.pdf" />
+  </fig>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p><italic>mgcv</italic> is state-of-the-art software for fitting GAMs
+  and their extensions to data sets on the order of millions of
+  observations (e.g.
+  <xref alt="Li &amp; Wood, 2020" rid="ref-Li2020-ch" ref-type="bibr">Li
+  &amp; Wood, 2020</xref>;
+  <xref alt="Wood, 2011" rid="ref-Wood2011-kn" ref-type="bibr">Wood,
+  2011</xref>;
+  <xref alt="Wood, Pya, &amp; Säfken, 2016" rid="ref-Wood2016-fx" ref-type="bibr">Wood,
+  Pya, &amp; Säfken, 2016</xref>). <italic>mgcv</italic> provides
+  functions for plotting estimated smooth functions, as well as for
+  producing model diagnostic plots. These functions produce plots using
+  base graphics, the original plotting system for R. Additionally,
+  <italic>mgcv</italic> returns fitted GAMs as complex list objects (see
+  <monospace>?mgcv::gamObject</monospace>), the contents of which are
+  not easily used for downstream analysis without careful study of
+  <italic>mgcv</italic> and its help pages, plus a good understanding of
+  GAMs themselves. The overall aim of <italic>gratia</italic> is to
+  abstract away some of the complexity of working with GAMs fitted using
+  <italic>mgcv</italic> to allow researchers to focus on using and
+  interrogating their model rather than the technical R programming
+  needed to achieve this. As a result, <italic>gratia</italic> is also
+  increasingly being used by researchers in many fields, and has, at the
+  time of writing, been cited over 250 times (data from Google
+  Scholar).</p>
+  <p>One of the motivations driving the development of
+  <italic>gratia</italic> was to provide equivalent plotting
+  capabilities using the <italic>ggplot2</italic> package
+  (<xref alt="Wickham, 2016" rid="ref-Wickham2016-dg" ref-type="bibr">Wickham,
+  2016</xref>). To facilitate this, <italic>gratia</italic> provides
+  functions for representing the model components as objects using
+  <italic>tidy</italic> principles, which are suitable for plotting with
+  <italic>ggplot2</italic> or manipulation by packages in the
+  <italic>tidyverse</italic> (e.g.
+  <xref alt="Wickham, Cetinkaya-Rundel, &amp; Grolemund, 2023" rid="ref-Wickham2023-uj" ref-type="bibr">Wickham,
+  Cetinkaya-Rundel, &amp; Grolemund, 2023</xref>). This functionality
+  allows for high-level plotting using the <monospace>draw()</monospace>
+  method, as well as easily customisable plot creation using lower-level
+  functionality.</p>
+  <p>Taking a Bayesian approach to smoothing with penalized splines
+  (<xref alt="Kimeldorf &amp; Wahba, 1970" rid="ref-Kimeldorf1970-cn" ref-type="bibr">Kimeldorf
+  &amp; Wahba, 1970</xref>;
+  <xref alt="Silverman, 1985" rid="ref-Silverman1985-kw" ref-type="bibr">Silverman,
+  1985</xref>;
+  <xref alt="Wahba, 1983" rid="ref-Wahba1983-mi" ref-type="bibr">Wahba,
+  1983</xref>,
+  <xref alt="1985" rid="ref-Wahba1985-bw" ref-type="bibr">1985</xref>;
+  see
+  <xref alt="Miller, 2021" rid="ref-Miller2019-nf" ref-type="bibr">Miller,
+  2021</xref> for a summary), it can be shown that GAMs fitted by
+  <italic>mgcv</italic> are an empirical Bayesian model with a (usually
+  improper) multivariate normal prior on the basis function
+  coefficients. Samples from the posterior distribution of these models
+  can be used to estimate the uncertainty in quantities derived from a
+  GAM. This can be invaluable in applied research, where, for example, a
+  quantity of interest may arise as an operation on predictions from the
+  model. <italic>gratia</italic> provides functions for sampling from
+  the posterior distribution of estimated smooths and from the model as
+  a whole, where sampling can include the uncertainty in the estimated
+  coefficients (<monospace>fitted_samples()</monospace>), the sampling
+  uncertainty of the response
+  (<monospace>predicted_samples()</monospace>), or both
+  (<monospace>posterior_samples()</monospace>). By default, a Gaussian
+  approximation to the posterior distribution is used, but a simple
+  Metropolis Hastings sampler can be substituted (using
+  <monospace>mgcv::gam.mh()</monospace>), which has better performance
+  when the posterior is not well approximated by a Gaussian
+  approximation.</p>
+  <p>The teaching of GAMs can benefit from visualisation of the spline
+  basis functions and associated penalty matrices.
+  <italic>gratia</italic> provides this functionality via
+  <monospace>basis()</monospace> and <monospace>penalty()</monospace>,
+  which can be applied either to a smooth specification
+  (e.g. <monospace>s(x, z, bs = &quot;ds&quot;)</monospace>) or to a
+  fitted GAM (see Figure
+  <xref alt="[fig:basis-funs]" rid="figU003Abasis-funs">[fig:basis-funs]</xref>).
+  These functions expose functionality already available in
+  <italic>mgcv</italic>, but supply outputs in a tidy format, which
+  makes access to these features more intuitive than the original
+  implementations in <italic>mgcv</italic>. Additional utility functions
+  are provided, for example: <monospace>model_constant()</monospace>,
+  <monospace>edf()</monospace>, <monospace>model_edf()</monospace>,
+  <monospace>overview()</monospace>, and
+  <monospace>inv_link()</monospace>, which extract the model intercept
+  term (or terms), the effective degrees of freedom of individual
+  smooths and the overall model, shows a summary of the fitted GAM, and
+  extracts the inverse of the link function(s) used, respectively.</p>
+</sec>
+<sec id="state-of-the-field">
+  <title>State of the field</title>
+  <p>Several R packages provide similar functionality to that of
+  <italic>gratia</italic>. Notably, the <italic>mgcViz</italic> package
+  (<xref alt="Fasiolo, Nedellec, Goude, &amp; Wood, 2020" rid="ref-Fasiolo2020-nz" ref-type="bibr">Fasiolo,
+  Nedellec, Goude, &amp; Wood, 2020</xref>) provides sophisticated
+  capabilities for plotting estimated smooths for models fitted by
+  <italic>mgcv</italic> and <italic>qgam</italic>
+  (<xref alt="Fasiolo, Wood, Zaffran, Nedellec, &amp; Goude, 2020" rid="ref-Fasiolo2020-pr" ref-type="bibr">Fasiolo,
+  Wood, Zaffran, Nedellec, &amp; Goude, 2020</xref>), and model
+  diagnostics plots. A particular feature of <italic>mgcViz</italic> is
+  that it was designed to be scalable, easily handling models fitted to
+  data with millions of observations, a use case not currently well
+  handled by <italic>gratia</italic>. <italic>tidymv</italic>
+  (<xref alt="Coretta, 2023a" rid="ref-tidymv-2023" ref-type="bibr">Coretta,
+  2023a</xref>) and its successor, <italic>tidygam</italic>
+  (<xref alt="Coretta, 2023b" rid="ref-tidygam-2023" ref-type="bibr">Coretta,
+  2023b</xref>), provide plots of estimated smooths and model
+  predictions respectively, as well as differences of smooths, but the
+  focus is on univariate smooths, in contrast to
+  <italic>gratia</italic>’s ability to plot multivariate and specialist
+  smooths (e.g. soap film smooths). Like <italic>gratia</italic>, the
+  <italic>itsadug</italic> package
+  (<xref alt="van Rij, Wieling, Baayen, &amp; van Rijn, 2022" rid="ref-itsadug-2022" ref-type="bibr">van
+  Rij, Wieling, Baayen, &amp; van Rijn, 2022</xref>) is motivated to
+  make working with estimated GAMs and related models easier.
+  <italic>itsadug</italic> uses base graphics for plotting, but in place
+  of partial effects plots, produces plots of adjusted predictions, and
+  while useful for a broad range of models, is especially focused on
+  GAMs fitted to longitudinal data with random effects.</p>
+  <p>Areas where <italic>gratia</italic> stands out from these other
+  packages are i) the consistent functionality for a range of posterior
+  simulations (<italic>mgcViz</italic> has some support for simulating
+  new response values) as illustrated below, ii) support for computing
+  derivatives of smooths, partial derivatives, and derivatives on the
+  response scale (i.e. conditional derivatives), iii) tools for learning
+  or teaching how GAMs work, iv) the range of utility functions that
+  make working with GAMs easier, and v) the simple and consistent
+  <italic>tidy</italic> interface to all functionality.</p>
+</sec>
+<sec id="example-usage">
+  <title>Example usage</title>
+  <p>In this short example, I illustrate a few of the features of
+  <italic>gratia</italic> using a data set of sea surface chlorophyll
+  <italic>a</italic> measurements at a number of locations in the
+  Atlantic Ocean, whose spatial locations are given as geographical
+  coordinates (<monospace>lat</monospace> and
+  <monospace>lon</monospace>), plus two additional covariates;
+  <monospace>bathy</monospace>, the depth of the ocean, in metres, at
+  the sampling location, and <monospace>jul.day</monospace>, the day of
+  the year in which the observation was made. These data are in the
+  <monospace>chl</monospace> dataset provided by the
+  <italic>gamair</italic> package accompanying Wood
+  (<xref alt="2017" rid="ref-Wood2017-qi" ref-type="bibr">2017</xref>).</p>
+  <p>The packages required for this example are loaded, as is the data
+  set <monospace>chl</monospace> with</p>
+  <code language="r script">pkgs &lt;- c(&quot;mgcv&quot;, &quot;gamair&quot;, &quot;gratia&quot;, &quot;ggplot2&quot;, &quot;dplyr&quot;, &quot;ggdist&quot;)
+loaded &lt;- vapply(pkgs, library, logical(1L), logical.return = TRUE,
+  character.only = TRUE)
+data(chl, package = &quot;gamair&quot;)</code>
+  <p>A simple GAM for these data is to model the response
+  (<monospace>chl</monospace>) with a spatial smooth of latitude
+  (<monospace>lat</monospace>) and longitude
+  (<monospace>lon</monospace>) as covariates. Here, I use a spline on
+  the sphere (SOS) smoother built using a Duchon spline with second
+  order derivative penalty
+  (<xref alt="Duchon, 1977" rid="ref-Duchon1977-jr" ref-type="bibr">Duchon,
+  1977</xref>). Additional terms included in the linear predictor are a
+  smooth of the day of year of sample collection
+  (<monospace>jul.day</monospace>) and a smooth of ocean depth
+  (<monospace>bath</monospace>). The response is assumed to be
+  conditionally Tweedie distributed, with the power parameter
+  (<inline-formula><alternatives>
+  <tex-math><![CDATA[p]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>p</mml:mi></mml:math></alternatives></inline-formula>)
+  of the distribution estimated during fitting. Model coefficients and
+  smoothing parameters are estimated using restricted maximum likelihood
+  (<xref alt="Wood, 2011" rid="ref-Wood2011-kn" ref-type="bibr">Wood,
+  2011</xref>). To use parallel processing in some parts of the model
+  fitting algorithm, the <monospace>nthreads</monospace> control
+  parameter is set to 10 (set this lower if your machine doesn’t have
+  this many physical CPU cores).</p>
+  <code language="r script">ctrl &lt;- gam.control(nthreads = 10)
+m1 &lt;- gam(
+  chl ~ s(lat, lon, bs = &quot;sos&quot;, m = -1, k = 150) +
+    s(jul.day, bs = &quot;cr&quot;, k = 20) +
+    s(bath, k = 10),
+  data = chl, method = &quot;REML&quot;, control = ctrl, family = tw()
+)</code>
+  <p>Model diagnostic plots can be produced using
+  <monospace>appraise()</monospace>, which by default produces four
+  plots: i) a QQ plot of model residuals, with theoretical quantiles and
+  reference bands generated following Augustin, Sauleau, &amp; Wood
+  (<xref alt="2012" rid="ref-Augustin2012-sc" ref-type="bibr">2012</xref>),
+  ii) a plot of residuals (deviance residuals are the default) against
+  linear predictor values, iii) a histogram of residuals, and iv) a plot
+  of observed versus fitted values. Model diagnostic plots for the
+  model, with simulated residuals-based reference bands on the QQ plot,
+  are produced with</p>
+  <code language="r script">appraise(m1, method = &quot;simulate&quot;)</code>
+  <p>which show significant heteroscedasticity and departure from the
+  conditional distribution of the response given the model, as seen in
+  the increasing spread of the deviance residuals at larger values of
+  the linear predictor in the upper right panel of Figure
+  <xref alt="[fig:m1-appraise]" rid="figU003Am1-appraise">[fig:m1-appraise]</xref>.</p>
+  <fig>
+    <caption><p><styled-content id="figU003Am1-appraise"></styled-content>Model
+    diagnostic plots for the GAM fitted to the ocean chlorophyll
+    <italic>a</italic> data produced by the
+    <monospace>appraise()</monospace> function. The four plots produced
+    are: i) a QQ plot of model residuals, with theoretical quantiles and
+    reference bands generated following Augustin et al.
+    (<xref alt="2012" rid="ref-Augustin2012-sc" ref-type="bibr">2012</xref>)
+    (upper left), ii) a plot of residuals (deviance residuals are
+    default) against linear predictor values (upper right), iii) a
+    histogram of deviance residuals (lower left), and iv) a plot of
+    observed versus fitted values (lower right)</p></caption>
+    <graphic mimetype="application" mime-subtype="pdf" xlink:href="m1-appraise-1.pdf" />
+  </fig>
+  <p>The problems with the model apparent in the diagnostics plots are
+  probably due to important controls on chlorophyll <italic>a</italic>
+  missing from the covariates available in the example data. However,
+  the original model assumed constant values for the dispersion,
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[\phi]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>ϕ</mml:mi></mml:math></alternatives></inline-formula>,
+  and the power parameter <inline-formula><alternatives>
+  <tex-math><![CDATA[p]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>p</mml:mi></mml:math></alternatives></inline-formula>,
+  which may be too inflexible if missing covariates mean that important
+  effects are not included in the model.</p>
+  <p>A distributional GAM, containing linear predictors for all
+  distributional parameters, <disp-formula><alternatives>
+  <tex-math><![CDATA[\begin{aligned}
+  y_i &\sim \mathcal{D}(\mu_i, p_i, \varphi_i) \\
+  g(\mu_i) &= \beta_1 + f_1(\text{lat}_i, \text{lon}_i) + f_2(\text{jul.day}_i) + f_3(\text{bath}_i) \\
+  g(p_i) &= \beta_2 + f_4(\text{lat}_i, \text{lon}_i) + f_5(\text{jul.day}_i) + f_6(\text{bath}_i) \\
+  g(\varphi_i) &= \beta_3 + f_7(\text{lat}_i, \text{lon}_i) + f_8(\text{jul.day}_i) + f_9(\text{bath}_i)
+  \end{aligned}]]></tex-math>
+  <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mtable><mml:mtr><mml:mtd columnalign="right" style="text-align: right"><mml:msub><mml:mi>y</mml:mi><mml:mi>i</mml:mi></mml:msub></mml:mtd><mml:mtd columnalign="left" style="text-align: left"><mml:mo>∼</mml:mo><mml:mi>𝒟</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>μ</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mo>,</mml:mo><mml:msub><mml:mi>p</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mo>,</mml:mo><mml:msub><mml:mi>φ</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mtd></mml:mtr><mml:mtr><mml:mtd columnalign="right" style="text-align: right"><mml:mi>g</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>μ</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mtd><mml:mtd columnalign="left" style="text-align: left"><mml:mo>=</mml:mo><mml:msub><mml:mi>β</mml:mi><mml:mn>1</mml:mn></mml:msub><mml:mo>+</mml:mo><mml:msub><mml:mi>f</mml:mi><mml:mn>1</mml:mn></mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mtext mathvariant="normal">lat</mml:mtext><mml:mi>i</mml:mi></mml:msub><mml:mo>,</mml:mo><mml:msub><mml:mtext mathvariant="normal">lon</mml:mtext><mml:mi>i</mml:mi></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>+</mml:mo><mml:msub><mml:mi>f</mml:mi><mml:mn>2</mml:mn></mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mtext mathvariant="normal">jul.day</mml:mtext><mml:mi>i</mml:mi></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>+</mml:mo><mml:msub><mml:mi>f</mml:mi><mml:mn>3</mml:mn></mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mtext mathvariant="normal">bath</mml:mtext><mml:mi>i</mml:mi></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mtd></mml:mtr><mml:mtr><mml:mtd columnalign="right" style="text-align: right"><mml:mi>g</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>p</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mtd><mml:mtd columnalign="left" style="text-align: left"><mml:mo>=</mml:mo><mml:msub><mml:mi>β</mml:mi><mml:mn>2</mml:mn></mml:msub><mml:mo>+</mml:mo><mml:msub><mml:mi>f</mml:mi><mml:mn>4</mml:mn></mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mtext mathvariant="normal">lat</mml:mtext><mml:mi>i</mml:mi></mml:msub><mml:mo>,</mml:mo><mml:msub><mml:mtext mathvariant="normal">lon</mml:mtext><mml:mi>i</mml:mi></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>+</mml:mo><mml:msub><mml:mi>f</mml:mi><mml:mn>5</mml:mn></mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mtext mathvariant="normal">jul.day</mml:mtext><mml:mi>i</mml:mi></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>+</mml:mo><mml:msub><mml:mi>f</mml:mi><mml:mn>6</mml:mn></mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mtext mathvariant="normal">bath</mml:mtext><mml:mi>i</mml:mi></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mtd></mml:mtr><mml:mtr><mml:mtd columnalign="right" style="text-align: right"><mml:mi>g</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>φ</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mtd><mml:mtd columnalign="left" style="text-align: left"><mml:mo>=</mml:mo><mml:msub><mml:mi>β</mml:mi><mml:mn>3</mml:mn></mml:msub><mml:mo>+</mml:mo><mml:msub><mml:mi>f</mml:mi><mml:mn>7</mml:mn></mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mtext mathvariant="normal">lat</mml:mtext><mml:mi>i</mml:mi></mml:msub><mml:mo>,</mml:mo><mml:msub><mml:mtext mathvariant="normal">lon</mml:mtext><mml:mi>i</mml:mi></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>+</mml:mo><mml:msub><mml:mi>f</mml:mi><mml:mn>8</mml:mn></mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mtext mathvariant="normal">jul.day</mml:mtext><mml:mi>i</mml:mi></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>+</mml:mo><mml:msub><mml:mi>f</mml:mi><mml:mn>9</mml:mn></mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mtext mathvariant="normal">bath</mml:mtext><mml:mi>i</mml:mi></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mtd></mml:mtr></mml:mtable></mml:math></alternatives></disp-formula>
+  may improve the model diagnostics.</p>
+  <p>A distributional GAM for <inline-formula><alternatives>
+  <tex-math><![CDATA[\mathcal{D}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>𝒟</mml:mi></mml:math></alternatives></inline-formula>
+  Tweedie with linear predictors for <inline-formula><alternatives>
+  <tex-math><![CDATA[\mu]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>μ</mml:mi></mml:math></alternatives></inline-formula>,
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[p]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>p</mml:mi></mml:math></alternatives></inline-formula>,
+  and <inline-formula><alternatives>
+  <tex-math><![CDATA[\varphi]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>φ</mml:mi></mml:math></alternatives></inline-formula>
+  is fitted below using <italic>mgcv</italic>’s
+  <monospace>twlss()</monospace> family</p>
+  <code language="r script">m2 &lt;- gam(
+  list(
+    chl ~ s(lat, lon, bs = &quot;sos&quot;, m = -1, k = 150) + # location
+      s(jul.day, bs = &quot;cr&quot;, k = 20) + s(bath, k = 10),
+    ~ s(lat, lon, bs = &quot;sos&quot;, m = -1, k = 100) +     # power
+      s(jul.day, bs = &quot;cr&quot;, k = 20) + s(bath, k = 10),
+    ~ s(lat, lon, bs = &quot;sos&quot;, m = -1, k = 100) +     # scale
+      s(jul.day, bs = &quot;cr&quot;, k = 20) + s(bath, k = 10)
+  ),
+  data = chl, method = &quot;REML&quot;, control = ctrl, family = twlss()
+)</code>
+  <p>This model has much better model diagnostics although some large
+  residuals remain (Figure
+  <xref alt="[fig:m2-appraise]" rid="figU003Am2-appraise">[fig:m2-appraise]</xref>).
+  Note that the QQ plot uses theoretical quantiles from a standard
+  normal distribution as the simulation-based values are not currently
+  available in <italic>mgcv</italic> or <italic>gratia</italic> for some
+  of the distributional families, including the
+  <monospace>twlss()</monospace> family, and as such, the reference
+  bands may not be appropriate.</p>
+  <fig>
+    <caption><p><styled-content id="figU003Am2-appraise"></styled-content>Model
+    diagnostic plots for the distributional GAM fitted to the ocean
+    chlorophyll <italic>a</italic> data produced by the
+    <monospace>appraise()</monospace> function. Refer to the caption for
+    Figure
+    <xref alt="[fig:m1-appraise]" rid="figU003Am1-appraise">[fig:m1-appraise]</xref>
+    for a description of the plots shown.</p></caption>
+    <graphic mimetype="application" mime-subtype="pdf" xlink:href="m2-appraise-1.pdf" />
+  </fig>
+  <p><italic>gratia</italic> can handle distributional GAMs fitted with
+  <italic>mgcv</italic>, and also those fitted using
+  <italic>GJRM</italic>’s <monospace>gamlss()</monospace>. Below, the
+  estimated smooths from <monospace>m2</monospace> are plotted using
+  <monospace>draw()</monospace></p>
+  <code language="r script"># Define the coordinate system to use for plotting on a map
+crs &lt;- &quot;+proj=ortho +lat_0=20 +lon_0=-40&quot;
+draw(m2, crs = crs, default_crs = 4326, dist = 0.05, rug = FALSE)</code>
+  <p>The plots produced by <monospace>draw()</monospace> from a fitted
+  model are known as <italic>partial effect plots</italic> (Figure
+  <xref alt="[fig:m2-draw]" rid="figU003Am2-draw">[fig:m2-draw]</xref>),
+  which show the component contributions, on the link scale, of each
+  model term to the linear predictor. The y axis on these plots is
+  typically centred around 0 due to most smooths having a sum-to-zero
+  identifiability constraint applied to them. This constraint is what
+  allows the model to include multiple smooths and remain identifiable.
+  These plots allow you to read off the contributions of each smooth to
+  the fitted response (on the link scale); they show link-scale
+  <italic>predictions</italic> of the response for each smooth,
+  conditional upon all other terms in the model, including any
+  parametric effects and the intercept, having zero contribution. In the
+  parlance of the <italic>marginaleffects</italic> package
+  (<xref alt="Arel-Bundock, Greifer, &amp; Heiss, Forthcoming" rid="ref-Arel-BundockGreiferHeissU003A2024" ref-type="bibr">Arel-Bundock,
+  Greifer, &amp; Heiss, Forthcoming</xref>), these plots show
+  <italic>adjusted predictions</italic>, just where the adjustment
+  includes setting the contribution of <italic>all</italic> other model
+  terms to the predicted value to zero. For <italic>partial
+  derivatives</italic> (what <italic>marginaleffects</italic> would call
+  a <italic>marginal effect</italic> or slope), <italic>gratia</italic>
+  provides <monospace>derivatives()</monospace>.</p>
+  <p>Here, we see a specialised plot drawn for spline-on-the-sphere
+  smooths <inline-formula><alternatives>
+  <tex-math><![CDATA[f(\mathtt{lat}_i,\mathtt{lon}_i)]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>f</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mrow><mml:mi>𝚕</mml:mi><mml:mi>𝚊</mml:mi><mml:mi>𝚝</mml:mi></mml:mrow><mml:mi>i</mml:mi></mml:msub><mml:mo>,</mml:mo><mml:msub><mml:mrow><mml:mi>𝚕</mml:mi><mml:mi>𝚘</mml:mi><mml:mi>𝚗</mml:mi></mml:mrow><mml:mi>i</mml:mi></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>
+  (Figure
+  <xref alt="[fig:m2-draw]" rid="figU003Am2-draw">[fig:m2-draw]</xref>,
+  left-hand column), which uses
+  <monospace>ggplot2::coord_sf()</monospace> and functionality from the
+  <italic>sf</italic> package
+  (<xref alt="Pebesma, 2018" rid="ref-Pebesma2018-ws" ref-type="bibr">Pebesma,
+  2018</xref>;
+  <xref alt="Pebesma &amp; Bivand, 2023" rid="ref-Pebesma2023-fe" ref-type="bibr">Pebesma
+  &amp; Bivand, 2023</xref>) to visualise the smooth via an orthographic
+  projection.</p>
+  <fig>
+    <caption><p><styled-content id="figU003Am2-draw"></styled-content>Estimated
+    smooth functions for the distributional GAM,
+    <monospace>m2</monospace>, fitted to the ocean chlorophyll
+    <italic>a</italic> data. The first row of plots is for the linear
+    predictor of the conditional mean chlorophyll <italic>a</italic>,
+    while the second and third rows are for the conditional power
+    parameter and conditional scale, respectively. The shaded ribbons
+    are 95% Bayesian credible intervals.</p></caption>
+    <graphic mimetype="application" mime-subtype="pdf" xlink:href="m2-draw-1.pdf" />
+  </fig>
+  <p>If the provided plots are insufficient for users’ needs,
+  lower-level functionality is provided by <italic>gratia</italic> to
+  facilitate bespoke plotting with <italic>ggplot2</italic>. For
+  example, to evaluate the SOS smooth at a grid (50x50) of values over
+  the range of the covariates, we use
+  <monospace>smooth_estimates()</monospace> and add a Bayesian credible
+  interval with <monospace>add_confint()</monospace>:</p>
+  <code language="r script">smooth_estimates(m2, select = &quot;s(lat,lon)&quot;, n = 50) |&gt;
+  add_confint()</code>
+  <p>This returns a data frame of the requested values that is amenable
+  for plotted with <monospace>ggplot()</monospace>.</p>
+  <sec id="posterior-sampling">
+    <title>Posterior sampling</title>
+    <p>Perhaps we are interested in the average expected chlorophyll
+    <italic>a</italic> between 40–50 degrees N and 40–50 degrees W. An
+    estimate for this value can be computed directly from the fitted
+    model as follows. First create a slice through the data for the
+    spatial locations were are interested in using the
+    <monospace>data_slice()</monospace> function, which ensures that
+    <monospace>ds</monospace> contains everything we need to predict
+    from the fitted model</p>
+    <code language="r script">ds &lt;- data_slice(m2,
+  lat = evenly(lat, lower = 40, upper = 50, by = 0.5),
+  lon = evenly(lon, lower = -50, upper = -40, by = 0.5))</code>
+    <p>Next, <monospace>fitted_values()</monospace> returns the
+    predicted values at the specified locations. I only include the
+    spatial effects, excluding the effects of ocean depth and day of
+    year, and ignore terms in the other linear predictors as they do not
+    affect the expected chlorophyll <italic>a</italic>:</p>
+    <code language="r script">use &lt;- c(&quot;(Intercept)&quot;, &quot;s(lat,lon)&quot;)
+fv &lt;- fitted_values(m2, data = ds, terms = use) # predict</code>
+    <p>Finally, I summarise the predictions for the location parameter
+    to yield the average of the predicted values</p>
+    <code language="r script">fv |&gt;
+  filter(.parameter == &quot;location&quot;) |&gt;
+  summarise(chl_a = mean(.fitted))</code>
+    <preformat>## # A tibble: 1 x 1
+##   chl_a
+##   &lt;dbl&gt;
+## 1  1.07</preformat>
+    <p>While this is an acceptable answer to the question, it lacks an
+    uncertainty estimate. This is where posterior sampling is useful.
+    With a small modification of the above code and a little data
+    wrangling, we can produce an uncertainty estimate, using
+    <monospace>fitted_samples()</monospace> to generate posterior draws
+    of the expected chlorophyll <italic>a</italic>:</p>
+    <code language="r script">fs &lt;- fitted_samples(m2,     # model
+  data = ds,                 # values of covariates to predict at
+  terms = use,               # which terms to include in predictions
+  n = 10000,                 # number of posterior draws
+  method = &quot;gaussian&quot;,       # Gaussian approximation to the posterior
+  unconditional = TRUE,      # incl uncertainty for estimating lambda
+  n_cores = 4,               # how many CPU cores to compute MVN samples
+  seed = 342)                # set the random number seed, used internally</code>
+    <p>The posterior draws can then be summarised as before, except now
+    the average chlorophyll <italic>a</italic> is calculated separately
+    for each posterior draw (<monospace>.draw</monospace>)</p>
+    <code language="r script">fs |&gt;                                 # take the posterior draws
+  group_by(.draw) |&gt;                  # group them by `.draw`
+  summarise(chl_a = mean(.fitted)) |&gt; # compute mean of fitted chl a
+  ggdist::median_qi()                 # summarise posterior</code>
+    <preformat>## # A tibble: 1 x 6
+##   chl_a .lower .upper .width .point .interval
+##   &lt;dbl&gt;  &lt;dbl&gt;  &lt;dbl&gt;  &lt;dbl&gt; &lt;chr&gt;  &lt;chr&gt;    
+## 1 0.932  0.757   1.17   0.95 median qi</preformat>
+    <p>The posterior distribution of average chlorophyll
+    <italic>a</italic> is summarised using
+    <monospace>median_qi()</monospace> from the <italic>ggdist</italic>
+    package
+    (<xref alt="Kay, 2024a" rid="ref-Kay2024-rv" ref-type="bibr">Kay,
+    2024a</xref>,
+    <xref alt="2024b" rid="ref-Kay2024-uj" ref-type="bibr">2024b</xref>).
+    While we could use the base R function
+    <monospace>quantile()</monospace> to compute the interval, the use
+    of <monospace>median_qi()</monospace> illustrates how
+    <italic>gratia</italic> tries to interact with other packages.</p>
+  </sec>
+</sec>
+<sec id="conclusion">
+  <title>Conclusion</title>
+  <p><italic>gratia</italic> provides a range of functionality to make
+  working with estimated GAMs easier for users. It is designed to take
+  some of the pain out of working with models, simplifying plotting of
+  smooths and related features (differences, derivatives) and exposing
+  the powerful machinery of the <italic>mgcv</italic> package without
+  the need for a deep understanding of GAMs, splines, and the inner
+  structure of <italic>mgcv</italic>’s model objects. As such, it
+  provides a useful addition for anyone wanting to use GAMs in their
+  data analyses without requiring them to be a GAM expert.</p>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>Development of <italic>gratia</italic> was supported by a Natural
+  Sciences and Engineering Research Council of Canada (NSERC) Discovery
+  Grant to the author (RGPIN-2014-04032).</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <title></title>
+  <ref id="ref-Augustin2012-sc">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Augustin</surname><given-names>Nicole H</given-names></name>
+        <name><surname>Sauleau</surname><given-names>Erik-André</given-names></name>
+        <name><surname>Wood</surname><given-names>Simon N</given-names></name>
+      </person-group>
+      <article-title>On quantile quantile plots for generalized linear models</article-title>
+      <source>Computational statistics &amp; data analysis</source>
+      <year iso-8601-date="2012-08">2012</year><month>08</month>
+      <volume>56</volume>
+      <issue>8</issue>
+      <issn>0167-9473</issn>
+      <pub-id pub-id-type="doi">10.1016/j.csda.2012.01.026</pub-id>
+      <fpage>2404</fpage>
+      <lpage>2409</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Wood2017-qi">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Wood</surname><given-names>Simon N</given-names></name>
+      </person-group>
+      <source>Generalized additive models: An introduction with R, second edition</source>
+      <publisher-name>CRC Press</publisher-name>
+      <year iso-8601-date="2017-05">2017</year><month>05</month>
+      <isbn>9781498728379</isbn>
+      <pub-id pub-id-type="doi">10.1201/9781315370279</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-Hastie1990-bx">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Hastie</surname><given-names>Trevor J</given-names></name>
+        <name><surname>Tibshirani</surname><given-names>R J</given-names></name>
+      </person-group>
+      <source>Generalized additive models</source>
+      <publisher-name>Chapman &amp; Hall / CRC</publisher-name>
+      <publisher-loc>Boca Raton, Fl.</publisher-loc>
+      <year iso-8601-date="1990-06">1990</year><month>06</month>
+      <isbn>9781351445962</isbn>
+      <pub-id pub-id-type="doi">10.1201/9780203753781-6</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-Wood2011-kn">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Wood</surname><given-names>Simon N</given-names></name>
+      </person-group>
+      <article-title>Fast stable restricted maximum likelihood and marginal likelihood estimation of semiparametric generalized linear models</article-title>
+      <source>Journal of the Royal Statistical Society. Series B, Statistical methodology</source>
+      <publisher-name>Blackwell Publishing Ltd</publisher-name>
+      <year iso-8601-date="2011-01">2011</year><month>01</month>
+      <volume>73</volume>
+      <issue>1</issue>
+      <issn>1369-7412</issn>
+      <pub-id pub-id-type="doi">10.1111/j.1467-9868.2010.00749.x</pub-id>
+      <fpage>3</fpage>
+      <lpage>36</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Wood2016-fx">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Wood</surname><given-names>Simon N</given-names></name>
+        <name><surname>Pya</surname><given-names>Natalya</given-names></name>
+        <name><surname>Säfken</surname><given-names>Benjamin</given-names></name>
+      </person-group>
+      <article-title>Smoothing parameter and model selection for general smooth models</article-title>
+      <source>Journal of the American Statistical Association</source>
+      <publisher-name>Taylor &amp; Francis</publisher-name>
+      <year iso-8601-date="2016-10">2016</year><month>10</month>
+      <volume>111</volume>
+      <issue>516</issue>
+      <issn>0162-1459</issn>
+      <pub-id pub-id-type="doi">10.1080/01621459.2016.1180986</pub-id>
+      <fpage>1548</fpage>
+      <lpage>1563</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Li2020-ch">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Li</surname><given-names>Zheyuan</given-names></name>
+        <name><surname>Wood</surname><given-names>Simon N</given-names></name>
+      </person-group>
+      <article-title>Faster model matrix crossproducts for large generalized linear models with discretized covariates</article-title>
+      <source>Statistics and computing</source>
+      <publisher-name>Springer Science; Business Media LLC</publisher-name>
+      <year iso-8601-date="2020-02">2020</year><month>02</month>
+      <volume>30</volume>
+      <issue>1</issue>
+      <issn>0960-3174</issn>
+      <pub-id pub-id-type="doi">10.1007/s11222-019-09864-2</pub-id>
+      <fpage>19</fpage>
+      <lpage>25</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Miller2019-nf">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Miller</surname><given-names>David L</given-names></name>
+      </person-group>
+      <article-title>Bayesian views of generalized additive modelling</article-title>
+      <source>arXiv [stat.ME]</source>
+      <year iso-8601-date="2021-02">2021</year><month>02</month>
+      <uri>https://arxiv.org/abs/1902.01330</uri>
+      <pub-id pub-id-type="doi">10.48550/arXiv.1902.01330</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-De-Boor2001-vg">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>De Boor</surname><given-names>Carl</given-names></name>
+      </person-group>
+      <source>A practical guide to splines</source>
+      <publisher-name>Springer</publisher-name>
+      <publisher-loc>New York, NY</publisher-loc>
+      <year iso-8601-date="2001-11">2001</year><month>11</month>
+      <edition>1</edition>
+      <isbn>9780387953663</isbn>
+    </element-citation>
+  </ref>
+  <ref id="ref-Burkner2017-ms">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Bürkner</surname><given-names>Paul-Christian</given-names></name>
+      </person-group>
+      <article-title>brms: An R package for bayesian multilevel models using stan</article-title>
+      <source>Journal of Statistical Software, Articles</source>
+      <year iso-8601-date="2017">2017</year>
+      <volume>80</volume>
+      <issue>1</issue>
+      <issn>1548-7660</issn>
+      <pub-id pub-id-type="doi">10.18637/jss.v080.i01</pub-id>
+      <fpage>1</fpage>
+      <lpage>28</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Marra2023-gjrm">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Marra</surname><given-names>Giampiero</given-names></name>
+        <name><surname>Radice</surname><given-names>Rosalba</given-names></name>
+      </person-group>
+      <source>GJRM: Generalised joint regression modelling</source>
+      <year iso-8601-date="2023">2023</year>
+      <pub-id pub-id-type="doi">10.32614/CRAN.package.GJRM</pub-id>
+      <fpage>R package version 0.2</fpage>
+      <lpage>6.4</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Pedersen2019-ff">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Pedersen</surname><given-names>Eric J</given-names></name>
+        <name><surname>Miller</surname><given-names>David L</given-names></name>
+        <name><surname>Simpson</surname><given-names>Gavin L</given-names></name>
+        <name><surname>Ross</surname><given-names>Noam</given-names></name>
+      </person-group>
+      <article-title>Hierarchical generalized additive models in ecology: An introduction with mgcv</article-title>
+      <source>PeerJ</source>
+      <publisher-name>PeerJ Inc.</publisher-name>
+      <year iso-8601-date="2019-05">2019</year><month>05</month>
+      <volume>7</volume>
+      <issn>2167-8359</issn>
+      <pub-id pub-id-type="doi">10.7717/peerj.6876</pub-id>
+      <pub-id pub-id-type="pmid">31179172</pub-id>
+      <fpage>e6876</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Simpson2018-wc">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Simpson</surname><given-names>Gavin L</given-names></name>
+      </person-group>
+      <article-title>Modelling palaeoecological time series using generalised additive models</article-title>
+      <source>Frontiers in Ecology and Evolution</source>
+      <year iso-8601-date="2018">2018</year>
+      <volume>6</volume>
+      <issn>2296-701X</issn>
+      <pub-id pub-id-type="doi">10.3389/fevo.2018.00149</pub-id>
+      <fpage>149</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Wickham2014-ev">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Wickham</surname><given-names>Hadley</given-names></name>
+      </person-group>
+      <article-title>Tidy data</article-title>
+      <source>Journal of statistical software</source>
+      <publisher-name>Foundation for Open Access Statistic</publisher-name>
+      <year iso-8601-date="2014-09">2014</year><month>09</month>
+      <volume>59</volume>
+      <issue>10</issue>
+      <issn>1548-7660</issn>
+      <pub-id pub-id-type="doi">10.18637/jss.v059.i10</pub-id>
+      <fpage>1</fpage>
+      <lpage>23</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Wickham2016-dg">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Wickham</surname><given-names>Hadley</given-names></name>
+      </person-group>
+      <source>ggplot2: Elegant graphics for data analysis</source>
+      <publisher-name>Springer International Publishing</publisher-name>
+      <year iso-8601-date="2016">2016</year>
+      <isbn>9783319242774</isbn>
+      <pub-id pub-id-type="doi">10.1007/978-3-319-24277-4</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-rcore2024">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <string-name>R Core Team</string-name>
+      </person-group>
+      <source>R: A language and environment for statistical computing</source>
+      <publisher-name>R Foundation for Statistical Computing</publisher-name>
+      <publisher-loc>Vienna, Austria</publisher-loc>
+      <year iso-8601-date="2024">2024</year>
+      <uri>https://www.R-project.org/</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-Wickham2023-uj">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Wickham</surname><given-names>Hadley</given-names></name>
+        <name><surname>Cetinkaya-Rundel</surname><given-names>Mine</given-names></name>
+        <name><surname>Grolemund</surname><given-names>Garrett</given-names></name>
+      </person-group>
+      <source>R for data science: Import, tidy, transform, visualize, and model data</source>
+      <publisher-name>O’Reilly Media</publisher-name>
+      <publisher-loc>Sebastopol, CA</publisher-loc>
+      <year iso-8601-date="2023-06">2023</year><month>06</month>
+      <edition>2</edition>
+      <isbn>9781492097402</isbn>
+    </element-citation>
+  </ref>
+  <ref id="ref-Duchon1977-jr">
+    <element-citation publication-type="chapter">
+      <person-group person-group-type="author">
+        <name><surname>Duchon</surname><given-names>Jean</given-names></name>
+      </person-group>
+      <article-title>Splines minimizing rotation-invariant semi-norms in Sobolev spaces</article-title>
+      <source>Constructive theory of functions of several variables</source>
+      <publisher-name>Springer, Berlin, Heidelberg</publisher-name>
+      <year iso-8601-date="1977">1977</year>
+      <isbn>9783540374961</isbn>
+      <pub-id pub-id-type="doi">10.1007/BFb0086566</pub-id>
+      <fpage>85</fpage>
+      <lpage>100</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Pebesma2018-ws">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Pebesma</surname><given-names>Edzer</given-names></name>
+      </person-group>
+      <article-title>Simple features for R: Standardized support for spatial vector data</article-title>
+      <source>The R journal</source>
+      <publisher-name>The R Foundation</publisher-name>
+      <year iso-8601-date="2018">2018</year>
+      <volume>10</volume>
+      <issue>1</issue>
+      <issn>2073-4859</issn>
+      <pub-id pub-id-type="doi">10.32614/rj-2018-009</pub-id>
+      <fpage>439</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Pebesma2023-fe">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Pebesma</surname><given-names>Edzer</given-names></name>
+        <name><surname>Bivand</surname><given-names>Roger</given-names></name>
+      </person-group>
+      <source>Spatial data science: With applications in R</source>
+      <publisher-name>Chapman; Hall/CRC</publisher-name>
+      <publisher-loc>New York</publisher-loc>
+      <year iso-8601-date="2023-05">2023</year><month>05</month>
+      <edition>1st Edition</edition>
+      <isbn>9780429459016</isbn>
+      <pub-id pub-id-type="doi">10.1201/9780429459016</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-Kay2024-rv">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Kay</surname><given-names>Matthew</given-names></name>
+      </person-group>
+      <article-title>ggdist: Visualizations of distributions and uncertainty in the grammar of graphics</article-title>
+      <source>IEEE transactions on visualization and computer graphics</source>
+      <publisher-name>Institute of Electrical; Electronics Engineers (IEEE)</publisher-name>
+      <year iso-8601-date="2024-01">2024</year><month>01</month>
+      <volume>30</volume>
+      <issue>1</issue>
+      <issn>1077-2626</issn>
+      <pub-id pub-id-type="doi">10.1109/TVCG.2023.3327195</pub-id>
+      <pub-id pub-id-type="pmid">37883271</pub-id>
+      <fpage>414</fpage>
+      <lpage>424</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Kay2024-uj">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Kay</surname><given-names>Matthew</given-names></name>
+      </person-group>
+      <article-title>ggdist: Visualizations of distributions and uncertainty</article-title>
+      <publisher-name>Zenodo</publisher-name>
+      <year iso-8601-date="2024">2024</year>
+      <pub-id pub-id-type="doi">10.5281/ZENODO.10782896</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-Wood2003-qy">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Wood</surname><given-names>Simon N</given-names></name>
+      </person-group>
+      <article-title>Thin plate regression splines</article-title>
+      <source>Journal of the Royal Statistical Society. Series B, Statistical methodology</source>
+      <publisher-name>Oxford University Press (OUP)</publisher-name>
+      <year iso-8601-date="2003-02">2003</year><month>02</month>
+      <volume>65</volume>
+      <issue>1</issue>
+      <issn>1369-7412</issn>
+      <pub-id pub-id-type="doi">10.1111/1467-9868.00374</pub-id>
+      <fpage>95</fpage>
+      <lpage>114</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Kimeldorf1970-cn">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Kimeldorf</surname><given-names>George S</given-names></name>
+        <name><surname>Wahba</surname><given-names>Grace</given-names></name>
+      </person-group>
+      <article-title>A correspondence between bayesian estimation on stochastic processes and smoothing by splines</article-title>
+      <source>Annals of Mathematical Statistics</source>
+      <publisher-name>Institute of Mathematical Statistics</publisher-name>
+      <year iso-8601-date="1970">1970</year>
+      <volume>41</volume>
+      <issue>2</issue>
+      <issn>0003-4851</issn>
+      <pub-id pub-id-type="doi">10.1214/AOMS/1177697089</pub-id>
+      <fpage>495</fpage>
+      <lpage>502</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Wahba1983-mi">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Wahba</surname><given-names>G</given-names></name>
+      </person-group>
+      <article-title>Bayesian “confidence intervals” for the cross-validated smoothing spline</article-title>
+      <source>Journal of the Royal Statistical Society</source>
+      <publisher-name>Wiley</publisher-name>
+      <year iso-8601-date="1983-09">1983</year><month>09</month>
+      <volume>45</volume>
+      <issue>1</issue>
+      <issn>0035-9246</issn>
+      <pub-id pub-id-type="doi">10.1111/j.2517-6161.1983.tb01239.x</pub-id>
+      <fpage>133</fpage>
+      <lpage>150</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Silverman1985-kw">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Silverman</surname><given-names>B W</given-names></name>
+      </person-group>
+      <article-title>Some aspects of the spline smoothing approach to non-parametric regression curve fitting</article-title>
+      <source>Journal of the Royal Statistical Society. Series B, Statistical methodology</source>
+      <publisher-name>[Royal Statistical Society, Wiley]</publisher-name>
+      <year iso-8601-date="1985">1985</year>
+      <volume>47</volume>
+      <issue>1</issue>
+      <issn>1369-7412</issn>
+      <pub-id pub-id-type="doi">10.1111/j.2517-6161.1985.tb01327.x</pub-id>
+      <fpage>1</fpage>
+      <lpage>52</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Wahba1985-bw">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Wahba</surname><given-names>G</given-names></name>
+      </person-group>
+      <article-title>A comparison of GCV and GML for choosing the smoothing parameter in the generalized spline smoothing problem</article-title>
+      <source>Annals of Statistics</source>
+      <publisher-name>Institute of Mathematical Statistics</publisher-name>
+      <year iso-8601-date="1985-12">1985</year><month>12</month>
+      <volume>13</volume>
+      <issue>4</issue>
+      <issn>0090-5364</issn>
+      <pub-id pub-id-type="doi">10.1214/AOS/1176349743</pub-id>
+      <fpage>1378</fpage>
+      <lpage>1402</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Arel-BundockGreiferHeissU003A2024">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Arel-Bundock</surname><given-names>Vincent</given-names></name>
+        <name><surname>Greifer</surname><given-names>Noah</given-names></name>
+        <name><surname>Heiss</surname><given-names>Andrew</given-names></name>
+      </person-group>
+      <article-title>How to interpret statistical models using marginaleffects in R and Python</article-title>
+      <source>Journal of Statistical Software</source>
+    </element-citation>
+  </ref>
+  <ref id="ref-itsadug-2022">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>van Rij</surname><given-names>Jacolien</given-names></name>
+        <name><surname>Wieling</surname><given-names>Martijn</given-names></name>
+        <name><surname>Baayen</surname><given-names>R. Harald</given-names></name>
+        <name><surname>van Rijn</surname><given-names>Hedderik</given-names></name>
+      </person-group>
+      <source>itsadug: Interpreting time series and autocorrelated data using GAMMs</source>
+      <year iso-8601-date="2022">2022</year>
+      <pub-id pub-id-type="doi">10.32614/CRAN.package.itsadug</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-tidygam-2023">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Coretta</surname><given-names>Stefano</given-names></name>
+      </person-group>
+      <source>tidygam: Tidy prediction and plotting of generalised additive models</source>
+      <year iso-8601-date="2023">2023</year>
+      <pub-id pub-id-type="doi">10.32614/CRAN.package.tidygam</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-tidymv-2023">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Coretta</surname><given-names>Stefano</given-names></name>
+      </person-group>
+      <source>tidymv: Tidy model visualisation for generalised additive models</source>
+      <year iso-8601-date="2023">2023</year>
+      <pub-id pub-id-type="doi">10.32614/CRAN.package.tidymv</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-Fasiolo2020-nz">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Fasiolo</surname><given-names>Matteo</given-names></name>
+        <name><surname>Nedellec</surname><given-names>Raphaël</given-names></name>
+        <name><surname>Goude</surname><given-names>Yannig</given-names></name>
+        <name><surname>Wood</surname><given-names>Simon N</given-names></name>
+      </person-group>
+      <article-title>Scalable visualization methods for modern generalized additive models</article-title>
+      <source>Journal of Computational and Graphical Statistics</source>
+      <publisher-name>Taylor &amp; Francis</publisher-name>
+      <year iso-8601-date="2020-01">2020</year><month>01</month>
+      <volume>29</volume>
+      <issue>1</issue>
+      <issn>1061-8600</issn>
+      <pub-id pub-id-type="doi">10.1080/10618600.2019.1629942</pub-id>
+      <fpage>78</fpage>
+      <lpage>86</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Fasiolo2020-pr">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Fasiolo</surname><given-names>Matteo</given-names></name>
+        <name><surname>Wood</surname><given-names>Simon N</given-names></name>
+        <name><surname>Zaffran</surname><given-names>Margaux</given-names></name>
+        <name><surname>Nedellec</surname><given-names>Raphaël</given-names></name>
+        <name><surname>Goude</surname><given-names>Yannig</given-names></name>
+      </person-group>
+      <article-title>Fast calibrated additive quantile regression</article-title>
+      <source>Journal of the American Statistical Association</source>
+      <publisher-name>Taylor &amp; Francis</publisher-name>
+      <year iso-8601-date="2020-02">2020</year><month>02</month>
+      <issn>0162-1459</issn>
+      <pub-id pub-id-type="doi">10.1080/01621459.2020.1725521</pub-id>
+      <fpage>1</fpage>
+      <lpage>11</lpage>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
