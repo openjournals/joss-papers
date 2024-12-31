@@ -1,0 +1,607 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">7239</article-id>
+<article-id pub-id-type="doi">10.21105/joss.07239</article-id>
+<title-group>
+<article-title>xagg: A Python package to aggregate gridded data onto
+polygons</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author" corresp="yes">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0001-8309-7124</contrib-id>
+<name>
+<surname>Schwarzwald</surname>
+<given-names>Kevin</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+<xref ref-type="aff" rid="aff-2"/>
+<xref ref-type="corresp" rid="cor-1"><sup>*</sup></xref>
+</contrib>
+<contrib contrib-type="author">
+<name>
+<surname>Geil</surname>
+<given-names>Kerrie</given-names>
+</name>
+<xref ref-type="aff" rid="aff-3"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Lamont-Doherty Earth Observatory of Columbia University,
+Palisades, NY, USA</institution>
+</institution-wrap>
+</aff>
+<aff id="aff-2">
+<institution-wrap>
+<institution>International Research Institute for Climate and Society,
+Palisades, NY, USA</institution>
+</institution-wrap>
+</aff>
+<aff id="aff-3">
+<institution-wrap>
+<institution>Geosystems Research Institute, Mississippi State
+University, Starkville, MS, USA</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<author-notes>
+<corresp id="cor-1">* E-mail: <email></email></corresp>
+</author-notes>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2024-08-22">
+<day>22</day>
+<month>8</month>
+<year>2024</year>
+</pub-date>
+<volume>9</volume>
+<issue>104</issue>
+<fpage>7239</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2024</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>Python</kwd>
+<kwd>xarray</kwd>
+<kwd>geopandas</kwd>
+<kwd>raster data</kwd>
+<kwd>spatial statistics</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p>Scientific data (e.g. gridded weather observations, pollution data,
+  night-time lights, or other remote sensing products) are often
+  interpolated to or created on grids or raster pixels to approximate
+  the continuous real world for ease of calculation, standardization, or
+  due to technical limiations. However, the geospatial or administrative
+  boundaries that occur in the real world rarely approximate a grid. For
+  example, birds fly along complex migratory corridors, rain- and
+  watersheds follow valleys and mountains, and many types of data, such
+  as demographics or agricultural information, are often collected on
+  the county, city, or census tract levels. Often, the geospatial and
+  administrative boundaries that occur in the real world can be
+  represented with polygons.</p>
+  <p>When these raster and polygon worlds collide, as they often do in
+  social or natural science research, data must be aggregated between
+  them (e.g., Auffhammer et al.
+  (<xref alt="2013" rid="ref-auffhammer_using_2013" ref-type="bibr">2013</xref>)).
+  This aggregation must, however, be done with care to preserve the
+  integrity of the data and subsequent analysis. Consider a researcher
+  working on population and mortality statistics for Los Angeles County.
+  Using gridded temperature data in their work may require aggregating
+  the gridded data onto a polygon representing Los Angeles County
+  (<xref alt="[fig1]" rid="fig1">[fig1]</xref>). The simplest way to
+  aggregate the data would be to average across every grid cell that
+  overlaps with the county polygon, implicitly weighting each equally.
+  However, some grid cells may only slightly overlap with the county and
+  instead primarily cover areas with different climate characteristics
+  (for example, grid cells primarily covering oceans in
+  <xref alt="[fig1]" rid="fig1">[fig1]</xref>); giving them equal weight
+  to grid cells fully inside the county may produce a temperature time
+  series that does not reflect what the county actually experiences.
+  Additionally, some grid cells may cover sparsely populated areas of
+  the county; since few people experience temperature in those areas,
+  including those grid cells with equal weight in the aggregated result
+  may be unhelpful when studying the relationship between temperature
+  and mortality.</p>
+  <fig>
+    <caption><p>Illustration of <monospace>xagg</monospace> workflow.
+    Variables stored on a geographic grid (in this case 2-meter daily
+    temperature from ERA5 reanalysis; Hersbach et al.
+    (<xref alt="2020" rid="ref-hersbach_era5_2020" ref-type="bibr">2020</xref>)),
+    a set of geographic polygons (in this case US county borders,
+    focusing on Los Angeles County as an example), and an optional
+    second weight on a geographic grid (in this case LandScan Day
+    Population; Rose et al.
+    (<xref alt="2017" rid="ref-rose_landscan_2017" ref-type="bibr">2017</xref>))
+    are inputted (panels a., c.). <monospace>xagg</monospace> calculates
+    the relative overlap between each ERA5 grid cell and each county
+    (panel b.). <monospace>xagg</monospace> regrids the population grid
+    to the ERA5 grid (panel d.), and produces a set of final grid cell
+    weights composed of both the area overlap and the population density
+    (panel e.). For each county, these weights are used to calculate
+    weighted averages of daily temperature (panel f.), which can be then
+    be outputted in multiple formats for further
+    analysis.<styled-content id="fig1"></styled-content></p></caption>
+    <graphic mimetype="application" mime-subtype="pdf" xlink:href="xagg_joss_figure1.pdf" />
+  </fig>
+  <p>Therefore, an ideal aggregation would weight not only by the area
+  of overlap between grid cells and polygons, but also optionally by
+  other densities of relevant variables - population, area planted, etc.
+  (<xref alt="Auffhammer et al., 2013" rid="ref-auffhammer_using_2013" ref-type="bibr">Auffhammer
+  et al., 2013</xref>).</p>
+  <p><monospace>xagg</monospace> fulfills this need, by providing a
+  simple interface for aggregating raster data stored in rectangular
+  grids in <monospace>xarray</monospace>
+  (<xref alt="Hoyer &amp; Hamman, 2017" rid="ref-hoyer_xarray_2017" ref-type="bibr">Hoyer
+  &amp; Hamman, 2017</xref>) <monospace>Datasets</monospace> or
+  <monospace>DataArrays</monospace> onto polygons stored in
+  <monospace>geopandas</monospace>
+  (<xref alt="Bossche et al., 2024" rid="ref-bossche_geopandasgeopandas_2024" ref-type="bibr">Bossche
+  et al., 2024</xref>) <monospace>geodataframes</monospace>, weighted by
+  the fractional area overlap between the raster grid and the polygon,
+  and optionally additionally weighted by a secondary gridded variable
+  (see <xref alt="[fig1]" rid="fig1">[fig1]</xref> for a sample
+  workflow). Fractional area weights are generated by constructing
+  polygons for each grid cell and using
+  <monospace>geopandas</monospace>’ <monospace>gpd.overlay()</monospace>
+  function to calculate the overlaps between input polygons and grid
+  cells. Aggregated data is then returned as an
+  <monospace>xarray</monospace> <monospace>Dataset</monospace>, a
+  <monospace>pandas</monospace> <monospace>DataFrame</monospace>, or a
+  <monospace>geopandas</monospace> <monospace>GeoDataFrame</monospace>,
+  depending on the user’s needs.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p>Aggregating gridded data onto polygons is a fundamental aspect of
+  much social and natural science research (e.g., Auffhammer et al.
+  (<xref alt="2013" rid="ref-auffhammer_using_2013" ref-type="bibr">2013</xref>);
+  Hsiang et al.
+  (<xref alt="2017" rid="ref-hsiang_estimating_2017" ref-type="bibr">2017</xref>);
+  Carleton et al.
+  (<xref alt="2022" rid="ref-carleton_valuing_2022" ref-type="bibr">2022</xref>);
+  Mastrantonas et al.
+  (<xref alt="2022" rid="ref-mastrantonas_forecasting_2022" ref-type="bibr">2022</xref>)).
+  Historically, this process has been conducted on an ad hoc basis by
+  individual research groups, often using simplifications such as
+  averaging over all grid cells that overlap with a county, regardless
+  of the size of that overlap (e.g,. Schlenker &amp; Roberts
+  (<xref alt="2009" rid="ref-schlenker_nonlinear_2009" ref-type="bibr">2009</xref>)).</p>
+  <p><monospace>xagg</monospace> fills a need for an easy, standardized,
+  and accurate workflow for this aggregation. Accepting and outputting
+  data in <monospace>xarray</monospace> and
+  <monospace>pandas</monospace>/<monospace>geopandas</monospace> formats
+  (including keeping by default relevant metadata and attributes from
+  the inputted polygons) means <monospace>xagg</monospace> can be
+  plugged into a wide array of existing workflows in natural and social
+  sciences, and can easily export aggregated results in formats read by
+  other languages often used in research, including R, QGIS, or
+  STATA.</p>
+  <p>Though other Python packages facilitate the aggregation of raster
+  data, to the authors’ knowledge, none provide the same depth of
+  functionality or conduct the final aggregation internally. The
+  <monospace>mask_3D_frac_approx</monospace> function from the
+  <monospace>regionmask</monospace> package
+  (<xref alt="Hauser et al., 2023" rid="ref-hauser_regionmaskregionmask_2023" ref-type="bibr">Hauser
+  et al., 2023</xref>) also creates weights from relative overlaps
+  between grid cells and regions, for example; this however only works
+  for regular rectangular grids (while <monospace>xagg</monospace> works
+  with any rectangular grid), and results in more approximate overlaps
+  than those calculated using <monospace>xagg</monospace>. In addition,
+  none allow easy weighting by a secondary raster variable (e.g.,
+  population density or yield), or keep polygon metadata intact (which
+  is often needed to merge in other datasets after aggregation).</p>
+  <p><monospace>xagg</monospace> has already been used in peer-reviewed
+  (e.g., Pulla et al.
+  (<xref alt="2023" rid="ref-pulla_grace_2023-1" ref-type="bibr">2023</xref>);
+  Mastrantonas et al.
+  (<xref alt="2022" rid="ref-mastrantonas_forecasting_2022" ref-type="bibr">2022</xref>);
+  Schwarzwald &amp; Lenssen
+  (<xref alt="2022" rid="ref-schwarzwald_importance_2022" ref-type="bibr">2022</xref>))
+  and upcoming (e.g., Sichone
+  (<xref alt="2024" rid="ref-sichone_assessment_2024" ref-type="bibr">2024</xref>);
+  Peard &amp; Hall
+  (<xref alt="2023" rid="ref-peard_combining_2023" ref-type="bibr">2023</xref>))
+  scientific publications, has reached over 15,000 cumulative downloads
+  across versions, and is a key component of a how-to guide for climate
+  econometrics
+  (<xref alt="Rising et al., 2024" rid="ref-rising_practical_2024" ref-type="bibr">Rising
+  et al., 2024</xref>).</p>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>The authors would like to thank Ryan Abernathy, Julius Busecke, Tom
+  Nicholas, and James Rising for help in getting this project off the
+  ground, in addition to anyone who contributed to GitHub issues or the
+  codebase over the years.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <title></title>
+  <ref id="ref-hersbach_era5_2020">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Hersbach</surname><given-names>Hans</given-names></name>
+        <name><surname>Bell</surname><given-names>Bill</given-names></name>
+        <name><surname>Berrisford</surname><given-names>Paul</given-names></name>
+        <name><surname>Hirahara</surname><given-names>Shoji</given-names></name>
+        <name><surname>Horányi</surname><given-names>András</given-names></name>
+        <name><surname>Muñoz-Sabater</surname><given-names>Joaquín</given-names></name>
+        <name><surname>Nicolas</surname><given-names>Julien</given-names></name>
+        <name><surname>Peubey</surname><given-names>Carole</given-names></name>
+        <name><surname>Radu</surname><given-names>Raluca</given-names></name>
+        <name><surname>Schepers</surname><given-names>Dinand</given-names></name>
+        <name><surname>Simmons</surname><given-names>Adrian</given-names></name>
+        <name><surname>Soci</surname><given-names>Cornel</given-names></name>
+        <name><surname>Abdalla</surname><given-names>Saleh</given-names></name>
+        <name><surname>Abellan</surname><given-names>Xavier</given-names></name>
+        <name><surname>Balsamo</surname><given-names>Gianpaolo</given-names></name>
+        <name><surname>Bechtold</surname><given-names>Peter</given-names></name>
+        <name><surname>Biavati</surname><given-names>Gionata</given-names></name>
+        <name><surname>Bidlot</surname><given-names>Jean</given-names></name>
+        <name><surname>Bonavita</surname><given-names>Massimo</given-names></name>
+        <name><surname>Chiara</surname><given-names>Giovanna De</given-names></name>
+        <name><surname>Dahlgren</surname><given-names>Per</given-names></name>
+        <name><surname>Dee</surname><given-names>Dick</given-names></name>
+        <name><surname>Diamantakis</surname><given-names>Michail</given-names></name>
+        <name><surname>Dragani</surname><given-names>Rossana</given-names></name>
+        <name><surname>Flemming</surname><given-names>Johannes</given-names></name>
+        <name><surname>Forbes</surname><given-names>Richard</given-names></name>
+        <name><surname>Fuentes</surname><given-names>Manuel</given-names></name>
+        <name><surname>Geer</surname><given-names>Alan</given-names></name>
+        <name><surname>Haimberger</surname><given-names>Leo</given-names></name>
+        <name><surname>Healy</surname><given-names>Sean</given-names></name>
+        <name><surname>Hogan</surname><given-names>Robin J.</given-names></name>
+        <name><surname>Hólm</surname><given-names>Elías</given-names></name>
+        <name><surname>Janisková</surname><given-names>Marta</given-names></name>
+        <name><surname>Keeley</surname><given-names>Sarah</given-names></name>
+        <name><surname>Laloyaux</surname><given-names>Patrick</given-names></name>
+        <name><surname>Lopez</surname><given-names>Philippe</given-names></name>
+        <name><surname>Lupu</surname><given-names>Cristina</given-names></name>
+        <name><surname>Radnoti</surname><given-names>Gabor</given-names></name>
+        <name><surname>Rosnay</surname><given-names>Patricia de</given-names></name>
+        <name><surname>Rozum</surname><given-names>Iryna</given-names></name>
+        <name><surname>Vamborg</surname><given-names>Freja</given-names></name>
+        <name><surname>Villaume</surname><given-names>Sebastien</given-names></name>
+        <name><surname>Thépaut</surname><given-names>Jean-Noël</given-names></name>
+      </person-group>
+      <article-title>The ERA5 global reanalysis</article-title>
+      <source>Quarterly Journal of the Royal Meteorological Society</source>
+      <year iso-8601-date="2020">2020</year>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2020-09-23">2020</year><month>09</month><day>23</day></date-in-citation>
+      <volume>146</volume>
+      <issue>730</issue>
+      <issn>1477-870X</issn>
+      <pub-id pub-id-type="doi">10.1002/qj.3803</pub-id>
+      <fpage>1999</fpage>
+      <lpage>2049</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-auffhammer_using_2013">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Auffhammer</surname><given-names>Maximilian</given-names></name>
+        <name><surname>Hsiang</surname><given-names>Solomon M.</given-names></name>
+        <name><surname>Schlenker</surname><given-names>Wolfram</given-names></name>
+        <name><surname>Sobel</surname><given-names>Adam</given-names></name>
+      </person-group>
+      <article-title>Using Weather Data and Climate Model Output in Economic Analyses of Climate Change</article-title>
+      <source>Review of Environmental Economics and Policy</source>
+      <publisher-name>Oxford Academic</publisher-name>
+      <year iso-8601-date="2013-07">2013</year><month>07</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2020-08-11">2020</year><month>08</month><day>11</day></date-in-citation>
+      <volume>7</volume>
+      <issue>2</issue>
+      <issn>1750-6816</issn>
+      <pub-id pub-id-type="doi">10.1093/reep/ret016</pub-id>
+      <fpage>181</fpage>
+      <lpage>198</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-schlenker_nonlinear_2009">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Schlenker</surname><given-names>Wolfram</given-names></name>
+        <name><surname>Roberts</surname><given-names>Michael J.</given-names></name>
+      </person-group>
+      <article-title>Nonlinear temperature effects indicate severe damages to U.S. Crop yields under climate change</article-title>
+      <source>Proceedings of the National Academy of Sciences</source>
+      <year iso-8601-date="2009-09">2009</year><month>09</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2019-02-25">2019</year><month>02</month><day>25</day></date-in-citation>
+      <volume>106</volume>
+      <issue>37</issue>
+      <issn>0027-8424</issn>
+      <pub-id pub-id-type="doi">10.1073/pnas.0906865106</pub-id>
+      <pub-id pub-id-type="pmid">19717432</pub-id>
+      <fpage>15594</fpage>
+      <lpage>15598</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-hsiang_estimating_2017">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Hsiang</surname><given-names>Solomon</given-names></name>
+        <name><surname>Kopp</surname><given-names>Robert</given-names></name>
+        <name><surname>Jina</surname><given-names>Amir</given-names></name>
+        <name><surname>Rising</surname><given-names>James</given-names></name>
+        <name><surname>Delgado</surname><given-names>Michael</given-names></name>
+        <name><surname>Mohan</surname><given-names>Shashank</given-names></name>
+        <name><surname>Rasmussen</surname><given-names>D. J.</given-names></name>
+        <name><surname>Muir-Wood</surname><given-names>Robert</given-names></name>
+        <name><surname>Wilson</surname><given-names>Paul</given-names></name>
+        <name><surname>Oppenheimer</surname><given-names>Michael</given-names></name>
+        <name><surname>Larsen</surname><given-names>Kate</given-names></name>
+        <name><surname>Houser</surname><given-names>Trevor</given-names></name>
+      </person-group>
+      <article-title>Estimating economic damage from climate change in the United States</article-title>
+      <source>Science</source>
+      <year iso-8601-date="2017-06">2017</year><month>06</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2017-08-30">2017</year><month>08</month><day>30</day></date-in-citation>
+      <volume>356</volume>
+      <issue>6345</issue>
+      <issn>0036-8075</issn>
+      <pub-id pub-id-type="doi">10.1126/science.aal4369</pub-id>
+      <pub-id pub-id-type="pmid">28663496</pub-id>
+      <fpage>1362</fpage>
+      <lpage>1369</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-rising_practical_2024">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Rising</surname><given-names>James A.</given-names></name>
+        <name><surname>Hussain</surname><given-names>Azhar</given-names></name>
+        <name><surname>Schwarzwald</surname><given-names>Kevin</given-names></name>
+        <name><surname>Trisovic</surname><given-names>Ana</given-names></name>
+      </person-group>
+      <article-title>A practical guide to climate econometrics: Navigating key decision points in weather and climate data analysis</article-title>
+      <source>Journal of Open Source Education</source>
+      <year iso-8601-date="2024">2024</year>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2022-11-17">2022</year><month>11</month><day>17</day></date-in-citation>
+      <volume>7</volume>
+      <issue>75</issue>
+      <pub-id pub-id-type="doi">10.21105/jose.00090</pub-id>
+      <fpage>90</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-schwarzwald_importance_2022">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Schwarzwald</surname><given-names>Kevin</given-names></name>
+        <name><surname>Lenssen</surname><given-names>Nathan</given-names></name>
+      </person-group>
+      <article-title>The importance of internal climate variability in climate impact projections</article-title>
+      <source>Proceedings of the National Academy of Sciences</source>
+      <publisher-name>Proceedings of the National Academy of Sciences</publisher-name>
+      <year iso-8601-date="2022-10">2022</year><month>10</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2022-11-18">2022</year><month>11</month><day>18</day></date-in-citation>
+      <volume>119</volume>
+      <issue>42</issue>
+      <pub-id pub-id-type="doi">10.1073/pnas.2208095119</pub-id>
+      <fpage>e2208095119</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-carleton_valuing_2022">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Carleton</surname><given-names>Tamma</given-names></name>
+        <name><surname>Jina</surname><given-names>Amir</given-names></name>
+        <name><surname>Delgado</surname><given-names>Michael</given-names></name>
+        <name><surname>Greenstone</surname><given-names>Michael</given-names></name>
+        <name><surname>Houser</surname><given-names>Trevor</given-names></name>
+        <name><surname>Hsiang</surname><given-names>Solomon</given-names></name>
+        <name><surname>Hultgren</surname><given-names>Andrew</given-names></name>
+        <name><surname>Kopp</surname><given-names>Robert E</given-names></name>
+        <name><surname>McCusker</surname><given-names>Kelly E</given-names></name>
+        <name><surname>Nath</surname><given-names>Ishan</given-names></name>
+        <name><surname>Rising</surname><given-names>James</given-names></name>
+        <name><surname>Rode</surname><given-names>Ashwin</given-names></name>
+        <name><surname>Seo</surname><given-names>Hee Kwon</given-names></name>
+        <name><surname>Viaene</surname><given-names>Arvid</given-names></name>
+        <name><surname>Yuan</surname><given-names>Jiacan</given-names></name>
+        <name><surname>Zhang</surname><given-names>Alice Tianbo</given-names></name>
+      </person-group>
+      <article-title>Valuing the Global Mortality Consequences of Climate Change Accounting for Adaptation Costs and Benefits</article-title>
+      <source>The Quarterly Journal of Economics</source>
+      <year iso-8601-date="2022-11">2022</year><month>11</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2023-10-19">2023</year><month>10</month><day>19</day></date-in-citation>
+      <volume>137</volume>
+      <issue>4</issue>
+      <issn>0033-5533</issn>
+      <pub-id pub-id-type="doi">10.1093/qje/qjac020</pub-id>
+      <fpage>2037</fpage>
+      <lpage>2105</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-hauser_regionmaskregionmask_2023">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Hauser</surname><given-names>Mathias</given-names></name>
+        <name><surname>Spring</surname><given-names>Aaron</given-names></name>
+        <name><surname>Busecke</surname><given-names>Julius</given-names></name>
+        <name><surname>Driel</surname><given-names>Martin van</given-names></name>
+        <name><surname>Lorenz</surname><given-names>Ruth</given-names></name>
+        <string-name>readthedocs-assistant</string-name>
+      </person-group>
+      <article-title>Regionmask/regionmask: Version 0.11.0</article-title>
+      <publisher-name>Zenodo</publisher-name>
+      <year iso-8601-date="2023-09">2023</year><month>09</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2024-08-22">2024</year><month>08</month><day>22</day></date-in-citation>
+      <pub-id pub-id-type="doi">10.5281/zenodo.8370810</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-rose_landscan_2017">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Rose</surname><given-names>A.</given-names></name>
+        <name><surname>Weber</surname><given-names>E.</given-names></name>
+        <name><surname>Moehl</surname><given-names>J.</given-names></name>
+        <name><surname>Laverdiere</surname><given-names>M.</given-names></name>
+        <name><surname>Yang</surname><given-names>H.</given-names></name>
+        <name><surname>Whitehead</surname><given-names>M.</given-names></name>
+        <name><surname>Sims</surname><given-names>K.</given-names></name>
+        <name><surname>Trombley</surname><given-names>N.</given-names></name>
+        <name><surname>Bhaduri</surname><given-names>B.</given-names></name>
+      </person-group>
+      <article-title>LandScan USA 2016</article-title>
+      <publisher-name>Oak Ridge National Laboratory</publisher-name>
+      <year iso-8601-date="2017">2017</year>
+      <pub-id pub-id-type="doi">10.48690/1523377</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-pulla_grace_2023-1">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Pulla</surname><given-names>Sarva T.</given-names></name>
+        <name><surname>Yasarer</surname><given-names>Hakan</given-names></name>
+        <name><surname>Yarbrough</surname><given-names>Lance D.</given-names></name>
+      </person-group>
+      <article-title>GRACE Downscaler: A Framework to Develop and Evaluate Downscaling Models for GRACE</article-title>
+      <source>Remote Sensing</source>
+      <publisher-name>Multidisciplinary Digital Publishing Institute</publisher-name>
+      <year iso-8601-date="2023-01">2023</year><month>01</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2024-08-22">2024</year><month>08</month><day>22</day></date-in-citation>
+      <volume>15</volume>
+      <issue>9</issue>
+      <issn>2072-4292</issn>
+      <pub-id pub-id-type="doi">10.3390/rs15092247</pub-id>
+      <fpage>2247</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-sichone_assessment_2024">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Sichone</surname><given-names>John</given-names></name>
+      </person-group>
+      <article-title>Assessment of Groundwater Storage Depletion using GRACE and Land Surface Models in Mzimba District, North Malawi</article-title>
+      <publisher-name>Preprints</publisher-name>
+      <year iso-8601-date="2024-06">2024</year><month>06</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2024-08-22">2024</year><month>08</month><day>22</day></date-in-citation>
+      <pub-id pub-id-type="doi">10.20944/preprints202406.0149.v1</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-peard_combining_2023">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Peard</surname><given-names>Alison</given-names></name>
+        <name><surname>Hall</surname><given-names>Jim</given-names></name>
+      </person-group>
+      <article-title>Combining deep generative models with extreme value theory for synthetic hazard simulation: A multivariate and spatially coherent approach</article-title>
+      <publisher-name>arXiv</publisher-name>
+      <year iso-8601-date="2023-11">2023</year><month>11</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2024-08-22">2024</year><month>08</month><day>22</day></date-in-citation>
+      <uri>https://arxiv.org/abs/2311.18521</uri>
+      <pub-id pub-id-type="doi">10.48550/arXiv.2311.18521</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-mastrantonas_forecasting_2022">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Mastrantonas</surname><given-names>Nikolaos</given-names></name>
+        <name><surname>Furnari</surname><given-names>Luca</given-names></name>
+        <name><surname>Magnusson</surname><given-names>Linus</given-names></name>
+        <name><surname>Senatore</surname><given-names>Alfonso</given-names></name>
+        <name><surname>Mendicino</surname><given-names>Giuseppe</given-names></name>
+        <name><surname>Pappenberger</surname><given-names>Florian</given-names></name>
+        <name><surname>Matschullat</surname><given-names>Jörg</given-names></name>
+      </person-group>
+      <article-title>Forecasting extreme precipitation in the central Mediterranean: Changes in predictors’ strength with prediction lead time</article-title>
+      <source>Meteorological Applications</source>
+      <year iso-8601-date="2022">2022</year>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2024-08-22">2024</year><month>08</month><day>22</day></date-in-citation>
+      <volume>29</volume>
+      <issue>6</issue>
+      <issn>1469-8080</issn>
+      <pub-id pub-id-type="doi">10.1002/met.2101</pub-id>
+      <fpage>e2101</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-hoyer_xarray_2017">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Hoyer</surname><given-names>Stephan</given-names></name>
+        <name><surname>Hamman</surname><given-names>Joe</given-names></name>
+      </person-group>
+      <article-title>Xarray: N-D labeled Arrays and Datasets in Python</article-title>
+      <source>Journal of Open Research Software</source>
+      <year iso-8601-date="2017-04">2017</year><month>04</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2024-08-22">2024</year><month>08</month><day>22</day></date-in-citation>
+      <volume>5</volume>
+      <issue>1</issue>
+      <issn>2049-9647</issn>
+      <pub-id pub-id-type="doi">10.5334/jors.148</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-bossche_geopandasgeopandas_2024">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Bossche</surname><given-names>Joris Van den</given-names></name>
+        <name><surname>Jordahl</surname><given-names>Kelsey</given-names></name>
+        <name><surname>Fleischmann</surname><given-names>Martin</given-names></name>
+        <name><surname>Richards</surname><given-names>Matt</given-names></name>
+        <name><surname>McBride</surname><given-names>James</given-names></name>
+        <name><surname>Wasserman</surname><given-names>Jacob</given-names></name>
+        <name><surname>Badaracco</surname><given-names>Adrian Garcia</given-names></name>
+        <name><surname>Snow</surname><given-names>Alan D.</given-names></name>
+        <name><surname>Ward</surname><given-names>Brendan</given-names></name>
+        <name><surname>Tratner</surname><given-names>Jeff</given-names></name>
+        <name><surname>Gerard</surname><given-names>Jeffrey</given-names></name>
+        <name><surname>Perry</surname><given-names>Matthew</given-names></name>
+        <string-name>cjqf</string-name>
+        <name><surname>Hjelle</surname><given-names>Geir Arne</given-names></name>
+        <name><surname>Taves</surname><given-names>Mike</given-names></name>
+        <name><surname>Hoeven</surname><given-names>Ewout ter</given-names></name>
+        <name><surname>Cochran</surname><given-names>Micah</given-names></name>
+        <name><surname>Bell</surname><given-names>Ray</given-names></name>
+        <string-name>rraymondgh</string-name>
+        <name><surname>Bartos</surname><given-names>Matt</given-names></name>
+        <name><surname>Roggemans</surname><given-names>Pieter</given-names></name>
+        <name><surname>Culbertson</surname><given-names>Lucas</given-names></name>
+        <name><surname>Caria</surname><given-names>Giacomo</given-names></name>
+        <name><surname>Tan</surname><given-names>Nicholas YS</given-names></name>
+        <name><surname>Eubank</surname><given-names>Nick</given-names></name>
+        <string-name>sangarshanan</string-name>
+        <name><surname>Flavin</surname><given-names>John</given-names></name>
+        <name><surname>Rey</surname><given-names>Sergio</given-names></name>
+        <name><surname>Gardiner</surname><given-names>James</given-names></name>
+      </person-group>
+      <article-title>Geopandas/geopandas: V1.0.1</article-title>
+      <publisher-name>Zenodo</publisher-name>
+      <year iso-8601-date="2024-07">2024</year><month>07</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2024-08-22">2024</year><month>08</month><day>22</day></date-in-citation>
+      <pub-id pub-id-type="doi">10.5281/zenodo.12625316</pub-id>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
