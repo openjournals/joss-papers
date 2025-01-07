@@ -1,0 +1,494 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">7512</article-id>
+<article-id pub-id-type="doi">10.21105/joss.07512</article-id>
+<title-group>
+<article-title>PyLops-MPI - MPI Powered PyLops with
+mpi4py</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0002-7203-7641</contrib-id>
+<name>
+<surname>Babbar</surname>
+<given-names>Rohan</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0003-0020-2721</contrib-id>
+<name>
+<surname>Ravasi</surname>
+<given-names>Matteo</given-names>
+</name>
+<xref ref-type="aff" rid="aff-2"/>
+</contrib>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0002-0741-6602</contrib-id>
+<name>
+<surname>Hong</surname>
+<given-names>Yuxi</given-names>
+</name>
+<xref ref-type="aff" rid="aff-3"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Cluster Innovation Center, University of Delhi, Delhi,
+India.</institution>
+</institution-wrap>
+</aff>
+<aff id="aff-2">
+<institution-wrap>
+<institution>Earth Science and Engineering, Physical Sciences and
+Engineering (PSE), King Abdullah University of Science and Technology
+(KAUST), Thuwal, Kingdom of Saudi Arabia.</institution>
+</institution-wrap>
+</aff>
+<aff id="aff-3">
+<institution-wrap>
+<institution>Lawrence Berkeley National Laboratory, Berkeley,
+California, United States of America.</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2024-09-24">
+<day>24</day>
+<month>9</month>
+<year>2024</year>
+</pub-date>
+<volume>10</volume>
+<issue>105</issue>
+<fpage>7512</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2025</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>Python</kwd>
+<kwd>MPI</kwd>
+<kwd>High Performance Computing</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p>Linear algebra and inverse problem theory are fundamental to many
+  algorithms in signal processing, image processing, geophysics, and
+  remote sensing. This paper introduces PyLops-MPI, an extension of the
+  PyLops framework designed to enable distributed computing in the
+  solution of large-scale inverse problems in Python. By leveraging the
+  Message Passing Interface (MPI) standard, this library effectively
+  harnesses the computational power of multiple nodes, allowing users to
+  scale their inverse problems efficiently with minimal changes compared
+  to their single-node PyLops code.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p>As scientific datasets grow and the demand for higher resolution
+  increases, the use of distributed computing in matrix-free linear
+  algebra becomes crucial. Models and datasets can in fact easily exceed
+  the memory of a single machine—making it difficult to perform
+  computations efficiently and accurately at the same time.
+  Nevertheless, many linear operators in scientific inverse problems can
+  be decomposed into a series of computational blocks that are
+  well-suited for parallelization.</p>
+  <p>When addressing distributed inverse problems, we identify three
+  distinct families of problems:</p>
+  <list list-type="order">
+    <list-item>
+      <p><bold>Fully distributed models and data</bold>: Both model and
+      data are split across nodes, with each node processing its own
+      portion of the model and data. This leads to minimal
+      communication, mainly when performing dot products in the solver
+      or in the regularization terms.</p>
+    </list-item>
+    <list-item>
+      <p><bold>Distributed data, model available on all nodes</bold>:
+      Data is distributed across nodes, whilst the model is available on
+      all nodes. Communication happens during the adjoint pass to sum
+      models and in the solver for data vector operations.</p>
+    </list-item>
+    <list-item>
+      <p><bold>Model and data available on all nodes</bold>: All nodes
+      have identical copies of the data and model. Communication only
+      happens within the operator, with no communication in solver
+      needed.</p>
+    </list-item>
+  </list>
+  <p>MPI for Python (mpi4py
+  (<xref alt="Dalcin &amp; Fang, 2021" rid="ref-DalcinU003A2021" ref-type="bibr">Dalcin
+  &amp; Fang, 2021</xref>)) provides Python bindings for the MPI
+  standard, allowing applications to leverage multiple processors.
+  Projects like mpi4py-fft
+  (<xref alt="Mortensen et al., 2019" rid="ref-MortensenU003A2019" ref-type="bibr">Mortensen
+  et al., 2019</xref>), mcdc
+  (<xref alt="Morgan et al., 2024" rid="ref-MorganU003A2024" ref-type="bibr">Morgan
+  et al., 2024</xref>), and mpi4jax
+  (<xref alt="Häfner &amp; Vicentini, 2021" rid="ref-mpi4jax" ref-type="bibr">Häfner
+  &amp; Vicentini, 2021</xref>) utilize mpi4py to provide distributed
+  computing capabilities. Similarly, PyLops-MPI, which is built on top
+  of PyLops
+  (<xref alt="Ravasi &amp; Vasconcelos, 2020" rid="ref-RavasiU003A2020" ref-type="bibr">Ravasi
+  &amp; Vasconcelos, 2020</xref>), leverages mpi4py to solve large-scale
+  problems in a distributed fashion. Its intuitive API provide
+  functionalities to scatter and broadcast data and model vector across
+  nodes and allows various mathematical operations (e.g., summation,
+  subtraction, norms) to be performed. Additionally, a suite of
+  MPI-powered linear operators and solvers is offered, and its flexible
+  design eases the integration of custom operators and solvers.</p>
+</sec>
+<sec id="software-framework">
+  <title>Software Framework</title>
+  <p>PyLops-MPI is designed to tackle large-scale linear inverse
+  problems that are difficult to solve using a single process (due to
+  either extremely high computational cost or memory requirements).</p>
+  <fig>
+    <caption><p>Software framework representation of the
+    <monospace>PyLops-MPI</monospace> API.</p></caption>
+    <graphic mimetype="image" mime-subtype="png" xlink:href="soft_framework.png" />
+  </fig>
+  <p>Fig. 1 illustrates the main components of the library, emphasizing
+  the relationship between the DistributedArray class, stacked
+  operators, and MPI-powered solvers.</p>
+  <sec id="distributedarray">
+    <title>DistributedArray</title>
+    <p>The <monospace>pylops_mpi.DistributedArray</monospace> class
+    serves as the fundamental array class, enabling both partitioning
+    and broadcasting of large NumPy
+    (<xref alt="Harris et al., 2020" rid="ref-HarrisU003A2020" ref-type="bibr">Harris
+    et al., 2020</xref>) or CuPy
+    (<xref alt="Okuta et al., 2017" rid="ref-cupy" ref-type="bibr">Okuta
+    et al., 2017</xref>) arrays across multiple processes. It also
+    supports basic math operations such as addition (+), multiplication
+    (*), dot-product (@). Finally, multiple DistributedArray objects can
+    be stacked using
+    <monospace>pylops_mpi.StackedDistributedArray</monospace> for
+    further operations.</p>
+  </sec>
+  <sec id="hstack-vstack-blockdiag-operators">
+    <title>HStack, VStack, BlockDiag Operators</title>
+    <p>PyLops facilitates the combinations of multiple linear operators
+    via horizontal, vertical, or diagonal stacking. PyLops-MPI provides
+    distributed versions of these operations Examples include
+    <monospace>pylops_mpi.MPIBlockDiag</monospace>, which applies
+    different operators in parallel on separate portions of the model
+    and data, <monospace>pylops_mpi.MPIVStack</monospace>, which applies
+    multiple operators in parallel to the whole model, with its adjoint
+    applies the adjoint of each individual operator to portions of the
+    data vector and sums the individual output, and
+    <monospace>pylops_mpi.MPIHStack</monospace>, which is the adjoint of
+    MPIVStack.</p>
+  </sec>
+  <sec id="halo-exchange">
+    <title>Halo Exchange</title>
+    <p>PyLops-MPI uses halo exchange to transfer portions of the model
+    and data between ranks. Users should ensure consistent local data
+    shapes to avoid extra communication during matrix-vector products.
+    If shapes differ, the operator exchanges boundary data (“ghost
+    cells”) between neighboring processes, aligning shapes to enable
+    efficient local computations and minimize overhead.</p>
+  </sec>
+  <sec id="mpi-powered-solvers">
+    <title>MPI-powered Solvers</title>
+    <p>PyLops-MPI offers a small subset of PyLops linear solvers, which
+    can deal with <monospace>pylops_mpi.DistributedArray</monospace> and
+    <monospace>pylops_mpi.StackedDistributedArray</monospace> objects.
+    These solvers utilize the mathematical operations implemented in
+    these classes and call the operator’s forward and adjoint
+    passes.</p>
+  </sec>
+</sec>
+<sec id="use-cases">
+  <title>Use Cases</title>
+  <p>Here we present three use cases in geophysical inverse problems
+  that correspond to the previously mentioned families of problems:</p>
+  <list list-type="bullet">
+    <list-item>
+      <p><italic>Seismic Post-Stack Inversion</italic> can be used to
+      characterize the subsurface
+      (<xref alt="Ravasi &amp; Birnie, 2021" rid="ref-RavasiU003A2021" ref-type="bibr">Ravasi
+      &amp; Birnie, 2021</xref>) from seismic data. In 3D applications,
+      when both the model and data are three-dimensional arrays,
+      PyLops-MPI distributes one spatial axis across different ranks.
+      Each rank therefore processes a subset of the entire data and
+      model. Communication occurs due to the introduction of
+      regularization terms that promote smooth or blocky solutions.</p>
+    </list-item>
+    <list-item>
+      <p><italic>Least-Squares Migration (LSM)</italic> explains seismic
+      data via a Born modelling engine to produce high-resolution images
+      of the subsurface reflectivity
+      (<xref alt="Nemeth et al., 1999" rid="ref-NemethU003A1999" ref-type="bibr">Nemeth
+      et al., 1999</xref>). PyLops-MPI distributes the available sources
+      across different MPI ranks, and each rank applies the Born
+      modeling operator for a subset of sources with the broadcasted
+      reflectivity.</p>
+    </list-item>
+    <list-item>
+      <p><italic>Multi-Dimensional Deconvolution (MDD)</italic> is a
+      powerful technique used to estimate seismic datasets without
+      overburden effects
+      (<xref alt="Ravasi et al., 2022" rid="ref-RavasiU003A2022" ref-type="bibr">Ravasi
+      et al., 2022</xref>). PyLops-MPI tackles this large-scale inverse
+      problem by distributing the kernel of the Multi-Dimensional
+      Deconvolution operator across ranks, allowing each process to
+      apply a batched matrix-vector multiplication to a portion of the
+      input model and data.</p>
+    </list-item>
+  </list>
+  <p>As similar patterns are likely to emerge in inverse problems across
+  other disciplines, we expect a broad adoption of the PyLops-MPI
+  framework in other scientific fields.</p>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>The PyLops team acknowledges the support from Google Summer of Code
+  and the NumFOCUS organization, which have been vital to the
+  development of PyLops-MPI.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <title></title>
+  <ref id="ref-RavasiU003A2020">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Ravasi</surname><given-names>Matteo</given-names></name>
+        <name><surname>Vasconcelos</surname><given-names>Ivan</given-names></name>
+      </person-group>
+      <article-title>PyLops - A linear-operator Python library for scalable algebra and optimization</article-title>
+      <source>SoftwareX</source>
+      <year iso-8601-date="2020">2020</year>
+      <volume>11</volume>
+      <uri>https://www.sciencedirect.com/science/article/pii/S2352711019301086</uri>
+      <pub-id pub-id-type="doi">10.1016/j.softx.2019.100361</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-DalcinU003A2021">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Dalcin</surname><given-names>Lisandro</given-names></name>
+        <name><surname>Fang</surname><given-names>Yao-Lung L.</given-names></name>
+      </person-group>
+      <article-title>mpi4py: Status update after 12 years of development</article-title>
+      <source>Computing in Science &amp; Engineering</source>
+      <year iso-8601-date="2021">2021</year>
+      <volume>23</volume>
+      <issue>4</issue>
+      <pub-id pub-id-type="doi">10.1109/MCSE.2021.3083216</pub-id>
+      <fpage>47</fpage>
+      <lpage>54</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-MortensenU003A2019">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Mortensen</surname><given-names>Mikael</given-names></name>
+        <name><surname>Dalcin</surname><given-names>Lisandro</given-names></name>
+        <name><surname>Keyes</surname><given-names>David Elliot</given-names></name>
+      </person-group>
+      <article-title>mpi4py-fft: Parallel fast Fourier transforms with MPI for Python</article-title>
+      <source>Journal of Open Source Software</source>
+      <publisher-name>The Open Journal</publisher-name>
+      <year iso-8601-date="2019">2019</year>
+      <volume>4</volume>
+      <issue>36</issue>
+      <uri>https://doi.org/10.21105/joss.01340</uri>
+      <pub-id pub-id-type="doi">10.21105/joss.01340</pub-id>
+      <fpage>1340</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-MorganU003A2024">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Morgan</surname><given-names>Joanna Piper</given-names></name>
+        <name><surname>Variansyah</surname><given-names>Ilham</given-names></name>
+        <name><surname>Pasmann</surname><given-names>Samuel L.</given-names></name>
+        <name><surname>Clements</surname><given-names>Kayla B.</given-names></name>
+        <name><surname>Cuneo</surname><given-names>Braxton</given-names></name>
+        <name><surname>Mote</surname><given-names>Alexander</given-names></name>
+        <name><surname>Goodman</surname><given-names>Charles</given-names></name>
+        <name><surname>Shaw</surname><given-names>Caleb</given-names></name>
+        <name><surname>Northrop</surname><given-names>Jordan</given-names></name>
+        <name><surname>Pankaj</surname><given-names>Rohan</given-names></name>
+        <name><surname>Lame</surname><given-names>Ethan</given-names></name>
+        <name><surname>Whewell</surname><given-names>Benjamin</given-names></name>
+        <name><surname>McClarren</surname><given-names>Ryan G.</given-names></name>
+        <name><surname>Palmer</surname><given-names>Todd S.</given-names></name>
+        <name><surname>Chen</surname><given-names>Lizhong</given-names></name>
+        <name><surname>Anistratov</surname><given-names>Dmitriy Y.</given-names></name>
+        <name><surname>Kelley</surname><given-names>C. T.</given-names></name>
+        <name><surname>Palmer</surname><given-names>Camille J.</given-names></name>
+        <name><surname>Niemeyer</surname><given-names>Kyle E.</given-names></name>
+      </person-group>
+      <article-title>Monte Carlo / dynamic code (MC/DC): An accelerated Python package for fully transient neutron transport and rapid methods development</article-title>
+      <source>Journal of Open Source Software</source>
+      <publisher-name>The Open Journal</publisher-name>
+      <year iso-8601-date="2024">2024</year>
+      <volume>9</volume>
+      <issue>96</issue>
+      <uri>https://doi.org/10.21105/joss.06415</uri>
+      <pub-id pub-id-type="doi">10.21105/joss.06415</pub-id>
+      <fpage>6415</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-mpi4jax">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Häfner</surname><given-names>Dion</given-names></name>
+        <name><surname>Vicentini</surname><given-names>Filippo</given-names></name>
+      </person-group>
+      <article-title>mpi4jax: Zero-copy MPI communication of JAX arrays</article-title>
+      <source>Journal of Open Source Software</source>
+      <publisher-name>The Open Journal</publisher-name>
+      <year iso-8601-date="2021">2021</year>
+      <volume>6</volume>
+      <issue>65</issue>
+      <uri>https://doi.org/10.21105/joss.03419</uri>
+      <pub-id pub-id-type="doi">10.21105/joss.03419</pub-id>
+      <fpage>3419</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-HarrisU003A2020">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Harris</surname><given-names>Charles R.</given-names></name>
+        <name><surname>Millman</surname><given-names>K. Jarrod</given-names></name>
+        <name><surname>Walt</surname><given-names>Stéfan J. van der</given-names></name>
+        <name><surname>Gommers</surname><given-names>Ralf</given-names></name>
+        <name><surname>Virtanen</surname><given-names>Pauli</given-names></name>
+        <name><surname>Cournapeau</surname><given-names>David</given-names></name>
+        <name><surname>Wieser</surname><given-names>Eric</given-names></name>
+        <name><surname>Taylor</surname><given-names>Julian</given-names></name>
+        <name><surname>Berg</surname><given-names>Sebastian</given-names></name>
+        <name><surname>Smith</surname><given-names>Nathaniel J.</given-names></name>
+        <name><surname>Kern</surname><given-names>Robert</given-names></name>
+        <name><surname>Picus</surname><given-names>Matti</given-names></name>
+        <name><surname>Hoyer</surname><given-names>Stephan</given-names></name>
+        <name><surname>Kerkwijk</surname><given-names>Marten H. van</given-names></name>
+        <name><surname>Brett</surname><given-names>Matthew</given-names></name>
+        <name><surname>Haldane</surname><given-names>Allan</given-names></name>
+        <name><surname>Río</surname><given-names>Jaime Fernández del</given-names></name>
+        <name><surname>Wiebe</surname><given-names>Mark</given-names></name>
+        <name><surname>Peterson</surname><given-names>Pearu</given-names></name>
+        <name><surname>Gérard-Marchant</surname><given-names>Pierre</given-names></name>
+        <name><surname>Sheppard</surname><given-names>Kevin</given-names></name>
+        <name><surname>Reddy</surname><given-names>Tyler</given-names></name>
+        <name><surname>Weckesser</surname><given-names>Warren</given-names></name>
+        <name><surname>Abbasi</surname><given-names>Hameer</given-names></name>
+        <name><surname>Gohlke</surname><given-names>Christoph</given-names></name>
+        <name><surname>Oliphant</surname><given-names>Travis E.</given-names></name>
+      </person-group>
+      <article-title>Array programming with NumPy</article-title>
+      <source>Nature</source>
+      <publisher-name>Springer Science; Business Media LLC</publisher-name>
+      <year iso-8601-date="2020-09">2020</year><month>09</month>
+      <volume>585</volume>
+      <issue>7825</issue>
+      <uri>https://doi.org/10.1038/s41586-020-2649-2</uri>
+      <pub-id pub-id-type="doi">10.1038/s41586-020-2649-2</pub-id>
+      <fpage>357</fpage>
+      <lpage>362</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-cupy">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Okuta</surname><given-names>Ryosuke</given-names></name>
+        <name><surname>Unno</surname><given-names>Yuya</given-names></name>
+        <name><surname>Nishino</surname><given-names>Daisuke</given-names></name>
+        <name><surname>Hido</surname><given-names>Shohei</given-names></name>
+        <name><surname>Loomis</surname><given-names>Crissman</given-names></name>
+      </person-group>
+      <article-title>CuPy: A NumPy-compatible library for NVIDIA GPU calculations</article-title>
+      <source>Proceedings of workshop on machine learning systems (LearningSys) in the thirty-first annual conference on neural information processing systems (NIPS)</source>
+      <year iso-8601-date="2017">2017</year>
+      <uri>http://learningsys.org/nips17/assets/papers/paper_16.pdf</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-RavasiU003A2021">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Ravasi</surname><given-names>Matteo</given-names></name>
+        <name><surname>Birnie</surname><given-names>Claire</given-names></name>
+      </person-group>
+      <article-title>A joint inversion-segmentation approach to assisted seismic interpretation</article-title>
+      <source>Geophysical Journal International</source>
+      <year iso-8601-date="2021-09">2021</year><month>09</month>
+      <volume>228</volume>
+      <issue>2</issue>
+      <issn>0956-540X</issn>
+      <uri>https://doi.org/10.1093/gji/ggab388</uri>
+      <pub-id pub-id-type="doi">10.1093/gji/ggab388</pub-id>
+      <fpage>893</fpage>
+      <lpage>912</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-NemethU003A1999">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Nemeth</surname><given-names>Tamas</given-names></name>
+        <name><surname>Wu</surname><given-names>Chengjun</given-names></name>
+        <name><surname>Schuster</surname><given-names>Gerard T.</given-names></name>
+      </person-group>
+      <article-title>Least-squares migration incomplete reflection data</article-title>
+      <source>Geophysics</source>
+      <year iso-8601-date="1999-02">1999</year><month>02</month>
+      <volume>64</volume>
+      <issue>1</issue>
+      <issn>0016-8033</issn>
+      <uri>https://doi.org/10.1190/1.1444517</uri>
+      <pub-id pub-id-type="doi">10.1190/1.1444517</pub-id>
+      <fpage>208</fpage>
+      <lpage>221</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-RavasiU003A2022">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Ravasi</surname><given-names>Matteo</given-names></name>
+        <name><surname>Selvan</surname><given-names>Tamil</given-names></name>
+        <name><surname>Luiken</surname><given-names>Nick</given-names></name>
+      </person-group>
+      <article-title>Stochastic multi-dimensional deconvolution</article-title>
+      <source>IEEE Transactions on Geoscience and Remote Sensing</source>
+      <publisher-name>Institute of Electrical; Electronics Engineers (IEEE)</publisher-name>
+      <year iso-8601-date="2022">2022</year>
+      <volume>60</volume>
+      <issn>1558-0644</issn>
+      <uri>http://dx.doi.org/10.1109/TGRS.2022.3179626</uri>
+      <pub-id pub-id-type="doi">10.1109/tgrs.2022.3179626</pub-id>
+      <fpage>1</fpage>
+      <lpage>14</lpage>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
