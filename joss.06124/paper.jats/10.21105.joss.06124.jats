@@ -1,0 +1,703 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">6124</article-id>
+<article-id pub-id-type="doi">10.21105/joss.06124</article-id>
+<title-group>
+<article-title>mmh3: A Python extension for MurmurHash3</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0001-8542-1768</contrib-id>
+<name>
+<surname>Senuma</surname>
+<given-names>Hajime</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>National Institute of Informatics, Japan</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2024-12-15">
+<day>15</day>
+<month>12</month>
+<year>2024</year>
+</pub-date>
+<volume>10</volume>
+<issue>105</issue>
+<fpage>6124</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2025</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>Python</kwd>
+<kwd>hash</kwd>
+<kwd>high-performance computing</kwd>
+<kwd>artificial intelligence</kwd>
+<kwd>natural language processing</kwd>
+<kwd>internet of things</kwd>
+<kwd>cybersecurity</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p>In recent years, artificial intelligence (AI) has rapidly evolved,
+  particularly in natural language processing (NLP) with services like
+  OpenAI’s ChatGPT. Likewise, the Internet of Things (IoT) continues to
+  grow as a key area of ubiquitous computing, exemplified by Shodan, the
+  first IoT search engine.</p>
+  <p>Underlying these advancements are high-performance algorithms and
+  data structures relying on non-cryptographic hash functions, which are
+  characteristically fast, produce statistically well-distributed bits,
+  exhibit an avalanche effect (where a one-bit change in the input
+  alters at least half of the output), and are collision resistant.
+  Because cryptographic strength is unnecessary in these cases, they
+  benefit from the efficiency of non-cryptographic hashes.</p>
+  <p>MurmurHash3 and its test suite, SMHasher, was developed by Appleby
+  (<xref alt="2011" rid="ref-appleby_murmurhash3_2011" ref-type="bibr">2011</xref>)
+  and is one of the earliest and most continuously popular hash
+  functions specifically designed to implement the characteristics
+  mentioned above.</p>
+  <p><monospace>mmh3</monospace> was launched in 2011 as a Python
+  extension for MurmurHash3 and has been maintained ever since. Its API
+  is simple to use for Python programmers, as it offers both one-shot
+  hash functions and hasher classes that allow incremental updating,
+  whose methods are compliant to <monospace>hashlib</monospace>, a part
+  of the Python Standard Library. The library provides Python wheels
+  (i.e., pre-built binary packages) for immediate use on various
+  platforms, including Linux (x86_64, aarch64, i686, ppc64le, and
+  s390x), Windows (win32, win_amd64, and win_arm64), and macOS (Intel
+  Mac and Apple Silicon). From version 4.0.0,
+  <monospace>mmh3</monospace> has been published under the MIT License,
+  an OSI-approved permissive open-source license.</p>
+  <p>As of September 1, 2024, <monospace>mmh3</monospace> was being
+  downloaded more than 4 million times per month, and it ranks as the
+  973th most downloaded PyPI package (of around 566,000 projects),
+  showing that only 0.17% of the remaining packages in the PyPI
+  ecosystem are more popular
+  (<xref alt="Van Kemenade et al., 2024" rid="ref-hugo_van_kemenade_2024_13624792" ref-type="bibr">Van
+  Kemenade et al., 2024</xref>). According to PePy, as of September 1,
+  2024, the total downloads of this library exceeded 130 millions.</p>
+  <p>Libraries and organizations that use <monospace>mmh3</monospace>
+  include Shodan, Microsoft Azure SDK for Python, Apache Iceberg (open
+  table format for analytic datasets), Feast (feature store for machine
+  learning), PyMilvus (Python SDK for Milvus, an open-source vector
+  database), and pocsuite3 (open-source remote vulnerability testing
+  framework).</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <sec id="ai-and-high-performance-computing">
+    <title>AI and High-Performance Computing</title>
+    <p>AI is one of the most resource-demanding fields in computer
+    science and engineering. To mitigate this problem, various
+    techniques are employed under main systems, in which
+    non-cryptographic hash functions play key roles in a number of
+    algorithms and data structures.</p>
+    <p>A notable technique is <italic>feature hashing</italic>
+    (<xref alt="Shi et al., 2009" rid="ref-Shi2009" ref-type="bibr">Shi
+    et al., 2009</xref>;
+    <xref alt="Weinberger et al., 2009" rid="ref-Weinberger2009" ref-type="bibr">Weinberger
+    et al., 2009</xref>). In its simplest usage, when given a
+    string-indexed data vector, it converts the vector into an
+    integer-indexed data vector in which each index is the hash result
+    of the original string index; collision values are summed. Despite
+    its simple and intuitive usage, a machine-learning process with
+    feature hashing is statistically guaranteed to be nearly as accurate
+    as its original process. Feature hashing has been shown to be useful
+    for various situations, including K-means clustering
+    (<xref alt="Senuma, 2011" rid="ref-Senuma2011" ref-type="bibr">Senuma,
+    2011</xref>) and succinct model learning
+    (<xref alt="Senuma &amp; Aizawa, 2016" rid="ref-Senuma2016" ref-type="bibr">Senuma
+    &amp; Aizawa, 2016</xref>).</p>
+    <p>Other popular techniques that leverage non-cryptographic hash
+    functions include <italic>Bloom Filter</italic>
+    (<xref alt="Bloom, 1970" rid="ref-Bloom1970" ref-type="bibr">Bloom,
+    1970</xref>), a compact data structure that tests whether an element
+    is a member of a certain set (with false positive matches), and
+    <italic>MinHash</italic>
+    (<xref alt="Broder, 1997" rid="ref-Broder1997a" ref-type="bibr">Broder,
+    1997</xref>), an algorithm that quickly estimates the similarity of
+    two sets.</p>
+    <p><monospace>mmh3</monospace> appears in scholarly papers on
+    various topics, including Indian language NLP suites
+    (<xref alt="Kakwani et al., 2020" rid="ref-kakwani_indicnlpsuite_2020" ref-type="bibr">Kakwani
+    et al., 2020</xref>), a secure system based on probabilistic
+    structures
+    (<xref alt="Adja et al., 2021" rid="ref-adja_blockchain-based_2021" ref-type="bibr">Adja
+    et al., 2021</xref>), as well as secure ciphertext deduplication in
+    cloud storage
+    (<xref alt="Tang &amp; Jin, 2024" rid="ref-Tang2024" ref-type="bibr">Tang
+    &amp; Jin, 2024</xref>). It has also appeared in technical books and
+    computer science texts
+    (<xref alt="Gorelick &amp; Ozsvald, 2020" rid="ref-gorelick_high_2020" ref-type="bibr">Gorelick
+    &amp; Ozsvald, 2020</xref>;
+    <xref alt="Kumar &amp; Miglani, 2021" rid="ref-kumar_probabilistic_2021" ref-type="bibr">Kumar
+    &amp; Miglani, 2021</xref>;
+    <xref alt="Medjedovic et al., 2022" rid="ref-medjedovic_algorithms_2022" ref-type="bibr">Medjedovic
+    et al., 2022</xref>).</p>
+  </sec>
+  <sec id="internet-of-things">
+    <title>Internet of Things</title>
+    <p><monospace>mmh3</monospace> is applicable to the IoT field.
+    According to Shodan
+    (<xref alt="2021" rid="ref-shodan_its_2021" ref-type="bibr">2021</xref>),
+    Shodan
+    (<xref alt="Matherly, 2017" rid="ref-Matherly2017" ref-type="bibr">Matherly,
+    2017</xref>) uses <monospace>mmh3</monospace> as its fingerprint for
+    a favicon (i.e., an icon associated with a web page or website).
+    Matherly
+    (<xref alt="2024" rid="ref-Matherly2024" ref-type="bibr">2024</xref>)
+    explained the adoption of <monospace>mmh3</monospace> due to its
+    speed and compact hash size, noting that cryptographic guarantees
+    provided by <monospace>md5</monospace> and other hashes were not
+    necessary for their use case. ZoomEye, another popular IoT search
+    engine, follows Shodan’s convention.</p>
+    <p>For cybersecurity, Kopriva
+    (<xref alt="2021" rid="ref-kopriva_hunting_2021" ref-type="bibr">2021</xref>)
+    reported a method of discovering possible phishing websites by
+    searching websites with Shodan, whose favicon’s
+    <monospace>mmh3</monospace> hash value was the same as that of a
+    genuine one. Another use case of <monospace>mmh3</monospace> in this
+    area includes open-source intelligence (OSINT) activities, such as
+    measuring the popularity of web frameworks and servers, as some
+    users do not change their default favicon settings specified by
+    applications
+    (<xref alt="Faraday Security, 2022" rid="ref-faraday_security_understanding_2022" ref-type="bibr">Faraday
+    Security, 2022</xref>).</p>
+  </sec>
+</sec>
+<sec id="related-software">
+  <title>Related software</title>
+  <p><monospace>PYMMH</monospace>
+  (<xref alt="Kihlander &amp; Gusani, 2013" rid="ref-kihlander_pymmh3_2013" ref-type="bibr">Kihlander
+  &amp; Gusani, 2013</xref>) is a pure Python implementation of the
+  MurmurHash3 algorithms. Among various other Python bindings for
+  non-cryptographic hashes, <monospace>python-xxhash</monospace> by Yue
+  Du (<xref alt="Du, 2014" rid="ref-du_xxhash_2014" ref-type="bibr">Du,
+  2014</xref>) is another popular hash library, featuring xxHash
+  developed by Yan Collet
+  (<xref alt="Collet, 2014" rid="ref-collet_xxhash_2014" ref-type="bibr">Collet,
+  2014</xref>).</p>
+</sec>
+<sec id="benchmarks">
+  <title>Benchmarks</title>
+  <p>We conducted microbenchmarking experiments to compare the
+  efficiency of Python-C hash libraries, balancing accuracy,
+  reproducibility, and reliability. Our methodology follows practices
+  from microbenchmarking literature, including works by Peters
+  (<xref alt="2002" rid="ref-Peters2002" ref-type="bibr">2002</xref>),
+  Stinner
+  (<xref alt="2016" rid="ref-Stinner2016" ref-type="bibr">2016</xref>),
+  Collet
+  (<xref alt="2020" rid="ref-collet_xxhash_comparison_2020" ref-type="bibr">2020</xref>),
+  Gorelick &amp; Ozsvald
+  (<xref alt="2020" rid="ref-gorelick_high_2020" ref-type="bibr">2020</xref>),
+  Rodríguez-Guerra
+  (<xref alt="2021" rid="ref-RodriguezGuerra2021" ref-type="bibr">2021</xref>),
+  and Bernhardt
+  (<xref alt="2023" rid="ref-Bernhardt2023" ref-type="bibr">2023</xref>).</p>
+  <p><xref alt="Table 1" rid="bandwidth">Table 1</xref> and
+  <xref alt="[latency]" rid="latency">[latency]</xref> summarize the
+  benchmarking results. While the <monospace>xxh3</monospace> family in
+  <monospace>python-xxhash 3.5.0</monospace> shows superior performance
+  for large inputs, the <monospace>mmh3 5.0.0</monospace> implementation
+  excels with smaller inputs (common scenarios for non-cryptographic
+  hashes), due to its use of <monospace>METH_FASTCALL</monospace>, an
+  overhead-reducing interface introduced in Python 3.7.</p>
+  <p>For details, see the documentation of the project:
+  <ext-link ext-link-type="uri" xlink:href="https://mmh3.readthedocs.io/en/latest/benchmark.html">https://mmh3.readthedocs.io/en/latest/benchmark.html</ext-link>.
+  Additionally, the benchmarking results are publicly available as JSON
+  files in the repository:
+  <ext-link ext-link-type="uri" xlink:href="https://github.com/hajimes/mmh3-benchmarks">https://github.com/hajimes/mmh3-benchmarks</ext-link>.</p>
+  <table-wrap>
+    <caption>
+      <p><styled-content id="bandwidth"></styled-content>Benchmarking
+      results for Python extensions. Small data velocity is defined as
+      the inverse of the mean latency (in microseconds) for inputs in
+      the range of 1–256 bytes. Collet (2020) refers to the results of
+      original C implementations experimented by the author of xxHash,
+      using a CPU clocked at 3.6–4.9 GHz (ours: 2.4–3.3 GHz).</p>
+    </caption>
+    <table>
+      <colgroup>
+        <col width="17%" />
+        <col width="11%" />
+        <col width="21%" />
+        <col width="27%" />
+        <col width="24%" />
+      </colgroup>
+      <thead>
+        <tr>
+          <th align="left">Hash</th>
+          <th align="right">Width</th>
+          <th align="left">Bandwidth</th>
+          <th align="right">Small Data Velocity</th>
+          <th align="left">cf. Collet (2020)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td align="left">xxh3_128</td>
+          <td align="right">128 bits</td>
+          <td align="left"><bold>22.42 GiB/s</bold></td>
+          <td align="right">8.96</td>
+          <td align="left">29.6 GiB/s</td>
+        </tr>
+        <tr>
+          <td align="left">xxh3_64</td>
+          <td align="right">64 bits</td>
+          <td align="left">22.41 GiB/s</td>
+          <td align="right">9.5</td>
+          <td align="left">31.5 GiB/s</td>
+        </tr>
+        <tr>
+          <td align="left">xxh_64</td>
+          <td align="right">64 bits</td>
+          <td align="left">8.90 GiB/s</td>
+          <td align="right">9.3</td>
+          <td align="left">9.1 GiB/s</td>
+        </tr>
+        <tr>
+          <td align="left"><bold>mmh3_128</bold></td>
+          <td align="right">128 bits</td>
+          <td align="left">6.91 GiB/s</td>
+          <td align="right"><bold>19.04</bold></td>
+          <td align="left">N/A</td>
+        </tr>
+        <tr>
+          <td align="left">xxh_32</td>
+          <td align="right">32 bits</td>
+          <td align="left">6.15 GiB/s</td>
+          <td align="right">8.91</td>
+          <td align="left">9.7 GiB/s</td>
+        </tr>
+        <tr>
+          <td align="left"><bold>mmh3_32</bold></td>
+          <td align="right">32 bits</td>
+          <td align="left">2.86 GiB/s</td>
+          <td align="right">18.41</td>
+          <td align="left">3.9 GiB/s</td>
+        </tr>
+        <tr>
+          <td align="left">sha1</td>
+          <td align="right">16 bits</td>
+          <td align="left">1.63 GiB/s</td>
+          <td align="right">2.4</td>
+          <td align="left">0.8 GiB/s</td>
+        </tr>
+        <tr>
+          <td align="left">md5</td>
+          <td align="right">128 bits</td>
+          <td align="left">0.65 GiB/s</td>
+          <td align="right">1.95</td>
+          <td align="left">0.6 GiB/s</td>
+        </tr>
+      </tbody>
+    </table>
+  </table-wrap>
+  <fig>
+    <caption><p><styled-content id="latency"></styled-content>Latency
+    for small to medium-sized inputs. Lower is better.</p></caption>
+    <graphic mimetype="image" mime-subtype="png" xlink:href="../docs/_static/latency_small.png" />
+  </fig>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>The author extends sincere gratitude to Akiko Aizawa for her
+  helpful comments on this paper. Appreciation is also given to all
+  those involved in the development and maintenance of
+  <monospace>mmh3</monospace>. Special thanks go to Micha Gorelick, who
+  made the first pull request to the project and later introduced the
+  library in her technical book
+  (<xref alt="Gorelick &amp; Ozsvald, 2020" rid="ref-gorelick_high_2020" ref-type="bibr">Gorelick
+  &amp; Ozsvald, 2020</xref>).</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <title></title>
+  <ref id="ref-adja_blockchain-based_2021">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Adja</surname><given-names>Yves Christian Elloh</given-names></name>
+        <name><surname>Hammi</surname><given-names>Badis</given-names></name>
+        <name><surname>Serhrouchni</surname><given-names>Ahmed</given-names></name>
+        <name><surname>Zeadally</surname><given-names>Sherali</given-names></name>
+      </person-group>
+      <article-title>A blockchain-based certificate revocation management and status verification system</article-title>
+      <source>Computers &amp; Security</source>
+      <year iso-8601-date="2021">2021</year>
+      <volume>104</volume>
+      <issn>0167-4048</issn>
+      <uri>https://www.sciencedirect.com/science/article/pii/S016740482100033X</uri>
+      <pub-id pub-id-type="doi">10.1016/j.cose.2021.102209</pub-id>
+      <fpage>102209</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-appleby_murmurhash3_2011">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Appleby</surname><given-names>Austin</given-names></name>
+      </person-group>
+      <article-title>MurmurHash3 and SMHasher</article-title>
+      <year iso-8601-date="2011">2011</year>
+      <uri>https://github.com/aappleby/smhasher</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-Bernhardt2023">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Bernhardt</surname><given-names>Manuel</given-names></name>
+      </person-group>
+      <article-title>On pinning and isolating CPU cores</article-title>
+      <year iso-8601-date="2023">2023</year>
+      <uri>https://manuel.bernhardt.io/posts/2023-11-16-core-pinning/</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-Bloom1970">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Bloom</surname><given-names>Burton H.</given-names></name>
+      </person-group>
+      <article-title>Space/time trade-offs in hash coding with allowable errors</article-title>
+      <source>Commun. ACM</source>
+      <publisher-name>Association for Computing Machinery</publisher-name>
+      <publisher-loc>New York, NY, USA</publisher-loc>
+      <year iso-8601-date="1970-07">1970</year><month>07</month>
+      <volume>13</volume>
+      <issue>7</issue>
+      <issn>0001-0782</issn>
+      <uri>https://doi.org/10.1145/362686.362692</uri>
+      <pub-id pub-id-type="doi">10.1145/362686.362692</pub-id>
+      <fpage>422</fpage>
+      <lpage>426</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Broder1997a">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Broder</surname><given-names>Andrei Z.</given-names></name>
+      </person-group>
+      <article-title>On the resemblance and containment of documents</article-title>
+      <source>Proceedings. Compression and complexity of SEQUENCES 1997</source>
+      <publisher-name>IEEE Comput. Soc</publisher-name>
+      <year iso-8601-date="1997">1997</year>
+      <isbn>0-8186-8132-2</isbn>
+      <uri>http://ieeexplore.ieee.org/lpdocs/epic03/wrapper.htm?arnumber=666900</uri>
+      <pub-id pub-id-type="doi">10.1109/SEQUEN.1997.666900</pub-id>
+      <fpage>21</fpage>
+      <lpage>29</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-collet_xxhash_2014">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Collet</surname><given-names>Yan</given-names></name>
+      </person-group>
+      <article-title>xxHash</article-title>
+      <year iso-8601-date="2014">2014</year>
+      <uri>https://github.com/Cyan4973/xxHash</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-collet_xxhash_comparison_2020">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Collet</surname><given-names>Yan</given-names></name>
+      </person-group>
+      <article-title>xxHash: Performance comparison (2020)</article-title>
+      <year iso-8601-date="2020">2020</year>
+      <uri>https://github.com/Cyan4973/xxHash/wiki/Performance-comparison</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-du_xxhash_2014">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Du</surname><given-names>Yue</given-names></name>
+      </person-group>
+      <article-title>xxhash</article-title>
+      <year iso-8601-date="2014">2014</year>
+      <uri>https://github.com/ifduyue/python-xxhash</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-faraday_security_understanding_2022">
+    <element-citation>
+      <person-group person-group-type="author">
+        <string-name>Faraday Security</string-name>
+      </person-group>
+      <article-title>Understanding Spring4Shell</article-title>
+      <year iso-8601-date="2022-07">2022</year><month>07</month>
+      <uri>https://faradaysec.com/understanding-spring4shell/</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-gorelick_high_2020">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Gorelick</surname><given-names>Micha</given-names></name>
+        <name><surname>Ozsvald</surname><given-names>Ian</given-names></name>
+      </person-group>
+      <source>High performance Python: Practical performant programming for humans</source>
+      <publisher-name>O’Reilly Media</publisher-name>
+      <year iso-8601-date="2020-06">2020</year><month>06</month>
+      <edition>2nd edition</edition>
+      <isbn>978-1-4920-5502-0</isbn>
+    </element-citation>
+  </ref>
+  <ref id="ref-hugo_van_kemenade_2024_13624792">
+    <element-citation publication-type="software">
+      <person-group person-group-type="author">
+        <name><surname>Van Kemenade</surname><given-names>Hugo</given-names></name>
+        <name><surname>Si</surname><given-names>Richard</given-names></name>
+        <name><surname>Dollenstein</surname><given-names>Zsolt</given-names></name>
+      </person-group>
+      <article-title>Hugovk/top-pypi-packages: Release 2024.09</article-title>
+      <publisher-name>Zenodo</publisher-name>
+      <year iso-8601-date="2024-09">2024</year><month>09</month>
+      <uri>https://doi.org/10.5281/zenodo.13624792</uri>
+      <pub-id pub-id-type="doi">10.5281/zenodo.13624792</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-kakwani_indicnlpsuite_2020">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Kakwani</surname><given-names>Divyanshu</given-names></name>
+        <name><surname>Kunchukuttan</surname><given-names>Anoop</given-names></name>
+        <name><surname>Golla</surname><given-names>Satish</given-names></name>
+        <name><surname>N. C.</surname><given-names>Gokul</given-names></name>
+        <name><surname>Bhattacharyya</surname><given-names>Avik</given-names></name>
+        <name><surname>Khapra</surname><given-names>Mitesh M.</given-names></name>
+        <name><surname>Kumar</surname><given-names>Pratyush</given-names></name>
+      </person-group>
+      <article-title>IndicNLPSuite: Monolingual corpora, evaluation benchmarks and pre-trained multilingual language models for Indian languages</article-title>
+      <source>Findings of the Association for Computational Linguistics: EMNLP 2020</source>
+      <publisher-name>Association for Computational Linguistics</publisher-name>
+      <publisher-loc>Online</publisher-loc>
+      <year iso-8601-date="2020-11">2020</year><month>11</month>
+      <uri>https://aclanthology.org/2020.findings-emnlp.445</uri>
+      <pub-id pub-id-type="doi">10.18653/v1/2020.findings-emnlp.445</pub-id>
+      <fpage>4948</fpage>
+      <lpage>4961</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-kihlander_pymmh3_2013">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Kihlander</surname><given-names>Fredrik</given-names></name>
+        <name><surname>Gusani</surname><given-names>Swapnil</given-names></name>
+      </person-group>
+      <article-title>PYMMH3</article-title>
+      <year iso-8601-date="2013">2013</year>
+      <uri>https://github.com/wc-duck/pymmh3</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-kopriva_hunting_2021">
+    <element-citation publication-type="report">
+      <person-group person-group-type="author">
+        <name><surname>Kopriva</surname><given-names>Jan</given-names></name>
+      </person-group>
+      <article-title>Hunting phishing websites with favicon hashes</article-title>
+      <publisher-name>SANS Internet Storm Center</publisher-name>
+      <year iso-8601-date="2021-04">2021</year><month>04</month>
+      <uri>https://isc.sans.edu/diary/27326</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-kumar_probabilistic_2021">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Kumar</surname><given-names>Neeraj</given-names></name>
+        <name><surname>Miglani</surname><given-names>Arzoo</given-names></name>
+      </person-group>
+      <source>Probabilistic data structures for blockchain-based Internet of Things applications</source>
+      <publisher-name>CRC Press</publisher-name>
+      <year iso-8601-date="2021-01">2021</year><month>01</month>
+      <isbn>978-0-367-52990-1</isbn>
+      <pub-id pub-id-type="doi">10.1201/9781003080046</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-medjedovic_algorithms_2022">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Medjedovic</surname><given-names>Dzejla</given-names></name>
+        <name><surname>Tahirovic</surname><given-names>Emin</given-names></name>
+        <name><surname>Dedovic</surname><given-names>Ines</given-names></name>
+      </person-group>
+      <source>Algorithms and data structures for massive datasets</source>
+      <publisher-name>Manning</publisher-name>
+      <year iso-8601-date="2022-07">2022</year><month>07</month>
+      <isbn>978-1-61729-803-5</isbn>
+    </element-citation>
+  </ref>
+  <ref id="ref-Matherly2017">
+    <element-citation publication-type="report">
+      <person-group person-group-type="author">
+        <name><surname>Matherly</surname><given-names>John</given-names></name>
+      </person-group>
+      <article-title>Complete guide to shodan: Collect. Analyze. Visualize. Make internet intelligence work for you.</article-title>
+      <publisher-name>Shodan</publisher-name>
+      <year iso-8601-date="2017">2017</year>
+      <edition>Version 2017-08-23</edition>
+    </element-citation>
+  </ref>
+  <ref id="ref-Matherly2024">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Matherly</surname><given-names>John</given-names></name>
+      </person-group>
+      <article-title>Deep dive: http.favicon</article-title>
+      <publisher-name>Shodan</publisher-name>
+      <year iso-8601-date="2024-01">2024</year><month>01</month>
+      <uri>https://blog.shodan.io/deep-dive-http-favicon/</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-Peters2002">
+    <element-citation publication-type="chapter">
+      <person-group person-group-type="author">
+        <name><surname>Peters</surname><given-names>Tim</given-names></name>
+      </person-group>
+      <article-title>Algorithms: introduction</article-title>
+      <source>Python cookbook</source>
+      <person-group person-group-type="editor">
+        <name><surname>Martelli</surname><given-names>Alex</given-names></name>
+        <name><surname>Ascher</surname><given-names>David</given-names></name>
+      </person-group>
+      <publisher-name>O’Reilly Media</publisher-name>
+      <year iso-8601-date="2002-07">2002</year><month>07</month>
+      <edition>1st edition</edition>
+    </element-citation>
+  </ref>
+  <ref id="ref-RodriguezGuerra2021">
+    <element-citation publication-type="report">
+      <person-group person-group-type="author">
+        <name><surname>Rodríguez-Guerra</surname><given-names>Jaime</given-names></name>
+      </person-group>
+      <article-title>Is GitHub actions suitable for running benchmarks?</article-title>
+      <publisher-name>Quansight Labs</publisher-name>
+      <year iso-8601-date="2021-08">2021</year><month>08</month>
+      <uri>https://labs.quansight.org/blog/2021/08/github-actions-benchmarks</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-Senuma2011">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Senuma</surname><given-names>Hajime</given-names></name>
+      </person-group>
+      <article-title>K-means clustering with feature hashing</article-title>
+      <source>Proceedings of the 49th annual meeting of the Association for Computational Linguistics: Student session</source>
+      <year iso-8601-date="2011">2011</year>
+      <fpage>122</fpage>
+      <lpage>126</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Senuma2016">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Senuma</surname><given-names>Hajime</given-names></name>
+        <name><surname>Aizawa</surname><given-names>Akiko</given-names></name>
+      </person-group>
+      <article-title>Learning succinct models: Pipelined compression with L1-regularization, hashing, Elias–Fano indices, and quantization</article-title>
+      <source>Proceedings of COLING 2016, the 26th international conference on computational linguistics: Technical papers</source>
+      <year iso-8601-date="2016">2016</year>
+      <fpage>2774</fpage>
+      <lpage>2784</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Shi2009">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Shi</surname><given-names>Qinfeng</given-names></name>
+        <name><surname>Petterson</surname><given-names>James</given-names></name>
+        <name><surname>Dror</surname><given-names>Gideon</given-names></name>
+        <name><surname>Langford</surname><given-names>John</given-names></name>
+        <name><surname>Smola</surname><given-names>Alex</given-names></name>
+        <name><surname>Vishwanathan</surname><given-names>S. V. N.</given-names></name>
+      </person-group>
+      <article-title>Hash kernels for structured data</article-title>
+      <source>Journal of Machine Learning Research</source>
+      <year iso-8601-date="2009">2009</year>
+      <volume>10</volume>
+      <fpage>2615</fpage>
+      <lpage>2637</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-shodan_its_2021">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Shodan</surname></name>
+      </person-group>
+      <article-title>It’s the MMH3 hash of the http.html property. See: PyPI mmh3</article-title>
+      <source>Twitter</source>
+      <year iso-8601-date="2021-05">2021</year><month>05</month>
+      <uri>https://twitter.com/shodanhq/status/1395501365456261122</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-Stinner2016">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Stinner</surname><given-names>Victor</given-names></name>
+      </person-group>
+      <article-title>My journey to stable benchmark</article-title>
+      <year iso-8601-date="2016">2016</year>
+      <uri>https://vstinner.github.io/journey-to-stable-benchmark-system.html</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-Tang2024">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Tang</surname><given-names>Xin</given-names></name>
+        <name><surname>Jin</surname><given-names>Luchao</given-names></name>
+      </person-group>
+      <article-title>Data splitting based double layer encryption for secure ciphertext deduplication in cloud storage</article-title>
+      <source>2024 IEEE 17th International Conference on Cloud Computing (CLOUD)</source>
+      <year iso-8601-date="2024">2024</year>
+      <pub-id pub-id-type="doi">10.1109/CLOUD62652.2024.00027</pub-id>
+      <fpage>153</fpage>
+      <lpage>163</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Weinberger2009">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Weinberger</surname><given-names>Kilian</given-names></name>
+        <name><surname>Dasgupta</surname><given-names>Anirban</given-names></name>
+        <name><surname>Langford</surname><given-names>John</given-names></name>
+        <name><surname>Smola</surname><given-names>Alex</given-names></name>
+        <name><surname>Attenberg</surname><given-names>Josh</given-names></name>
+      </person-group>
+      <article-title>Feature hashing for large scale multitask learning</article-title>
+      <source>Proceedings of the 26th international conference on machine learning</source>
+      <year iso-8601-date="2009">2009</year>
+      <pub-id pub-id-type="doi">10.1145/1553374.1553516</pub-id>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
