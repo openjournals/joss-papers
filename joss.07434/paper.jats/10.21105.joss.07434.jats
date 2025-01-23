@@ -1,0 +1,472 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">7434</article-id>
+<article-id pub-id-type="doi">10.21105/joss.07434</article-id>
+<title-group>
+<article-title>QuantizedSystemSolver: A discontinuous ODE system solver
+in Julia.</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0003-1230-5488</contrib-id>
+<name>
+<surname>Elbellili</surname>
+<given-names>Elmongi</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+<xref ref-type="aff" rid="aff-2"/>
+</contrib>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0002-0536-2647</contrib-id>
+<name>
+<surname>Huybrechs</surname>
+<given-names>Daan</given-names>
+</name>
+<xref ref-type="aff" rid="aff-2"/>
+</contrib>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0003-0761-6265</contrib-id>
+<name>
+<surname>Lauwens</surname>
+<given-names>Ben</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Royal Military Academy, Brussels, Belgium</institution>
+</institution-wrap>
+</aff>
+<aff id="aff-2">
+<institution-wrap>
+<institution>KU Leuven, Leuven, Belgium</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<volume>10</volume>
+<issue>105</issue>
+<fpage>7434</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2025</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>Quantised State System</kwd>
+<kwd>Discontinuities</kwd>
+<kwd>Stiff Ordinary Differential Equations</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p>Contemporary engineering systems, such as electrical circuits,
+  mechanical systems with shocks, and chemical reactions with rapid
+  kinetics, are often characterized by dynamics that can be modeled
+  using stiff differential equations with events. Stiffness typically
+  arises in these systems due to the presence of both rapidly changing
+  and slowly changing components. This stiffness requires extremely
+  small time steps to maintain stability when using traditional
+  numerical integration techniques. Recently, quantization-based
+  techniques have emerged as an effective alternative for handling such
+  complex models. Methods like the Quantized State System (QSS) and the
+  Linearly Implicit Quantized State System (LIQSS) offer promising
+  results, particularly for large sparse stiff models. Unlike classic
+  numerical integration methods, which update all system variables at
+  each time step, the quantized approach updates individual system
+  variables independently. Specifically, in quantized methods, each
+  variable is updated only when its value changes by a predefined
+  quantization level. Moreover, these methods are advantageous when
+  dealing with discontinuous events. An event is a discontinuity where
+  the state of the system abruptly changes at a specific point. Classic
+  methods may struggle with events: They either undergo expensive
+  iterations to pinpoint the exact discontinuity instance or resort to
+  interpolating its location, resulting in unreliable outcomes.
+  Therefore, this QSS strategy can significantly reduce computational
+  effort and improve efficiency in large sparse stiff models with
+  frequent discontinuities
+  (<xref alt="Pietro et al., 2019" rid="ref-improveliqss" ref-type="bibr">Pietro
+  et al., 2019</xref>).</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p>Traditional solvers are challenged by large sparse stiff models and
+  systems with frequent discontinuities. The buck converter is a stiff
+  system with frequent discontinuities that classic solvers from the
+  DifferentialEquations.jl
+  (<xref alt="Rackauckas &amp; Nie, 2017" rid="ref-Rackauckas2017" ref-type="bibr">Rackauckas
+  &amp; Nie, 2017</xref>) are currently unable to handle properly.
+  Written in the easy-to-learn Julia programming language
+  (<xref alt="Bezanson et al., 2017" rid="ref-julia" ref-type="bibr">Bezanson
+  et al., 2017</xref>) and inspired by the
+  <monospace>qss-solver</monospace> written in C
+  (<xref alt="Fernández &amp; Kofman, 2014" rid="ref-qssC" ref-type="bibr">Fernández
+  &amp; Kofman, 2014</xref>), the QuantizedSystemSolver.jl package takes
+  advantage of Julia features such as multiple dispatch and
+  metaprogramming. The package shares the same interface as the
+  DifferentialEquations.jl package and aims to efficiently solve a large
+  set of stiff Ordinary Differential Equations (ODEs) with events by
+  implementing the QSS and LIQSS methods. It is the first such tool to
+  be published in the Julia ecosystem.</p>
+</sec>
+<sec id="quantization-based-techniques">
+  <title>Quantization-based techniques</title>
+  <p>The general form of a problem composed of a set of ODEs and a set
+  of events that QSS is able to solve is described in the following
+  equations:</p>
+  <p><disp-formula><tex-math><![CDATA[\dot X = f(X,P,t)\textnormal{; if } zc(X,P,t)\textnormal{: set } x_i=H(X,P,t) \textnormal{ and } p_j=L(X,P,t),]]></tex-math></disp-formula></p>
+  <p>where <inline-formula><alternatives>
+  <tex-math><![CDATA[X = [x_1,x_2...,x_n]^T]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>X</mml:mi><mml:mo>=</mml:mo><mml:msup><mml:mrow><mml:mo stretchy="true" form="prefix">[</mml:mo><mml:msub><mml:mi>x</mml:mi><mml:mn>1</mml:mn></mml:msub><mml:mo>,</mml:mo><mml:msub><mml:mi>x</mml:mi><mml:mn>2</mml:mn></mml:msub><mml:mi>.</mml:mi><mml:mi>.</mml:mi><mml:mi>.</mml:mi><mml:mo>,</mml:mo><mml:msub><mml:mi>x</mml:mi><mml:mi>n</mml:mi></mml:msub><mml:mo stretchy="true" form="postfix">]</mml:mo></mml:mrow><mml:mi>T</mml:mi></mml:msup></mml:mrow></mml:math></alternatives></inline-formula>
+  is the state vector, <inline-formula><alternatives>
+  <tex-math><![CDATA[f:\mathbb{R}^n \times \mathbb{R}^m \times \mathbb{R}^+ \rightarrow \mathbb{R}^n]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>f</mml:mi><mml:mo>:</mml:mo><mml:msup><mml:mi>ℝ</mml:mi><mml:mi>n</mml:mi></mml:msup><mml:mo>×</mml:mo><mml:msup><mml:mi>ℝ</mml:mi><mml:mi>m</mml:mi></mml:msup><mml:mo>×</mml:mo><mml:msup><mml:mi>ℝ</mml:mi><mml:mo>+</mml:mo></mml:msup><mml:mo>→</mml:mo><mml:msup><mml:mi>ℝ</mml:mi><mml:mi>n</mml:mi></mml:msup></mml:mrow></mml:math></alternatives></inline-formula>
+  is the derivative function, and <inline-formula><alternatives>
+  <tex-math><![CDATA[t]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>t</mml:mi></mml:math></alternatives></inline-formula>
+  is the independent variable. <inline-formula><alternatives>
+  <tex-math><![CDATA[P = [p_1,p_2...,p_m]^T]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>P</mml:mi><mml:mo>=</mml:mo><mml:msup><mml:mrow><mml:mo stretchy="true" form="prefix">[</mml:mo><mml:msub><mml:mi>p</mml:mi><mml:mn>1</mml:mn></mml:msub><mml:mo>,</mml:mo><mml:msub><mml:mi>p</mml:mi><mml:mn>2</mml:mn></mml:msub><mml:mi>.</mml:mi><mml:mi>.</mml:mi><mml:mi>.</mml:mi><mml:mo>,</mml:mo><mml:msub><mml:mi>p</mml:mi><mml:mi>m</mml:mi></mml:msub><mml:mo stretchy="true" form="postfix">]</mml:mo></mml:mrow><mml:mi>T</mml:mi></mml:msup></mml:mrow></mml:math></alternatives></inline-formula>
+  is the vector of the system discrete variables.
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[n]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>n</mml:mi></mml:math></alternatives></inline-formula>
+  and <inline-formula><alternatives>
+  <tex-math><![CDATA[m]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>m</mml:mi></mml:math></alternatives></inline-formula>
+  are the number of state variables and discrete variables of the system
+  respectively. <inline-formula><alternatives>
+  <tex-math><![CDATA[zc]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>z</mml:mi><mml:mi>c</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>
+  is an event condition, <inline-formula><alternatives>
+  <tex-math><![CDATA[H]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>H</mml:mi></mml:math></alternatives></inline-formula>
+  and <inline-formula><alternatives>
+  <tex-math><![CDATA[L]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>L</mml:mi></mml:math></alternatives></inline-formula>
+  are functions used in the effects of the event
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[zc]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>z</mml:mi><mml:mi>c</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>.</p>
+  <p>In QSS, besides the step size, the difference between
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[x_i(t_k)]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>x</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>t</mml:mi><mml:mi>k</mml:mi></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>
+  (the current value) and <inline-formula><alternatives>
+  <tex-math><![CDATA[x_i(t_{k+1})]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>x</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>t</mml:mi><mml:mrow><mml:mi>k</mml:mi><mml:mo>+</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>
+  (the next value) is called the quantum <inline-formula><alternatives>
+  <tex-math><![CDATA[\Delta_i]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>Δ</mml:mi><mml:mi>i</mml:mi></mml:msub></mml:math></alternatives></inline-formula>.
+  Depending on the type of the QSS method (explicit or implicit), a new
+  variable <inline-formula><alternatives>
+  <tex-math><![CDATA[q_i]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>q</mml:mi><mml:mi>i</mml:mi></mml:msub></mml:math></alternatives></inline-formula>
+  is set to equal <inline-formula><alternatives>
+  <tex-math><![CDATA[x_i(t_k)]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>x</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>t</mml:mi><mml:mi>k</mml:mi></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>
+  or <inline-formula><alternatives>
+  <tex-math><![CDATA[x_i(t_{k+1})]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>x</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>t</mml:mi><mml:mrow><mml:mi>k</mml:mi><mml:mo>+</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>
+  respectively. <inline-formula><alternatives>
+  <tex-math><![CDATA[q_i]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>q</mml:mi><mml:mi>i</mml:mi></mml:msub></mml:math></alternatives></inline-formula>
+  is called the quantized state of <inline-formula><alternatives>
+  <tex-math><![CDATA[x_i]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>x</mml:mi><mml:mi>i</mml:mi></mml:msub></mml:math></alternatives></inline-formula>,
+  and it is used in updating the derivative function
+  (<xref alt="Elbellili et al., 2024" rid="ref-elbellili" ref-type="bibr">Elbellili
+  et al., 2024</xref>). A general description of a QSS algorithm is
+  given as follows:
+  <inline-graphic mimetype="image" mime-subtype="png" xlink:href="alg.png" /></p>
+</sec>
+<sec id="package-description">
+  <title>Package description</title>
+  <p>While the package is optimized to be fast, extensibility is not
+  compromised. It is divided into three entities that can be extended
+  separately: The <monospace>problem</monospace>, the
+  <monospace>algorithm</monospace>, and the
+  <monospace>solution</monospace>. The rest of the code creates these
+  entities and glues them together. The API was designed to match the
+  DifferentialEquations.jl interface while providing an easier way to
+  handle events. The problem is defined inside a function, in which the
+  user may introduce any parameters, variables, equations, and
+  events:</p>
+  <code language="julia">function func(du, u, p, t)
+  # parameters, helpers, differential eqs., if-statements for events; e.g.:
+  du[1] = p[1] * u[1]
+  if (t - 1.0 &gt; 0.0) p[1] = -10.0 end
+end</code>
+  <p>Then, this function is passed to an
+  <monospace>ODEProblem</monospace> function along with the initial
+  conditions, the time span, and any parameters or discrete
+  variables.</p>
+  <code language="julia">tspan = (0.0, 2.0)
+u = [10.0] # initial conditions
+p = [-1.0] # parameters and discrete variables
+odeprob = ODEProblem(func, u, tspan, p)</code>
+  <p>The output of the previous <monospace>ODEProblem</monospace>
+  function, which is a QSS problem, is passed to a
+  <monospace>solve</monospace> function with other configuration
+  arguments such as the algorithm type and the tolerance. The
+  <monospace>solve</monospace> function dispatches on the given
+  algorithm and starts the numerical integration.</p>
+  <code language="julia">sol = solve(odeprob, nmliqss2(), abstol = 1E-5, reltol = 1E-5)</code>
+  <p>At the end, a solution object is produced that can be queried,
+  plotted, and analyzed for error.</p>
+  <code language="julia">sol(0.05, idxs = 1) # get the value of variable 1 at time 0.05
+sol.stats           # get statistics about the simulation
+plot(sol)           # plot the solution</code>
+  <p>The solver uses other packages such as
+  <ext-link ext-link-type="uri" xlink:href="https://github.com/FluxML/MacroTools.jl"><monospace>MacroTools.jl</monospace></ext-link>
+  (<xref alt="Innes, 2015" rid="ref-MacroTools" ref-type="bibr">Innes,
+  2015</xref>) for user-code parsing,
+  <ext-link ext-link-type="uri" xlink:href="https://github.com/symengine/SymEngine.jl"><monospace>SymEngine.jl</monospace></ext-link>
+  (<xref alt="Fernando, 2015" rid="ref-SymEngine" ref-type="bibr">Fernando,
+  2015</xref>) for Jacobian computation and dependency extraction. It
+  also uses a modified
+  <ext-link ext-link-type="uri" xlink:href="https://github.com/JuliaDiff/TaylorSeries.jl/"><monospace>TaylorSeries.jl</monospace></ext-link>
+  (<xref alt="Benet &amp; Sanders, 2014" rid="ref-TaylorSeries" ref-type="bibr">Benet
+  &amp; Sanders, 2014</xref>) that implements caching to obtain free
+  Taylor variable operations, since the current version of TaylorSeries
+  creates a heap allocated object for every operation. The approximation
+  through Taylor variables transforms any complicated equations to
+  polynomials, making root finding cheaper–a process that QSS methods
+  rely on heavily.</p>
+</sec>
+<sec id="the-buck-converter-example">
+  <title>The buck converter example</title>
+  <p>The buck converter decreases the voltage and increases the current
+  with a greater power efficiency than linear regulators
+  (<xref alt="Migoni et al., 2015" rid="ref-buck" ref-type="bibr">Migoni
+  et al., 2015</xref>). Its circuit is shown in Fig.1(a).</p>
+  <fig>
+    <caption><p>The buck converter</p></caption>
+    <graphic mimetype="image" mime-subtype="png" xlink:href="buck.png" />
+  </fig>
+  <p>The diode <inline-formula><alternatives>
+  <tex-math><![CDATA[D]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>D</mml:mi></mml:math></alternatives></inline-formula>
+  and the switch <inline-formula><alternatives>
+  <tex-math><![CDATA[S]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>S</mml:mi></mml:math></alternatives></inline-formula>
+  can be modeled as two variable resistors, denoted by
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[RD]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>R</mml:mi><mml:mi>D</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>
+  and <inline-formula><alternatives>
+  <tex-math><![CDATA[RS]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>R</mml:mi><mml:mi>S</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>.
+  A mesh and a nodal analysis give the relationship between the
+  different components in the circuit as follows:</p>
+  <p><inline-formula><alternatives>
+  <tex-math><![CDATA[i_d = \frac{RS.i_l-V1}{RS+RD}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>i</mml:mi><mml:mi>d</mml:mi></mml:msub><mml:mo>=</mml:mo><mml:mfrac><mml:mrow><mml:mi>R</mml:mi><mml:mi>S</mml:mi><mml:mi>.</mml:mi><mml:msub><mml:mi>i</mml:mi><mml:mi>l</mml:mi></mml:msub><mml:mo>−</mml:mo><mml:mi>V</mml:mi><mml:mn>1</mml:mn></mml:mrow><mml:mrow><mml:mi>R</mml:mi><mml:mi>S</mml:mi><mml:mo>+</mml:mo><mml:mi>R</mml:mi><mml:mi>D</mml:mi></mml:mrow></mml:mfrac></mml:mrow></mml:math></alternatives></inline-formula>;
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[\frac{du_c}{dt} = \frac{i_l-\frac{u_c}{R}}{C}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mfrac><mml:mrow><mml:mi>d</mml:mi><mml:msub><mml:mi>u</mml:mi><mml:mi>c</mml:mi></mml:msub></mml:mrow><mml:mrow><mml:mi>d</mml:mi><mml:mi>t</mml:mi></mml:mrow></mml:mfrac><mml:mo>=</mml:mo><mml:mfrac><mml:mrow><mml:msub><mml:mi>i</mml:mi><mml:mi>l</mml:mi></mml:msub><mml:mo>−</mml:mo><mml:mfrac><mml:msub><mml:mi>u</mml:mi><mml:mi>c</mml:mi></mml:msub><mml:mi>R</mml:mi></mml:mfrac></mml:mrow><mml:mi>C</mml:mi></mml:mfrac></mml:mrow></mml:math></alternatives></inline-formula>;
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[\frac{di_l}{dt} = \frac{-uc-i_d.RD}{L}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mfrac><mml:mrow><mml:mi>d</mml:mi><mml:msub><mml:mi>i</mml:mi><mml:mi>l</mml:mi></mml:msub></mml:mrow><mml:mrow><mml:mi>d</mml:mi><mml:mi>t</mml:mi></mml:mrow></mml:mfrac><mml:mo>=</mml:mo><mml:mfrac><mml:mrow><mml:mi>−</mml:mi><mml:mi>u</mml:mi><mml:mi>c</mml:mi><mml:mo>−</mml:mo><mml:msub><mml:mi>i</mml:mi><mml:mi>d</mml:mi></mml:msub><mml:mi>.</mml:mi><mml:mi>R</mml:mi><mml:mi>D</mml:mi></mml:mrow><mml:mi>L</mml:mi></mml:mfrac></mml:mrow></mml:math></alternatives></inline-formula></p>
+  <p>The buck problem contains frequent discontinuities and can be
+  solved by the QuantizedSystemSolver.jl package using the following
+  code, that generates the solution plot of Fig.1(b):</p>
+  <code language="julia">using QuantizedSystemSolver
+function buck(du, u, p, t)
+  # Constant parameters
+  C = 1e-4; L = 1e-4; R = 10.0; V1 = 24.0; T = 1e-4; ROn = 1e-5; ROff = 1e5
+  # Optional rename of the continuous and discrete variables
+  RD = p[1]; RS = p[2]; nextT = p[3]; lastT = p[4]; il = u[1]; uc = u[2]
+  # Equations
+  id = (il * RS - V1) / (RD + RS) # diode's current
+  du[1] = (-id * RD - uc)/L; du[2] = (il - uc / R) / C
+  # Events
+  if t - nextT &gt; 0.0 # model when the switch is ON
+    lastT = nextT; nextT = nextT + T; RS = ROn
+  end
+  if t - lastT - 0.5 * T &gt; 0.0 # model when the switch is OFF
+    RS = ROff
+  end
+  if id &gt; 0 # model when the Diode is ON
+    RD = ROn;
+  else
+    RD = ROff;
+  end
+end
+# Initial conditions and time settings
+p = [1e5, 1e-5, 1e-4, 0.0]; u0 = [0.0, 0.0]; tspan = (0.0, 0.001)
+# Define the problem
+QSSproblem = ODEProblem(buck, u0, tspan, p)
+# solve the problem
+sol = solve(QSSproblem, nmliqss2(), abstol = 1e-3, reltol = 1e-2)
+# Get the value of variable 2 at time 0.0005
+sol(0.0005, idxs = 2)
+# plot the solution
+plot(sol)</code>
+</sec>
+<sec id="conclusion">
+  <title>Conclusion</title>
+  <p>The package provides robust functionality to efficiently solve
+  stiff ODEs with events using the quantized state method. It is
+  well-documented, making it accessible for researchers across various
+  domains. Additionally, users can extend its capabilities to handle a
+  variety of problems.</p>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>This research has received no external funding.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <title></title>
+  <ref id="ref-TaylorSeries">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Benet</surname><given-names>Luis</given-names></name>
+        <name><surname>Sanders</surname><given-names>David P.</given-names></name>
+      </person-group>
+      <article-title>A Julia package for Taylor expansions in one or more independent variables</article-title>
+      <publisher-name>https://github.com/JuliaDiff/TaylorSeries.jl</publisher-name>
+      <year iso-8601-date="2014">2014</year>
+      <pub-id pub-id-type="doi">10.5281/zenodo.2557003</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-julia">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Bezanson</surname><given-names>Jeff</given-names></name>
+        <name><surname>Edelman</surname><given-names>Alan</given-names></name>
+        <name><surname>Karpinski</surname><given-names>Stefan</given-names></name>
+        <name><surname>Shah</surname><given-names>Viral B.</given-names></name>
+      </person-group>
+      <article-title>Julia: A fresh approach to numerical computing</article-title>
+      <source>SIAM Review</source>
+      <year iso-8601-date="2017">2017</year>
+      <volume>59</volume>
+      <issue>1</issue>
+      <pub-id pub-id-type="doi">10.1137/141000671</pub-id>
+      <fpage>65</fpage>
+      <lpage>98</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-MacroTools">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Innes</surname><given-names>Mike</given-names></name>
+      </person-group>
+      <article-title>MacroTools.jl</article-title>
+      <year iso-8601-date="2015">2015</year>
+      <uri>https://github.com/FluxML/MacroTools.jl</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-SymEngine">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Fernando</surname><given-names>Isuru</given-names></name>
+      </person-group>
+      <article-title>SymEngine.jl</article-title>
+      <year iso-8601-date="2015">2015</year>
+      <uri>https://github.com/symengine/SymEngine.jl</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-improveliqss">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Pietro</surname><given-names>F.</given-names></name>
+        <name><surname>Migoni</surname><given-names>G.</given-names></name>
+        <name><surname>Kofman</surname><given-names>E.</given-names></name>
+      </person-group>
+      <article-title>Improving linearly implicit quantized state system methods</article-title>
+      <source>Simulation: Transactions of the Society for Modeling and Simulation International</source>
+      <year iso-8601-date="2019">2019</year>
+      <pub-id pub-id-type="doi">10.1177/0037549718766689</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-qssC">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Fernández</surname><given-names>Joaquín</given-names></name>
+        <name><surname>Kofman</surname><given-names>Ernesto</given-names></name>
+      </person-group>
+      <article-title>A stand-alone quantized state system solver for continuous system simulation</article-title>
+      <source>SIMULATION: Transactions of the Society for Modeling and Simulation International</source>
+      <year iso-8601-date="2014-06">2014</year><month>06</month>
+      <volume>90</volume>
+      <pub-id pub-id-type="doi">10.1177/0037549714536255</pub-id>
+      <fpage>782</fpage>
+      <lpage>799</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Rackauckas2017">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Rackauckas</surname><given-names>C.</given-names></name>
+        <name><surname>Nie</surname><given-names>Q.</given-names></name>
+      </person-group>
+      <article-title>DifferentialEquations.jl a performant and feature-rich ecosystem for solving differential equations in julia</article-title>
+      <source>The Journal of Open Research Software</source>
+      <year iso-8601-date="2017">2017</year>
+      <volume>5</volume>
+      <pub-id pub-id-type="doi">10.5334/jors.151</pub-id>
+      <fpage>15</fpage>
+      <lpage>24</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-elbellili">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Elbellili</surname><given-names>E.</given-names></name>
+        <name><surname>Lauwens</surname><given-names>B.</given-names></name>
+        <name><surname>Huybrechs</surname><given-names>D.</given-names></name>
+      </person-group>
+      <article-title>Investigation of different conditions to detect cycles in linearly implicit quantized state systems</article-title>
+      <source>Proceedings of the 3rd. International conference on computational modeling, simulation and optimization</source>
+      <publisher-name>IEEE Computer Society</publisher-name>
+      <year iso-8601-date="2024">2024</year>
+      <pub-id pub-id-type="doi">10.1109/ICCMSO61761.2024.00095</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-buck">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Migoni</surname><given-names>Gustavo</given-names></name>
+        <name><surname>Kofman</surname><given-names>Ernesto</given-names></name>
+        <name><surname>Bergero</surname><given-names>Federico</given-names></name>
+        <name><surname>Fernandez</surname><given-names>Joaquin</given-names></name>
+      </person-group>
+      <article-title>Quantization-based simulation of switched mode power supplies</article-title>
+      <source>SIMULATION</source>
+      <year iso-8601-date="2015-04">2015</year><month>04</month>
+      <volume>91</volume>
+      <pub-id pub-id-type="doi">10.1177/0037549715575197</pub-id>
+      <fpage>320</fpage>
+      <lpage>336</lpage>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
