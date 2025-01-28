@@ -1,0 +1,546 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">7303</article-id>
+<article-id pub-id-type="doi">10.21105/joss.07303</article-id>
+<title-group>
+<article-title>wrenfold: Symbolic code generation for
+robotics</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0009-0008-3110-0078</contrib-id>
+<name>
+<surname>Cross</surname>
+<given-names>Gareth</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Independent Researcher, USA</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2024-08-13">
+<day>13</day>
+<month>8</month>
+<year>2024</year>
+</pub-date>
+<volume>10</volume>
+<issue>105</issue>
+<fpage>7303</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2025</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>Python</kwd>
+<kwd>symbolic math</kwd>
+<kwd>robotics</kwd>
+<kwd>computer vision</kwd>
+<kwd>code generation</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p>Real-time robotic software systems often solve one or more
+  numerical optimization problems. For example, accurate estimates of
+  past vehicle motion are typically obtained as the solution of a
+  non-linear optimization or filtering problem
+  (<xref alt="Barfoot, 2024" rid="ref-Barfoot" ref-type="bibr">Barfoot,
+  2024</xref>). Similarly, the behavior of an autonomous system can be
+  selected via a numerical optimization problem that reasons about the
+  relative merits of different future actions
+  (<xref alt="Lynch &amp; Park, 2021" rid="ref-Lynch_Park" ref-type="bibr">Lynch
+  &amp; Park, 2021</xref>).</p>
+  <p>Problems of this form can be solved using packages like Google
+  Ceres
+  (<xref alt="Agarwal et al., 2023" rid="ref-Agarwal_Ceres_Solver_2022" ref-type="bibr">Agarwal
+  et al., 2023</xref>) or GTSAM
+  (<xref alt="Dellaert &amp; GTSAM Contributors, 2022" rid="ref-gtsam" ref-type="bibr">Dellaert
+  &amp; GTSAM Contributors, 2022</xref>). These optimizers require that
+  the user provide a mathematical objective function and - in some
+  instances - the derivatives of said function with respect to the
+  desired decision variables. In order to achieve real-time deadlines,
+  the optimization is usually implemented in a performant compiled
+  language such as C++.</p>
+  <p><monospace>wrenfold</monospace> is a framework that converts
+  symbolic math expressions (written in Python) into generated code in
+  compiled languages (C++, Rust). The primary goals of the framework
+  are:</p>
+  <list list-type="bullet">
+    <list-item>
+      <p>Bridge the gap between expressive prototyping of objective
+      functions in symbolic form, and the performant code required for
+      real-time operation.</p>
+    </list-item>
+    <list-item>
+      <p>Improve on existing symbolic code generation solutions by
+      supporting a greater variety and complexity of expressions.</p>
+    </list-item>
+  </list>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p>Researchers and engineers working in robotics and related domains
+  (eg. motion planning, control theory, state estimation, computer
+  vision) regularly implement numerical optimization problems. This
+  process presents a number of challenges:</p>
+  <list list-type="bullet">
+    <list-item>
+      <p>Robotic systems often feature non-trivial kinematics and
+      dynamics. Describing the motion or sensor models may involve
+      reasoning about complex chains of 3D transformations.</p>
+    </list-item>
+    <list-item>
+      <p>Many popular optimization methods require derivatives for the
+      objective function. Manually computing derivatives is tedious and
+      error-prone, particularly in the presence of complicated geometry
+      or compounded transformations.</p>
+    </list-item>
+    <list-item>
+      <p>Performant systems languages like C++ do not necessarily have
+      syntax conducive to the elegant expression of elaborate
+      mathematical functions.</p>
+    </list-item>
+  </list>
+  <p>Symbolic code generation can help address these issues:</p>
+  <list list-type="bullet">
+    <list-item>
+      <p>Symbolic functions can be be easily composed in Python, and
+      reasonably performant<xref ref-type="fn" rid="fn1">1</xref> C++
+      implementations are obtained automatically. The developer time
+      cost required to experiment with different optimization
+      parameterizations is thereby reduced.</p>
+    </list-item>
+    <list-item>
+      <p>Correct derivatives require no additional work - they can be
+      obtained directly from the objective function via symbolic
+      differentiation. Common terms that appear in the objective
+      function and its Jacobians are automatically de-duplicated by the
+      code generation step.</p>
+    </list-item>
+  </list>
+  <p>Compilable source code is a suitable output format because it is
+  straightforward to integrate into downstream projects. By customizing
+  the code generation step, any number of additional languages and
+  development environments can be targeted. Generated functions can be
+  applied to a number of use cases, such as:</p>
+  <list list-type="bullet">
+    <list-item>
+      <p>Defining measurement expressions for a factor graph or Kalman
+      filter.<xref ref-type="fn" rid="fn2">2</xref></p>
+    </list-item>
+    <list-item>
+      <p>Expressing terms in a motion planning or control
+      optimization.<xref ref-type="fn" rid="fn3">3</xref></p>
+    </list-item>
+  </list>
+  <p>Symbolic code generation has been shown to be an effective tool in
+  robotics. For example, the <monospace>MATLAB</monospace> symbolic code
+  generation toolbox has been applied directly to motion planning
+  (<xref alt="Hereid &amp; Ames, 2017" rid="ref-Hereid2017FROST" ref-type="bibr">Hereid
+  &amp; Ames, 2017</xref>). The open-source
+  <monospace>SymForce</monospace> framework
+  (<xref alt="Martiros &amp; The Skydio Autonomy Team, 2022" rid="ref-Martiros-RSS-22" ref-type="bibr">Martiros
+  &amp; The Skydio Autonomy Team, 2022</xref>) couples the
+  <monospace>SymEngine</monospace>
+  (<xref alt="Fernando, 2024" rid="ref-symengine" ref-type="bibr">Fernando,
+  2024</xref>) mathematical backend with Python code generation
+  utilities and mathematical primitives specific to
+  robotics.<xref ref-type="fn" rid="fn4">4</xref>
+  <monospace>wrenfold</monospace> draws inspiration from the design of
+  <monospace>SymForce</monospace>, while aiming to support a greater
+  variety and complexity of functions. We improve on the concept with
+  the following contributions:</p>
+  <list list-type="bullet">
+    <list-item>
+      <p><bold>Symbolic functions may incorporate piecewise conditional
+      statements</bold> - these produce if-else logic in the resulting
+      code. This enables a broader range of functions to be
+      generated.</p>
+    </list-item>
+    <list-item>
+      <p><bold>Emphasis is placed on ease of adaptability of the
+      generated code.</bold> Math expressions are simplified and
+      converted into an abstract syntax tree (AST). Formatting of any
+      element of the AST (such as function signatures and types) can be
+      individually customized by defining a short Python method.</p>
+    </list-item>
+    <list-item>
+      <p><bold>Times for code generation are meaningfully
+      reduced</bold>, thereby enabling more complex expressions.</p>
+    </list-item>
+  </list>
+  <p><monospace>wrenfold</monospace> aims to support researchers and
+  engineers in robotics by bringing symbolic code generation to a
+  greater variety and complexity of optimization problems.</p>
+</sec>
+<sec id="design">
+  <title>Design</title>
+  <p>Internally, <monospace>wrenfold</monospace> can be thought of as
+  four distinct parts:</p>
+  <list list-type="order">
+    <list-item>
+      <p>A <bold>symbolic math frontend</bold> implemented in C++ that
+      exposes a Python interface. Programmers implement a Python
+      function in order to specify the mathematical operations they wish
+      to generate.</p>
+    </list-item>
+    <list-item>
+      <p>The symbolic expression tree is converted into a flat
+      <bold>intermediate representation</bold> (IR). The IR is
+      manipulated in order to eliminate common sub-expressions.
+      Additional optimizations can be performed at this stage - for
+      example factorizing common terms out of sum-of-product
+      expressions.</p>
+    </list-item>
+    <list-item>
+      <p>An <bold>abstract syntax tree</bold> is built from the
+      simplified IR. This representation is intended to be generic, such
+      that nearly any language can be emitted downstream.</p>
+    </list-item>
+    <list-item>
+      <p>A <bold>code generation</bold> step converts the AST into a
+      compilable language like C++ or Rust. This stage is easily
+      customizable from Python.</p>
+    </list-item>
+  </list>
+  <fig>
+    <caption><p><monospace>wrenfold</monospace> system
+    architecture<styled-content id="figU003Aarch"></styled-content></p></caption>
+    <graphic mimetype="image" mime-subtype="png" xlink:href="architecture.png" />
+  </fig>
+  <p>One of our design goals is to avoid burdening developers with long
+  code generation times. To that end, we implement the core library in
+  C++. The memoization pattern is employed throughout the symbolic
+  backend in order to further improve performance. The fast backend
+  allows <monospace>wrenfold</monospace> to scale to larger expression
+  trees than a plain Python implementation (e.g. SymPy) would allow.
+  <monospace>wrenfold</monospace> code generation times are also 20-100x
+  faster than SymForce on representative
+  functions.<xref ref-type="fn" rid="fn5">5</xref></p>
+  <p>The user-facing Python API is implemented using pybind11
+  (<xref alt="Jakob et al., 2016" rid="ref-pybind11" ref-type="bibr">Jakob
+  et al., 2016</xref>). While code generators are written in C++, they
+  can be inherited and overriden in Python. This facilitates easy
+  adaptation of the generated code to a particular project - for
+  instance:</p>
+  <list list-type="bullet">
+    <list-item>
+      <p>Injecting custom types into the signature of generated methods.
+      For example, emitting code that interfaces with
+      externally-provided geometry types like
+      <monospace>gtsam::Pose3</monospace>
+      (<xref alt="Dellaert &amp; GTSAM Contributors, 2022" rid="ref-gtsam" ref-type="bibr">Dellaert
+      &amp; GTSAM Contributors, 2022</xref>).</p>
+    </list-item>
+    <list-item>
+      <p>Overriding a core math function (eg. <monospace>sin</monospace>
+      or <monospace>cosh</monospace>) in order to invoke a custom
+      implementation.</p>
+    </list-item>
+    <list-item>
+      <p>Customizing syntax in order to suit a particular compiler or
+      language version.</p>
+    </list-item>
+    <list-item>
+      <p>Adding an entirely new programming language to the list of
+      possible targets.</p>
+    </list-item>
+  </list>
+  <p>Examples of the above behaviors can be found in the
+  <monospace>wrenfold</monospace> project repository.</p>
+</sec>
+<sec id="usage-example">
+  <title>Usage Example</title>
+  <p>We proceed with a usage example illustrating how a developer might
+  interact with <monospace>wrenfold</monospace>. For the sake of
+  brevity, this example is relatively simple. More realistic
+  demonstrations can be found in the project repository. The following
+  code was generated with <monospace>wrenfold v0.2.2</monospace> - the
+  newest version at the time of this writing. A symbolic function is
+  created by writing a type-annotated Python function:</p>
+  <code language="python">from wrenfold import code_generation, sym, type_annotations
+
+def rotate_point(
+  p: type_annotations.Vector2,
+  theta: type_annotations.FloatScalar
+):
+  &quot;&quot;&quot;Rotate a 2D point by the angle `theta`.&quot;&quot;&quot;
+  c, s = sym.cos(theta), sym.sin(theta)
+  R = sym.matrix([(c, -s), (s, c)])
+  p_rotated = R * p
+  # Produce the rotated point, and the 2x1 Jacobian with respect to `theta`.
+  return (
+    code_generation.OutputArg(p_rotated, name=&quot;p_out&quot;),
+    code_generation.OutputArg(
+      sym.jacobian(p_rotated, [theta]), name=&quot;p_out_D_theta&quot;, is_optional=True)
+  )
+
+# Generate C++ code:
+code = code_generation.generate_function(
+  rotate_point, generator=code_generation.CppGenerator())</code>
+  <p>Our example function accepts a 2D vector
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[\mathbf{p}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>𝐩</mml:mi></mml:math></alternatives></inline-formula>,
+  and rotates it by the angle <inline-formula><alternatives>
+  <tex-math><![CDATA[\theta]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>θ</mml:mi></mml:math></alternatives></inline-formula>.
+  The outputs consist of the rotated point, and the Jacobian with
+  respect to <inline-formula><alternatives>
+  <tex-math><![CDATA[\theta]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>θ</mml:mi></mml:math></alternatives></inline-formula>.
+  The type annotations <monospace>Vector2</monospace> and
+  <monospace>FloatScalar</monospace> specify the numeric types and
+  dimensions of the input arguments. We also annotate the output values
+  to indicate how they should be returned. The equivalent generated C++
+  function for <monospace>rotate_point</monospace> is:</p>
+  <code language="c++">#include &lt;wrenfold/span.h&gt;
+
+template &lt;typename Scalar, typename T0, typename T2, typename T3&gt;
+void rotate_point(const T0 &amp;p, const Scalar theta, T2 &amp;&amp;p_out,
+                  T3 &amp;&amp;p_out_D_theta) {
+  auto _p = wf::make_input_span&lt;2, 1&gt;(p);
+  auto _p_out = wf::make_output_span&lt;2, 1&gt;(p_out);
+  auto _p_out_D_theta = wf::make_optional_output_span&lt;2, 1&gt;(p_out_D_theta);
+
+  const Scalar v002 = theta;
+  const Scalar v003 = std::sin(v002);
+  const Scalar v001 = _p(1, 0);
+  const Scalar v007 = std::cos(v002);
+  const Scalar v006 = _p(0, 0);
+  const Scalar v012 = v003 * v006 + v001 * v007;
+  const Scalar v009 = v006 * v007 + -(v001 * v003);
+  if (static_cast&lt;bool&gt;(_p_out_D_theta)) {
+    _p_out_D_theta(0, 0) = -v012;
+    _p_out_D_theta(1, 0) = v009;
+  }
+  _p_out(0, 0) = v009;
+  _p_out(1, 0) = v012;
+}</code>
+  <p>The generated C++ is intended to be maximally type agnostic.
+  Vectors and matrices are passed as generic types, such that a wide
+  variety of linear algebra frameworks can be supported at
+  runtime.<xref ref-type="fn" rid="fn6">6</xref> Note that common
+  sub-expressions <monospace>v009</monospace> and
+  <monospace>v012</monospace> have been extracted into variables so that
+  they may be reused.</p>
+</sec>
+<sec id="future-work">
+  <title>Future Work</title>
+  <p><monospace>wrenfold</monospace> is designed to be extensible.
+  Future avenues for improvement include:</p>
+  <list list-type="bullet">
+    <list-item>
+      <p>Adding new target languages, for example shader code
+      (GLSL/HLSL) or CUDA.</p>
+    </list-item>
+    <list-item>
+      <p>Extending the list of built-in core math functions.</p>
+    </list-item>
+    <list-item>
+      <p>Generalizing the symbolic expression tree to reason about
+      matrix expressions (thereby enabling vertorization of output code
+      in some instances).</p>
+    </list-item>
+  </list>
+</sec>
+<sec id="resources">
+  <title>Resources</title>
+  <list list-type="bullet">
+    <list-item>
+      <p>GitHub repository:
+      <ext-link ext-link-type="uri" xlink:href="https://github.com/wrenfold/wrenfold">https://github.com/wrenfold/wrenfold</ext-link></p>
+    </list-item>
+    <list-item>
+      <p>Website:
+      <ext-link ext-link-type="uri" xlink:href="https://wrenfold.org">https://wrenfold.org</ext-link></p>
+    </list-item>
+  </list>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>We acknowledge code contributions and feedback from: Himel Mondal,
+  Anurag Makineni, Rowland O’Flaherty, and Chao Qu.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <title></title>
+  <ref id="ref-Martiros-RSS-22">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Martiros</surname><given-names>Hayk</given-names></name>
+        <string-name>The Skydio Autonomy Team</string-name>
+      </person-group>
+      <article-title>SymForce: Symbolic Computation and Code Generation for Robotics</article-title>
+      <source>Proceedings of robotics: Science and systems</source>
+      <year iso-8601-date="2022">2022</year>
+      <pub-id pub-id-type="doi">10.15607/RSS.2022.XVIII.041</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-Agarwal_Ceres_Solver_2022">
+    <element-citation publication-type="software">
+      <person-group person-group-type="author">
+        <name><surname>Agarwal</surname><given-names>Sameer</given-names></name>
+        <name><surname>Mierle</surname><given-names>Keir</given-names></name>
+        <string-name>The Ceres Solver Team</string-name>
+      </person-group>
+      <article-title>Ceres Solver</article-title>
+      <year iso-8601-date="2023-10">2023</year><month>10</month>
+      <uri>https://github.com/ceres-solver/ceres-solver</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-gtsam">
+    <element-citation publication-type="software">
+      <person-group person-group-type="author">
+        <name><surname>Dellaert</surname><given-names>Frank</given-names></name>
+        <string-name>GTSAM Contributors</string-name>
+      </person-group>
+      <article-title>Borglab/gtsam</article-title>
+      <publisher-name>Georgia Tech Borg Lab</publisher-name>
+      <year iso-8601-date="2022-05">2022</year><month>05</month>
+      <uri>https://github.com/borglab/gtsam)</uri>
+      <pub-id pub-id-type="doi">10.5281/zenodo.5794541</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-Hereid2017FROST">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Hereid</surname><given-names>Ayonga</given-names></name>
+        <name><surname>Ames</surname><given-names>Aaron D.</given-names></name>
+      </person-group>
+      <article-title>FROST: Fast Robot Optimization and Simulation Toolkit</article-title>
+      <source>IEEE/RSJ international conference on intelligent robots and systems (IROS)</source>
+      <publisher-name>IEEE/RSJ</publisher-name>
+      <publisher-loc>Vancouver, BC, Canada</publisher-loc>
+      <year iso-8601-date="2017-09">2017</year><month>09</month>
+      <pub-id pub-id-type="doi">10.1109/iros.2017.8202230</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-Barfoot">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Barfoot</surname><given-names>Timothy D.</given-names></name>
+      </person-group>
+      <source>State estimation for Robotics</source>
+      <publisher-name>Cambridge University Press</publisher-name>
+      <year iso-8601-date="2024-02">2024</year><month>02</month>
+      <isbn>9781009299893</isbn>
+      <pub-id pub-id-type="doi">10.1017/9781316671528</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-Lynch_Park">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Lynch</surname><given-names>Kevin</given-names></name>
+        <name><surname>Park</surname><given-names>Frank C.</given-names></name>
+      </person-group>
+      <source>Modern Robotics: Mechanics, planning, and Control</source>
+      <publisher-name>Cambridge University Press</publisher-name>
+      <year iso-8601-date="2021">2021</year>
+      <isbn>9781107156302</isbn>
+      <pub-id pub-id-type="doi">10.1017/9781316661239</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-symengine">
+    <element-citation publication-type="software">
+      <person-group person-group-type="author">
+        <name><surname>Fernando</surname><given-names>Isuru et. al</given-names></name>
+      </person-group>
+      <article-title>SymEngine</article-title>
+      <year iso-8601-date="2024-06-19">2024</year><month>06</month><day>19</day>
+      <uri>https://github.com/symengine/symengine</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-Martiros_Blog_2022">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Martiros</surname><given-names>Hayk</given-names></name>
+      </person-group>
+      <article-title>Open-sourcing SymForce</article-title>
+      <source>Skydio Blog RSS</source>
+      <publisher-name>Skydio</publisher-name>
+      <year iso-8601-date="2022-05">2022</year><month>05</month>
+      <uri>https://www.skydio.com/blog/open-sourcing-symforce/</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-pybind11">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Jakob</surname><given-names>Wenzel</given-names></name>
+        <name><surname>Rhinelander</surname><given-names>Jason</given-names></name>
+        <name><surname>Moldovan</surname><given-names>Dean</given-names></name>
+      </person-group>
+      <article-title>pybind11 — Seamless operability between C++11 and Python</article-title>
+      <year iso-8601-date="2016">2016</year>
+    </element-citation>
+  </ref>
+</ref-list>
+<fn-group>
+  <fn id="fn1">
+    <label>1</label><p>A comparison with handwritten and auto-diff based
+    implementations is accessible at
+    <ext-link ext-link-type="uri" xlink:href="https://wrenfold.org/performance.html">https://wrenfold.org/performance.html</ext-link>.</p>
+  </fn>
+  <fn id="fn2">
+    <label>2</label><p>Examples of integrating
+    <monospace>wrenfold</monospace> functions into Ceres and GTSAM are
+    provided at
+    <ext-link ext-link-type="uri" xlink:href="https://github.com/wrenfold/wrenfold-extra-examples">https://github.com/wrenfold/wrenfold-extra-examples</ext-link>.</p>
+  </fn>
+  <fn id="fn3">
+    <label>3</label><p>A toy example of a Model Predictive Control (MPC)
+    algorithm that uses <monospace>wrenfold</monospace> is available at
+    <ext-link ext-link-type="uri" xlink:href="https://github.com/gareth-cross/cart-pole-mpc">https://github.com/gareth-cross/cart-pole-mpc</ext-link>.</p>
+  </fn>
+  <fn id="fn4">
+    <label>4</label><p><monospace>SymForce</monospace> has been deployed
+    on production robots produced by Skydio, an American drone
+    manufacturer
+    (<xref alt="Martiros, 2022" rid="ref-Martiros_Blog_2022" ref-type="bibr">Martiros,
+    2022</xref>).</p>
+  </fn>
+  <fn id="fn5">
+    <label>5</label><p>Based on a comparison of end-to-end code
+    generation times of sample functions taken from
+    <ext-link ext-link-type="uri" xlink:href="https://github.com/wrenfold/wrenfold-benchmarks">https://github.com/wrenfold/wrenfold-benchmarks</ext-link>.
+    We compared <monospace>wrenfold v0.2.2</monospace> and
+    <monospace>SymForce 0.9.0</monospace>.</p>
+  </fn>
+  <fn id="fn6">
+    <label>6</label><p>We provide instructions for adding support for
+    third-party matrix libraries at:
+    <ext-link ext-link-type="uri" xlink:href="https://wrenfold.org/reference/integrating_code">https://wrenfold.org/reference/integrating_code</ext-link>.
+    Support for Eigen is provided by default.</p>
+  </fn>
+</fn-group>
+</back>
+</article>
