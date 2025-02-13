@@ -1,0 +1,446 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">7404</article-id>
+<article-id pub-id-type="doi">10.21105/joss.07404</article-id>
+<title-group>
+<article-title>Sigma: Uncertainty Propagation for C++</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author" corresp="yes">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0003-0442-193X</contrib-id>
+<name>
+<surname>Waldrop</surname>
+<given-names>Jonathan M.</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+<xref ref-type="corresp" rid="cor-1"><sup>*</sup></xref>
+</contrib>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0003-4235-5179</contrib-id>
+<name>
+<surname>Richard</surname>
+<given-names>Ryan M.</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+<xref ref-type="aff" rid="aff-2"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Chemical and Biological Sciences, Ames National Laboratory,
+USA</institution>
+<institution-id institution-id-type="ROR">041m9xr71</institution-id>
+</institution-wrap>
+</aff>
+<aff id="aff-2">
+<institution-wrap>
+<institution>Department of Chemistry, Iowa State University,
+USA</institution>
+<institution-id institution-id-type="ROR">04rswrd78</institution-id>
+</institution-wrap>
+</aff>
+</contrib-group>
+<author-notes>
+<corresp id="cor-1">* E-mail: <email></email></corresp>
+</author-notes>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2024-10-01">
+<day>1</day>
+<month>10</month>
+<year>2024</year>
+</pub-date>
+<volume>10</volume>
+<issue>106</issue>
+<fpage>7404</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2025</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>C++</kwd>
+<kwd>Uncertainty Propagation</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p>Sigma is a header-only C++-17 library for uncertainty propagation,
+  inspired by <monospace>uncertainties</monospace>
+  (<xref alt="Lebigot, 2009" rid="ref-uncertainties" ref-type="bibr">Lebigot,
+  2009</xref>) for Python and <monospace>Measurements.jl</monospace>
+  (<xref alt="Giordano, 2016" rid="ref-Measurements.jl-2016" ref-type="bibr">Giordano,
+  2016</xref>) for Julia. The library tracks the functional correlation
+  between dependent and independent variables, ensuring that the
+  uncertainty of the independent variables is properly considered in the
+  calculation of the dependent variables’ uncertainties. It is intended
+  as a near drop-in replacement for the standard floating point types
+  (aside from uncertainty specification), and aims to be easily
+  interoperable with the existing standard types.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p>In scientific analysis, values are often paired with the degree of
+  uncertainty in the accuracy of that value. This uncertainty (or error)
+  could be derived from a number of sources, including the level of
+  accuracy provided by a measuring instrument, the statistical nature of
+  the value being measured, or approximations made in the determination
+  of the value. Often, this uncertainty is represented as the standard
+  deviation of the value. When using these values as function inputs,
+  they convey an uncertainty on the new results. Propagating the
+  uncertainty by hand can be tedious, possibly prohibitively so in the
+  case of calculations that require machine computation to be feasible.
+  As such, it has been found prudent to automate the propagation of
+  error as an extension of the calculations themselves
+  (<xref alt="Giordano, 2016" rid="ref-Measurements.jl-2016" ref-type="bibr">Giordano,
+  2016</xref>;
+  <xref alt="Lebigot, 2009" rid="ref-uncertainties" ref-type="bibr">Lebigot,
+  2009</xref>). To the best of our knowledge, there is no currently
+  maintained C++ library to facilitate this kind of uncertainty
+  propagation. As C++ is an important language in the development of
+  scientific software and high-performance computing, Sigma has been
+  developed in an attempt to fill this gap.</p>
+</sec>
+<sec id="mathematics">
+  <title>Mathematics</title>
+  <p>Assume <inline-formula><alternatives>
+  <tex-math><![CDATA[F(A)]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>F</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>A</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>
+  is a function of <inline-formula><alternatives>
+  <tex-math><![CDATA[A]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>A</mml:mi></mml:math></alternatives></inline-formula>,
+  where <inline-formula><alternatives>
+  <tex-math><![CDATA[A]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>A</mml:mi></mml:math></alternatives></inline-formula>
+  is a set whose elements are some or all of the elements of the
+  sequence of <inline-formula><alternatives>
+  <tex-math><![CDATA[n]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>n</mml:mi></mml:math></alternatives></inline-formula>
+  variables <inline-formula><alternatives>
+  <tex-math><![CDATA[\left(a_{i}\right)_{i=1}^{n}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msubsup><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>a</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mrow><mml:mi>i</mml:mi><mml:mo>=</mml:mo><mml:mn>1</mml:mn></mml:mrow><mml:mi>n</mml:mi></mml:msubsup></mml:math></alternatives></inline-formula>.
+  These elements are defined as <inline-formula><alternatives>
+  <tex-math><![CDATA[a_{i} = \bar{a}_{i} \pm \sigma_{a_{i}}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>a</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mo>=</mml:mo><mml:msub><mml:mover><mml:mi>a</mml:mi><mml:mo accent="true">‾</mml:mo></mml:mover><mml:mi>i</mml:mi></mml:msub><mml:mo>±</mml:mo><mml:msub><mml:mi>σ</mml:mi><mml:msub><mml:mi>a</mml:mi><mml:mi>i</mml:mi></mml:msub></mml:msub></mml:mrow></mml:math></alternatives></inline-formula>,
+  where <inline-formula><alternatives>
+  <tex-math><![CDATA[\bar{a}_{i}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mover><mml:mi>a</mml:mi><mml:mo accent="true">‾</mml:mo></mml:mover><mml:mi>i</mml:mi></mml:msub></mml:math></alternatives></inline-formula>
+  is the mean value of the variable and <inline-formula><alternatives>
+  <tex-math><![CDATA[\sigma_{a_{i}}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>σ</mml:mi><mml:msub><mml:mi>a</mml:mi><mml:mi>i</mml:mi></mml:msub></mml:msub></mml:math></alternatives></inline-formula>
+  is called the uncertainty and is assumed to represent an error measure
+  closely related to the standard deviation of a random variable. The
+  linear uncertainty of <inline-formula><alternatives>
+  <tex-math><![CDATA[F(A)]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>F</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>A</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>
+  can be determined as <disp-formula><alternatives>
+  <tex-math><![CDATA[
+  \sigma_{F} \approx
+  \sqrt{
+    \sum_{i=1}^{n} \left(
+      \left(
+        \left.
+          \frac{\partial F}{\partial a_{i}}
+        \right|_{a_{i}=\bar{a}_{i}} \sigma_{a_{i}}
+      \right)^2 + 
+      2 \sum_{j=i+1}^{n} \left(
+        \left(\frac{\partial F}{\partial a_{i}}\right)_{a_{i}=\bar{a}_{i}} 
+        \left(\frac{\partial F}{\partial a_{j}}\right)_{a_{j}=\bar{a}_{j}}
+        \sigma_{a_{i}a_{j}}
+      \right)
+    \right)
+  }.
+  ]]></tex-math>
+  <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>σ</mml:mi><mml:mi>F</mml:mi></mml:msub><mml:mo>≈</mml:mo><mml:msqrt><mml:mrow><mml:munderover><mml:mo>∑</mml:mo><mml:mrow><mml:mi>i</mml:mi><mml:mo>=</mml:mo><mml:mn>1</mml:mn></mml:mrow><mml:mi>n</mml:mi></mml:munderover><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msup><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mrow><mml:mfrac><mml:mrow><mml:mi>∂</mml:mi><mml:mi>F</mml:mi></mml:mrow><mml:mrow><mml:mi>∂</mml:mi><mml:msub><mml:mi>a</mml:mi><mml:mi>i</mml:mi></mml:msub></mml:mrow></mml:mfrac><mml:mo stretchy="true" form="postfix">|</mml:mo></mml:mrow><mml:mrow><mml:msub><mml:mi>a</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mo>=</mml:mo><mml:msub><mml:mover><mml:mi>a</mml:mi><mml:mo accent="true">‾</mml:mo></mml:mover><mml:mi>i</mml:mi></mml:msub></mml:mrow></mml:msub><mml:msub><mml:mi>σ</mml:mi><mml:msub><mml:mi>a</mml:mi><mml:mi>i</mml:mi></mml:msub></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mn>2</mml:mn></mml:msup><mml:mo>+</mml:mo><mml:mn>2</mml:mn><mml:munderover><mml:mo>∑</mml:mo><mml:mrow><mml:mi>j</mml:mi><mml:mo>=</mml:mo><mml:mi>i</mml:mi><mml:mo>+</mml:mo><mml:mn>1</mml:mn></mml:mrow><mml:mi>n</mml:mi></mml:munderover><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mfrac><mml:mrow><mml:mi>∂</mml:mi><mml:mi>F</mml:mi></mml:mrow><mml:mrow><mml:mi>∂</mml:mi><mml:msub><mml:mi>a</mml:mi><mml:mi>i</mml:mi></mml:msub></mml:mrow></mml:mfrac><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mrow><mml:msub><mml:mi>a</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mo>=</mml:mo><mml:msub><mml:mover><mml:mi>a</mml:mi><mml:mo accent="true">‾</mml:mo></mml:mover><mml:mi>i</mml:mi></mml:msub></mml:mrow></mml:msub><mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mfrac><mml:mrow><mml:mi>∂</mml:mi><mml:mi>F</mml:mi></mml:mrow><mml:mrow><mml:mi>∂</mml:mi><mml:msub><mml:mi>a</mml:mi><mml:mi>j</mml:mi></mml:msub></mml:mrow></mml:mfrac><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mrow><mml:msub><mml:mi>a</mml:mi><mml:mi>j</mml:mi></mml:msub><mml:mo>=</mml:mo><mml:msub><mml:mover><mml:mi>a</mml:mi><mml:mo accent="true">‾</mml:mo></mml:mover><mml:mi>j</mml:mi></mml:msub></mml:mrow></mml:msub><mml:msub><mml:mi>σ</mml:mi><mml:mrow><mml:msub><mml:mi>a</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:msub><mml:mi>a</mml:mi><mml:mi>j</mml:mi></mml:msub></mml:mrow></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:msqrt><mml:mi>.</mml:mi></mml:mrow></mml:math></alternatives></disp-formula>
+  Note that for any element <inline-formula><alternatives>
+  <tex-math><![CDATA[a_{i}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>a</mml:mi><mml:mi>i</mml:mi></mml:msub></mml:math></alternatives></inline-formula>
+  that is not a member of <inline-formula><alternatives>
+  <tex-math><![CDATA[A]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>A</mml:mi></mml:math></alternatives></inline-formula>,
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[\frac{\partial F}{\partial a_{i}} = 0]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mfrac><mml:mrow><mml:mi>∂</mml:mi><mml:mi>F</mml:mi></mml:mrow><mml:mrow><mml:mi>∂</mml:mi><mml:msub><mml:mi>a</mml:mi><mml:mi>i</mml:mi></mml:msub></mml:mrow></mml:mfrac><mml:mo>=</mml:mo><mml:mn>0</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>
+  and those terms vanish in the summations. The term
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[\sigma_{a_{i}a_{j}}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>σ</mml:mi><mml:mrow><mml:msub><mml:mi>a</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:msub><mml:mi>a</mml:mi><mml:mi>j</mml:mi></mml:msub></mml:mrow></mml:msub></mml:math></alternatives></inline-formula>
+  is the covariance of <inline-formula><alternatives>
+  <tex-math><![CDATA[a_{i}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>a</mml:mi><mml:mi>i</mml:mi></mml:msub></mml:math></alternatives></inline-formula>
+  and <inline-formula><alternatives>
+  <tex-math><![CDATA[a_{j}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>a</mml:mi><mml:mi>j</mml:mi></mml:msub></mml:math></alternatives></inline-formula>,
+  defined as <disp-formula><alternatives>
+  <tex-math><![CDATA[
+  \sigma_{a_{i}a_{j}} = 
+  E[\left(a_{i} - E[a_{i}]\right)\left(a_{j} - E[a_{j}]\right)],
+  ]]></tex-math>
+  <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>σ</mml:mi><mml:mrow><mml:msub><mml:mi>a</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:msub><mml:mi>a</mml:mi><mml:mi>j</mml:mi></mml:msub></mml:mrow></mml:msub><mml:mo>=</mml:mo><mml:mi>E</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">[</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>a</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mo>−</mml:mo><mml:mi>E</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">[</mml:mo><mml:msub><mml:mi>a</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mo stretchy="true" form="postfix">]</mml:mo></mml:mrow><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>a</mml:mi><mml:mi>j</mml:mi></mml:msub><mml:mo>−</mml:mo><mml:mi>E</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">[</mml:mo><mml:msub><mml:mi>a</mml:mi><mml:mi>j</mml:mi></mml:msub><mml:mo stretchy="true" form="postfix">]</mml:mo></mml:mrow><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo stretchy="true" form="postfix">]</mml:mo></mml:mrow><mml:mo>,</mml:mo></mml:mrow></mml:math></alternatives></disp-formula>
+  where <inline-formula><alternatives>
+  <tex-math><![CDATA[E[a_{i}]]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>E</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">[</mml:mo><mml:msub><mml:mi>a</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mo stretchy="true" form="postfix">]</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>
+  is the expectation value of <inline-formula><alternatives>
+  <tex-math><![CDATA[a_{i}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>a</mml:mi><mml:mi>i</mml:mi></mml:msub></mml:math></alternatives></inline-formula>.
+  The covariances can be eliminated from the above equation if the
+  uncertainties of the variables are independent from one another, which
+  is a requirement imposed here. As such, the uncertainty of
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[F(A)]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>F</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>A</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>
+  when the members of <inline-formula><alternatives>
+  <tex-math><![CDATA[A]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>A</mml:mi></mml:math></alternatives></inline-formula>
+  are independent from one another is simply
+  <disp-formula><alternatives>
+  <tex-math><![CDATA[
+  \sigma_{F} \approx
+  \sqrt{
+    \sum_{a_{i} \in A} \left(
+      \left.
+        \frac{\partial F}{\partial a_{i}}
+      \right|_{a_{i}=\bar{a}_{i}} \sigma_{a_{i}}
+    \right)^2
+  }.
+  ]]></tex-math>
+  <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>σ</mml:mi><mml:mi>F</mml:mi></mml:msub><mml:mo>≈</mml:mo><mml:msqrt><mml:mrow><mml:munder><mml:mo>∑</mml:mo><mml:mrow><mml:msub><mml:mi>a</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mo>∈</mml:mo><mml:mi>A</mml:mi></mml:mrow></mml:munder><mml:msup><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mrow><mml:mfrac><mml:mrow><mml:mi>∂</mml:mi><mml:mi>F</mml:mi></mml:mrow><mml:mrow><mml:mi>∂</mml:mi><mml:msub><mml:mi>a</mml:mi><mml:mi>i</mml:mi></mml:msub></mml:mrow></mml:mfrac><mml:mo stretchy="true" form="postfix">|</mml:mo></mml:mrow><mml:mrow><mml:msub><mml:mi>a</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mo>=</mml:mo><mml:msub><mml:mover><mml:mi>a</mml:mi><mml:mo accent="true">‾</mml:mo></mml:mover><mml:mi>i</mml:mi></mml:msub></mml:mrow></mml:msub><mml:msub><mml:mi>σ</mml:mi><mml:msub><mml:mi>a</mml:mi><mml:mi>i</mml:mi></mml:msub></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mn>2</mml:mn></mml:msup></mml:mrow></mml:msqrt><mml:mi>.</mml:mi></mml:mrow></mml:math></alternatives></disp-formula></p>
+  <p>Next, we consider a set <inline-formula><alternatives>
+  <tex-math><![CDATA[B = \{x, y\}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>B</mml:mi><mml:mo>=</mml:mo><mml:mo stretchy="false" form="prefix">{</mml:mo><mml:mi>x</mml:mi><mml:mo>,</mml:mo><mml:mi>y</mml:mi><mml:mo stretchy="false" form="postfix">}</mml:mo></mml:mrow></mml:math></alternatives></inline-formula>
+  where <inline-formula><alternatives>
+  <tex-math><![CDATA[x = x(a_{i}, a_{j})]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>x</mml:mi><mml:mo>=</mml:mo><mml:mi>x</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>a</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mo>,</mml:mo><mml:msub><mml:mi>a</mml:mi><mml:mi>j</mml:mi></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>
+  and <inline-formula><alternatives>
+  <tex-math><![CDATA[y = y(a_{j})]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>y</mml:mi><mml:mo>=</mml:mo><mml:mi>y</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>a</mml:mi><mml:mi>j</mml:mi></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>,
+  i.e. the elements of <inline-formula><alternatives>
+  <tex-math><![CDATA[B]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>B</mml:mi></mml:math></alternatives></inline-formula>
+  are functions of some number of independent variables. As the values
+  of <inline-formula><alternatives>
+  <tex-math><![CDATA[x]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>x</mml:mi></mml:math></alternatives></inline-formula>
+  and <inline-formula><alternatives>
+  <tex-math><![CDATA[y]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>y</mml:mi></mml:math></alternatives></inline-formula>
+  are dependent on the values of <inline-formula><alternatives>
+  <tex-math><![CDATA[a_{i}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>a</mml:mi><mml:mi>i</mml:mi></mml:msub></mml:math></alternatives></inline-formula>
+  and <inline-formula><alternatives>
+  <tex-math><![CDATA[a_{j}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>a</mml:mi><mml:mi>j</mml:mi></mml:msub></mml:math></alternatives></inline-formula>,
+  they are said to be <italic>functionally correlated</italic> to the
+  independent variables
+  (<xref alt="Giordano, 2016" rid="ref-Measurements.jl-2016" ref-type="bibr">Giordano,
+  2016</xref>) and their uncertainties are easily calculated from the
+  previous equation. Given the function <inline-formula><alternatives>
+  <tex-math><![CDATA[G(B)]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>G</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>B</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>,
+  the value of <inline-formula><alternatives>
+  <tex-math><![CDATA[\sigma_{G}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>σ</mml:mi><mml:mi>G</mml:mi></mml:msub></mml:math></alternatives></inline-formula>
+  cannot be calculated from the previous equation as it does not account
+  for the functional correlation of the elements of
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[B]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>B</mml:mi></mml:math></alternatives></inline-formula>.
+  The uncertainty of <inline-formula><alternatives>
+  <tex-math><![CDATA[G]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>G</mml:mi></mml:math></alternatives></inline-formula>
+  can be properly determined by application of the chain rule to relate
+  the independent variables to <inline-formula><alternatives>
+  <tex-math><![CDATA[G]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>G</mml:mi></mml:math></alternatives></inline-formula>
+  through their relationships with the dependent variables
+  <disp-formula><alternatives>
+  <tex-math><![CDATA[
+  \sigma_{G} \approx 
+  \sqrt{
+    \left(
+      \left(
+        \frac{\partial G}{\partial x}
+        \frac{\partial x}{\partial a_{i}}
+      \right)_{a_{i}=\bar{a}_{i}} \sigma_{a_{i}}
+    \right)^2 +
+    \left(
+      \left(
+        \frac{\partial G}{\partial x}
+        \frac{\partial x}{\partial a_{j}}
+        +
+        \frac{\partial G}{\partial y}
+        \frac{\partial y}{\partial a_{j}}
+      \right)_{a_{j}=\bar{a}_{j}} \sigma_{a_{j}}
+    \right)^2
+  }.
+  ]]></tex-math>
+  <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>σ</mml:mi><mml:mi>G</mml:mi></mml:msub><mml:mo>≈</mml:mo><mml:msqrt><mml:mrow><mml:msup><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mfrac><mml:mrow><mml:mi>∂</mml:mi><mml:mi>G</mml:mi></mml:mrow><mml:mrow><mml:mi>∂</mml:mi><mml:mi>x</mml:mi></mml:mrow></mml:mfrac><mml:mfrac><mml:mrow><mml:mi>∂</mml:mi><mml:mi>x</mml:mi></mml:mrow><mml:mrow><mml:mi>∂</mml:mi><mml:msub><mml:mi>a</mml:mi><mml:mi>i</mml:mi></mml:msub></mml:mrow></mml:mfrac><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mrow><mml:msub><mml:mi>a</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mo>=</mml:mo><mml:msub><mml:mover><mml:mi>a</mml:mi><mml:mo accent="true">‾</mml:mo></mml:mover><mml:mi>i</mml:mi></mml:msub></mml:mrow></mml:msub><mml:msub><mml:mi>σ</mml:mi><mml:msub><mml:mi>a</mml:mi><mml:mi>i</mml:mi></mml:msub></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mn>2</mml:mn></mml:msup><mml:mo>+</mml:mo><mml:msup><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mfrac><mml:mrow><mml:mi>∂</mml:mi><mml:mi>G</mml:mi></mml:mrow><mml:mrow><mml:mi>∂</mml:mi><mml:mi>x</mml:mi></mml:mrow></mml:mfrac><mml:mfrac><mml:mrow><mml:mi>∂</mml:mi><mml:mi>x</mml:mi></mml:mrow><mml:mrow><mml:mi>∂</mml:mi><mml:msub><mml:mi>a</mml:mi><mml:mi>j</mml:mi></mml:msub></mml:mrow></mml:mfrac><mml:mo>+</mml:mo><mml:mfrac><mml:mrow><mml:mi>∂</mml:mi><mml:mi>G</mml:mi></mml:mrow><mml:mrow><mml:mi>∂</mml:mi><mml:mi>y</mml:mi></mml:mrow></mml:mfrac><mml:mfrac><mml:mrow><mml:mi>∂</mml:mi><mml:mi>y</mml:mi></mml:mrow><mml:mrow><mml:mi>∂</mml:mi><mml:msub><mml:mi>a</mml:mi><mml:mi>j</mml:mi></mml:msub></mml:mrow></mml:mfrac><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mrow><mml:msub><mml:mi>a</mml:mi><mml:mi>j</mml:mi></mml:msub><mml:mo>=</mml:mo><mml:msub><mml:mover><mml:mi>a</mml:mi><mml:mo accent="true">‾</mml:mo></mml:mover><mml:mi>j</mml:mi></mml:msub></mml:mrow></mml:msub><mml:msub><mml:mi>σ</mml:mi><mml:msub><mml:mi>a</mml:mi><mml:mi>j</mml:mi></mml:msub></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mn>2</mml:mn></mml:msup></mml:mrow></mml:msqrt><mml:mi>.</mml:mi></mml:mrow></mml:math></alternatives></disp-formula></p>
+</sec>
+<sec id="usage">
+  <title>Usage</title>
+  <p>Sigma is header-only, so it only needs to be findable by the
+  dependent project to be used. The library is buildable with CMake
+  (<xref alt="CMake, 2024" rid="ref-CMake" ref-type="bibr"><italic>CMake</italic>,
+  2024</xref>) and utilizes the CMaize
+  (<xref alt="Crandall et al., 2024" rid="ref-CMaize" ref-type="bibr">Crandall
+  et al., 2024</xref>) extension to handle configuration, dependency
+  management, and building the tests and/or documentation. To use the
+  library in a project, simply add
+  <monospace>#include &lt;sigma/sigma.hpp&gt;</monospace> in an
+  appropriate location within the project’s source.</p>
+  <p>The primary component of Sigma is the
+  <monospace>Uncertain&lt;T&gt;</monospace> class, templated on the
+  floating point type used to represent the mean and uncertainty of the
+  variable. A simple construction of an uncertain floating point value
+  can be accomplished by passing the mean and a value for the
+  uncertainty (such as a standard deviation):</p>
+  <code language="c++">using numeric_t = double;
+numeric_t a_mean{100.0};
+numeric_t a_sd{1.0};
+sigma::Uncertain&lt;numeric_t&gt; a{a_mean, a_sd};
+std::cout &lt;&lt; a &lt;&lt; std::endl;    // Prints: 100+/-1</code>
+  <p>The same can be accomplished in a less verbose way as
+  <monospace>sigma::Uncertain a{100.0, 1.0}</monospace>. Sigma also
+  provides the typedefs <monospace>UFloat</monospace> and
+  <monospace>UDouble</monospace> (uncertain <monospace>float</monospace>
+  and <monospace>double</monospace>, respectively) for convenience.</p>
+  <p>Basic arithmetic with certain or uncertain values is accomplished
+  trivially,</p>
+  <code language="c++">sigma::Uncertain a{1.0, 0.1};
+sigma::Uncertain b{2.0, 0.2};
+auto c = a + 2.0; // 3.0+/-0.1
+auto d = a * 2.0; // 2.0+/-0.2
+auto e = a + b;   // 3.0+/-0.2236
+auto f = a * b;   // 2.0+/-0.2828</code>
+  <p>The resulting variables here are functionally correlated to
+  <monospace>a</monospace> and/or <monospace>b</monospace>, meaning the
+  operation <monospace>e - c</monospace> would return an instance with
+  the value <inline-formula><alternatives>
+  <tex-math><![CDATA[0\pm0.2]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mn>0</mml:mn><mml:mo>±</mml:mo><mml:mn>0.2</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>
+  as the contributions from <monospace>a</monospace> would exactly
+  negate each other.</p>
+  <p>Sigma also implements many of the most common math functions found
+  in the C++ standard library, such as those for trigonometry and
+  rounding:</p>
+  <code language="c++">sigma::Uncertain radians{0.785398, 0.1};
+sigma::Uncertain degrees{45.0, 0.1};
+sigma::Uncertain decimal{1.2, 0.1};
+auto to_degrees = sigma::degrees(radians); // 45.0000+/-5.7296
+auto in_radians = sigma::radians(degrees); //  0.7854+/-0.0017
+auto tangent    = sigma::tan(radians);     //  1.0000+/-0.2000
+auto truncated  = sigma::trunc(decimal);   //  1.0+/-0.0</code>
+  <p>Sigma also has a limited degree of compatibility with the Eigen
+  library
+  (<xref alt="Eigen, 2024" rid="ref-Eigen" ref-type="bibr"><italic>Eigen</italic>,
+  2024</xref>), allowing for matrix operations and a number of linear
+  solvers. Additional functionality is possible, though not currently
+  ensured. Linear algebra usage is partially limited by Sigma only being
+  suitable for the representation of real numbers, but support for
+  complex numbers is intended at a later time.</p>
+  <p>While inspired by <monospace>uncertainties</monospace> and
+  <monospace>Measurements.jl</monospace>, Sigma is not a one-to-one
+  translation of either package. Sigma implements a method of tracking
+  variable dependence similar to those found in the other packages, with
+  each instance tracking the independent variables that it depends on
+  and the contributions of those variables to the instance’s
+  uncertainty. Function names in Sigma use the naming convention of the
+  C++ Standard Library where applicable, and may differ from the names
+  used in the other packages. <monospace>uncertainties</monospace>
+  specifically allows for the alteration of an independent variable’s
+  uncertainty and on-the-fly re-evaluation for dependent variables.
+  Sigma does not replicate this feature, preferring a static evaluation
+  of uncertainties that is more consistent with the expected behavior
+  for C++’s floating types.</p>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>This work was supported by the Ames National Laboratory’s
+  Laboratory Directed Research and Development (LDRD) program. The Ames
+  Laboratory is operated for the U.S. DOE by Iowa State University under
+  contract # DE-AC02-07CH11358.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <title></title>
+  <ref id="ref-Measurements.jl-2016">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Giordano</surname><given-names>Mosè</given-names></name>
+      </person-group>
+      <article-title>Uncertainty propagation with functionally correlated quantities</article-title>
+      <source>ArXiv e-prints</source>
+      <year iso-8601-date="2016-10">2016</year><month>10</month>
+      <uri>https://arxiv.org/abs/1610.08716</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-uncertainties">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Lebigot</surname><given-names>Eric O.</given-names></name>
+      </person-group>
+      <article-title>Uncertainties: A python package for calculations with uncertainties</article-title>
+      <source>GitHub repository</source>
+      <publisher-name>GitHub</publisher-name>
+      <year iso-8601-date="2009">2009</year>
+      <uri>https://github.com/lmfit/uncertainties</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-CMaize">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Crandall</surname><given-names>Zachery</given-names></name>
+        <name><surname>Windus</surname><given-names>Theresa L.</given-names></name>
+        <name><surname>Richard</surname><given-names>Ryan M.</given-names></name>
+      </person-group>
+      <article-title>CMaize: Simplifying inter-package modularity from the build up</article-title>
+      <source>The Journal of Chemical Physics</source>
+      <year iso-8601-date="2024-03">2024</year><month>03</month>
+      <volume>160</volume>
+      <issue>9</issue>
+      <issn>0021-9606</issn>
+      <uri>https://doi.org/10.1063/5.0196384</uri>
+      <pub-id pub-id-type="doi">10.1063/5.0196384</pub-id>
+      <fpage>092502</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-CMake">
+    <element-citation>
+      <article-title>CMake</article-title>
+      <year iso-8601-date="2024">2024</year>
+      <uri>https://cmake.org/</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-Eigen">
+    <element-citation>
+      <article-title>Eigen</article-title>
+      <year iso-8601-date="2024">2024</year>
+      <uri>https://eigen.tuxfamily.org/</uri>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
