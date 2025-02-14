@@ -1,0 +1,656 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">7580</article-id>
+<article-id pub-id-type="doi">10.21105/joss.07580</article-id>
+<title-group>
+<article-title>CausalTables.jl: Simulating and storing data for
+statistical causal inference in Julia</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author" corresp="yes">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0003-4695-833X</contrib-id>
+<name>
+<surname>Balkus</surname>
+<given-names>Salvador V.</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+<xref ref-type="corresp" rid="cor-1"><sup>*</sup></xref>
+</contrib>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0002-7127-2789</contrib-id>
+<name>
+<surname>Hejazi</surname>
+<given-names>Nima S.</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Department of Biostatistics, Harvard T.H. Chan School of
+Public Health</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<author-notes>
+<corresp id="cor-1">* E-mail: <email></email></corresp>
+</author-notes>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2025-02-14">
+<day>14</day>
+<month>2</month>
+<year>2025</year>
+</pub-date>
+<volume>10</volume>
+<issue>106</issue>
+<fpage>7580</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2025</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>Julia</kwd>
+<kwd>statistics</kwd>
+<kwd>causal inference</kwd>
+<kwd>tables</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p>Estimating the strength of causal relationships between treatment
+  and response variables is an important problem across many scientific
+  disciplines. <monospace>CausalTables.jl</monospace> is a package that
+  supports causal inference in Julia by providing two important
+  functionalities. First, it implements the
+  <monospace>CausalTable</monospace>, bundling tabular data with a type
+  of directed acyclic graph (DAG) encoding features’ causes. Users can
+  intervene on treatments and identify causal-relevant variables like
+  confounders automatically. Second, the package’s
+  <monospace>StructuralCausalModel</monospace> interface simplifies
+  simulating data from arbitrary causal structures – and unlike other
+  packages, users can extract ground truth distributions conditional on
+  the data generated in previous steps. In this way,
+  <monospace>CausalTables.jl</monospace> makes it easier to develop and
+  experimentally evaluate new statistical causal inference methods in
+  Julia.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p>The quantitative science of causal inference has emerged over the
+  past three decades as a set of formalisms for studying
+  cause-and-effect relationships between variables from observed data
+  (<xref alt="Hernán &amp; Robins, 2020" rid="ref-hernan2020causal" ref-type="bibr">Hernán
+  &amp; Robins, 2020</xref>;
+  <xref alt="Pearl, 2009" rid="ref-pearl2009causality" ref-type="bibr">Pearl,
+  2009</xref>). Causal inference techniques have helped scientists and
+  decision-makers better understand important phenomena in fields
+  ranging from medicine to economics. New software tools for causal
+  inference are being developed at a rapid pace, but in the Julia
+  language, there currently do not exist auxiliary tools designed to
+  support their development. <monospace>CausalTables.jl</monospace> aims
+  to provide such a tool.</p>
+  <p>Implementing and testing causal inference methods in Julia involves
+  two main challenges. First, causal estimation requires identifying and
+  modifying features based on their relationships with treatment and
+  response variables, which might include confounders, mediators, or
+  instruments. Their required format may differ depending on downstream
+  packages; for instance, <monospace>MLJ.jl</monospace>
+  (<xref alt="Blaom et al., 2020" rid="ref-blaom2020mlj" ref-type="bibr">Blaom
+  et al., 2020</xref>) requires Table input, while
+  <monospace>GLM.jl</monospace>
+  (<xref alt="Bates et al., 2023" rid="ref-bates2023glm" ref-type="bibr">Bates
+  et al., 2023</xref>) needs a Matrix or <monospace>Formula</monospace>.
+  Second, when evaluating a causal estimator on simulated data from a
+  Structural Causal Model (SCM)
+  (<xref alt="Pearl, 2009" rid="ref-pearl2009causality" ref-type="bibr">Pearl,
+  2009</xref>), one often desires access to the true (“oracle”)
+  conditional distributions of relevant variables in the SCM, as well as
+  ground truth values of various causal estimands, in order to test
+  whether the method works correctly.</p>
+  <p><monospace>CausalTables.jl</monospace> addresses both challenges –
+  the first via the <monospace>CausalTable</monospace> interface, which
+  extends <monospace>Tables.jl</monospace>
+  (<xref alt="Quinn et al., 2024" rid="ref-quinn2024tables" ref-type="bibr">Quinn
+  et al., 2024</xref>) with causal identification routines, and the
+  second via the <monospace>StructuralCausalModel</monospace>, which
+  encodes a causal model as a sequence of conditional distributions from
+  <monospace>Distributions.jl</monospace>
+  (<xref alt="Besançon et al., 2021" rid="ref-JSSv098i16" ref-type="bibr">Besançon
+  et al., 2021</xref>;
+  <xref alt="Lin et al., 2019" rid="ref-Distributions.jl-2019" ref-type="bibr">Lin
+  et al., 2019</xref>), providing random sampling and ground-truth
+  computation. <monospace>CausalTables.jl</monospace> integrates
+  seamlessly with established Julia packages, ensuring ease of use for
+  statisticians and applied scientists alike.</p>
+</sec>
+<sec id="comparison-to-existing-packages">
+  <title>Comparison to existing packages</title>
+  <p>While R and Python include many causal packages
+  (<xref alt="Chen et al., 2020" rid="ref-Chen2020" ref-type="bibr">Chen
+  et al., 2020</xref>;
+  <xref alt="van der Laan et al., 2024" rid="ref-tlverse" ref-type="bibr">van
+  der Laan et al., 2024</xref>), Julia has relatively fewer. Recent
+  Julia packages for causal inference include
+  <monospace>TMLE.jl</monospace>
+  (<xref alt="Labayle et al., 2024" rid="ref-TMLE.jl" ref-type="bibr">Labayle
+  et al., 2024</xref>) and <monospace>CausalELM.jl</monospace>
+  (<xref alt="Colby, 2024" rid="ref-CausalELM.jl" ref-type="bibr">Colby,
+  2024</xref>). These focus on specific estimators, rather than general
+  data processing and simulation like
+  <monospace>CausalTables.jl</monospace>. The package
+  <monospace>CausalInference.jl</monospace>
+  (<xref alt="Schauer et al., 2024" rid="ref-Schauer2024" ref-type="bibr">Schauer
+  et al., 2024</xref>) implements causal graphs and discovery
+  algorithms, similar to CausalDAG
+  (<xref alt="Squires, 2018" rid="ref-squires2018causaldag" ref-type="bibr">Squires,
+  2018</xref>) or DoWhy
+  (<xref alt="Sharma &amp; Kiciman, 2020" rid="ref-dowhy" ref-type="bibr">Sharma
+  &amp; Kiciman, 2020</xref>) in Python and daggity
+  (<xref alt="Textor et al., 2017" rid="ref-Textor2017" ref-type="bibr">Textor
+  et al., 2017</xref>) in R. That said, it is generally incompatible
+  with the tabular data used in practice and does not support
+  simulations. The simulation capabilities of
+  <monospace>CausalTables.jl</monospace> are similar to those of
+  probabilistic programming packages like
+  <monospace>Turing.jl</monospace>
+  (<xref alt="Ge et al., 2018" rid="ref-turing" ref-type="bibr">Ge et
+  al., 2018</xref>) or <monospace>Gen.jl</monospace>
+  (<xref alt="Cusumano-Towner et al., 2019" rid="ref-gen" ref-type="bibr">Cusumano-Towner
+  et al., 2019</xref>). However, while other packages can
+  <italic>sample</italic> data from SCMs, only
+  <monospace>CausalTables.jl</monospace> allows extracting
+  <italic>closed-form distributions</italic> conditional on data drawn
+  in previous steps of the process.</p>
+</sec>
+<sec id="example-1-data-with-causal-structure">
+  <title>Example 1: Data with causal structure</title>
+  <p><monospace>CausalTables.jl</monospace> supports causal inference
+  problems that involve estimating the effect of at least one treatment
+  on at least one response. Using the <monospace>CausalTable</monospace>
+  constructor, one can wrap an existing Table with causal structure:</p>
+  <boxed-text>
+    <code language="julia">using CausalTables
+
+# Example data in Tables-compatible format
+tbl = (W = [0.2, 0.4, 0.7], 
+       A = [false, true, true], 
+       Y = [0.8, 1.2, 2.3])
+
+# Wrap data as CausalTable
+ct_wrap = CausalTable(tbl; treatment = :A, response = :Y, 
+                           causes = (A = [:W], Y = [:W, :A]))</code>
+  </boxed-text>
+  <p>Convenience functions perform causal data processing. For example,
+  the general <monospace>parents</monospace> function selects only
+  features that cause a given variable; other functions, like
+  <monospace>confounders</monospace>, select variables with more
+  specific causal relationships.</p>
+  <boxed-text>
+    <code language="julia">parents(ct_wrap, :Y)</code>
+    <boxed-text>
+      <preformat>CausalTable
+┌─────────┬───────┐
+│       W │     A │
+│ Float64 │  Bool │
+├─────────┼───────┤
+│     0.2 │ false │
+│     0.4 │  true │
+│     0.7 │  true │
+└─────────┴───────┘
+Summaries: NamedTuple()
+Arrays: NamedTuple()</preformat>
+    </boxed-text>
+  </boxed-text>
+</sec>
+<sec id="example-2-simulation-with-ground-truth">
+  <title>Example 2: Simulation with ground truth</title>
+  <p>An SCM defines causal structure by envisaging a data-generating
+  process as random draws from a sequence of non-parametric structural
+  equations, with each draw depending on the draws preceding it. For
+  example:</p>
+  <p><disp-formula><alternatives>
+  <tex-math><![CDATA[\begin{aligned}
+   W &\sim Beta(2, 4) \\ A &\sim Bernoulli(0.5W + 0.2) \\ Y &\sim Normal(A + W, 1) 
+  \end{aligned}]]></tex-math>
+  <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mtable><mml:mtr><mml:mtd columnalign="right" style="text-align: right"><mml:mi>W</mml:mi></mml:mtd><mml:mtd columnalign="left" style="text-align: left"><mml:mo>∼</mml:mo><mml:mi>B</mml:mi><mml:mi>e</mml:mi><mml:mi>t</mml:mi><mml:mi>a</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mn>2</mml:mn><mml:mo>,</mml:mo><mml:mn>4</mml:mn><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mtd></mml:mtr><mml:mtr><mml:mtd columnalign="right" style="text-align: right"><mml:mi>A</mml:mi></mml:mtd><mml:mtd columnalign="left" style="text-align: left"><mml:mo>∼</mml:mo><mml:mi>B</mml:mi><mml:mi>e</mml:mi><mml:mi>r</mml:mi><mml:mi>n</mml:mi><mml:mi>o</mml:mi><mml:mi>u</mml:mi><mml:mi>l</mml:mi><mml:mi>l</mml:mi><mml:mi>i</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mn>0.5</mml:mn><mml:mi>W</mml:mi><mml:mo>+</mml:mo><mml:mn>0.2</mml:mn><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mtd></mml:mtr><mml:mtr><mml:mtd columnalign="right" style="text-align: right"><mml:mi>Y</mml:mi></mml:mtd><mml:mtd columnalign="left" style="text-align: left"><mml:mo>∼</mml:mo><mml:mi>N</mml:mi><mml:mi>o</mml:mi><mml:mi>r</mml:mi><mml:mi>m</mml:mi><mml:mi>a</mml:mi><mml:mi>l</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>A</mml:mi><mml:mo>+</mml:mo><mml:mi>W</mml:mi><mml:mo>,</mml:mo><mml:mn>1</mml:mn><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mtd></mml:mtr></mml:mtable></mml:math></alternatives></disp-formula></p>
+  <p>This SCM can be implemented in
+  <monospace>CausalTables.jl</monospace> and randomly sampled by
+  enumerating the sequence of random variables along with labels of
+  their causal roles:</p>
+  <boxed-text>
+    <code language="julia">using Distributions
+
+# Define sequence of random variables
+dgp = @dgp(
+    W ~ Beta(2, 4),
+    A ~ Bernoulli.(0.5 .* W .+ 0.2),
+    Y ~ Normal.(W .+ A, 1)
+)
+
+# Define structural causal model
+scm = StructuralCausalModel(dgp; 
+  treatment = :A, response = :Y
+)
+
+ct = rand(scm, 5) # randomly sample</code>
+  </boxed-text>
+  <p>Many causal estimands involve applying some intervention to a
+  treatment. For instance, computing an ATE compares hypothetical
+  responses had everyone been treated versus no one treated; one can
+  apply these interventions on a <monospace>CausalTable</monospace>
+  using the <monospace>intervene</monospace> function:</p>
+  <boxed-text>
+    <code language="julia">treated = intervene(ct, treat_all)
+untreated = intervene(ct, treat_none)</code>
+  </boxed-text>
+  <p>After simulating data, the true (“oracle”) distribution can be
+  obtained using <monospace>condensity</monospace>. Other functions
+  obtain specific features, such as <monospace>conmean</monospace> for
+  the conditional mean. These help evaluate how well a causal estimator
+  might perform if the true distribution were known; for example, the
+  code below computes the “true” ATE plug-in estimate:</p>
+  <boxed-text>
+    <code language="julia">mean(conmean(scm, treated, :Y) .- conmean(scm, untreated, :Y))</code>
+    <boxed-text>
+      <preformat>1.0</preformat>
+    </boxed-text>
+  </boxed-text>
+  <p><monospace>CausalTables.jl</monospace> also provides high-level
+  functions to approximate the ground truth of common causal estimands,
+  such as:</p>
+  <list list-type="bullet">
+    <list-item>
+      <p>Average treatment effects (<monospace>ate</monospace>)
+      including among the treatment (<monospace>att</monospace>) and
+      untreated (<monospace>atu</monospace>)</p>
+    </list-item>
+    <list-item>
+      <p>Counterfactual means (<monospace>cfmean</monospace>) and
+      differences (<monospace>cfdiff</monospace>)</p>
+    </list-item>
+    <list-item>
+      <p>Average policy effects (<monospace>ape</monospace>)</p>
+    </list-item>
+  </list>
+</sec>
+<sec id="closing-remarks">
+  <title>Closing remarks</title>
+  <p>The goal of <monospace>CausalTables.jl</monospace> is to simplify
+  causal inference in Julia. So far, it has been used to experimentally
+  evaluate novel causal estimators for continuous treatments on network
+  data
+  (<xref alt="Balkus et al., 2024" rid="ref-Balkus2024" ref-type="bibr">Balkus
+  et al., 2024</xref>), and also been integrated into
+  <monospace>TMLE.jl</monospace>
+  (<xref alt="Labayle et al., 2024" rid="ref-TMLE.jl" ref-type="bibr">Labayle
+  et al., 2024</xref>). As interest in causal inference grows,
+  <monospace>CausalTables.jl</monospace> aims to provide a user-friendly
+  foundation for practitioners to develop and test new causal methods in
+  the Julia ecosystem.</p>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>Salvador Balkus acknowledges support from the National Institute of
+  Environmental Health Sciences (award no. T32 ES007142) and the
+  National Science Foundation (award no. DGE 2140743).</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <title></title>
+  <ref id="ref-hernan2020causal">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Hernán</surname><given-names>Miguel A</given-names></name>
+        <name><surname>Robins</surname><given-names>James M</given-names></name>
+      </person-group>
+      <source>Causal Inference: What If</source>
+      <publisher-name>CRC Boca Raton, FL</publisher-name>
+      <year iso-8601-date="2020">2020</year>
+      <isbn>9781420076165</isbn>
+    </element-citation>
+  </ref>
+  <ref id="ref-pearl2009causality">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Pearl</surname><given-names>Judea</given-names></name>
+      </person-group>
+      <source>Causality</source>
+      <publisher-name>Cambridge University Press</publisher-name>
+      <year iso-8601-date="2009">2009</year>
+      <isbn>9780521895606</isbn>
+    </element-citation>
+  </ref>
+  <ref id="ref-quinn2024tables">
+    <element-citation publication-type="software">
+      <person-group person-group-type="author">
+        <name><surname>Quinn</surname><given-names>Jacob</given-names></name>
+        <name><surname>Kamiński</surname><given-names>Bogumił</given-names></name>
+        <name><surname>Anthoff</surname><given-names>David</given-names></name>
+        <name><surname>Bouchet-Valat</surname><given-names>Milan</given-names></name>
+        <name><surname>Papp</surname><given-names>Tamas K.</given-names></name>
+        <name><surname>Arakaki</surname><given-names>Takafumi</given-names></name>
+        <name><surname>Schouten</surname><given-names>Rafael</given-names></name>
+        <name><surname>Robinson</surname><given-names>Nick</given-names></name>
+        <name><surname>mathieu17g</surname></name>
+        <name><surname>Samuel</surname><given-names>Okon</given-names></name>
+        <name><surname>Revels</surname><given-names>Jarrett</given-names></name>
+        <name><surname>ExpandingMan</surname></name>
+        <name><surname>Hanson</surname><given-names>Eric</given-names></name>
+        <name><surname>Blaom</surname><given-names>Anthony</given-names></name>
+        <name><surname>Arslan</surname><given-names>Alex</given-names></name>
+        <name><surname>Ling</surname><given-names>Jerry</given-names></name>
+        <name><surname>Chen</surname><given-names>Jiahao</given-names></name>
+        <name><surname>Day</surname><given-names>Josh</given-names></name>
+        <name><surname>Calderón</surname><given-names>José Bayoán Santiago</given-names></name>
+        <name><surname>Carlsson</surname><given-names>Kristoffer</given-names></name>
+        <name><surname>Hafner</surname><given-names>Lilith Orion</given-names></name>
+        <name><surname>Cranmer</surname><given-names>Miles</given-names></name>
+        <name><surname>Zwitch</surname><given-names>Randy</given-names></name>
+        <name><surname>Johnson</surname><given-names>Steven G.</given-names></name>
+        <name><surname>Gillam</surname><given-names>Tom</given-names></name>
+        <name><surname>Yang</surname><given-names>Yue</given-names></name>
+        <name><surname>spaette</surname></name>
+        <name><surname>strickek</surname></name>
+        <name><surname>Adenbaum</surname><given-names>Jacob</given-names></name>
+      </person-group>
+      <article-title>JuliaData/Tables.jl: v1.12.0</article-title>
+      <publisher-name>Zenodo</publisher-name>
+      <year iso-8601-date="2024-07">2024</year><month>07</month>
+      <uri>https://doi.org/10.5281/zenodo.12753139</uri>
+      <pub-id pub-id-type="doi">10.5281/zenodo.12753139</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-JSSv098i16">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Besançon</surname><given-names>Mathieu</given-names></name>
+        <name><surname>Papamarkou</surname><given-names>Theodore</given-names></name>
+        <name><surname>Anthoff</surname><given-names>David</given-names></name>
+        <name><surname>Arslan</surname><given-names>Alex</given-names></name>
+        <name><surname>Byrne</surname><given-names>Simon</given-names></name>
+        <name><surname>Lin</surname><given-names>Dahua</given-names></name>
+        <name><surname>Pearson</surname><given-names>John</given-names></name>
+      </person-group>
+      <article-title>Distributions.jl: Definition and modeling of probability distributions in the JuliaStats ecosystem</article-title>
+      <source>Journal of Statistical Software</source>
+      <year iso-8601-date="2021">2021</year>
+      <volume>98</volume>
+      <issue>16</issue>
+      <issn>1548-7660</issn>
+      <uri>https://www.jstatsoft.org/v098/i16</uri>
+      <pub-id pub-id-type="doi">10.18637/jss.v098.i16</pub-id>
+      <fpage>1</fpage>
+      <lpage>30</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Distributions.jl-2019">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Lin</surname><given-names>Dahua</given-names></name>
+        <name><surname>White</surname><given-names>John Myles</given-names></name>
+        <name><surname>Byrne</surname><given-names>Simon</given-names></name>
+        <name><surname>Bates</surname><given-names>Douglas</given-names></name>
+        <name><surname>Noack</surname><given-names>Andreas</given-names></name>
+        <name><surname>Pearson</surname><given-names>John</given-names></name>
+        <name><surname>Arslan</surname><given-names>Alex</given-names></name>
+        <name><surname>Squire</surname><given-names>Kevin</given-names></name>
+        <name><surname>Anthoff</surname><given-names>David</given-names></name>
+        <name><surname>Papamarkou</surname><given-names>Theodore</given-names></name>
+        <name><surname>Besançon</surname><given-names>Mathieu</given-names></name>
+        <name><surname>Drugowitsch</surname><given-names>Jan</given-names></name>
+        <name><surname>Schauer</surname><given-names>Moritz</given-names></name>
+        <name><surname>contributors</surname></name>
+      </person-group>
+      <article-title>JuliaStats/Distributions.jl: a Julia package for probability distributions and associated functions</article-title>
+      <publisher-name>Zenodo</publisher-name>
+      <year iso-8601-date="2019-07">2019</year><month>07</month>
+      <uri>https://doi.org/10.5281/zenodo.2647458</uri>
+      <pub-id pub-id-type="doi">10.5281/zenodo.2647458</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-TMLE.jl">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Labayle</surname><given-names>Olivier</given-names></name>
+        <name><surname>Beentjes</surname><given-names>Sjoerd</given-names></name>
+        <name><surname>Khamseh</surname><given-names>Ava</given-names></name>
+        <name><surname>Ponting</surname><given-names>Chris</given-names></name>
+      </person-group>
+      <article-title>TMLE.jl</article-title>
+      <year iso-8601-date="2024">2024</year>
+      <uri>https://github.com/olivierlabayle/TMLE.jl</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-CausalELM.jl">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Colby</surname><given-names>Darren</given-names></name>
+      </person-group>
+      <article-title>CausalELM.jl</article-title>
+      <year iso-8601-date="2024">2024</year>
+      <uri>https://github.com/dscolby/CausalELM.jl</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-blaom2020mlj">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Blaom</surname><given-names>Anthony D</given-names></name>
+        <name><surname>Kiraly</surname><given-names>Franz</given-names></name>
+        <name><surname>Lienart</surname><given-names>Thibaut</given-names></name>
+        <name><surname>Simillides</surname><given-names>Yiannis</given-names></name>
+        <name><surname>Arenas</surname><given-names>Diego</given-names></name>
+        <name><surname>Vollmer</surname><given-names>Sebastian J</given-names></name>
+      </person-group>
+      <article-title>MLJ: A Julia package for composable machine learning</article-title>
+      <source>Journal of Open Source Software</source>
+      <publisher-name>The Open Journal</publisher-name>
+      <year iso-8601-date="2020">2020</year>
+      <volume>5</volume>
+      <issue>55</issue>
+      <uri>https://doi.org/10.21105/joss.02704</uri>
+      <pub-id pub-id-type="doi">10.21105/joss.02704</pub-id>
+      <fpage>2704</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-bates2023glm">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Bates</surname><given-names>Douglas</given-names></name>
+        <name><surname>Noack</surname><given-names>Andreas</given-names></name>
+        <name><surname>Kornblith</surname><given-names>Simon</given-names></name>
+        <name><surname>Bouchet-Valat</surname><given-names>Milan</given-names></name>
+        <name><surname>Borregaard</surname><given-names>Michael Krabbe</given-names></name>
+        <name><surname>Arslan</surname><given-names>Alex</given-names></name>
+        <name><surname>White</surname><given-names>John Myles</given-names></name>
+        <name><surname>Kleinschmidt</surname><given-names>Dave</given-names></name>
+        <name><surname>Alday</surname><given-names>Phillip</given-names></name>
+        <name><surname>Lynch</surname><given-names>Galen</given-names></name>
+        <name><surname>Dunning</surname><given-names>Iain</given-names></name>
+        <name><surname>Mogensen</surname><given-names>Patrick Kofod</given-names></name>
+        <name><surname>Lendle</surname><given-names>Sam</given-names></name>
+        <string-name>Dilum Aluthge</string-name>
+        <string-name>Mousum Dutta</string-name>
+        <string-name>Pdeffebach</string-name>
+        <name><surname>José Bayoán Santiago Calderón</surname><given-names>PhD</given-names></name>
+        <string-name>Ayush Patnaik</string-name>
+        <name><surname>Born</surname><given-names>Benjamin</given-names></name>
+        <name><surname>Setzler</surname><given-names>Bradley</given-names></name>
+        <name><surname>DuBois</surname><given-names>Chris</given-names></name>
+        <name><surname>Quinn</surname><given-names>Jacob</given-names></name>
+        <string-name>Ondřej Slámečka</string-name>
+        <name><surname>Bastide</surname><given-names>Paul</given-names></name>
+        <string-name>Viral B. Shah</string-name>
+        <name><surname>Anthony Blaom</surname><given-names>PhD</given-names></name>
+        <name><surname>König</surname><given-names>Bernhard</given-names></name>
+      </person-group>
+      <article-title>JuliaStats/GLM.jl: v1.9.0</article-title>
+      <publisher-name>Zenodo</publisher-name>
+      <year iso-8601-date="2023">2023</year>
+      <uri>https://zenodo.org/record/3376013</uri>
+      <pub-id pub-id-type="doi">10.5281/zenodo.3376013</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-Schauer2024">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Schauer</surname><given-names>Moritz</given-names></name>
+        <name><surname>Keller</surname><given-names>Martin</given-names></name>
+        <name><surname>Wienöbst</surname><given-names>Marcel</given-names></name>
+      </person-group>
+      <article-title>CausalInference.jl</article-title>
+      <publisher-name>Zenodo</publisher-name>
+      <year iso-8601-date="2024">2024</year>
+      <pub-id pub-id-type="doi">10.5281/zenodo.13684767</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-squires2018causaldag">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Squires</surname><given-names>Chandler</given-names></name>
+      </person-group>
+      <source>causaldag: creation, manipulation, and learning of causal models</source>
+      <year iso-8601-date="2018">2018</year>
+      <uri>https://github.com/uhlerlab/causaldag</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-Textor2017">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Textor</surname><given-names>Johannes</given-names></name>
+        <name><surname>Zander</surname><given-names>Benito van der</given-names></name>
+        <name><surname>Gilthorpe</surname><given-names>Mark S.</given-names></name>
+        <name><surname>Liśkiewicz</surname><given-names>Maciej</given-names></name>
+        <name><surname>Ellison</surname><given-names>George T. H.</given-names></name>
+      </person-group>
+      <article-title>Robust causal inference using directed acyclic graphs: The r package ‘dagitty’</article-title>
+      <source>International Journal of Epidemiology</source>
+      <publisher-name>Oxford University Press (OUP)</publisher-name>
+      <year iso-8601-date="2017-01">2017</year><month>01</month>
+      <issn>1464-3685</issn>
+      <uri>http://dx.doi.org/10.1093/ije/dyw341</uri>
+      <pub-id pub-id-type="doi">10.1093/ije/dyw341</pub-id>
+      <fpage>dyw341</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-tlverse">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>van der Laan</surname><given-names>Mark</given-names></name>
+        <name><surname>Coyle</surname><given-names>Jeremy</given-names></name>
+        <name><surname>Hejazi</surname><given-names>Nima</given-names></name>
+        <name><surname>Malenica</surname><given-names>Ivana</given-names></name>
+        <name><surname>Phillips</surname><given-names>Rachael</given-names></name>
+        <name><surname>Hubbard</surname><given-names>Alan</given-names></name>
+      </person-group>
+      <source>Targeted Learning in R</source>
+      <year iso-8601-date="2024">2024</year>
+      <uri>https://tlverse.org/tlverse-handbook/</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-Chen2020">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Chen</surname><given-names>Huigang</given-names></name>
+        <name><surname>Harinen</surname><given-names>Totte</given-names></name>
+        <name><surname>Lee</surname><given-names>Jeong-Yoon</given-names></name>
+        <name><surname>Yung</surname><given-names>Mike</given-names></name>
+        <name><surname>Zhao</surname><given-names>Zhenyu</given-names></name>
+      </person-group>
+      <article-title>CausalML: Python package for causal machine learning</article-title>
+      <source>arXiv preprint</source>
+      <year iso-8601-date="2020">2020</year>
+      <pub-id pub-id-type="doi">10.48550/arXiv.2002.11631</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-dowhy">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Sharma</surname><given-names>Amit</given-names></name>
+        <name><surname>Kiciman</surname><given-names>Emre</given-names></name>
+      </person-group>
+      <article-title>DoWhy: An end-to-end library for causal inference</article-title>
+      <source>arXiv preprint</source>
+      <year iso-8601-date="2020">2020</year>
+      <pub-id pub-id-type="doi">10.48550/arXiv.2011.04216</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-turing">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Ge</surname><given-names>Hong</given-names></name>
+        <name><surname>Xu</surname><given-names>Kai</given-names></name>
+        <name><surname>Ghahramani</surname><given-names>Zoubin</given-names></name>
+      </person-group>
+      <article-title>Turing: A language for flexible probabilistic inference</article-title>
+      <source>International conference on artificial intelligence and statistics, AISTATS 2018, 9-11 april 2018, playa blanca, lanzarote, canary islands, spain</source>
+      <publisher-name>Proceedings of Machine Learning Research</publisher-name>
+      <year iso-8601-date="2018">2018</year>
+      <uri>http://proceedings.mlr.press/v84/ge18b.html</uri>
+      <pub-id pub-id-type="doi">10.17863/CAM.42246</pub-id>
+      <fpage>1682</fpage>
+      <lpage>1690</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-gen">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Cusumano-Towner</surname><given-names>Marco F.</given-names></name>
+        <name><surname>Saad</surname><given-names>Feras A.</given-names></name>
+        <name><surname>Lew</surname><given-names>Alexander K.</given-names></name>
+        <name><surname>Mansinghka</surname><given-names>Vikash K.</given-names></name>
+      </person-group>
+      <article-title>Gen: A general-purpose probabilistic programming system with programmable inference</article-title>
+      <source>Proceedings of the 40th ACM SIGPLAN conference on programming language design and implementation</source>
+      <publisher-name>ACM</publisher-name>
+      <publisher-loc>New York, NY, USA</publisher-loc>
+      <year iso-8601-date="2019">2019</year>
+      <isbn>978-1-4503-6712-7</isbn>
+      <uri>http://doi.acm.org/10.1145/3314221.3314642</uri>
+      <pub-id pub-id-type="doi">10.1145/3314221.3314642</pub-id>
+      <fpage>221</fpage>
+      <lpage>236</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Balkus2024">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Balkus</surname><given-names>Salvador V.</given-names></name>
+        <name><surname>Delaney</surname><given-names>Scott W.</given-names></name>
+        <name><surname>Hejazi</surname><given-names>Nima S.</given-names></name>
+      </person-group>
+      <article-title>The causal effects of modified treatment policies under network interference</article-title>
+      <source>arXiv preprint</source>
+      <year iso-8601-date="2024">2024</year>
+      <uri>https://arxiv.org/abs/2412.02105</uri>
+      <pub-id pub-id-type="doi">10.48550/arXiv.2412.02105</pub-id>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
