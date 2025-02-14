@@ -1,0 +1,504 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">7578</article-id>
+<article-id pub-id-type="doi">10.21105/joss.07578</article-id>
+<title-group>
+<article-title>TimeStruct.jl – flexible multi-horizon time modelling in
+optimization models</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author" equal-contrib="yes" corresp="yes">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0002-5914-6122</contrib-id>
+<name>
+<surname>Flatberg</surname>
+<given-names>Truls</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+<xref ref-type="corresp" rid="cor-1"><sup>*</sup></xref>
+</contrib>
+<contrib contrib-type="author" equal-contrib="yes">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0001-8622-1936</contrib-id>
+<name>
+<surname>Straus</surname>
+<given-names>Julian</given-names>
+</name>
+<xref ref-type="aff" rid="aff-2"/>
+</contrib>
+<contrib contrib-type="author" equal-contrib="yes">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0001-5958-9794</contrib-id>
+<name>
+<surname>Hellemo</surname>
+<given-names>Lars</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>SINTEF Industry, Postboks 4760 Torgarden, 7465
+Trondheim</institution>
+</institution-wrap>
+</aff>
+<aff id="aff-2">
+<institution-wrap>
+<institution>SINTEF Energy Research, Postboks 4761 Torgarden, 7465
+Trondheim</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<author-notes>
+<corresp id="cor-1">* E-mail: <email></email></corresp>
+</author-notes>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2024-10-11">
+<day>11</day>
+<month>10</month>
+<year>2024</year>
+</pub-date>
+<volume>10</volume>
+<issue>106</issue>
+<fpage>7578</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2025</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>Julia</kwd>
+<kwd>JuMP</kwd>
+<kwd>optimization</kwd>
+<kwd>modelling</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p><ext-link ext-link-type="uri" xlink:href="https://github.com/sintefore/TimeStruct.jl"><monospace>TimeStruct.jl</monospace></ext-link>
+  is a Julia
+  (<xref alt="Bezanson et al., 2017" rid="ref-bezanson2017julia" ref-type="bibr">Bezanson
+  et al., 2017</xref>) package that provides an interface for
+  abstracting time structures, primarily intended for use with the
+  mathematical programming DSL <monospace>JuMP.jl</monospace>
+  (<xref alt="Lubin et al., 2023" rid="ref-Lubin2023" ref-type="bibr">Lubin
+  et al., 2023</xref>).</p>
+  <p><monospace>TimeStruct.jl</monospace> simplifies the writing of key
+  equations in optimization problems through separation of the indexing
+  sets and the equations. Consequently, equations unaffected by the the
+  chosen time structure, e.g., simple deterministic operational or
+  stochastic programming models, need not be adjusted when changing the
+  time structures. Hence, it simplifies both model development and
+  subsequent switching between different time structures.</p>
+  <p>The package is already used in several optimization packages
+  developed at
+  <ext-link ext-link-type="uri" xlink:href="https://www.sintef.no/en/">SINTEF</ext-link>,
+  e.g.,
+  <ext-link ext-link-type="uri" xlink:href="https://github.com/EnergyModelsX/">EnergyModelsX</ext-link>,
+  <ext-link ext-link-type="uri" xlink:href="https://zerokyst.no/en/">ZeroKyst</ext-link>,
+  and
+  <ext-link ext-link-type="uri" xlink:href="https://www.sintef.no/en/projects/2021/maritimenh3-enabling-implementation-of-ammonia-as-a-maritime-fuel/">MaritimeNH3</ext-link>.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p>For complex optimization models, a significant amount of code is
+  typically used to track the relationships between time periods,
+  further complicated if stochastic versions of the model are developed.
+  Time constraints can be tricky to implement correctly. They can be a
+  source of subtle bugs, in particular when more complicated structures
+  are involved in models with linking constraints between time periods
+  or scenarios. One example for this type of constraints is keeping
+  track of a storage inventory over time or incorporate dispatch
+  constraints.</p>
+  <p>Modellers typically use extra indices to keep track of time and
+  scenarios, making the code harder to read, maintain and change to
+  support other or multiple time structures. This complexity can be an
+  obstacle during development, testing and debugging, as it is easier to
+  work with simpler time structures.</p>
+  <p>By abstracting out the time structures and providing a common
+  interface, <monospace>TimeStruct.jl</monospace> allows the modeller to
+  concentrate on other properties of the model, keeping the code simple
+  while supporting a large variety of time structures (pure operational,
+  strategic/investment periods and operational periods, including
+  operational uncertainty and/or strategic uncertainty).</p>
+  <p>Through providing a common interface with time structure semantics,
+  <monospace>TimeStruct.jl</monospace> simplifies running a single model
+  for different time structures. It may be hence used to develop
+  decomposition techniques to exploit specific structures.</p>
+  <p>To the best of the authors’ knowledge, no software packages with
+  similar functionality currently exist. There are several examples of
+  optimization models that incorporate complex time structures,
+  particularly within energy modeling (e.g.,
+  (<xref alt="Loulou et al., 2016" rid="ref-times" ref-type="bibr">Loulou
+  et al., 2016</xref>),
+  (<xref alt="Tejada-Arango et al., 2024" rid="ref-Tulipa" ref-type="bibr">Tejada-Arango
+  et al., 2024</xref>)), as well as in facility location (e.g.,
+  (<xref alt="Correia &amp; Melo, 2016" rid="ref-correia2016multi" ref-type="bibr">Correia
+  &amp; Melo, 2016</xref>)) and scheduling problems (e.g.,
+  (<xref alt="Iyer et al., 1998" rid="ref-iyer1998optimal" ref-type="bibr">Iyer
+  et al., 1998</xref>)) where strategic decisions are separated from
+  operational decisions. However, the time structures in these models
+  are tailored to their specific applications and are tightly integrated
+  with the models themselves, making it difficult to reuse them directly
+  in other contexts.</p>
+</sec>
+<sec id="example-of-use">
+  <title>Example of use</title>
+  <p>For a full overview of the functionality of
+  <monospace>TimeStruct.jl</monospace>, please see the online
+  <ext-link ext-link-type="uri" xlink:href="https://sintefore.github.io/TimeStruct.jl/stable/">documentation</ext-link>.</p>
+  <p>During development and for operational analyses, simple time
+  structures where, e.g., time is divided into discrete time periods
+  with (operational) decision variables in time period, can be useful.
+  With <monospace>TimeStruct.jl</monospace>, such structures can be
+  easily used in any optimization model. The example in
+  <xref alt="[fig:simple]" rid="figU003Asimple">[fig:simple]</xref>
+  shows the basic time structure <monospace>SimpleTimes</monospace>
+  which represents a continuous period of time divided into individual
+  time periods of varying duration. The length of each time period is
+  obtained by the <monospace>duration(t)</monospace> function.</p>
+  <fig>
+    <caption><p>Simple time structure with only operational
+    periods.<styled-content id="figU003Asimple"></styled-content></p></caption>
+    <graphic mimetype="application" mime-subtype="pdf" xlink:href="simple.pdf" />
+  </fig>
+  <p>One of the main motivations for the development of
+  <monospace>TimeStruct.jl</monospace> is to support multi-horizon time
+  structures
+  (<xref alt="Kaut et al., 2014" rid="ref-kaut2014multi" ref-type="bibr">Kaut
+  et al., 2014</xref>). As a simple example of a multi-horizon time
+  structure, the time structure <monospace>TwoLevel</monospace> allows
+  for a two level approach, combining an ordered sequence of strategic
+  periods (typically used for binary capacity expansion) with given
+  duration and an associated operational time structure (for operational
+  decisions using the available capacity in the associated strategic
+  period) as illustrated in
+  <xref alt="[fig:twolevel]" rid="figU003Atwolevel">[fig:twolevel]</xref>.</p>
+  <fig>
+    <caption><p>A typical two-level time
+    structure.<styled-content id="figU003Atwolevel"></styled-content></p></caption>
+    <graphic mimetype="application" mime-subtype="pdf" xlink:href="twolevel.pdf" />
+  </fig>
+  <p>Using the interfaces defined in
+  <monospace>TimeStruct.jl</monospace>, it is easy to write models that
+  are valid across different time structures. The following example
+  shows a simple model with a production variable,
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[x]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>x</mml:mi></mml:math></alternatives></inline-formula>,
+  defined for all operational time periods and a constraint on the
+  maximum total production cost for each strategic period:</p>
+  <code language="julia">using JuMP, TimeStruct
+function create_model(periods::TimeStructure, cost::TimeProfile, max_cost)
+    model = Model()
+    @variable(model, x[periods])
+    for sp in strat_periods(periods)
+      @constraint(model, sum(cost[t] * x[t] for t in sp) &lt;= max_cost)
+    end
+    return model
+end</code>
+  <p>This model will be valid for both examples above, producing one
+  constraint for the <monospace>SimpleTimes</monospace> and three
+  constraints for the strategic periods of the
+  <monospace>TwoLevel</monospace> example.</p>
+  <code language="julia">latex_formulation(
+  create_model(SimpleTimes([1, 1, 1, 5, 5]), FixedProfile(3), 10)
+)</code>
+  <p><disp-formula><alternatives>
+  <tex-math><![CDATA[
+  3 x_{t1} + 3 x_{t2} + 3 x_{t3} + 3 x_{t4} + 3 x_{t5} \leq 10
+  ]]></tex-math>
+  <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mn>3</mml:mn><mml:msub><mml:mi>x</mml:mi><mml:mrow><mml:mi>t</mml:mi><mml:mn>1</mml:mn></mml:mrow></mml:msub><mml:mo>+</mml:mo><mml:mn>3</mml:mn><mml:msub><mml:mi>x</mml:mi><mml:mrow><mml:mi>t</mml:mi><mml:mn>2</mml:mn></mml:mrow></mml:msub><mml:mo>+</mml:mo><mml:mn>3</mml:mn><mml:msub><mml:mi>x</mml:mi><mml:mrow><mml:mi>t</mml:mi><mml:mn>3</mml:mn></mml:mrow></mml:msub><mml:mo>+</mml:mo><mml:mn>3</mml:mn><mml:msub><mml:mi>x</mml:mi><mml:mrow><mml:mi>t</mml:mi><mml:mn>4</mml:mn></mml:mrow></mml:msub><mml:mo>+</mml:mo><mml:mn>3</mml:mn><mml:msub><mml:mi>x</mml:mi><mml:mrow><mml:mi>t</mml:mi><mml:mn>5</mml:mn></mml:mrow></mml:msub><mml:mo>≤</mml:mo><mml:mn>10</mml:mn></mml:mrow></mml:math></alternatives></disp-formula></p>
+  <code language="julia">latex_formulation(
+  create_model(TwoLevel(3, SimpleTimes(5,1)), StrategicProfile([3, 4, 5]), 10)
+)</code>
+  <p><disp-formula><alternatives>
+  <tex-math><![CDATA[
+  \begin{aligned}
+   & 3 x_{sp1-t1} + 3 x_{sp1-t2} + 3 x_{sp1-t3} + 3 x_{sp1-t4} + 3 x_{sp1-t5} \leq 10\\
+   & 4 x_{sp2-t1} + 4 x_{sp2-t2} + 4 x_{sp2-t3} + 4 x_{sp2-t4} + 4 x_{sp2-t5} \leq 10\\
+   & 5 x_{sp3-t1} + 5 x_{sp3-t2} + 5 x_{sp3-t3} + 5 x_{sp3-t4} + 5 x_{sp3-t5} \leq 10\\
+  \end{aligned}
+  ]]></tex-math>
+  <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mtable><mml:mtr><mml:mtd columnalign="right" style="text-align: right"></mml:mtd><mml:mtd columnalign="left" style="text-align: left"><mml:mn>3</mml:mn><mml:msub><mml:mi>x</mml:mi><mml:mrow><mml:mi>s</mml:mi><mml:mi>p</mml:mi><mml:mn>1</mml:mn><mml:mo>−</mml:mo><mml:mi>t</mml:mi><mml:mn>1</mml:mn></mml:mrow></mml:msub><mml:mo>+</mml:mo><mml:mn>3</mml:mn><mml:msub><mml:mi>x</mml:mi><mml:mrow><mml:mi>s</mml:mi><mml:mi>p</mml:mi><mml:mn>1</mml:mn><mml:mo>−</mml:mo><mml:mi>t</mml:mi><mml:mn>2</mml:mn></mml:mrow></mml:msub><mml:mo>+</mml:mo><mml:mn>3</mml:mn><mml:msub><mml:mi>x</mml:mi><mml:mrow><mml:mi>s</mml:mi><mml:mi>p</mml:mi><mml:mn>1</mml:mn><mml:mo>−</mml:mo><mml:mi>t</mml:mi><mml:mn>3</mml:mn></mml:mrow></mml:msub><mml:mo>+</mml:mo><mml:mn>3</mml:mn><mml:msub><mml:mi>x</mml:mi><mml:mrow><mml:mi>s</mml:mi><mml:mi>p</mml:mi><mml:mn>1</mml:mn><mml:mo>−</mml:mo><mml:mi>t</mml:mi><mml:mn>4</mml:mn></mml:mrow></mml:msub><mml:mo>+</mml:mo><mml:mn>3</mml:mn><mml:msub><mml:mi>x</mml:mi><mml:mrow><mml:mi>s</mml:mi><mml:mi>p</mml:mi><mml:mn>1</mml:mn><mml:mo>−</mml:mo><mml:mi>t</mml:mi><mml:mn>5</mml:mn></mml:mrow></mml:msub><mml:mo>≤</mml:mo><mml:mn>10</mml:mn></mml:mtd></mml:mtr><mml:mtr><mml:mtd columnalign="right" style="text-align: right"></mml:mtd><mml:mtd columnalign="left" style="text-align: left"><mml:mn>4</mml:mn><mml:msub><mml:mi>x</mml:mi><mml:mrow><mml:mi>s</mml:mi><mml:mi>p</mml:mi><mml:mn>2</mml:mn><mml:mo>−</mml:mo><mml:mi>t</mml:mi><mml:mn>1</mml:mn></mml:mrow></mml:msub><mml:mo>+</mml:mo><mml:mn>4</mml:mn><mml:msub><mml:mi>x</mml:mi><mml:mrow><mml:mi>s</mml:mi><mml:mi>p</mml:mi><mml:mn>2</mml:mn><mml:mo>−</mml:mo><mml:mi>t</mml:mi><mml:mn>2</mml:mn></mml:mrow></mml:msub><mml:mo>+</mml:mo><mml:mn>4</mml:mn><mml:msub><mml:mi>x</mml:mi><mml:mrow><mml:mi>s</mml:mi><mml:mi>p</mml:mi><mml:mn>2</mml:mn><mml:mo>−</mml:mo><mml:mi>t</mml:mi><mml:mn>3</mml:mn></mml:mrow></mml:msub><mml:mo>+</mml:mo><mml:mn>4</mml:mn><mml:msub><mml:mi>x</mml:mi><mml:mrow><mml:mi>s</mml:mi><mml:mi>p</mml:mi><mml:mn>2</mml:mn><mml:mo>−</mml:mo><mml:mi>t</mml:mi><mml:mn>4</mml:mn></mml:mrow></mml:msub><mml:mo>+</mml:mo><mml:mn>4</mml:mn><mml:msub><mml:mi>x</mml:mi><mml:mrow><mml:mi>s</mml:mi><mml:mi>p</mml:mi><mml:mn>2</mml:mn><mml:mo>−</mml:mo><mml:mi>t</mml:mi><mml:mn>5</mml:mn></mml:mrow></mml:msub><mml:mo>≤</mml:mo><mml:mn>10</mml:mn></mml:mtd></mml:mtr><mml:mtr><mml:mtd columnalign="right" style="text-align: right"></mml:mtd><mml:mtd columnalign="left" style="text-align: left"><mml:mn>5</mml:mn><mml:msub><mml:mi>x</mml:mi><mml:mrow><mml:mi>s</mml:mi><mml:mi>p</mml:mi><mml:mn>3</mml:mn><mml:mo>−</mml:mo><mml:mi>t</mml:mi><mml:mn>1</mml:mn></mml:mrow></mml:msub><mml:mo>+</mml:mo><mml:mn>5</mml:mn><mml:msub><mml:mi>x</mml:mi><mml:mrow><mml:mi>s</mml:mi><mml:mi>p</mml:mi><mml:mn>3</mml:mn><mml:mo>−</mml:mo><mml:mi>t</mml:mi><mml:mn>2</mml:mn></mml:mrow></mml:msub><mml:mo>+</mml:mo><mml:mn>5</mml:mn><mml:msub><mml:mi>x</mml:mi><mml:mrow><mml:mi>s</mml:mi><mml:mi>p</mml:mi><mml:mn>3</mml:mn><mml:mo>−</mml:mo><mml:mi>t</mml:mi><mml:mn>3</mml:mn></mml:mrow></mml:msub><mml:mo>+</mml:mo><mml:mn>5</mml:mn><mml:msub><mml:mi>x</mml:mi><mml:mrow><mml:mi>s</mml:mi><mml:mi>p</mml:mi><mml:mn>3</mml:mn><mml:mo>−</mml:mo><mml:mi>t</mml:mi><mml:mn>4</mml:mn></mml:mrow></mml:msub><mml:mo>+</mml:mo><mml:mn>5</mml:mn><mml:msub><mml:mi>x</mml:mi><mml:mrow><mml:mi>s</mml:mi><mml:mi>p</mml:mi><mml:mn>3</mml:mn><mml:mo>−</mml:mo><mml:mi>t</mml:mi><mml:mn>5</mml:mn></mml:mrow></mml:msub><mml:mo>≤</mml:mo><mml:mn>10</mml:mn></mml:mtd></mml:mtr><mml:mtr><mml:mtd columnalign="right" style="text-align: right"></mml:mtd></mml:mtr></mml:mtable></mml:math></alternatives></disp-formula></p>
+  <p>Different time structures may be combined to construct more complex
+  structures. One example is the combination of a
+  <monospace>TwoLevel</monospace> time structure with more complex
+  operational structures like
+  <monospace>RepresentativePeriods</monospace> and
+  <monospace>OperationalScenarios</monospace>. These may be used alone
+  or in combination, as shown in
+  <xref alt="[fig:two_complex]" rid="figU003Atwo_complex">[fig:two_complex]</xref>.</p>
+  <fig>
+    <caption><p>A more complex two-level time
+    structure.<styled-content id="figU003Atwo_complex"></styled-content></p></caption>
+    <graphic mimetype="application" mime-subtype="pdf" xlink:href="two_complex.pdf" />
+  </fig>
+  <p><monospace>TimeStruct.jl</monospace> also provides data structures
+  for representing parameter data, providing efficient representation
+  and indexing by time period for data with varying level of redundancy.
+  Functionality for computation of discount factors for each time period
+  to facilitate calculation of present values is also included.</p>
+</sec>
+<sec id="example-applications">
+  <title>Example applications</title>
+  <p><monospace>TimeStruct.jl</monospace> is used in multiple
+  optimization models developed at SINTEF. One early application is in
+  <ext-link ext-link-type="uri" xlink:href="https://github.com/EnergyModelsX/">EnergyModelsX</ext-link>
+  (<xref alt="Hellemo et al., 2024" rid="ref-hellemo2024energymodelsx" ref-type="bibr">Hellemo
+  et al., 2024</xref>), simplifying the code in
+  <monospace>EnergyModelsBase.jl</monospace> considerably, and allowing
+  to add capabilities for stochastic programming versions of the model
+  with little extra effort, see, e.g.,
+  (<xref alt="Bødal et al., 2024" rid="ref-bodal2024hydrogen" ref-type="bibr">Bødal
+  et al., 2024</xref>;
+  <xref alt="Svendsmark et al., 2024" rid="ref-svendsmark2024developing" ref-type="bibr">Svendsmark
+  et al., 2024</xref>) for example applications of EnergyModelsX.</p>
+  <p>It has also been used in the logistics models developed in the
+  project ‘Sirkulær masseforvaltning’ for planning in the rock and
+  gravel industry, as well as for hydrogen facility location
+  optimization in the ‘ZeroKyst’ project. Ongoing activities in the EU
+  funded projects ‘H2GLASS’ and ‘FLEX4FACT’ involve the use of
+  <monospace>TimeStruct.jl</monospace>
+  (<xref alt="Kitch et al., 2024" rid="ref-kitch2024optimal" ref-type="bibr">Kitch
+  et al., 2024</xref>).</p>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>The development of <monospace>TimeStruct</monospace> was funded by
+  the Research Council of Norway through the projects
+  <ext-link ext-link-type="uri" xlink:href="https://zerokyst.no/en/">ZeroKyst</ext-link>
+  (<ext-link ext-link-type="uri" xlink:href="https://prosjektbanken.forskningsradet.no/project/FORISS/328721">328721</ext-link>),
+  <ext-link ext-link-type="uri" xlink:href="https://www.sintef.no/en/projects/2021/maritimenh3-enabling-implementation-of-ammonia-as-a-maritime-fuel/">MaritimeNH3</ext-link>
+  (<ext-link ext-link-type="uri" xlink:href="https://prosjektbanken.forskningsradet.no/project/FORISS/328679">328679</ext-link>)
+  and
+  <ext-link ext-link-type="uri" xlink:href="https://www.sintef.no/en/projects/2020/cleanexport/">Clean
+  Export</ext-link>
+  (<ext-link ext-link-type="uri" xlink:href="https://prosjektbanken.forskningsradet.no/project/FORISS/308811">308811</ext-link>)</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <title></title>
+  <ref id="ref-svendsmark2024developing">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Svendsmark</surname><given-names>Erik</given-names></name>
+        <name><surname>Straus</surname><given-names>Julian</given-names></name>
+        <name><surname>Granado</surname><given-names>Pedro Crespo del</given-names></name>
+      </person-group>
+      <article-title>Developing hydrogen energy hubs: The role of H2 prices, wind power and infrastructure investments in northern norway</article-title>
+      <source>Applied Energy</source>
+      <publisher-name>Elsevier</publisher-name>
+      <year iso-8601-date="2024">2024</year>
+      <volume>376</volume>
+      <pub-id pub-id-type="doi">10.1016/j.apenergy.2024.124130</pub-id>
+      <fpage>124130</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-kitch2024optimal">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Kitch</surname><given-names>Madeline</given-names></name>
+        <name><surname>Støen</surname><given-names>Mikael</given-names></name>
+        <name><surname>Muñoz Ortiz</surname><given-names>Miguel</given-names></name>
+        <name><surname>Lima Silva</surname><given-names>Thiago</given-names></name>
+        <name><surname>Juanpera</surname><given-names>Marc</given-names></name>
+        <name><surname>Fisco-Compte</surname><given-names>Pau</given-names></name>
+      </person-group>
+      <article-title>Optimal industrial clusters: Flex4Fact summer research report</article-title>
+      <source>SINTEF AS (978-82-14-07014-9)</source>
+      <publisher-name>SINTEF Industri</publisher-name>
+      <year iso-8601-date="2024">2024</year>
+    </element-citation>
+  </ref>
+  <ref id="ref-bodal2024hydrogen">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Bødal</surname><given-names>Espen Flo</given-names></name>
+        <name><surname>Holm</surname><given-names>Sigmund Eggen</given-names></name>
+        <name><surname>Subramanian</surname><given-names>Avinash</given-names></name>
+        <name><surname>Durakovic</surname><given-names>Goran</given-names></name>
+        <name><surname>Pinel</surname><given-names>Dimitri</given-names></name>
+        <name><surname>Hellemo</surname><given-names>Lars</given-names></name>
+        <name><surname>Ortiz</surname><given-names>Miguel Muñoz</given-names></name>
+        <name><surname>Knudsen</surname><given-names>Brage Rugstad</given-names></name>
+        <name><surname>Straus</surname><given-names>Julian</given-names></name>
+      </person-group>
+      <article-title>Hydrogen for harvesting the potential of offshore wind: A north sea case study</article-title>
+      <source>Applied Energy</source>
+      <publisher-name>Elsevier</publisher-name>
+      <year iso-8601-date="2024">2024</year>
+      <volume>357</volume>
+      <pub-id pub-id-type="doi">10.1016/j.apenergy.2023.122484</pub-id>
+      <fpage>122484</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-hellemo2024energymodelsx">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Hellemo</surname><given-names>Lars</given-names></name>
+        <name><surname>Bødal</surname><given-names>Espen Flo</given-names></name>
+        <name><surname>Holm</surname><given-names>Sigmund Eggen</given-names></name>
+        <name><surname>Pinel</surname><given-names>Dimitri</given-names></name>
+        <name><surname>Straus</surname><given-names>Julian</given-names></name>
+      </person-group>
+      <article-title>EnergyModelsX: Flexible energy systems modelling with multiple dispatch</article-title>
+      <source>Journal of Open Source Software</source>
+      <year iso-8601-date="2024">2024</year>
+      <volume>9</volume>
+      <issue>97</issue>
+      <pub-id pub-id-type="doi">10.21105/joss.06619</pub-id>
+      <fpage>6619</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-bezanson2017julia">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Bezanson</surname><given-names>Jeff</given-names></name>
+        <name><surname>Edelman</surname><given-names>Alan</given-names></name>
+        <name><surname>Karpinski</surname><given-names>Stefan</given-names></name>
+        <name><surname>Shah</surname><given-names>Viral B</given-names></name>
+      </person-group>
+      <article-title>Julia: A fresh approach to numerical computing</article-title>
+      <source>SIAM review</source>
+      <publisher-name>SIAM</publisher-name>
+      <year iso-8601-date="2017">2017</year>
+      <volume>59</volume>
+      <issue>1</issue>
+      <pub-id pub-id-type="doi">10.1137/141000671</pub-id>
+      <fpage>65</fpage>
+      <lpage>98</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Lubin2023">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Lubin</surname><given-names>Miles</given-names></name>
+        <name><surname>Dowson</surname><given-names>Oscar</given-names></name>
+        <name><surname>Dias Garcia</surname><given-names>Joaquim</given-names></name>
+        <name><surname>Huchette</surname><given-names>Joey</given-names></name>
+        <name><surname>Legat</surname><given-names>Benoît</given-names></name>
+        <name><surname>Vielma</surname><given-names>Juan Pablo</given-names></name>
+      </person-group>
+      <article-title>JuMP 1.0: Recent improvements to a modeling language for mathematical optimization</article-title>
+      <source>Mathematical Programming Computation</source>
+      <year iso-8601-date="2023">2023</year>
+      <pub-id pub-id-type="doi">10.1007/s12532-023-00239-3</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-times">
+    <element-citation publication-type="report">
+      <person-group person-group-type="author">
+        <name><surname>Loulou</surname><given-names>Richard</given-names></name>
+        <name><surname>Goldstein</surname><given-names>Gary</given-names></name>
+        <name><surname>Kanudia</surname><given-names>Amit</given-names></name>
+        <name><surname>Lettila</surname><given-names>Antti</given-names></name>
+        <name><surname>Remme</surname><given-names>Uwe</given-names></name>
+      </person-group>
+      <article-title>Documentation for the TIMES model</article-title>
+      <publisher-name>IEA Energy Technology Systems Analysis Programme</publisher-name>
+      <year iso-8601-date="2016">2016</year>
+    </element-citation>
+  </ref>
+  <ref id="ref-Tulipa">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Tejada-Arango</surname><given-names>Diego</given-names></name>
+        <name><surname>Morales-España</surname><given-names>Germán</given-names></name>
+        <name><surname>Clisby</surname><given-names>Lauren</given-names></name>
+        <name><surname>Wang</surname><given-names>Ni</given-names></name>
+        <name><surname>Soares Siqueira</surname><given-names>Abel</given-names></name>
+        <name><surname>Ali</surname><given-names>Suvayu</given-names></name>
+        <name><surname>Soucasse</surname><given-names>Laurent</given-names></name>
+        <name><surname>Neustroev</surname><given-names>Grigory</given-names></name>
+      </person-group>
+      <article-title>Tulipa energy model</article-title>
+      <publisher-name>Zenodo</publisher-name>
+      <year iso-8601-date="2024-03">2024</year><month>03</month>
+      <uri>https://zenodo.org/records/10895406</uri>
+      <pub-id pub-id-type="doi">10.5281/zenodo.8363262</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-kaut2014multi">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Kaut</surname><given-names>Michal</given-names></name>
+        <name><surname>Midthun</surname><given-names>Kjetil T</given-names></name>
+        <name><surname>Werner</surname><given-names>Adrian S</given-names></name>
+        <name><surname>Tomasgard</surname><given-names>Asgeir</given-names></name>
+        <name><surname>Hellemo</surname><given-names>Lars</given-names></name>
+        <name><surname>Fodstad</surname><given-names>Marte</given-names></name>
+      </person-group>
+      <article-title>Multi-horizon stochastic programming</article-title>
+      <source>Computational Management Science</source>
+      <publisher-name>Springer</publisher-name>
+      <year iso-8601-date="2014">2014</year>
+      <volume>11</volume>
+      <issue>1</issue>
+      <pub-id pub-id-type="doi">10.1007/s10287-013-0182-6</pub-id>
+      <fpage>179</fpage>
+      <lpage>193</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-correia2016multi">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Correia</surname><given-names>Isabel</given-names></name>
+        <name><surname>Melo</surname><given-names>Teresa</given-names></name>
+      </person-group>
+      <article-title>Multi-period capacitated facility location under delayed demand satisfaction</article-title>
+      <source>European Journal of Operational Research</source>
+      <publisher-name>Elsevier</publisher-name>
+      <year iso-8601-date="2016">2016</year>
+      <volume>255</volume>
+      <issue>3</issue>
+      <pub-id pub-id-type="doi">10.1016/j.ejor.2016.06.039</pub-id>
+      <fpage>729</fpage>
+      <lpage>746</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-iyer1998optimal">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Iyer</surname><given-names>RR</given-names></name>
+        <name><surname>Grossmann</surname><given-names>IE</given-names></name>
+        <name><surname>Vasantharajan</surname><given-names>S</given-names></name>
+        <name><surname>Cullick</surname><given-names>AS</given-names></name>
+      </person-group>
+      <article-title>Optimal planning and scheduling of offshore oil field infrastructure investment and operations</article-title>
+      <source>Industrial &amp; Engineering Chemistry Research</source>
+      <publisher-name>ACS Publications</publisher-name>
+      <year iso-8601-date="1998">1998</year>
+      <volume>37</volume>
+      <issue>4</issue>
+      <pub-id pub-id-type="doi">10.1021/ie970532x</pub-id>
+      <fpage>1380</fpage>
+      <lpage>1397</lpage>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
