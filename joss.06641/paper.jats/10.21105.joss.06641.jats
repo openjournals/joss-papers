@@ -1,0 +1,855 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">6641</article-id>
+<article-id pub-id-type="doi">10.21105/joss.06641</article-id>
+<title-group>
+<article-title>UnfoldSim.jl: Simulating continuous event-based time
+series data for EEG and beyond</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0009-0000-9270-730X</contrib-id>
+<name>
+<surname>Schepers</surname>
+<given-names>Judith</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<contrib contrib-type="author">
+<name>
+<surname>Lips</surname>
+<given-names>Luis</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<contrib contrib-type="author">
+<name>
+<surname>Marathe</surname>
+<given-names>Maanik</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0002-6276-3332</contrib-id>
+<name>
+<surname>Ehinger</surname>
+<given-names>Benedikt V.</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+<xref ref-type="aff" rid="aff-2"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Institute for Visualisation and Interactive Systems,
+University of Stuttgart, Germany</institution>
+</institution-wrap>
+</aff>
+<aff id="aff-2">
+<institution-wrap>
+<institution>Stuttgart Center for Simulation Science, University of
+Stuttgart, Germany</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2024-11-06">
+<day>6</day>
+<month>11</month>
+<year>2024</year>
+</pub-date>
+<volume>10</volume>
+<issue>107</issue>
+<fpage>6641</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2025</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>Julia</kwd>
+<kwd>EEG</kwd>
+<kwd>ERPs</kwd>
+<kwd>evoked potentials</kwd>
+<kwd>neuroimaging</kwd>
+<kwd>simulation</kwd>
+<kwd>time-series</kwd>
+<kwd>regression ERPs</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p><monospace>UnfoldSim.jl</monospace> is a Julia package for
+  simulating multivariate time series, with a focus on EEG, especially
+  event-related potentials (ERPs). The user provides four ingredients:
+  1) an experimental design, with both categorical and continuous
+  variables, 2) event basis functions specified via linear or
+  hierarchical models, 3) an inter-event onset distribution, and 4) a
+  noise specification. <monospace>UnfoldSim.jl</monospace> then
+  simulates continuous EEG signals with potentially overlapping events.
+  Multi-channel support via EEG-forward models is available as well.
+  <monospace>UnfoldSim.jl</monospace> is modular, allowing users to
+  implement custom designs, components, onset distributions, or noise
+  types to tailor the package to their needs. This allows support even
+  for other modalities, e.g., single-voxel fMRI or pupil dilation
+  signals.</p>
+  <p>One can find a detailed example of how to use
+  <monospace>UnfoldSim.jl</monospace> to simulate continuous EEG data in
+  the
+  <ext-link ext-link-type="uri" xlink:href="https://unfoldtoolbox.github.io/UnfoldSim.jl/stable/generated/tutorials/simulateERP/">documentation</ext-link>.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of Need</title>
+  <p>In our work (e.g., Ehinger &amp; Dimigen
+  (<xref alt="2019" rid="ref-ehinger2019unfold" ref-type="bibr">2019</xref>),
+  Dimigen &amp; Ehinger
+  (<xref alt="2021" rid="ref-dimigen2021regression" ref-type="bibr">2021</xref>)),
+  we often analyze data containing (temporally) overlapping events
+  (e.g., stimulus onset and button press, or consecutive eye-fixations),
+  non-linear effects, and complex experimental designs. For a multitude
+  of reasons, we often need to simulate such kinds of data: simulated
+  EEG data is useful to test preprocessing and analysis tools, validate
+  statistical methods, illustrate conceptual issues, test toolbox
+  functionalities, and find limitations of traditional analysis
+  workflows. For instance, such simulation tools allow for testing the
+  assumptions of new analysis algorithms and testing their robustness
+  against any violation of these assumptions.</p>
+  <p>While other EEG simulation toolboxes exist, they each have
+  limitations: they are dominantly based on the proprietary MATLAB
+  software, they do not simulate continuous EEG, and they offer little
+  support for designs more complex than two conditions or with
+  non-linear effects. In contrast, <monospace>UnfoldSim.jl</monospace>
+  is free and open-source and it allows to simulate continuous EEG
+  signals even for complex designs.</p>
+</sec>
+<sec id="functionality">
+  <title>Functionality</title>
+  <p>The package provides four abstract types:
+  <monospace>AbstractDesign</monospace>,
+  <monospace>AbstractComponent</monospace>,
+  <monospace>AbstractOnset</monospace> and
+  <monospace>AbstractNoise</monospace>. In the following, we present the
+  concrete types that are currently implemented.</p>
+  <sec id="experimental-designs">
+    <title>Experimental designs</title>
+    <p>The design contains the levels of all conditions and predictors.
+    Currently, we support a single and a multi-subject design. The
+    multi-subject design uses the
+    <monospace>MixedModelsSim.jl</monospace> package
+    (<xref alt="Alday et al., 2024" rid="ref-phillip_alday_2024_10669002" ref-type="bibr">Alday
+    et al., 2024</xref>) and allows a flexible specification of the
+    random-effects structure by indicating which predictors are within-
+    or between-subject (or item). Designs can be encapsulated, for
+    instance, using the <monospace>RepeatDesign</monospace> type which
+    repeats the generated event table multiple times, thus generating
+    new trials.</p>
+  </sec>
+  <sec id="event-basis-functions-components">
+    <title>Event basis functions (Components)</title>
+    <p><monospace>UnfoldSim.jl</monospace> provides a
+    <monospace>LinearModelComponent</monospace> and a
+    <monospace>MixedModelComponent</monospace> for single- and
+    multi-subject simulation respectively. These components determine
+    the shape of the response to an event. They consist of a basis
+    function which is weighted by the user-defined regression model.
+    Users can specify a basis function by providing a custom vector or
+    selecting from predefined options, such as simplified EEG components
+    like the N170, modelled as temporally shifted Hanning windows.
+    Further, in the components’ model formulae, fixed effects
+    (<inline-formula><alternatives>
+    <tex-math><![CDATA[\beta s]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>β</mml:mi><mml:mi>s</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>)
+    and random effects (<monospace>MultiSubjectDesign</monospace>s only)
+    need to be specified.</p>
+    <p>Each component can be nested in a
+    <monospace>MultichannelComponent</monospace>, which, using a forward
+    head model, projects the simulated source component to the
+    multi-channel electrode space. Using
+    <monospace>Artifacts.jl</monospace> we provide on-demand access to
+    the HArtMuT
+    (<xref alt="Harmening et al., 2022" rid="ref-harmening2022hartmut" ref-type="bibr">Harmening
+    et al., 2022</xref>) model.</p>
+    <p>To generate complex activations, it is possible to specify a
+    vector of components.</p>
+  </sec>
+  <sec id="inter-onset-distributions">
+    <title>Inter-onset distributions</title>
+    <p>The inter-onset distribution defines the distance between events
+    in the continuous (EEG) signal. Currently,
+    <monospace>UniformOnset</monospace> and
+    <monospace>LogNormalOnset</monospace> are implemented (see
+    <xref alt="[fig_onset_distributions]" rid="fig_onset_distributions">[fig_onset_distributions]</xref>).
+    By adjusting the distribution’s parameters, one indirectly controls
+    the amount of overlap between the event-related responses.</p>
+    <fig>
+      <caption><p>Illustration of the inter-onset distributions. The
+      colours indicate different sets of parameter values. Please note
+      that for the lognormal distribution, the parameters are defined on
+      a logarithmic scale, while the histogram is shown on a linear
+      scale.
+      <styled-content id="fig_onset_distributions"></styled-content></p></caption>
+      <graphic mimetype="image" mime-subtype="svg+xml" xlink:href="onset_distributions.svg" />
+    </fig>
+  </sec>
+  <sec id="noise-types">
+    <title>Noise types</title>
+    <p><monospace>UnfoldSim.jl</monospace> offers different noise types:
+    <monospace>WhiteNoise</monospace>, <monospace>RedNoise</monospace>,
+    <monospace>PinkNoise</monospace>, and exponentially decaying
+    autoregressive noise (<monospace>ExponentialNoise</monospace>) (see
+    <xref alt="[fig_noise_types]" rid="fig_noise_types">[fig_noise_types]</xref>).
+    In the future, we will add simple autoregressive noise and noise
+    based on actual EEG data.</p>
+    <fig>
+      <caption><p>Illustration of the different noise types (indicated
+      by colour). Panel <bold>A</bold> shows the noise over time. Please
+      note that the noise signals are shifted by 5 µV for visualisation
+      purposes. Panel <bold>B</bold> displays its
+      <inline-formula><alternatives>
+      <tex-math><![CDATA[\text{log}_{\text{10}}\text{(power)}]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mtext mathvariant="normal">log</mml:mtext><mml:mtext mathvariant="normal">10</mml:mtext></mml:msub><mml:mtext mathvariant="normal">(power)</mml:mtext></mml:mrow></mml:math></alternatives></inline-formula>
+      at normalized frequencies.
+      <styled-content id="fig_noise_types"></styled-content></p></caption>
+      <graphic mimetype="image" mime-subtype="svg+xml" xlink:href="noise_types.svg" />
+    </fig>
+  </sec>
+</sec>
+<sec id="related-tools">
+  <title>Related tools</title>
+  <p>Few toolboxes for simulating EEG data exist, most being proprietary
+  MATLAB tools that have often not received any updates in the past
+  years or have very specific applications (e.g.,
+  <monospace>EEGg</monospace>
+  (<xref alt="Vaziri et al., 2023" rid="ref-vaziri2023eegg" ref-type="bibr">Vaziri
+  et al., 2023</xref>), <monospace>SimMEEG</monospace>
+  (<xref alt="Herdman, 2021" rid="ref-herdman2021simmeeg" ref-type="bibr">Herdman,
+  2021</xref>), <monospace>SEED-G</monospace>
+  (<xref alt="Anzolin et al., 2021" rid="ref-anzolin2021seed" ref-type="bibr">Anzolin
+  et al., 2021</xref>), <monospace>EEGSourceSim</monospace>
+  (<xref alt="Barzegaran et al., 2019" rid="ref-barzegaran2019eegsourcesim" ref-type="bibr">Barzegaran
+  et al., 2019</xref>), <monospace>simBCI</monospace>
+  (<xref alt="Lindgren et al., 2018" rid="ref-lindgren2018simbci" ref-type="bibr">Lindgren
+  et al., 2018</xref>)).</p>
+  <p>In the following, we highlight two actively developed MATLAB-based
+  tools: <monospace>Brainstorm</monospace>
+  (<xref alt="Tadel et al., 2011" rid="ref-tadel2011brainstorm" ref-type="bibr">Tadel
+  et al., 2011</xref>), which especially excels at visualizing the
+  forward model and generating ERPs from phase-aligned oscillations, and
+  <monospace>SEREEGA</monospace>
+  (<xref alt="Krol et al., 2018" rid="ref-krol2018sereega" ref-type="bibr">Krol
+  et al., 2018</xref>), which offers comprehensive simulation
+  capabilities with a focus on ERP-component simulation, tools for
+  benchmarking like signal-to-noise specification and more realistic
+  noise simulation (e.g., via random sources).</p>
+  <p>In Python, <monospace>MNE-Python</monospace>
+  (<xref alt="Gramfort et al., 2013" rid="ref-GramfortEtAl2013a" ref-type="bibr">Gramfort
+  et al., 2013</xref>) provides some tutorials to simulate EEG data, but
+  the functionality is very basic. <monospace>HNN-Core</monospace>
+  (<xref alt="Jas et al., 2023" rid="ref-Jas2023" ref-type="bibr">Jas et
+  al., 2023</xref>) can simulate realistic EEG data by parameterising
+  the neuronal activity in cortical columns.</p>
+  <p>In contrast to these tools, <monospace>UnfoldSim.jl</monospace> has
+  a higher-level perspective, uniquely focusing on the regression-ERP
+  aspect. It provides functions to simulate multi-condition experiments,
+  uniquely allows for modeling multi-subject EEG datasets, and offers
+  support to model continuous EEG data with overlapping events. Further,
+  the implementation in Julia offers a platform that is free, actively
+  encourages research software engineering methods, makes it easy to add
+  custom expansions via the <monospace>AbstractTypes</monospace>, and
+  allows easy access from Python and R.</p>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>Funded by Deutsche Forschungsgemeinschaft (DFG, German Research
+  Foundation) under Germany’s Excellence Strategy – EXC 2075 –
+  390740016. The authors further thank the International Max Planck
+  Research School for Intelligent Systems (IMPRS-IS) for supporting
+  Judith Schepers. Moreover, the authors would like to thank Tanja Bien
+  for her valuable feedback on the paper manuscript.</p>
+</sec>
+<sec id="package-references">
+  <title>Package references</title>
+  <p>Please note that we list only the main dependencies here, but the
+  dependencies of the dependencies can be found in the respective
+  <monospace>Manifest.toml</monospace> files. Furthermore, please note
+  that we only list rather than cite the packages for which we could not
+  find any citation instructions.</p>
+  <p><bold>Julia</bold>
+  (<xref alt="Bezanson et al., 2017" rid="ref-Julia-2017" ref-type="bibr">Bezanson
+  et al., 2017</xref>), <bold>DataFrames.jl</bold>
+  (<xref alt="Bouchet-Valat &amp; Kamiński, 2023" rid="ref-JSSv107i04" ref-type="bibr">Bouchet-Valat
+  &amp; Kamiński, 2023</xref>), <bold>Distributions.jl</bold>
+  (<xref alt="Besançon et al., 2021" rid="ref-JSSv098i16" ref-type="bibr">Besançon
+  et al., 2021</xref>;
+  <xref alt="Lin et al., 2019" rid="ref-Distributions.jl-2019" ref-type="bibr">Lin
+  et al., 2019</xref>), <bold>Documenter.jl</bold>
+  (<xref alt="Hatherly et al., n.d." rid="ref-Documenter_jl" ref-type="bibr">Hatherly
+  et al., n.d.</xref>), <bold>DSP.jl</bold>
+  (<xref alt="Kornblith et al., 2023" rid="ref-simon_kornblith_2023_8344531" ref-type="bibr">Kornblith
+  et al., 2023</xref>), <bold>FileIO.jl</bold>, <bold>Glob.jl</bold>,
+  <bold>HDF5.jl</bold>, <bold>HypothesisTests.jl</bold>,
+  <bold>ImageFiltering.jl</bold>, <bold>Literate.jl</bold>,
+  <bold>LiveServer.jl</bold>, <bold>Makie.jl</bold>
+  (<xref alt="Danisch &amp; Krumbiegel, 2021" rid="ref-DanischKrumbiegel2021" ref-type="bibr">Danisch
+  &amp; Krumbiegel, 2021</xref>), <bold>MixedModels.jl</bold>
+  (<xref alt="Bates et al., 2023" rid="ref-douglas_bates_2023_10268806" ref-type="bibr">Bates
+  et al., 2023</xref>), <bold>MixedModelsSim.jl</bold>
+  (<xref alt="Alday et al., 2024" rid="ref-phillip_alday_2024_10669002" ref-type="bibr">Alday
+  et al., 2024</xref>), <bold>Parameters.jl</bold>,
+  <bold>PrettyTables.jl</bold>
+  (<xref alt="Chagas et al., 2023" rid="ref-ronan_arraes_jardim_chagas_2023_10214175" ref-type="bibr">Chagas
+  et al., 2023</xref>), <bold>ProjectRoot.jl</bold>,
+  <bold>SignalAnalysis.jl</bold>, <bold>Statistics.jl</bold>,
+  <bold>StableRNGs.jl</bold>, <bold>StatsBase.jl</bold>,
+  <bold>StatsModels.jl</bold>, <bold>TimerOutputs.jl</bold>,
+  <bold>ToeplitzMatrices.jl</bold>, <bold>Unfold.jl</bold>
+  (<xref alt="Ehinger &amp; Dimigen, 2019" rid="ref-ehinger2019unfold" ref-type="bibr">Ehinger
+  &amp; Dimigen, 2019</xref>), <bold>UnfoldMakie.jl</bold>
+  (<xref alt="Mikheev et al., 2023" rid="ref-mikheev_2023_10235220" ref-type="bibr">Mikheev
+  et al., 2023</xref>)</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <title></title>
+  <ref id="ref-ehinger2019unfold">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Ehinger</surname><given-names>Benedikt V</given-names></name>
+        <name><surname>Dimigen</surname><given-names>Olaf</given-names></name>
+      </person-group>
+      <article-title>Unfold: An integrated toolbox for overlap correction, non-linear modeling, and regression-based EEG analysis</article-title>
+      <source>PeerJ</source>
+      <publisher-name>PeerJ Inc.</publisher-name>
+      <year iso-8601-date="2019">2019</year>
+      <volume>7</volume>
+      <pub-id pub-id-type="doi">10.7717/peerj.7838</pub-id>
+      <fpage>e7838</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-dimigen2021regression">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Dimigen</surname><given-names>Olaf</given-names></name>
+        <name><surname>Ehinger</surname><given-names>Benedikt V</given-names></name>
+      </person-group>
+      <article-title>Regression-based analysis of combined EEG and eye-tracking data: Theory and applications</article-title>
+      <source>Journal of vision</source>
+      <publisher-name>The Association for Research in Vision; Ophthalmology</publisher-name>
+      <year iso-8601-date="2021-01">2021</year><month>01</month>
+      <volume>21</volume>
+      <issue>1</issue>
+      <issn>1534-7362</issn>
+      <uri>https://doi.org/10.1167/jov.21.1.3</uri>
+      <pub-id pub-id-type="doi">10.1167/jov.21.1.3</pub-id>
+      <fpage>3</fpage>
+      <lpage>3</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-harmening2022hartmut">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Harmening</surname><given-names>Nils</given-names></name>
+        <name><surname>Klug</surname><given-names>Marius</given-names></name>
+        <name><surname>Gramann</surname><given-names>Klaus</given-names></name>
+        <name><surname>Miklody</surname><given-names>Daniel</given-names></name>
+      </person-group>
+      <article-title>HArtMuT—modeling eye and muscle contributors in neuroelectric imaging</article-title>
+      <source>Journal of Neural Engineering</source>
+      <publisher-name>IOP Publishing</publisher-name>
+      <year iso-8601-date="2022-12">2022</year><month>12</month>
+      <volume>19</volume>
+      <issue>6</issue>
+      <uri>https://dx.doi.org/10.1088/1741-2552/aca8ce</uri>
+      <pub-id pub-id-type="doi">10.1088/1741-2552/aca8ce</pub-id>
+      <fpage>066041</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Julia-2017">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Bezanson</surname><given-names>Jeff</given-names></name>
+        <name><surname>Edelman</surname><given-names>Alan</given-names></name>
+        <name><surname>Karpinski</surname><given-names>Stefan</given-names></name>
+        <name><surname>Shah</surname><given-names>Viral B</given-names></name>
+      </person-group>
+      <article-title>Julia: A fresh approach to numerical computing</article-title>
+      <source>SIAM Review</source>
+      <publisher-name>SIAM</publisher-name>
+      <year iso-8601-date="2017">2017</year>
+      <volume>59</volume>
+      <issue>1</issue>
+      <uri>https://epubs.siam.org/doi/10.1137/141000671</uri>
+      <pub-id pub-id-type="doi">10.1137/141000671</pub-id>
+      <fpage>65</fpage>
+      <lpage>98</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-JSSv107i04">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Bouchet-Valat</surname><given-names>Milan</given-names></name>
+        <name><surname>Kamiński</surname><given-names>Bogumił</given-names></name>
+      </person-group>
+      <article-title>DataFrames.jl: Flexible and fast tabular data in julia</article-title>
+      <source>Journal of Statistical Software</source>
+      <year iso-8601-date="2023">2023</year>
+      <volume>107</volume>
+      <issue>4</issue>
+      <uri>https://www.jstatsoft.org/index.php/jss/article/view/v107i04</uri>
+      <pub-id pub-id-type="doi">10.18637/jss.v107.i04</pub-id>
+      <fpage>1</fpage>
+      <lpage>32</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Distributions.jl-2019">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Lin</surname><given-names>Dahua</given-names></name>
+        <name><surname>White</surname><given-names>John Myles</given-names></name>
+        <name><surname>Byrne</surname><given-names>Simon</given-names></name>
+        <name><surname>Bates</surname><given-names>Douglas</given-names></name>
+        <name><surname>Noack</surname><given-names>Andreas</given-names></name>
+        <name><surname>Pearson</surname><given-names>John</given-names></name>
+        <name><surname>Arslan</surname><given-names>Alex</given-names></name>
+        <name><surname>Squire</surname><given-names>Kevin</given-names></name>
+        <name><surname>Anthoff</surname><given-names>David</given-names></name>
+        <name><surname>Papamarkou</surname><given-names>Theodore</given-names></name>
+        <name><surname>Besançon</surname><given-names>Mathieu</given-names></name>
+        <name><surname>Drugowitsch</surname><given-names>Jan</given-names></name>
+        <name><surname>Schauer</surname><given-names>Moritz</given-names></name>
+        <name><surname>contributors</surname></name>
+      </person-group>
+      <article-title>JuliaStats/Distributions.jl: a Julia package for probability distributions and associated functions</article-title>
+      <year iso-8601-date="2019-07">2019</year><month>07</month>
+      <uri>https://doi.org/10.5281/zenodo.2647458</uri>
+      <pub-id pub-id-type="doi">10.5281/zenodo.2647458</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-JSSv098i16">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Besançon</surname><given-names>Mathieu</given-names></name>
+        <name><surname>Papamarkou</surname><given-names>Theodore</given-names></name>
+        <name><surname>Anthoff</surname><given-names>David</given-names></name>
+        <name><surname>Arslan</surname><given-names>Alex</given-names></name>
+        <name><surname>Byrne</surname><given-names>Simon</given-names></name>
+        <name><surname>Lin</surname><given-names>Dahua</given-names></name>
+        <name><surname>Pearson</surname><given-names>John</given-names></name>
+      </person-group>
+      <article-title>Distributions.jl: Definition and modeling of probability distributions in the JuliaStats ecosystem</article-title>
+      <source>Journal of Statistical Software</source>
+      <year iso-8601-date="2021">2021</year>
+      <volume>98</volume>
+      <issue>16</issue>
+      <issn>1548-7660</issn>
+      <uri>https://www.jstatsoft.org/v098/i16</uri>
+      <pub-id pub-id-type="doi">10.18637/jss.v098.i16</pub-id>
+      <fpage>1</fpage>
+      <lpage>30</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-simon_kornblith_2023_8344531">
+    <element-citation publication-type="software">
+      <person-group person-group-type="author">
+        <name><surname>Kornblith</surname><given-names>Simon</given-names></name>
+        <name><surname>Lynch</surname><given-names>Galen</given-names></name>
+        <name><surname>Holters</surname><given-names>Martin</given-names></name>
+        <name><surname>Santos</surname><given-names>João Felipe</given-names></name>
+        <name><surname>Russell</surname><given-names>Spencer</given-names></name>
+        <name><surname>Kickliter</surname><given-names>Jay</given-names></name>
+        <name><surname>Bezanson</surname><given-names>Jeff</given-names></name>
+        <name><surname>Adalsteinsson</surname><given-names>Gudmundur</given-names></name>
+        <name><surname>Arslan</surname><given-names>Alex</given-names></name>
+        <name><surname>Yamamoto</surname><given-names>Ryuichi</given-names></name>
+        <name><surname>jordancluts</surname></name>
+        <name><surname>Pastell</surname><given-names>Matti</given-names></name>
+        <name><surname>Kelman</surname><given-names>Tony</given-names></name>
+        <name><surname>Arthur</surname><given-names>Ben</given-names></name>
+        <name><surname>Krauss</surname><given-names>Tom</given-names></name>
+        <name><surname>HDictus</surname></name>
+        <name><surname>El-Saawy</surname><given-names>Hamza</given-names></name>
+        <name><surname>Kofron</surname><given-names>Jared</given-names></name>
+        <name><surname>Hanson</surname><given-names>Eric</given-names></name>
+        <name><surname>Luke</surname><given-names>Rob</given-names></name>
+        <name><surname>Shah</surname><given-names>Viral B.</given-names></name>
+        <name><surname>Kastanos</surname><given-names>Aleco</given-names></name>
+        <name><surname>Bill</surname></name>
+        <name><surname>Clemens</surname></name>
+        <name><surname>Saba</surname><given-names>Elliot</given-names></name>
+        <name><surname>ibadr</surname></name>
+        <name><surname>Bolewski</surname><given-names>Jake</given-names></name>
+        <name><surname>Smith</surname><given-names>Jordan</given-names></name>
+      </person-group>
+      <article-title>JuliaDSP/DSP.jl: v0.7.9</article-title>
+      <publisher-name>Zenodo</publisher-name>
+      <year iso-8601-date="2023-09">2023</year><month>09</month>
+      <uri>https://doi.org/10.5281/zenodo.8344531</uri>
+      <pub-id pub-id-type="doi">10.5281/zenodo.8344531</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-DanischKrumbiegel2021">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Danisch</surname><given-names>Simon</given-names></name>
+        <name><surname>Krumbiegel</surname><given-names>Julius</given-names></name>
+      </person-group>
+      <article-title>Makie.jl: Flexible high-performance data visualization for Julia</article-title>
+      <source>Journal of Open Source Software</source>
+      <publisher-name>The Open Journal</publisher-name>
+      <year iso-8601-date="2021">2021</year>
+      <volume>6</volume>
+      <issue>65</issue>
+      <uri>https://doi.org/10.21105/joss.03349</uri>
+      <pub-id pub-id-type="doi">10.21105/joss.03349</pub-id>
+      <fpage>3349</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-douglas_bates_2023_10268806">
+    <element-citation publication-type="software">
+      <person-group person-group-type="author">
+        <name><surname>Bates</surname><given-names>Douglas</given-names></name>
+        <name><surname>Alday</surname><given-names>Phillip</given-names></name>
+        <name><surname>Kleinschmidt</surname><given-names>Dave</given-names></name>
+        <name><surname>Calderón</surname><given-names>José Bayoán Santiago</given-names></name>
+        <name><surname>Zhan</surname><given-names>Likan</given-names></name>
+        <name><surname>Noack</surname><given-names>Andreas</given-names></name>
+        <name><surname>Bouchet-Valat</surname><given-names>Milan</given-names></name>
+        <name><surname>Arslan</surname><given-names>Alex</given-names></name>
+        <name><surname>Kelman</surname><given-names>Tony</given-names></name>
+        <name><surname>Baldassari</surname><given-names>Antoine</given-names></name>
+        <name><surname>Ehinger</surname><given-names>Benedikt</given-names></name>
+        <name><surname>Karrasch</surname><given-names>Daniel</given-names></name>
+        <name><surname>Saba</surname><given-names>Elliot</given-names></name>
+        <name><surname>Quinn</surname><given-names>Jacob</given-names></name>
+        <name><surname>Hatherly</surname><given-names>Michael</given-names></name>
+        <name><surname>Piibeleht</surname><given-names>Morten</given-names></name>
+        <name><surname>Mogensen</surname><given-names>Patrick Kofod</given-names></name>
+        <name><surname>Babayan</surname><given-names>Simon</given-names></name>
+        <name><surname>Holy</surname><given-names>Tim</given-names></name>
+        <name><surname>Gagnon</surname><given-names>Yakir Luc</given-names></name>
+        <name><surname>Nazarathy</surname><given-names>Yoni</given-names></name>
+      </person-group>
+      <article-title>JuliaStats/MixedModels.jl: v4.22.3</article-title>
+      <publisher-name>Zenodo</publisher-name>
+      <year iso-8601-date="2023-12">2023</year><month>12</month>
+      <uri>https://doi.org/10.5281/zenodo.10268806</uri>
+      <pub-id pub-id-type="doi">10.5281/zenodo.10268806</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-phillip_alday_2024_10669002">
+    <element-citation publication-type="software">
+      <person-group person-group-type="author">
+        <name><surname>Alday</surname><given-names>Phillip</given-names></name>
+        <name><surname>Bates</surname><given-names>Douglas</given-names></name>
+        <name><surname>DeBruine</surname><given-names>Lisa</given-names></name>
+        <name><surname>Ehinger</surname><given-names>Benedikt</given-names></name>
+        <name><surname>Calderón</surname><given-names>José Bayoán Santiago</given-names></name>
+        <name><surname>Schepers</surname><given-names>Judith</given-names></name>
+        <name><surname>Choe</surname><given-names>June</given-names></name>
+        <name><surname>Schwetlick</surname><given-names>Lisa</given-names></name>
+      </person-group>
+      <article-title>RePsychLing/MixedModelsSim.jl: v0.2.9</article-title>
+      <publisher-name>Zenodo</publisher-name>
+      <year iso-8601-date="2024-02">2024</year><month>02</month>
+      <uri>https://doi.org/10.5281/zenodo.10669002</uri>
+      <pub-id pub-id-type="doi">10.5281/zenodo.10669002</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-ronan_arraes_jardim_chagas_2023_10214175">
+    <element-citation publication-type="software">
+      <person-group person-group-type="author">
+        <name><surname>Chagas</surname><given-names>Ronan Arraes Jardim</given-names></name>
+        <name><surname>Baumgold</surname><given-names>Ben</given-names></name>
+        <name><surname>Hertz</surname><given-names>Glen</given-names></name>
+        <name><surname>Ranocha</surname><given-names>Hendrik</given-names></name>
+        <name><surname>Wells</surname><given-names>Mark</given-names></name>
+        <name><surname>Ritchie</surname><given-names>Nicholas</given-names></name>
+        <name><surname>Christensen</surname><given-names>Zachary P</given-names></name>
+        <name><surname>gustaphe</surname></name>
+        <name><surname>pdeffebach</surname></name>
+        <name><surname>Pasquier</surname><given-names>Benoit</given-names></name>
+        <name><surname>Kawczynski</surname><given-names>Charles</given-names></name>
+        <name><surname>Sambrani</surname><given-names>Dhruva</given-names></name>
+        <name><surname>Vanguelov</surname><given-names>Dimitar</given-names></name>
+        <name><surname>Hanson</surname><given-names>Eric</given-names></name>
+        <name><surname>Butterworth</surname><given-names>Ian</given-names></name>
+        <name><surname>Peters</surname><given-names>Jakob</given-names></name>
+        <name><surname>Kraak</surname><given-names>Joris</given-names></name>
+        <name><surname>Storopoli</surname><given-names>Jose</given-names></name>
+        <name><surname>TagBot</surname><given-names>Julia</given-names></name>
+        <name><surname>Amin</surname><given-names>Nick</given-names></name>
+        <name><surname>Christ</surname><given-names>Simon</given-names></name>
+        <name><surname>Lienart</surname><given-names>Thibaut</given-names></name>
+        <name><surname>Christensen</surname><given-names>Thomas</given-names></name>
+        <name><surname>Flatberg</surname><given-names>Truls</given-names></name>
+        <name><surname>Gagnon</surname><given-names>Yakir Luc</given-names></name>
+        <name><surname>Mengali</surname><given-names>Alberto</given-names></name>
+        <name><surname>jariji</surname></name>
+        <name><surname>jondeuce</surname></name>
+        <name><surname>lorenzoh</surname></name>
+      </person-group>
+      <article-title>Ronisbr/PrettyTables.jl: v2.3.1</article-title>
+      <publisher-name>Zenodo</publisher-name>
+      <year iso-8601-date="2023-11">2023</year><month>11</month>
+      <uri>https://doi.org/10.5281/zenodo.10214175</uri>
+      <pub-id pub-id-type="doi">10.5281/zenodo.10214175</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-mikheev_2023_10235220">
+    <element-citation publication-type="software">
+      <person-group person-group-type="author">
+        <name><surname>Mikheev</surname><given-names>Vladimir</given-names></name>
+        <name><surname>Döring</surname><given-names>Sören</given-names></name>
+        <name><surname>Gärtner</surname><given-names>Niklas</given-names></name>
+        <name><surname>Baumgartner</surname><given-names>Daniel</given-names></name>
+        <name><surname>Ehinger</surname><given-names>Benedikt</given-names></name>
+      </person-group>
+      <article-title>UnfoldMakie</article-title>
+      <publisher-name>Zenodo</publisher-name>
+      <year iso-8601-date="2023-11">2023</year><month>11</month>
+      <uri>https://doi.org/10.5281/zenodo.10235220</uri>
+      <pub-id pub-id-type="doi">10.5281/zenodo.10235220</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-Documenter_jl">
+    <element-citation publication-type="software">
+      <person-group person-group-type="author">
+        <name><surname>Hatherly</surname><given-names>Michael</given-names></name>
+        <name><surname>Piibeleht</surname><given-names>Morten</given-names></name>
+        <name><surname>Ekre</surname><given-names>Fredrik</given-names></name>
+        <name><surname>Contributors</surname></name>
+      </person-group>
+      <article-title>Documenter: A documentation generator for Julia</article-title>
+      <uri>https://github.com/JuliaDocs/Documenter.jl</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-GramfortEtAl2013a">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Gramfort</surname><given-names>Alexandre</given-names></name>
+        <name><surname>Luessi</surname><given-names>Martin</given-names></name>
+        <name><surname>Larson</surname><given-names>Eric</given-names></name>
+        <name><surname>Engemann</surname><given-names>Denis A.</given-names></name>
+        <name><surname>Strohmeier</surname><given-names>Daniel</given-names></name>
+        <name><surname>Brodbeck</surname><given-names>Christian</given-names></name>
+        <name><surname>Goj</surname><given-names>Roman</given-names></name>
+        <name><surname>Jas</surname><given-names>Mainak</given-names></name>
+        <name><surname>Brooks</surname><given-names>Teon</given-names></name>
+        <name><surname>Parkkonen</surname><given-names>Lauri</given-names></name>
+        <name><surname>Hämäläinen</surname><given-names>Matti S.</given-names></name>
+      </person-group>
+      <article-title>MEG and EEG data analysis with MNE-Python</article-title>
+      <source>Frontiers in Neuroscience</source>
+      <year iso-8601-date="2013">2013</year>
+      <volume>7</volume>
+      <issue>267</issue>
+      <pub-id pub-id-type="doi">10.3389/fnins.2013.00267</pub-id>
+      <fpage>1</fpage>
+      <lpage>13</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Jas2023">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Jas</surname><given-names>Mainak</given-names></name>
+        <name><surname>Thorpe</surname><given-names>Ryan</given-names></name>
+        <name><surname>Tolley</surname><given-names>Nicholas</given-names></name>
+        <name><surname>Bailey</surname><given-names>Christopher</given-names></name>
+        <name><surname>Brandt</surname><given-names>Steven</given-names></name>
+        <name><surname>Caldwell</surname><given-names>Blake</given-names></name>
+        <name><surname>Cheng</surname><given-names>Huzi</given-names></name>
+        <name><surname>Daniels</surname><given-names>Dylan</given-names></name>
+        <name><surname>Pujol</surname><given-names>Carolina Fernandez</given-names></name>
+        <name><surname>Khalil</surname><given-names>Mostafa</given-names></name>
+        <name><surname>Kanekar</surname><given-names>Samika</given-names></name>
+        <name><surname>Kohl</surname><given-names>Carmen</given-names></name>
+        <name><surname>Kolozsvári</surname><given-names>Orsolya</given-names></name>
+        <name><surname>Lankinen</surname><given-names>Kaisu</given-names></name>
+        <name><surname>Loi</surname><given-names>Kenneth</given-names></name>
+        <name><surname>Neymotin</surname><given-names>Sam</given-names></name>
+        <name><surname>Partani</surname><given-names>Rajat</given-names></name>
+        <name><surname>Pelah</surname><given-names>Mattan</given-names></name>
+        <name><surname>Rockhill</surname><given-names>Alex</given-names></name>
+        <name><surname>Sherif</surname><given-names>Mohamed</given-names></name>
+        <name><surname>Hamalainen</surname><given-names>Matti</given-names></name>
+        <name><surname>Jones</surname><given-names>Stephanie</given-names></name>
+      </person-group>
+      <article-title>HNN-core: A python software for cellular and circuit-level interpretation of human MEG/EEG</article-title>
+      <source>Journal of Open Source Software</source>
+      <publisher-name>The Open Journal</publisher-name>
+      <year iso-8601-date="2023">2023</year>
+      <volume>8</volume>
+      <issue>92</issue>
+      <uri>https://doi.org/10.21105/joss.05848</uri>
+      <pub-id pub-id-type="doi">10.21105/joss.05848</pub-id>
+      <fpage>5848</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-vaziri2023eegg">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Vaziri</surname><given-names>Ava Yektaeian</given-names></name>
+        <name><surname>Makkiabadi</surname><given-names>Bahador</given-names></name>
+        <name><surname>Samadzadehaghdam</surname><given-names>Nasser</given-names></name>
+      </person-group>
+      <article-title>EEGg generating synthetic EEG signals in matlab environment</article-title>
+      <source>Frontiers in Biomedical Technologies</source>
+      <year iso-8601-date="2023">2023</year>
+      <volume>10</volume>
+      <issue>3</issue>
+      <uri>https://fbt.tums.ac.ir/index.php/fbt/article/view/590</uri>
+      <pub-id pub-id-type="doi">10.18502/fbt.v10i3.13165</pub-id>
+      <fpage>370</fpage>
+      <lpage>381</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-herdman2021simmeeg">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Herdman</surname><given-names>Anthony T</given-names></name>
+      </person-group>
+      <article-title>SimMEEG software for simulating event-related MEG and EEG data with underlying functional connectivity</article-title>
+      <source>Journal of neuroscience methods</source>
+      <publisher-name>Elsevier</publisher-name>
+      <year iso-8601-date="2021">2021</year>
+      <volume>350</volume>
+      <issn>0165-0270</issn>
+      <uri>https://www.sciencedirect.com/science/article/pii/S0165027020304404</uri>
+      <pub-id pub-id-type="doi">10.1016/j.jneumeth.2020.109017</pub-id>
+      <fpage>109017</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-anzolin2021seed">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Anzolin</surname><given-names>Alessandra</given-names></name>
+        <name><surname>Toppi</surname><given-names>Jlenia</given-names></name>
+        <name><surname>Petti</surname><given-names>Manuela</given-names></name>
+        <name><surname>Cincotti</surname><given-names>Febo</given-names></name>
+        <name><surname>Astolfi</surname><given-names>Laura</given-names></name>
+      </person-group>
+      <article-title>SEED-g: Simulated EEG data generator for testing connectivity algorithms</article-title>
+      <source>Sensors</source>
+      <publisher-name>MDPI</publisher-name>
+      <year iso-8601-date="2021">2021</year>
+      <volume>21</volume>
+      <issue>11</issue>
+      <issn>1424-8220</issn>
+      <uri>https://www.mdpi.com/1424-8220/21/11/3632</uri>
+      <pub-id pub-id-type="doi">10.3390/s21113632</pub-id>
+      <fpage>3632</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-barzegaran2019eegsourcesim">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Barzegaran</surname><given-names>Elham</given-names></name>
+        <name><surname>Bosse</surname><given-names>Sebastian</given-names></name>
+        <name><surname>Kohler</surname><given-names>Peter J</given-names></name>
+        <name><surname>Norcia</surname><given-names>Anthony M</given-names></name>
+      </person-group>
+      <article-title>EEGSourceSim: A framework for realistic simulation of EEG scalp data using MRI-based forward models and biologically plausible signals and noise</article-title>
+      <source>Journal of neuroscience methods</source>
+      <publisher-name>Elsevier</publisher-name>
+      <year iso-8601-date="2019">2019</year>
+      <volume>328</volume>
+      <issn>0165-0270</issn>
+      <uri>https://www.sciencedirect.com/science/article/pii/S0165027019302341</uri>
+      <pub-id pub-id-type="doi">10.1016/j.jneumeth.2019.108377</pub-id>
+      <fpage>108377</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-tadel2011brainstorm">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Tadel</surname><given-names>François</given-names></name>
+        <name><surname>Baillet</surname><given-names>Sylvain</given-names></name>
+        <name><surname>Mosher</surname><given-names>John C</given-names></name>
+        <name><surname>Pantazis</surname><given-names>Dimitrios</given-names></name>
+        <name><surname>Leahy</surname><given-names>Richard M</given-names></name>
+      </person-group>
+      <article-title>Brainstorm: A user-friendly application for MEG/EEG analysis</article-title>
+      <source>Computational intelligence and neuroscience</source>
+      <publisher-name>Hindawi Limited London, UK, United Kingdom</publisher-name>
+      <year iso-8601-date="2011">2011</year>
+      <volume>2011</volume>
+      <issn>1687-5265</issn>
+      <uri>https://doi.org/10.1155/2011/879716</uri>
+      <pub-id pub-id-type="doi">10.1155/2011/879716</pub-id>
+      <fpage>1</fpage>
+      <lpage>13</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-krol2018sereega">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Krol</surname><given-names>Laurens R</given-names></name>
+        <name><surname>Pawlitzki</surname><given-names>Juliane</given-names></name>
+        <name><surname>Lotte</surname><given-names>Fabien</given-names></name>
+        <name><surname>Gramann</surname><given-names>Klaus</given-names></name>
+        <name><surname>Zander</surname><given-names>Thorsten O</given-names></name>
+      </person-group>
+      <article-title>SEREEGA: Simulating event-related EEG activity</article-title>
+      <source>Journal of neuroscience methods</source>
+      <publisher-name>Elsevier</publisher-name>
+      <year iso-8601-date="2018">2018</year>
+      <volume>309</volume>
+      <issn>0165-0270</issn>
+      <uri>https://www.sciencedirect.com/science/article/pii/S0165027020304404</uri>
+      <pub-id pub-id-type="doi">10.1016/j.jneumeth.2020.109017</pub-id>
+      <fpage>13</fpage>
+      <lpage>24</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-lindgren2018simbci">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Lindgren</surname><given-names>Jussi T</given-names></name>
+        <name><surname>Merlini</surname><given-names>Adrien</given-names></name>
+        <name><surname>Lecuyer</surname><given-names>Anatole</given-names></name>
+        <name><surname>Andriulli</surname><given-names>Francesco P</given-names></name>
+      </person-group>
+      <article-title>simBCI—a framework for studying BCI methods by simulated EEG</article-title>
+      <source>IEEE Transactions on Neural Systems and Rehabilitation Engineering</source>
+      <publisher-name>IEEE</publisher-name>
+      <year iso-8601-date="2018">2018</year>
+      <volume>26</volume>
+      <issue>11</issue>
+      <pub-id pub-id-type="doi">10.1109/TNSRE.2018.2873061</pub-id>
+      <fpage>2096</fpage>
+      <lpage>2105</lpage>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
