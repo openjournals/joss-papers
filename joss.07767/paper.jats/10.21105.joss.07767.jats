@@ -1,0 +1,521 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">7767</article-id>
+<article-id pub-id-type="doi">10.21105/joss.07767</article-id>
+<title-group>
+<article-title>QGDipoles.jl: A Julia package for calculating dipolar
+vortex solutions to the Quasi-Geostrophic equations</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0002-9916-2653</contrib-id>
+<name>
+<surname>Crowe</surname>
+<given-names>Matthew N.</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+<xref ref-type="aff" rid="aff-2"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>School of Mathematics, Statistics and Physics, Newcastle
+University, Newcastle upon Tyne, NE1 7RU, UK</institution>
+</institution-wrap>
+</aff>
+<aff id="aff-2">
+<institution-wrap>
+<institution>Department of Mathematics, University College London,
+London, WC1E 6BT, UK</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2024-11-07">
+<day>7</day>
+<month>11</month>
+<year>2024</year>
+</pub-date>
+<volume>10</volume>
+<issue>108</issue>
+<fpage>7767</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2025</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>Julia</kwd>
+<kwd>rotating fluid dynamics</kwd>
+<kwd>vortex dynamics</kwd>
+<kwd>oceanography</kwd>
+<kwd>quasi-geostrophic flows</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p><monospace>QGDipoles.jl</monospace> is a Julia
+  (<xref alt="Bezanson et al., 2017" rid="ref-Bezanson2017" ref-type="bibr">Bezanson
+  et al., 2017</xref>) package that constructs dipolar vortex solutions
+  to the Quasi-Geostrophic (QG) equations using a semi-analytical
+  method. It contains functions for creating vortex solutions in both
+  multi-layers QG and surface QG systems and is consistent with the grid
+  framework of <monospace>GeophysicalFlows.jl</monospace>
+  (<xref alt="Constantinou, Wagner, Siegelman, et al., 2021" rid="ref-GeophysicalFlows" ref-type="bibr">Constantinou,
+  Wagner, Siegelman, et al., 2021</xref>), allowing solutions to be
+  generated on both CPUs and GPUs.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p>The dynamics of the ocean and atmosphere consist of complicated,
+  multiscale processes that can only be partially described by
+  simplified analytical models. As such, numerical simulations have
+  become an important tool for both the modelling of idealised
+  geophysical systems and the realistic simulation of the coupled
+  ocean-atmosphere system. Large scale processes—which generally occur
+  on spatial scales of <inline-formula><alternatives>
+  <tex-math><![CDATA[>10]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mo>&gt;</mml:mo><mml:mn>10</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>km
+  in the ocean and <inline-formula><alternatives>
+  <tex-math><![CDATA[>100]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mo>&gt;</mml:mo><mml:mn>100</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>km
+  in the atmosphere—are dominated by the Earth’s rotation and exist in a
+  state close to ‘geostrophic balance’; a balance between the Coriolis
+  force and horizontal pressure gradients. Such systems can be well
+  described by the so-called ‘quasi-geostrophic’ equations, in which a
+  vorticity-like quantity, known as ‘potential vorticity’ (PV) is
+  advected around by the flow. The system is closed since the flow-field
+  is related to the PV through ‘PV inversion’, in which a Laplace-like
+  equation is solved to determine a streamfunction. QG systems are
+  commonly used for idealised studies of large-scale ocean dynamics and
+  are also some of the first equation sets studied by students in
+  Geophysical Fluid dynamics courses across the world.</p>
+  <p>QG dynamics break down when studying small-scale flows and in the
+  presence of features that change the leading order force balance, such
+  as coastal boundaries or steep topographic slopes. Therefore,
+  realistic ocean-atmosphere modelling typically uses ‘primitive
+  equation’ models which solve variants of the Boussinesq Navier-Stokes
+  equations. While more realistic, a major difficulty with these models
+  can be setting initial conditions, with many models requiring long
+  spin-up times to reach a state when non-physical transient features
+  have decayed. These transient features arise as a consequence of the
+  initial conditions not satisfying the full governing equations and
+  boundary conditions and typically consist of a fast, wave-like
+  response. Imposing initial conditions that obey QG dynamics can be a
+  particularly effective strategy, as they exist in a ‘balanced’ state
+  and do not generate fast inertial waves during the transient evolution
+  phase.</p>
+  <p>Dipolar vortices are propagating structures which consist of two
+  counter-rotating monopolar vortices moving together via
+  self-advection. Also known as Modons, they are commonly observed
+  coherent structures
+  (<xref alt="Ni et al., 2020" rid="ref-NiZWH20" ref-type="bibr">Ni et
+  al., 2020</xref>) which are observed to be remarkably stable over long
+  time scales
+  (<xref alt="Nycander &amp; Isichenko, 1990" rid="ref-NycanderI90" ref-type="bibr">Nycander
+  &amp; Isichenko, 1990</xref>). In the ocean, dipolar vortices can act
+  to transport water masses over large distances while in atmospheric
+  science they have been used to model nonlinear propagating (solitary)
+  Rossby waves
+  (<xref alt="McWilliams, 1980" rid="ref-mcwilliams_1980" ref-type="bibr">McWilliams,
+  1980</xref>;
+  <xref alt="Rostami &amp; Zeitlin, 2021" rid="ref-rostami_zeitlin_2021" ref-type="bibr">Rostami
+  &amp; Zeitlin, 2021</xref>). Much recent work has focussed on the
+  long-time stability of dipolar vortices
+  (<xref alt="Davies et al., 2023" rid="ref-Davies_et_al" ref-type="bibr">Davies
+  et al., 2023</xref>) and they remain a topic of active research. The
+  essential dynamics of dipolar vortices are well-captured by QG models
+  hence these QG solutions may be used for generating ‘balanced’ initial
+  conditions in realistic models in addition to their use in studies of
+  QG systems.</p>
+  <p><monospace>QGDipoles.jl</monospace> provides a series of functions
+  that allow users to easily generate dipolar vortex solutions to two of
+  the most commonly used QG models; the layered QG system (LQG) and the
+  surface QG (SQG) system. This package is intended both for those
+  studying idealised vortex dynamics in a QG framework, and those
+  looking to initialise a simulation with a steadily propagating,
+  balanced vortex. It is designed to be consistent with the framework of
+  <monospace>GeophysicalFlows.jl</monospace>
+  (<xref alt="Constantinou, Wagner, Siegelman, et al., 2021" rid="ref-GeophysicalFlows" ref-type="bibr">Constantinou,
+  Wagner, Siegelman, et al., 2021</xref>), a Julia package that contains
+  modules for solving various QG systems on CPUs and GPUs. As such,
+  <monospace>QGDipoles.jl</monospace> can generate solution arrays on
+  both CPUs and GPUs using <monospace>CUDA.jl</monospace>, accepts
+  <monospace>grid</monospace> inputs generated using the
+  <monospace>TwoDGrid</monospace> function from
+  <monospace>FourierFlows.jl</monospace>
+  (<xref alt="Constantinou, Wagner, &amp; Palóczy, 2021" rid="ref-FourierFlows" ref-type="bibr">Constantinou,
+  Wagner, &amp; Palóczy, 2021</xref>) and produces outputs which can be
+  directly passed to <monospace>GeophysicalFlows.jl</monospace> inputs.
+  Full documentation exists with examples covering a range of LQG and
+  SQG solutions. This package has been used in a recent study of the
+  stability of 1- and 2-layer dipolar vortices over very long timescales
+  (<xref alt="Crowe &amp; Sutyrin, 2025" rid="ref-CroweSutyrin" ref-type="bibr">Crowe
+  &amp; Sutyrin, 2025</xref>).</p>
+</sec>
+<sec id="state-of-the-field">
+  <title>State of the field</title>
+  <p>While there has been much recent work on solvers for time-dependent
+  geophysical fluid dynamics problems
+  (<xref alt="Constantinou, Wagner, Siegelman, et al., 2021" rid="ref-GeophysicalFlows" ref-type="bibr">Constantinou,
+  Wagner, Siegelman, et al., 2021</xref>;
+  <xref alt="Ramadhan et al., 2020" rid="ref-Oceananigans" ref-type="bibr">Ramadhan
+  et al., 2020</xref>), there are less packages designed for calculating
+  steady-state (i.e. time-independent) solutions to these systems, and
+  none that solve directly for dipolar vortex solutions that the author
+  could find. Some packages which partially address this problem
+  are:</p>
+  <list list-type="bullet">
+    <list-item>
+      <p><monospace>GeophysicalFlows.jl</monospace>
+      (<xref alt="Constantinou, Wagner, Siegelman, et al., 2021" rid="ref-GeophysicalFlows" ref-type="bibr">Constantinou,
+      Wagner, Siegelman, et al., 2021</xref>) (Julia)</p>
+      <p>The Julia QG solver <monospace>GeophysicalFlows.jl</monospace>
+      contains the function <monospace>lambdipole</monospace> within
+      <monospace>src/utils.jl</monospace>. This function calculates the
+      simplest example of a 1-layer QG dipolar vortex using the known
+      analytical solution. However, no functions are available for other
+      vortex solutions where an analytical solution does not necessarily
+      exist.</p>
+    </list-item>
+    <list-item>
+      <p><monospace>Dedalus</monospace>
+      (<xref alt="Burns et al., 2020" rid="ref-Dedalus" ref-type="bibr">Burns
+      et al., 2020</xref>) (Python)</p>
+      <p>The steady system describing dipolar vortices could be solved
+      using a general PDE solver, such as the widely used Dedalus
+      package. However, at present, there are no available scripts for
+      this problem so these would have to be written by the user.</p>
+    </list-item>
+    <list-item>
+      <p><monospace>QGDipoles.m</monospace>
+      (<xref alt="Crowe, 2024" rid="ref-QGDipolesMat" ref-type="bibr">Crowe,
+      2024</xref>) (MATLAB)</p>
+      <p>This MATLAB package was originally included as supplementary
+      material in
+      (<xref alt="Crowe &amp; Johnson, 2024" rid="ref-Crowe_Johnson_2024" ref-type="bibr">Crowe
+      &amp; Johnson, 2024</xref>) and solves for QG dipoles in the LQG
+      system only. This code is a precursor to parts of
+      <monospace>QGDipoles.jl</monospace> but has now been superseded,
+      with <monospace>QGDipoles.jl</monospace> incorporating various
+      improvements and optimisations that allow it to outperform the
+      MATLAB version, particularly when using precompiled Julia
+      functions. Additionally, these MATLAB scripts are not open source
+      and have not been verified to work on open source alternatives
+      (such as Octave).</p>
+    </list-item>
+  </list>
+</sec>
+<sec id="methodology">
+  <title>Methodology</title>
+  <p>This package uses a method originally presented in
+  (<xref alt="Johnson &amp; Crowe, 2023" rid="ref-Johnson_Crowe_23" ref-type="bibr">Johnson
+  &amp; Crowe, 2023</xref>) and later generalised for the SQG case in
+  (<xref alt="Crowe &amp; Johnson, 2023" rid="ref-Crowe_Johnson_23" ref-type="bibr">Crowe
+  &amp; Johnson, 2023</xref>) and the LQG case in
+  (<xref alt="Crowe &amp; Johnson, 2024" rid="ref-Crowe_Johnson_2024" ref-type="bibr">Crowe
+  &amp; Johnson, 2024</xref>). Using a Hankel transform, the steady PDE
+  corresponding to a dipolar vortex in a QG system can be analytically
+  transformed into a multi-parameter, inhomogeneous eigenvalue problem.
+  This resulting linear algebra problem may be solved for a set of
+  coefficients which correspond to an expansion of the solution in a
+  basis of orthogonal polynomials. The error in this solution may be
+  controlled by setting the number of coefficients to solve for and
+  prescribing the maximum error in the numerical evaluation of the
+  matrices and vectors in the problem. Once the coefficients are
+  found—using either eigenvalue or root-finding methods—the vortex
+  solution may be evaluated on a given grid by summing over the set of
+  orthogonal polynomials. Note that this approach is scalable as only
+  the final evaluation step depends on the size of the spatial grid.
+  <xref alt="[fig:fig1]" rid="figU003Afig1">[fig:fig1]</xref> shows the
+  streamfunction for some example dipolar vortex solutions.</p>
+  <fig>
+    <caption><p>Plots of the streamfunction for the Lamb-Chaplygin
+    dipole (left), the Larichev-Reznik dipole (centre) and a mode 2 SQG
+    dipole
+    (right).<styled-content id="figU003Afig1"></styled-content></p></caption>
+    <graphic mimetype="image" mime-subtype="svg+xml" xlink:href="Fig_1.svg" />
+  </fig>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>The author would like to thank Navid C. Constantinou for helpful
+  discussions and feedback and for assistance with setting up the
+  documentation.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <title></title>
+  <ref id="ref-Bezanson2017">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Bezanson</surname><given-names>Jeff</given-names></name>
+        <name><surname>Edelman</surname><given-names>Alan</given-names></name>
+        <name><surname>Karpinski</surname><given-names>Stefan</given-names></name>
+        <name><surname>Shah</surname><given-names>Viral B.</given-names></name>
+      </person-group>
+      <article-title>Julia: A fresh approach to numerical computing</article-title>
+      <source>SIAM Review</source>
+      <year iso-8601-date="2017">2017</year>
+      <volume>59</volume>
+      <issue>1</issue>
+      <pub-id pub-id-type="doi">10.1137/141000671</pub-id>
+      <fpage>65</fpage>
+      <lpage>98</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-FourierFlows">
+    <element-citation publication-type="software">
+      <person-group person-group-type="author">
+        <name><surname>Constantinou</surname><given-names>Navid C.</given-names></name>
+        <name><surname>Wagner</surname><given-names>Gregory LeClaire</given-names></name>
+        <name><surname>Palóczy</surname><given-names>André</given-names></name>
+      </person-group>
+      <article-title>FourierFlows/FourierFlows.jl: v0.6.17</article-title>
+      <publisher-name>Zenodo</publisher-name>
+      <year iso-8601-date="2021">2021</year>
+      <uri>https://doi.org/10.5281/zenodo.4686348</uri>
+      <pub-id pub-id-type="doi">10.5281/zenodo.4686348</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-Oceananigans">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Ramadhan</surname><given-names>Ali</given-names></name>
+        <name><surname>Wagner</surname><given-names>Gregory LeClaire</given-names></name>
+        <name><surname>Hill</surname><given-names>Chris</given-names></name>
+        <name><surname>Campin</surname><given-names>Jean-Michel</given-names></name>
+        <name><surname>Churavy</surname><given-names>Valentin</given-names></name>
+        <name><surname>Besard</surname><given-names>Tim</given-names></name>
+        <name><surname>Souza</surname><given-names>Andre</given-names></name>
+        <name><surname>Edelman</surname><given-names>Alan</given-names></name>
+        <name><surname>Ferrari</surname><given-names>Raffaele</given-names></name>
+        <name><surname>Marshall</surname><given-names>John</given-names></name>
+      </person-group>
+      <article-title>Oceananigans.jl: Fast and friendly geophysical fluid dynamics on GPUs</article-title>
+      <source>Journal of Open Source Software</source>
+      <year iso-8601-date="2020">2020</year>
+      <volume>5</volume>
+      <issue>53</issue>
+      <pub-id pub-id-type="doi">10.21105/joss.02018</pub-id>
+      <fpage>2018</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-GeophysicalFlows">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Constantinou</surname><given-names>Navid C.</given-names></name>
+        <name><surname>Wagner</surname><given-names>Gregory LeClaire</given-names></name>
+        <name><surname>Siegelman</surname><given-names>Lia</given-names></name>
+        <name><surname>Pearson</surname><given-names>Brodie C.</given-names></name>
+        <name><surname>Palóczy</surname><given-names>André</given-names></name>
+      </person-group>
+      <article-title>GeophysicalFlows.jl: Solvers for geophysical fluid dynamics problems in periodic domains on CPUs &amp; GPUs</article-title>
+      <source>Journal of Open Source Software</source>
+      <year iso-8601-date="2021">2021</year>
+      <volume>6</volume>
+      <issue>60</issue>
+      <pub-id pub-id-type="doi">10.21105/joss.03053</pub-id>
+      <fpage>3053</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Crowe_Johnson_23">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Crowe</surname><given-names>Matthew N.</given-names></name>
+        <name><surname>Johnson</surname><given-names>Edward R.</given-names></name>
+      </person-group>
+      <article-title>The evolution of surface quasi-geostrophic modons on sloping topography</article-title>
+      <source>Journal of Fluid Mechanics</source>
+      <year iso-8601-date="2023">2023</year>
+      <volume>970</volume>
+      <pub-id pub-id-type="doi">10.1017/jfm.2023.607</pub-id>
+      <fpage>A10</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Crowe_Johnson_2024">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Crowe</surname><given-names>Matthew N.</given-names></name>
+        <name><surname>Johnson</surname><given-names>Edward R.</given-names></name>
+      </person-group>
+      <article-title>Modon solutions in an N-layer quasi-geostrophic model</article-title>
+      <source>Journal of Fluid Mechanics</source>
+      <year iso-8601-date="2024">2024</year>
+      <volume>994</volume>
+      <pub-id pub-id-type="doi">10.1017/jfm.2024.619</pub-id>
+      <fpage>R1</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Johnson_Crowe_23">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Johnson</surname><given-names>Edward R.</given-names></name>
+        <name><surname>Crowe</surname><given-names>Matthew N.</given-names></name>
+      </person-group>
+      <article-title>Oceanic dipoles in a surface quasi-geostrophic model</article-title>
+      <source>Journal of Fluid Mechanics</source>
+      <year iso-8601-date="2023">2023</year>
+      <volume>958</volume>
+      <pub-id pub-id-type="doi">10.1017/jfm.2023.87</pub-id>
+      <fpage>R2</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-NiZWH20">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Ni</surname><given-names>Q.</given-names></name>
+        <name><surname>Zhai</surname><given-names>X.</given-names></name>
+        <name><surname>Wang</surname><given-names>G.</given-names></name>
+        <name><surname>Hughes</surname><given-names>C. W.</given-names></name>
+      </person-group>
+      <article-title>Widespread mesoscale dipoles in the global ocean</article-title>
+      <source>Journal of Geophysical Research: Oceans</source>
+      <year iso-8601-date="2020">2020</year>
+      <volume>125</volume>
+      <pub-id pub-id-type="doi">10.1029/2020jc016479</pub-id>
+      <fpage>e2020JC016479</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-NycanderI90">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Nycander</surname><given-names>J.</given-names></name>
+        <name><surname>Isichenko</surname><given-names>M. B.</given-names></name>
+      </person-group>
+      <article-title>Motion of dipole vortices in a weakly inhomogeneous medium and related convective transport</article-title>
+      <source>Physics of Fluids</source>
+      <year iso-8601-date="1990">1990</year>
+      <volume>2</volume>
+      <pub-id pub-id-type="doi">10.1063/1.859425</pub-id>
+      <fpage>2042</fpage>
+      <lpage>2047</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Davies_et_al">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Davies</surname><given-names>Jack</given-names></name>
+        <name><surname>Sutyrin</surname><given-names>Georgi G.</given-names></name>
+        <name><surname>Crowe</surname><given-names>Matthew N.</given-names></name>
+        <name><surname>Berloff</surname><given-names>Pavel S.</given-names></name>
+      </person-group>
+      <article-title>Deformation and destruction of north-eastward drifting dipoles</article-title>
+      <source>Physics of Fluids</source>
+      <year iso-8601-date="2023">2023</year>
+      <volume>35</volume>
+      <issue>11</issue>
+      <pub-id pub-id-type="doi">10.1063/5.0171909</pub-id>
+      <fpage>116601</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-mcwilliams_1980">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>McWilliams</surname><given-names>J. C.</given-names></name>
+      </person-group>
+      <article-title>An application of equivalent modons to atmospheric blocking</article-title>
+      <source>Dynamics of Atmospheres and Oceans</source>
+      <year iso-8601-date="1980">1980</year>
+      <volume>5</volume>
+      <pub-id pub-id-type="doi">10.1016/0377-0265(80)90010-x</pub-id>
+      <fpage>43</fpage>
+      <lpage>66</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-rostami_zeitlin_2021">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Rostami</surname><given-names>M.</given-names></name>
+        <name><surname>Zeitlin</surname><given-names>V.</given-names></name>
+      </person-group>
+      <article-title>Eastward-moving equatorial modons in moist-convective shallow-water models</article-title>
+      <source>Geophysical and Astrophysical Fluid Dynamics</source>
+      <year iso-8601-date="2021">2021</year>
+      <volume>115</volume>
+      <issue>3</issue>
+      <pub-id pub-id-type="doi">10.1080/03091929.2020.1805448</pub-id>
+      <fpage>345</fpage>
+      <lpage>367</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Dedalus">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Burns</surname><given-names>K. J.</given-names></name>
+        <name><surname>Vasil</surname><given-names>G. M.</given-names></name>
+        <name><surname>Oishi</surname><given-names>J. S.</given-names></name>
+        <name><surname>Lecoanet</surname><given-names>D.</given-names></name>
+        <name><surname>Brown</surname><given-names>B. P.</given-names></name>
+      </person-group>
+      <article-title>Dedalus: A flexible framework for numerical simulations with spectral methods</article-title>
+      <source>Physical Review Research</source>
+      <publisher-name>American Physical Society</publisher-name>
+      <year iso-8601-date="2020">2020</year>
+      <volume>2</volume>
+      <pub-id pub-id-type="doi">10.1103/PhysRevResearch.2.023068</pub-id>
+      <fpage>023068</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-QGDipolesMat">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Crowe</surname><given-names>Matthew N.</given-names></name>
+      </person-group>
+      <article-title>QGDipoles.m</article-title>
+      <source>GitHub repository</source>
+      <publisher-name>GitHub</publisher-name>
+      <year iso-8601-date="2024">2024</year>
+      <uri>https://github.com/mncrowe/QGDipoles.m</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-CroweSutyrin">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Crowe</surname><given-names>Matthew N.</given-names></name>
+        <name><surname>Sutyrin</surname><given-names>Georgi G.</given-names></name>
+      </person-group>
+      <article-title>Symmetry breaking and nonlinear transformation of two-layer eastward propagating dipoles</article-title>
+      <source>Physics of Fluids</source>
+      <year iso-8601-date="2025">2025</year>
+      <volume>37</volume>
+      <issue>2</issue>
+      <pub-id pub-id-type="doi">10.1063/5.0251761</pub-id>
+      <fpage>021708</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
