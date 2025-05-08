@@ -1,0 +1,620 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">7740</article-id>
+<article-id pub-id-type="doi">10.21105/joss.07740</article-id>
+<title-group>
+<article-title>gpu-ISTL - Extending OPM Flow with GPU Linear
+Solvers</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0001-6914-1010</contrib-id>
+<name>
+<surname>Lye</surname>
+<given-names>Kjetil Olsen</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0009-0000-8913-3034</contrib-id>
+<name>
+<surname>Andersen</surname>
+<given-names>Tobias Meyer</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0002-7932-3835</contrib-id>
+<string-name>Atgeirr Flø Rasmussen</string-name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0009-0002-9036-3739</contrib-id>
+<name>
+<surname>Torben</surname>
+<given-names>Jakob</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Mathematics and Cybernetics, SINTEF Digital, Oslo,
+Norway</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2024-10-18">
+<day>18</day>
+<month>10</month>
+<year>2024</year>
+</pub-date>
+<volume>10</volume>
+<issue>109</issue>
+<fpage>7740</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2025</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>Reservoir Simulation</kwd>
+<kwd>OPM</kwd>
+<kwd>GPU Computing</kwd>
+<kwd>High Performance Computing</kwd>
+<kwd>Linear Solvers</kwd>
+<kwd>CUDA</kwd>
+<kwd>HIP</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p>The <monospace>gpu-ISTL</monospace> framework provides
+  <monospace>Dune-ISTL</monospace> compatible sparse linear operations
+  on the GPU for the OPM Flow simulator
+  (<xref alt="Rasmussen et al., 2021" rid="ref-OPMFLOW" ref-type="bibr">Rasmussen
+  et al., 2021</xref>). OPM Flow is an open-source fully implicit
+  simulator for subsurface reservoir simulation of industrial
+  complexity, where efficient linear solvers are critical for
+  computational performance. It is written in C++ and relies on the
+  Distributed and Unified Numerics Environment (Dune)
+  (<xref alt="Bastian et al., 2021" rid="ref-BASTIAN202175" ref-type="bibr">Bastian
+  et al., 2021</xref>) for several numerical algorithms. In particular,
+  templated linear-solver algorithms provided by the Dune Iterative
+  Solver Template Library (<monospace>Dune-ISTL</monospace>)
+  (<xref alt="Blatt &amp; Bastian, 2007" rid="ref-dune-istl" ref-type="bibr">Blatt
+  &amp; Bastian, 2007</xref>) are essential in the simulator. To
+  GPU-accelerate the simulator with minimal effort,
+  <monospace>gpu-ISTL</monospace> provides classes that can instantiate
+  <monospace>Dune-ISTL</monospace> algorithms with types that
+  automatically runs the algorithms provided on the GPU. Both AMD and
+  Nvidia GPUs are supported in the same source code by utilizing
+  hipify-perl
+  (<xref alt="Advanced Micro Devices, Inc., 2024b" rid="ref-hipify" ref-type="bibr">Advanced
+  Micro Devices, Inc., 2024b</xref>) to generate HIP code
+  (<xref alt="Advanced Micro Devices, Inc., 2024a" rid="ref-HIP" ref-type="bibr">Advanced
+  Micro Devices, Inc., 2024a</xref>) from the existing CUDA code
+  (<xref alt="NVIDIA et al., 2023" rid="ref-cuda" ref-type="bibr">NVIDIA
+  et al., 2023</xref>) when compiling OPM Flow.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of Need</title>
+  <p>Simulating multiphase and multicomponent fluid behavior within
+  complex geological formations is crucial for modern geoenergy
+  operations. The repeated solution of large, sparse systems of linear
+  equations is typically the most computationally expensive part of
+  these simulations. Therefore, it is essential for a reservoir
+  simulator like OPM Flow, which is used both commercially and for
+  research, to have flexible linear algebra libraries that optimally
+  utilize contemporary computer hardware. To fill this need, we
+  introduce <monospace>gpu-ISTL</monospace>, a generic
+  <monospace>Dune-ISTL</monospace> compatible GPU-accelerated linear
+  solver library and employ it within OPM Flow.</p>
+  <p>A current and prominent trend in computer architecture is hardware
+  specialization
+  (<xref alt="Hennessy &amp; Patterson, 2017" rid="ref-computer_arch_hennessy_patterson" ref-type="bibr">Hennessy
+  &amp; Patterson, 2017</xref>), where modern computational units are
+  increasingly tailored to specific workloads. Having to write tailored
+  implementations of each numerical method for every possible hardware
+  provider is generally undesirable, especially in a large codebase like
+  OPM Flow, which exceeds half a million lines of code. The
+  <monospace>gpu-ISTL</monospace> library leverages the parallel
+  computational resources of GPUs to meet industry performance demands.
+  It also facilitates further research into the development of efficient
+  GPU-accelerated linear solvers, without requiring intrusive and
+  substantial changes to the OPM Flow codebase.</p>
+  <p>Our new library enhances research in numerical methods for
+  reservoir simulation by leveraging OPM Flow’s extensive infrastructure
+  for complex reservoirs. It enables investigations into GPU-based
+  linear solvers, preconditioners, autotuning and mixed-precision
+  computations, see for instance
+  (<xref alt="Andersen et al., 2025" rid="ref-andersen_ilu_dilu_rsc" ref-type="bibr">Andersen
+  et al., 2025</xref>). By integrating <monospace>gpu-ISTL</monospace>
+  into the OPM Flow linear solver subsystem, development remains
+  synchronized with the simulator’s rapidly evolving codebase, ensuring
+  compatibility and continuity in development efforts.</p>
+  <p>Several standalone libraries GPU-accelerate linear algebra
+  operations. Some also support at least both Nvidia and AMD cards, as
+  well as the iterative solvers required by OPM Flow. Examples of
+  open-source libraries fulfilling all these criteria are
+  <monospace>ViennaCL</monospace>
+  (<xref alt="Rupp et al., 2016" rid="ref-ViennaCL" ref-type="bibr">Rupp
+  et al., 2016</xref>) and <monospace>PETSc</monospace>
+  (<xref alt="Mills et al., 2021" rid="ref-mills2021" ref-type="bibr">Mills
+  et al., 2021</xref>), though those are not
+  <monospace>Dune-ISTL</monospace> compatible. The Bandicoot library
+  (<xref alt="Curtin et al., 2023" rid="ref-curtin_bandicoot_2023" ref-type="bibr">Curtin
+  et al., 2023</xref>), an extension to the Armadillo
+  (<xref alt="Sanderson &amp; Curtin, 2019" rid="ref-armadillo" ref-type="bibr">Sanderson
+  &amp; Curtin, 2019</xref>) library, is another worthy mention of a GPU
+  library that effectively computes linear algebra operations, although
+  it does not feature the iterative solvers that are vital to OPM.</p>
+</sec>
+<sec id="the-gpu-istl-components">
+  <title>The <monospace>gpu-ISTL</monospace> Components</title>
+  <p>The <monospace>gpu-ISTL</monospace> library encompasses numerical
+  algorithms, Dune adapters, and essential linear algebra components
+  such as <monospace>GpuVector</monospace> and
+  <monospace>GpuSparseMatrix</monospace> that leverage optimized
+  libraries from Nvidia and AMD for efficient mathematical operations.
+  Preconditioners such as Jacobi, ILU(0), and DILU are implemented with
+  custom GPU kernels to enhance the performance of the bi-conjugate
+  gradient stabilized (BiCGSTAB) method within
+  <monospace>gpu-ISTL</monospace>. Adapter classes like
+  <monospace>SolverAdapter</monospace> and
+  <monospace>PreconditionerAdapter</monospace> allow mixing GPU and CPU
+  solvers or preconditioners for ease of development, testing and
+  validation. Moreover, <monospace>GpuOwnerOverlapCopy</monospace>
+  extends the MPI functionality in Dune to support multi-GPU
+  simulations, including CUDA-aware MPI for Nvidia cards to accelerate
+  inter-process memory transfers. The library also provides capabilities
+  for autotuning thread-block sizes in user-implemented GPU kernels.
+  Figure 1 contains a simplified class diagram with of some of the
+  components that constitute <monospace>gpu-ISTL</monospace>.</p>
+  <fig>
+    <caption><p>Class diagram showing a simplified view of how
+    <monospace>gpu-ISTL</monospace> is implemented. The colored
+    backgrounds indicate which namespace the classes belong to. Colors
+    on individual classes correspond to what conceptual part of the
+    simulator they are a part of. White represents linear solvers, red
+    represents the classes enabling multiprocess simulations, orange
+    represents the implementation linear solver preconditioners, and
+    green represents general linear algebra functionality.</p></caption>
+    <graphic mimetype="image" mime-subtype="png" xlink:href="mpiparallel_gpuistl.png" />
+  </fig>
+  <p>Furthermore, Figure 2 provides a sequence diagram for the call
+  stack of a single linear solve in OPM Flow using the gpu-ISTL
+  framework. We note that the sequence diagram is for the MPI free
+  version. In Figure 2 we denote the (indirect) calls to specific GPU
+  kernels as an arrow from the corresponding
+  <monospace>gpu-ISTL</monospace> classes to the right-hand red box
+  representing the GPU.</p>
+  <fig>
+    <caption><p>A sequence diagram for a single linear solver in OPM
+    Flow using the <monospace>gpu-ISTL</monospace> framework. For
+    readability, components from OPM are marked in green, components
+    from DUNE in yellow and components from
+    <monospace>gpu-ISTL</monospace> are marked in red. The classes
+    GpuVector, GpuSparseMatrix and GpuILU0 of
+    <monospace>gpu-ISTL</monospace> will (through some indirection) call
+    GPU kernels, which is visualized as a big red block on the
+    right-hand side of the diagram.</p></caption>
+    <graphic mimetype="image" mime-subtype="png" xlink:href="timeloopgpuistlproper.png" />
+  </fig>
+  <p>OPM Flow’s build system utilizes hipify-perl
+  (<xref alt="Advanced Micro Devices, Inc., 2024b" rid="ref-hipify" ref-type="bibr">Advanced
+  Micro Devices, Inc., 2024b</xref>), which translates CUDA
+  (<xref alt="NVIDIA et al., 2023" rid="ref-cuda" ref-type="bibr">NVIDIA
+  et al., 2023</xref>) code to HIP
+  (<xref alt="Advanced Micro Devices, Inc., 2024a" rid="ref-HIP" ref-type="bibr">Advanced
+  Micro Devices, Inc., 2024a</xref>) code if one wants to compile for
+  AMD GPUs. Incorporating the translation in the build system ensures
+  that the hardware of the two largest GPU vendors are supported without
+  incurring any extra overhead for the developers of the CUDA code in
+  the repository.</p>
+</sec>
+<sec id="performance-case-study-of-co_2-storage-simulation">
+  <title>Performance Case Study of <inline-formula><alternatives>
+  <tex-math><![CDATA[CO_2]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>C</mml:mi><mml:msub><mml:mi>O</mml:mi><mml:mn>2</mml:mn></mml:msub></mml:mrow></mml:math></alternatives></inline-formula>
+  Storage Simulation</title>
+  <p>To demonstrate the effectiveness of
+  <monospace>gpu-ISTL</monospace>, we conduct a scaling study on
+  geological carbon storage cases derived from the 11th Society of
+  Petroleum Engineers (SPE) Comparative Solutions Project (CSP)
+  (<xref alt="Nordbotten et al., 2024" rid="ref-Nordbotten2024" ref-type="bibr">Nordbotten
+  et al., 2024</xref>). Specifically, we simulate Case C from the SPE11
+  CSP using Pyopmspe11
+  (<xref alt="Landa-Marbán &amp; Sandve, 2025" rid="ref-pyopmspe11" ref-type="bibr">Landa-Marbán
+  &amp; Sandve, 2025</xref>) with successively finer
+  discretizations.</p>
+  <p>We simulate using the ILU0 preconditioned BiCGSTAB as the linear
+  solver on three different hardware configurations, tracking the time
+  spent in the linear solver normalized by the number of linear
+  iterations. Specifically, we utilize 16 cores of an AMD 7950X CPU for
+  the first run, an AMD Radeon RX 7900XTX GPU for the second run, and an
+  Nvidia RTX 4070Ti GPU for the third run. Figure 3 shows the speedup of
+  the GPU compared to the normalized CPU performance. The results
+  demonstrate that GPU runtimes scale better than CPU runtimes as
+  problem sizes increase. This highlights the performance benefits of
+  using the advanced linear solvers with preconditioners implemented in
+  <monospace>gpu-ISTL</monospace>. Furthermore, it underscores how
+  <monospace>gpu-ISTL</monospace> and OPM Flow can serve as a robust
+  platform for exploring and testing novel preconditioners within an
+  industry-relevant environment, offering rapid evaluation on both
+  synthetic and real-life cases.</p>
+  <fig>
+    <caption><p>Speedup of the mean time per linear iteration across a
+    2000-year simulation case derived from Case C of the 11th SPE
+    Comparative Solution Project compared to the CPU implementation. A
+    speedup of 5.6 and 4.8 is achieved on the largest case for the RTX
+    4070Ti and Radeon RX 7900XTX respectively.</p></caption>
+    <graphic mimetype="image" mime-subtype="svg+xml" xlink:href="lin_its_small.svg" />
+  </fig>
+</sec>
+<sec id="case-study-configuration">
+  <title>Case Study Configuration</title>
+  <p>The cases generated by Pyopmspe11 can be found in
+  (<xref alt="Lye et al., 2025" rid="ref-spe11c_dataset" ref-type="bibr">Lye
+  et al., 2025</xref>), in the ZIP-file “SPE11C_LONG.zip”. The file
+  names include the sidelength of the domain in terms of cells to
+  distinguish between the cases. The total number of cells in the domain
+  is then the cube of that number, although Pyopmspe11 will add some
+  extra cells as padding on the domain.</p>
+  <p>To run OPM Flow simulations for the case study on CPU, we use the
+  following command to run OPM Flow with 16 processes in parallel, where
+  we specify that the linear solver is described in a JSON file called
+  “cpu_ilu0.json”. The “&lt;S&gt;” represents the sidelength in the file
+  path and name.</p>
+  <code language="bash">    mpirun -n 16 flow \
+        /path/to/SPE11C_LONG/SPE11C&lt;S&gt;CUBE_LONG/deck/SPE11C&lt;S&gt;CUBE_LONG.DATA \
+        --output-dir=/path/to/output \
+        --linear-solver=/path/to/cpu_ilu0.json \
+        --threads-per-process=1 \
+        --newton-min-iterations=1 \
+        --matrix-add-well-contributions=true</code>
+  <p>To recreate the CPU runs, use the following “cpu_ilu0.json”.</p>
+  <code language="json">{
+    &quot;tol&quot;: &quot;0.01&quot;,
+    &quot;maxiter&quot;: &quot;200&quot;,
+    &quot;verbosity&quot;: &quot;0&quot;,
+    &quot;solver&quot;: &quot;bicgstab&quot;,
+    &quot;preconditioner&quot;: {
+        &quot;type&quot;: &quot;ILU0&quot;,
+        &quot;ilulevel&quot;: &quot;0&quot;
+    }
+}</code>
+  <p>We use the command below to run the GPU simulations, where we only
+  use one process, because we run it on a single GPU. To save simulation
+  time we use 16 threads in parallel, which does not affect the timing
+  for the linear solver which exists entirely on the GPU. The
+  “&lt;S&gt;” represents the sidelength in the file path and name.</p>
+  <code language="bash">    mpirun -n 1 flow \
+        /path/to/SPE11C_LONG/SPE11C&lt;S&gt;CUBE_LONG/deck/SPE11C&lt;S&gt;CUBE_LONG.DATA \
+        --output-dir=/path/to/output \
+        --linear-solver=/path/to/gpu_ilu0.json \
+        --threads-per-process=16 \
+        --newton-min-iterations=1 \
+        --matrix-add-well-contributions=true</code>
+  <p>The “gpu_ilu0.json” file enables the use of
+  <monospace>gpu-ISTL</monospace> by specifying that we want to use the
+  <monospace>gpubicgstab</monospace> linear solver, and the
+  <monospace>OPMGPUILU0</monospace> preconditioner.</p>
+  <code language="json">{
+    &quot;tol&quot;: &quot;0.01&quot;,
+    &quot;maxiter&quot;: &quot;200&quot;,
+    &quot;verbosity&quot;: &quot;0&quot;,
+    &quot;solver&quot;: &quot;gpubicgstab&quot;,
+    &quot;preconditioner&quot;: {
+        &quot;type&quot;: &quot;OPMGPUILU0&quot;,
+        &quot;ilulevel&quot;: &quot;0&quot;
+    }
+}</code>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>Development of <monospace>gpu-ISTL</monospace> in OPM Flow from
+  2021 to 2024 was part of the EU project <italic>HPC, Big Data, and
+  Artificial Intelligence convergent platform</italic> (ACROSS).
+  Development in 2024 has been financed by Equinor.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <title></title>
+  <ref id="ref-ViennaCL">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Rupp</surname><given-names>Karl</given-names></name>
+        <name><surname>Tillet</surname><given-names>Philippe</given-names></name>
+        <name><surname>Rudolf</surname><given-names>Florian</given-names></name>
+        <name><surname>Weinbub</surname><given-names>Josef</given-names></name>
+        <name><surname>Morhammer</surname><given-names>Andreas</given-names></name>
+        <name><surname>Grasser</surname><given-names>Tibor</given-names></name>
+        <name><surname>Jüngel</surname><given-names>Ansgar</given-names></name>
+        <name><surname>Selberherr</surname><given-names>Siegfried</given-names></name>
+      </person-group>
+      <article-title>ViennaCL—linear algebra library for multi- and many-core architectures</article-title>
+      <source>SIAM Journal on Scientific Computing</source>
+      <year iso-8601-date="2016">2016</year>
+      <volume>38</volume>
+      <issue>5</issue>
+      <uri> 
+              https://doi.org/10.1137/15M1026419
+      </uri>
+      <pub-id pub-id-type="doi">10.1137/15M1026419</pub-id>
+      <fpage>S412</fpage>
+      <lpage>S439</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-mills2021">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Mills</surname><given-names>Richard Tran</given-names></name>
+        <name><surname>Adams</surname><given-names>Mark F.</given-names></name>
+        <name><surname>Balay</surname><given-names>Satish</given-names></name>
+        <name><surname>Brown</surname><given-names>Jed</given-names></name>
+        <name><surname>Dener</surname><given-names>Alp</given-names></name>
+      </person-group>
+      <article-title>Toward performance-portable PETSc for GPU-based exascale systems</article-title>
+      <source>Parallel Computing</source>
+      <year iso-8601-date="2021">2021</year>
+      <volume>108</volume>
+      <issn>0167-8191</issn>
+      <uri>https://www.sciencedirect.com/science/article/pii/S016781912100079X</uri>
+      <pub-id pub-id-type="doi">10.1016/j.parco.2021.102831</pub-id>
+      <fpage>102831</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-OPMFLOW">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Rasmussen</surname><given-names>Atgeirr Flø</given-names></name>
+        <name><surname>Sandve</surname><given-names>Tor Harald</given-names></name>
+        <name><surname>Bao</surname><given-names>Kai</given-names></name>
+        <name><surname>Lauser</surname><given-names>Andreas</given-names></name>
+        <name><surname>Hove</surname><given-names>Joakim</given-names></name>
+        <name><surname>Skaflestad</surname><given-names>Bård</given-names></name>
+        <name><surname>Klöfkorn</surname><given-names>Robert</given-names></name>
+        <name><surname>Blatt</surname><given-names>Markus</given-names></name>
+        <name><surname>Rustad</surname><given-names>Alf Birger</given-names></name>
+        <name><surname>Sævareid</surname><given-names>Ove</given-names></name>
+        <name><surname>Lie</surname><given-names>Knut-Andreas</given-names></name>
+        <name><surname>Thune</surname><given-names>Andreas</given-names></name>
+      </person-group>
+      <article-title>The Open Porous Media Flow reservoir simulator</article-title>
+      <source>Computers &amp; Mathematics with Applications</source>
+      <year iso-8601-date="2021">2021</year>
+      <volume>81</volume>
+      <issn>0898-1221</issn>
+      <uri>https://www.sciencedirect.com/science/article/pii/S0898122120302182</uri>
+      <pub-id pub-id-type="doi">10.1016/j.camwa.2020.05.014</pub-id>
+      <fpage>159</fpage>
+      <lpage>185</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-BASTIAN202175">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Bastian</surname><given-names>Peter</given-names></name>
+        <name><surname>Blatt</surname><given-names>Markus</given-names></name>
+        <name><surname>Dedner</surname><given-names>Andreas</given-names></name>
+        <name><surname>Dreier</surname><given-names>Nils-Arne</given-names></name>
+        <name><surname>Engwer</surname><given-names>Christian</given-names></name>
+        <name><surname>Fritze</surname><given-names>René</given-names></name>
+        <name><surname>Gräser</surname><given-names>Carsten</given-names></name>
+        <name><surname>Grüninger</surname><given-names>Christoph</given-names></name>
+        <name><surname>Kempf</surname><given-names>Dominic</given-names></name>
+        <name><surname>Klöfkorn</surname><given-names>Robert</given-names></name>
+        <name><surname>Ohlberger</surname><given-names>Mario</given-names></name>
+        <name><surname>Sander</surname><given-names>Oliver</given-names></name>
+      </person-group>
+      <article-title>The Dune framework: Basic concepts and recent developments</article-title>
+      <source>Computers &amp; Mathematics with Applications</source>
+      <year iso-8601-date="2021">2021</year>
+      <volume>81</volume>
+      <issn>0898-1221</issn>
+      <uri>https://www.sciencedirect.com/science/article/pii/S089812212030256X</uri>
+      <pub-id pub-id-type="doi">10.1016/j.camwa.2020.06.007</pub-id>
+      <fpage>75</fpage>
+      <lpage>112</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-computer_arch_hennessy_patterson">
+    <element-citation publication-type="chapter">
+      <person-group person-group-type="author">
+        <name><surname>Hennessy</surname><given-names>John L.</given-names></name>
+        <name><surname>Patterson</surname><given-names>David A.</given-names></name>
+      </person-group>
+      <article-title>Computer architecture, sixth edition: A quantitative approach</article-title>
+      <publisher-name>Morgan Kaufmann Publishers Inc.</publisher-name>
+      <publisher-loc>San Francisco, CA, USA</publisher-loc>
+      <year iso-8601-date="2017">2017</year>
+      <edition>6th</edition>
+      <isbn>0128119055</isbn>
+      <fpage>5</fpage>
+      <lpage>6</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-pyopmspe11">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Landa-Marbán</surname><given-names>David</given-names></name>
+        <name><surname>Sandve</surname><given-names>Tor H.</given-names></name>
+      </person-group>
+      <article-title>pyopmspe11: A Python framework using OPM Flow for the SPE11 benchmark project</article-title>
+      <source>Journal of Open Source Software</source>
+      <publisher-name>The Open Journal</publisher-name>
+      <year iso-8601-date="2025">2025</year>
+      <uri>https://doi.org/10.21105/joss.07357</uri>
+      <pub-id pub-id-type="doi">10.21105/joss.07357</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-Nordbotten2024">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Nordbotten</surname><given-names>Jan M.</given-names></name>
+        <name><surname>Ferno</surname><given-names>Martin A.</given-names></name>
+        <name><surname>Flemisch</surname><given-names>Bernd</given-names></name>
+        <name><surname>Kovscek</surname><given-names>Anthony R.</given-names></name>
+        <name><surname>Lie</surname><given-names>Knut-Andreas</given-names></name>
+      </person-group>
+      <article-title>The 11th society of petroleum engineers comparative solution project: Problem definition</article-title>
+      <source>SPE Journal</source>
+      <publisher-name>Society of Petroleum Engineers (SPE)</publisher-name>
+      <year iso-8601-date="2024-01">2024</year><month>01</month>
+      <volume>29</volume>
+      <issue>05</issue>
+      <issn>1930-0220</issn>
+      <uri>http://dx.doi.org/10.2118/218015-PA</uri>
+      <pub-id pub-id-type="doi">10.2118/218015-pa</pub-id>
+      <fpage>2507</fpage>
+      <lpage>2524</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-dune-istl">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Blatt</surname><given-names>M.</given-names></name>
+        <name><surname>Bastian</surname><given-names>P.</given-names></name>
+      </person-group>
+      <article-title>The iterative solver template library</article-title>
+      <source>Applied parallel computing – state of the art in scientific computing</source>
+      <person-group person-group-type="editor">
+        <name><surname>Kagström</surname><given-names>B.</given-names></name>
+        <name><surname>Elmroth</surname><given-names>E.</given-names></name>
+        <name><surname>Dongarra</surname><given-names>J.</given-names></name>
+        <name><surname>Wasniewski</surname><given-names>J.</given-names></name>
+      </person-group>
+      <publisher-name>Springer</publisher-name>
+      <publisher-loc>Berlin/Heidelberg</publisher-loc>
+      <year iso-8601-date="2007">2007</year>
+      <pub-id pub-id-type="doi">10.1007/978-3-540-75755-9_82</pub-id>
+      <fpage>666</fpage>
+      <lpage>675</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-cuda">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>NVIDIA</surname></name>
+        <name><surname>Vingelmann</surname><given-names>Péter</given-names></name>
+        <name><surname>Fitzek</surname><given-names>Frank H. P.</given-names></name>
+      </person-group>
+      <article-title>CUDA, release: 12.2.r12.2</article-title>
+      <year iso-8601-date="2023">2023</year>
+      <uri>https://developer.nvidia.com/cuda-toolkit</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-hipify">
+    <element-citation>
+      <person-group person-group-type="author">
+        <string-name>Advanced Micro Devices, Inc.</string-name>
+      </person-group>
+      <article-title>Hipify-perl</article-title>
+      <year iso-8601-date="2024">2024</year>
+      <uri>https://rocmdocs.amd.com/projects/HIPIFY/en/latest/hipify-perl.html#hipify-perl</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-HIP">
+    <element-citation>
+      <person-group person-group-type="author">
+        <string-name>Advanced Micro Devices, Inc.</string-name>
+      </person-group>
+      <article-title>Heterogeneous-computing interface for portability</article-title>
+      <year iso-8601-date="2024">2024</year>
+      <uri>https://rocm.docs.amd.com/projects/HIP/en/latest/</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-armadillo">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Sanderson</surname><given-names>Conrad</given-names></name>
+        <name><surname>Curtin</surname><given-names>Ryan</given-names></name>
+      </person-group>
+      <article-title>Practical sparse matrices in c++ with hybrid storage and template-based expression optimisation</article-title>
+      <source>Mathematical and Computational Applications</source>
+      <publisher-name>MDPI AG</publisher-name>
+      <year iso-8601-date="2019-07">2019</year><month>07</month>
+      <volume>24</volume>
+      <issue>3</issue>
+      <issn>2297-8747</issn>
+      <uri>http://dx.doi.org/10.3390/mca24030070</uri>
+      <pub-id pub-id-type="doi">10.3390/mca24030070</pub-id>
+      <fpage>70</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-curtin_bandicoot_2023">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Curtin</surname><given-names>Ryan R.</given-names></name>
+        <name><surname>Edel</surname><given-names>Marcus</given-names></name>
+        <name><surname>Sanderson</surname><given-names>Conrad</given-names></name>
+      </person-group>
+      <article-title>Bandicoot: C++ Library for GPU Linear Algebra and Scientific Computing</article-title>
+      <source>arXiv:2308.03120v1</source>
+      <year iso-8601-date="2023-08">2023</year><month>08</month>
+      <uri>http://arxiv.org/abs/2308.03120v1</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-andersen_ilu_dilu_rsc">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Andersen</surname><given-names>T. M.</given-names></name>
+        <name><surname>Torben</surname><given-names>J.</given-names></name>
+        <name><surname>Lye</surname><given-names>K. O.</given-names></name>
+        <name><surname>Rasmussen</surname><given-names>A. F.</given-names></name>
+        <name><surname>Lie</surname><given-names>K. A.</given-names></name>
+      </person-group>
+      <source>A comparison of DILU and ILU(0) as GPU-accelerated preconditioners</source>
+      <year iso-8601-date="2025-03">2025</year><month>03</month>
+      <volume>SPE Reservoir Simulation Conference</volume>
+      <uri>https://doi.org/10.2118/223873-MS</uri>
+      <pub-id pub-id-type="doi">10.2118/223873-MS</pub-id>
+      <fpage>D021S009R004</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-spe11c_dataset">
+    <element-citation publication-type="software">
+      <person-group person-group-type="author">
+        <name><surname>Lye</surname><given-names>Kjetil Olsen</given-names></name>
+        <name><surname>Andersen</surname><given-names>Tobias Meyer</given-names></name>
+        <name><surname>Torben</surname><given-names>Jakob</given-names></name>
+        <name><surname>Rasmussen</surname><given-names>Atgeirr</given-names></name>
+      </person-group>
+      <article-title>Gpu-ISTL - extending OPM flow with GPU linear solvers</article-title>
+      <publisher-name>Zenodo</publisher-name>
+      <year iso-8601-date="2025-04">2025</year><month>04</month>
+      <uri>https://doi.org/10.5281/zenodo.15259506</uri>
+      <pub-id pub-id-type="doi">10.5281/zenodo.15259506</pub-id>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
