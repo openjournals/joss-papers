@@ -1,0 +1,979 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">7589</article-id>
+<article-id pub-id-type="doi">10.21105/joss.07589</article-id>
+<title-group>
+<article-title>CUDA-METRO: Parallel Metropolis Monte Carlo for 2D
+Atomistic Spin Texture Simulation</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0009-0006-6741-9377</contrib-id>
+<name>
+<surname>Hait</surname>
+<given-names>Arkavo</given-names>
+</name>
+<email>arkavohait@iisc.ac.in</email>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0003-1112-8109</contrib-id>
+<name>
+<surname>Mahapatra</surname>
+<given-names>Santanu</given-names>
+</name>
+<email>santanu@iisc.ac.in</email>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Nano-Scale Device Research Laboratory, Department of
+Electronic Systems Engineering, Indian Institute of Science (IISc)
+Bangalore, Bangalore 560012, India.</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2024-09-30">
+<day>30</day>
+<month>9</month>
+<year>2024</year>
+</pub-date>
+<volume>10</volume>
+<issue>109</issue>
+<fpage>7589</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2025</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>Python</kwd>
+<kwd>Monte Carlo</kwd>
+<kwd>2D Material</kwd>
+<kwd>CUDA</kwd>
+<kwd>pyCUDA</kwd>
+<kwd>Metropolis</kwd>
+<kwd>Skyrmion</kwd>
+<kwd>Meron</kwd>
+<kwd>Curie Temperature</kwd>
+<kwd>Simulation</kwd>
+<kwd>Magnetism</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p>Atomistic spin texture simulations are crucial for understanding
+  and predicting the behaviour of magnetic materials at the nanoscale.
+  These simulations provide insights into fundamental phenomena like
+  magnetic phase transition and are thus useful for exploring novel
+  materials
+  (<xref alt="Kabiraj &amp; Mahapatra, 2023" rid="ref-kabiraj_realizing_2023" ref-type="bibr">Kabiraj
+  &amp; Mahapatra, 2023</xref>). The Metropolis
+  (<xref alt="Metropolis et al., 1953" rid="ref-metropolis_equation_1953" ref-type="bibr">Metropolis
+  et al., 1953</xref>) Monte Carlo (MC) method is frequently utilised
+  for atomistic spin texture simulations as a sampling algorithm to
+  investigate the phase space of a system and is especially effective
+  for calculating equilibrium properties. Efficient parallelisation of
+  Metropolis MC simulation is challenging since the evolving states are
+  typically not independent because of the Markov property. Here we
+  focus on simulating magnetic phase transitions under the anisotropic
+  Heisenberg Model
+  (<xref alt="Heisenberg, 1928" rid="ref-heisenberg_zur_1928" ref-type="bibr">Heisenberg,
+  1928</xref>) in a very high dimensional space, which is important for
+  emerging two-dimensional (2D) magnetism and nontrivial topological
+  spin textures
+  (<xref alt="Augustin et al., 2021" rid="ref-augustin_properties_2021" ref-type="bibr">Augustin
+  et al., 2021</xref>). Previous attempts for parallelisation are
+  restricted to the simpler Ising Model and not applicable to 2D
+  materials because of their finite magnetocrystalline anisotropy,
+  complex crystal structures and long-range interactions. MC simulation
+  of the anisotropic Heisenberg model is very complicated owing to the
+  large number of additional Hamiltonian calculations and
+  interconnectivity between lattice points. The calculation scales with
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[N^2]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msup><mml:mi>N</mml:mi><mml:mn>2</mml:mn></mml:msup></mml:math></alternatives></inline-formula>,
+  where <inline-formula><alternatives>
+  <tex-math><![CDATA[N]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>N</mml:mi></mml:math></alternatives></inline-formula>
+  represents the dimension of a square lattice. This becomes alarming
+  when <inline-formula><alternatives>
+  <tex-math><![CDATA[N]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>N</mml:mi></mml:math></alternatives></inline-formula>
+  exceeds 100, which is a realistic estimate for investigating
+  topological spin textures (skyrmions, merons, etc). Existing
+  open-source software for atomistic spin texture simulations such as
+  <ext-link ext-link-type="uri" xlink:href="https://spirit-code.github.io/">SPIRIT</ext-link>
+  (<xref alt="Müller et al., 2019" rid="ref-muller_spirit_2019" ref-type="bibr">Müller
+  et al., 2019</xref>) or
+  <ext-link ext-link-type="uri" xlink:href="https://vampire.york.ac.uk/">VAMPIRE</ext-link>
+  (<xref alt="Evans et al., 2014" rid="ref-evans_atomistic_2014" ref-type="bibr">Evans
+  et al., 2014</xref>) are based on the single spin update method. While
+  this ensures a detailed balance condition, it is very inefficient for
+  finding the ground state for ultra large supercells.</p>
+  <p>Here we present CUDA-METRO, a graphical processing unit (GPU) based
+  open-source code for accelerated atomistic spin dynamics simulation.
+  This is based on our new algorithm which simultaneously updates
+  multiple spins irrespective of their mutual correlation and harnesses
+  the extreme SIMD (Single Instruction Multiple Device) potential of the
+  GPU to access the ground state of ultra large supercells in a
+  reasonable timescale. We evaluated our code by precisely simulating
+  complex topological spin textures and temperature-dependent magnetic
+  phase transitions for diverse 2D crystal structures with long-range
+  magnetic interactions. We demonstrate exceptional acceleration while
+  finding the ground state of a <inline-formula><alternatives>
+  <tex-math><![CDATA[750\times750]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mn>750</mml:mn><mml:mo>×</mml:mo><mml:mn>750</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>
+  supercell from an initial random spin configuration in 9 hours using
+  an A100-SXM4 GPU.</p>
+</sec>
+<sec id="summary">
+  <title>Summary</title>
+  <p>We consider a 2D lattice system with a periodic arrangement of
+  atoms, where each atom is represented by a 3D spin vector. This
+  atomistic spin model is based on the spin Hamiltonian, which
+  delineates the essential spin-dependent interactions at the atomic
+  scale, excluding the influences of potential, kinetic energy and
+  electron correlations. The spin Hamiltonian of the
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[i^\text{th}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msup><mml:mi>i</mml:mi><mml:mtext mathvariant="normal">th</mml:mtext></mml:msup></mml:math></alternatives></inline-formula>
+  atom is conventionally articulated as <disp-formula><alternatives>
+  <tex-math><![CDATA[
+  H_i=  -\sum J_1s_i\cdot s_j - \sum_j K^x_1 s^x_i s^x_j-\sum_j K^y_1 s^y_i s^y_j-\sum_j K^z_1 s^z_i s^z_j-\sum_k J_2 s_i\cdot s_k - \sum_k K^x_2 s^x_i s^x_k
+  ]]></tex-math>
+  <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>H</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mo>=</mml:mo><mml:mi>−</mml:mi><mml:mo>∑</mml:mo><mml:msub><mml:mi>J</mml:mi><mml:mn>1</mml:mn></mml:msub><mml:msub><mml:mi>s</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mo>⋅</mml:mo><mml:msub><mml:mi>s</mml:mi><mml:mi>j</mml:mi></mml:msub><mml:mo>−</mml:mo><mml:munder><mml:mo>∑</mml:mo><mml:mi>j</mml:mi></mml:munder><mml:msubsup><mml:mi>K</mml:mi><mml:mn>1</mml:mn><mml:mi>x</mml:mi></mml:msubsup><mml:msubsup><mml:mi>s</mml:mi><mml:mi>i</mml:mi><mml:mi>x</mml:mi></mml:msubsup><mml:msubsup><mml:mi>s</mml:mi><mml:mi>j</mml:mi><mml:mi>x</mml:mi></mml:msubsup><mml:mo>−</mml:mo><mml:munder><mml:mo>∑</mml:mo><mml:mi>j</mml:mi></mml:munder><mml:msubsup><mml:mi>K</mml:mi><mml:mn>1</mml:mn><mml:mi>y</mml:mi></mml:msubsup><mml:msubsup><mml:mi>s</mml:mi><mml:mi>i</mml:mi><mml:mi>y</mml:mi></mml:msubsup><mml:msubsup><mml:mi>s</mml:mi><mml:mi>j</mml:mi><mml:mi>y</mml:mi></mml:msubsup><mml:mo>−</mml:mo><mml:munder><mml:mo>∑</mml:mo><mml:mi>j</mml:mi></mml:munder><mml:msubsup><mml:mi>K</mml:mi><mml:mn>1</mml:mn><mml:mi>z</mml:mi></mml:msubsup><mml:msubsup><mml:mi>s</mml:mi><mml:mi>i</mml:mi><mml:mi>z</mml:mi></mml:msubsup><mml:msubsup><mml:mi>s</mml:mi><mml:mi>j</mml:mi><mml:mi>z</mml:mi></mml:msubsup><mml:mo>−</mml:mo><mml:munder><mml:mo>∑</mml:mo><mml:mi>k</mml:mi></mml:munder><mml:msub><mml:mi>J</mml:mi><mml:mn>2</mml:mn></mml:msub><mml:msub><mml:mi>s</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mo>⋅</mml:mo><mml:msub><mml:mi>s</mml:mi><mml:mi>k</mml:mi></mml:msub><mml:mo>−</mml:mo><mml:munder><mml:mo>∑</mml:mo><mml:mi>k</mml:mi></mml:munder><mml:msubsup><mml:mi>K</mml:mi><mml:mn>2</mml:mn><mml:mi>x</mml:mi></mml:msubsup><mml:msubsup><mml:mi>s</mml:mi><mml:mi>i</mml:mi><mml:mi>x</mml:mi></mml:msubsup><mml:msubsup><mml:mi>s</mml:mi><mml:mi>k</mml:mi><mml:mi>x</mml:mi></mml:msubsup></mml:mrow></mml:math></alternatives></disp-formula>
+  <disp-formula><alternatives>
+  <tex-math><![CDATA[
+  -\sum_k K^y_2 s^y_i s^y_k -\sum_k K^z_2 s^z_i s^z_k -\sum_l J_3s_i\cdot s_l - \sum_l K^x_3 s^x_i s^x_l-\sum_l K^y_3 s^y_i s^y_l-\sum_l K^z_3 s^z_i s^z_l 
+  ]]></tex-math>
+  <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>−</mml:mi><mml:munder><mml:mo>∑</mml:mo><mml:mi>k</mml:mi></mml:munder><mml:msubsup><mml:mi>K</mml:mi><mml:mn>2</mml:mn><mml:mi>y</mml:mi></mml:msubsup><mml:msubsup><mml:mi>s</mml:mi><mml:mi>i</mml:mi><mml:mi>y</mml:mi></mml:msubsup><mml:msubsup><mml:mi>s</mml:mi><mml:mi>k</mml:mi><mml:mi>y</mml:mi></mml:msubsup><mml:mo>−</mml:mo><mml:munder><mml:mo>∑</mml:mo><mml:mi>k</mml:mi></mml:munder><mml:msubsup><mml:mi>K</mml:mi><mml:mn>2</mml:mn><mml:mi>z</mml:mi></mml:msubsup><mml:msubsup><mml:mi>s</mml:mi><mml:mi>i</mml:mi><mml:mi>z</mml:mi></mml:msubsup><mml:msubsup><mml:mi>s</mml:mi><mml:mi>k</mml:mi><mml:mi>z</mml:mi></mml:msubsup><mml:mo>−</mml:mo><mml:munder><mml:mo>∑</mml:mo><mml:mi>l</mml:mi></mml:munder><mml:msub><mml:mi>J</mml:mi><mml:mn>3</mml:mn></mml:msub><mml:msub><mml:mi>s</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mo>⋅</mml:mo><mml:msub><mml:mi>s</mml:mi><mml:mi>l</mml:mi></mml:msub><mml:mo>−</mml:mo><mml:munder><mml:mo>∑</mml:mo><mml:mi>l</mml:mi></mml:munder><mml:msubsup><mml:mi>K</mml:mi><mml:mn>3</mml:mn><mml:mi>x</mml:mi></mml:msubsup><mml:msubsup><mml:mi>s</mml:mi><mml:mi>i</mml:mi><mml:mi>x</mml:mi></mml:msubsup><mml:msubsup><mml:mi>s</mml:mi><mml:mi>l</mml:mi><mml:mi>x</mml:mi></mml:msubsup><mml:mo>−</mml:mo><mml:munder><mml:mo>∑</mml:mo><mml:mi>l</mml:mi></mml:munder><mml:msubsup><mml:mi>K</mml:mi><mml:mn>3</mml:mn><mml:mi>y</mml:mi></mml:msubsup><mml:msubsup><mml:mi>s</mml:mi><mml:mi>i</mml:mi><mml:mi>y</mml:mi></mml:msubsup><mml:msubsup><mml:mi>s</mml:mi><mml:mi>l</mml:mi><mml:mi>y</mml:mi></mml:msubsup><mml:mo>−</mml:mo><mml:munder><mml:mo>∑</mml:mo><mml:mi>l</mml:mi></mml:munder><mml:msubsup><mml:mi>K</mml:mi><mml:mn>3</mml:mn><mml:mi>z</mml:mi></mml:msubsup><mml:msubsup><mml:mi>s</mml:mi><mml:mi>i</mml:mi><mml:mi>z</mml:mi></mml:msubsup><mml:msubsup><mml:mi>s</mml:mi><mml:mi>l</mml:mi><mml:mi>z</mml:mi></mml:msubsup></mml:mrow></mml:math></alternatives></disp-formula>
+  <disp-formula><alternatives>
+  <tex-math><![CDATA[
+  -\sum_m J_4s_i\cdot s_m - \sum_m K^x_4 s^x_i s^x_m-\sum_m K^y_4 s^y_i s^y_m -\sum_m K^z_4 s^z_i s^z_m - A s_i \cdot s_i-\sum_j \lambda(s_i\cdot s_j)^2  
+  ]]></tex-math>
+  <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>−</mml:mi><mml:munder><mml:mo>∑</mml:mo><mml:mi>m</mml:mi></mml:munder><mml:msub><mml:mi>J</mml:mi><mml:mn>4</mml:mn></mml:msub><mml:msub><mml:mi>s</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mo>⋅</mml:mo><mml:msub><mml:mi>s</mml:mi><mml:mi>m</mml:mi></mml:msub><mml:mo>−</mml:mo><mml:munder><mml:mo>∑</mml:mo><mml:mi>m</mml:mi></mml:munder><mml:msubsup><mml:mi>K</mml:mi><mml:mn>4</mml:mn><mml:mi>x</mml:mi></mml:msubsup><mml:msubsup><mml:mi>s</mml:mi><mml:mi>i</mml:mi><mml:mi>x</mml:mi></mml:msubsup><mml:msubsup><mml:mi>s</mml:mi><mml:mi>m</mml:mi><mml:mi>x</mml:mi></mml:msubsup><mml:mo>−</mml:mo><mml:munder><mml:mo>∑</mml:mo><mml:mi>m</mml:mi></mml:munder><mml:msubsup><mml:mi>K</mml:mi><mml:mn>4</mml:mn><mml:mi>y</mml:mi></mml:msubsup><mml:msubsup><mml:mi>s</mml:mi><mml:mi>i</mml:mi><mml:mi>y</mml:mi></mml:msubsup><mml:msubsup><mml:mi>s</mml:mi><mml:mi>m</mml:mi><mml:mi>y</mml:mi></mml:msubsup><mml:mo>−</mml:mo><mml:munder><mml:mo>∑</mml:mo><mml:mi>m</mml:mi></mml:munder><mml:msubsup><mml:mi>K</mml:mi><mml:mn>4</mml:mn><mml:mi>z</mml:mi></mml:msubsup><mml:msubsup><mml:mi>s</mml:mi><mml:mi>i</mml:mi><mml:mi>z</mml:mi></mml:msubsup><mml:msubsup><mml:mi>s</mml:mi><mml:mi>m</mml:mi><mml:mi>z</mml:mi></mml:msubsup><mml:mo>−</mml:mo><mml:mi>A</mml:mi><mml:msub><mml:mi>s</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mo>⋅</mml:mo><mml:msub><mml:mi>s</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mo>−</mml:mo><mml:munder><mml:mo>∑</mml:mo><mml:mi>j</mml:mi></mml:munder><mml:mi>λ</mml:mi><mml:msup><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>s</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mo>⋅</mml:mo><mml:msub><mml:mi>s</mml:mi><mml:mi>j</mml:mi></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mn>2</mml:mn></mml:msup></mml:mrow></mml:math></alternatives></disp-formula>
+  <disp-formula><alternatives>
+  <tex-math><![CDATA[
+  -\sum_j D_{ij}\cdot (s_i \times s_j) -\mu B \cdot s_i
+  ]]></tex-math>
+  <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>−</mml:mi><mml:munder><mml:mo>∑</mml:mo><mml:mi>j</mml:mi></mml:munder><mml:msub><mml:mi>D</mml:mi><mml:mrow><mml:mi>i</mml:mi><mml:mi>j</mml:mi></mml:mrow></mml:msub><mml:mo>⋅</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>s</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mo>×</mml:mo><mml:msub><mml:mi>s</mml:mi><mml:mi>j</mml:mi></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>−</mml:mo><mml:mi>μ</mml:mi><mml:mi>B</mml:mi><mml:mo>⋅</mml:mo><mml:msub><mml:mi>s</mml:mi><mml:mi>i</mml:mi></mml:msub></mml:mrow></mml:math></alternatives></disp-formula>
+  Where <inline-formula><alternatives>
+  <tex-math><![CDATA[J]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>J</mml:mi></mml:math></alternatives></inline-formula>
+  is the isotropic exchange parameter, the
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[K]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>K</mml:mi></mml:math></alternatives></inline-formula>s
+  are the anisotropic exchange parameters, with the superscript denoting
+  the spin direction, <inline-formula><alternatives>
+  <tex-math><![CDATA[A]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>A</mml:mi></mml:math></alternatives></inline-formula>
+  is the single ion exchange parameter, <inline-formula><alternatives>
+  <tex-math><![CDATA[\lambda]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>λ</mml:mi></mml:math></alternatives></inline-formula>
+  is the biquadratic parameter, <inline-formula><alternatives>
+  <tex-math><![CDATA[D]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>D</mml:mi></mml:math></alternatives></inline-formula>
+  is the Dyzaloshinskii-Moriya Interaction (DMI) parameter.
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[\mu]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>μ</mml:mi></mml:math></alternatives></inline-formula>
+  is the dipole moment of a single atom and
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[B]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>B</mml:mi></mml:math></alternatives></inline-formula>
+  is the external magnetic field. <inline-formula><alternatives>
+  <tex-math><![CDATA[s_i,s_j]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>s</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mo>,</mml:mo><mml:msub><mml:mi>s</mml:mi><mml:mi>j</mml:mi></mml:msub></mml:mrow></mml:math></alternatives></inline-formula>
+  are individual atomic spin vectors. <inline-formula><alternatives>
+  <tex-math><![CDATA[\{s_j\}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mo stretchy="false" form="prefix">{</mml:mo><mml:msub><mml:mi>s</mml:mi><mml:mi>j</mml:mi></mml:msub><mml:mo stretchy="false" form="postfix">}</mml:mo></mml:mrow></mml:math></alternatives></inline-formula>
+  are the first set of neighbours, <inline-formula><alternatives>
+  <tex-math><![CDATA[\{s_k\}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mo stretchy="false" form="prefix">{</mml:mo><mml:msub><mml:mi>s</mml:mi><mml:mi>k</mml:mi></mml:msub><mml:mo stretchy="false" form="postfix">}</mml:mo></mml:mrow></mml:math></alternatives></inline-formula>
+  are the second set of neighbours and so on. The subscripts below all
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[J]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>J</mml:mi></mml:math></alternatives></inline-formula>s
+  and <inline-formula><alternatives>
+  <tex-math><![CDATA[K]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>K</mml:mi></mml:math></alternatives></inline-formula>s
+  denote the neighbour set, <inline-formula><alternatives>
+  <tex-math><![CDATA[J_1]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>J</mml:mi><mml:mn>1</mml:mn></mml:msub></mml:math></alternatives></inline-formula>
+  denotes the first neighbours, <inline-formula><alternatives>
+  <tex-math><![CDATA[J_2]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>J</mml:mi><mml:mn>2</mml:mn></mml:msub></mml:math></alternatives></inline-formula>
+  the second and so on. In our code, we have limited the number of
+  neighbour sets to be 4 since it is expected for 2D materials that the
+  interaction energy dies down beyond that. All these above parameters
+  except <inline-formula><alternatives>
+  <tex-math><![CDATA[B]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>B</mml:mi></mml:math></alternatives></inline-formula>
+  are material specific parameters that are the inputs to our MC
+  code.</p>
+  <p>Starting from a random spin configuration, our objective is to find
+  the orientation of spin vectors for every atom for the ground state of
+  the lattice system for a given magnetic field and temperature.
+  Traditionally, single spin update (SSU) scheme is employed to solve
+  this problem, which satisfies a detailed balance condition. In the SSU
+  method of updating the state, a single atomic spin is chosen at random
+  and changed, while noting down the energy shift. This new state is
+  then accepted or rejected using the Metropolis criteria as shown in
+  Algorithm 1, where <inline-formula><alternatives>
+  <tex-math><![CDATA[\beta=(k_\text{B}T)^{-1}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>β</mml:mi><mml:mo>=</mml:mo><mml:msup><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>k</mml:mi><mml:mtext mathvariant="normal">B</mml:mtext></mml:msub><mml:mi>T</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mrow><mml:mi>−</mml:mi><mml:mn>1</mml:mn></mml:mrow></mml:msup></mml:mrow></mml:math></alternatives></inline-formula>,
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[k_\text{B}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>k</mml:mi><mml:mtext mathvariant="normal">B</mml:mtext></mml:msub></mml:math></alternatives></inline-formula>
+  being the Boltzmann constant and <inline-formula><alternatives>
+  <tex-math><![CDATA[T]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>T</mml:mi></mml:math></alternatives></inline-formula>
+  being the temperature. It is clear that SSU becomes extremely
+  inefficient as the dimensionality increases.</p>
+  <boxed-text>
+    <boxed-text>
+      <p><monospace>Return 1 (ACCEPT)</monospace>
+      <monospace>Return 1 (ACCEPT)</monospace>
+      <monospace>Return 0 (REJECT)</monospace></p>
+    </boxed-text>
+  </boxed-text>
+  <p>where <inline-formula><alternatives>
+  <tex-math><![CDATA[\Delta H=H_f-H_i]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>Δ</mml:mi><mml:mi>H</mml:mi><mml:mo>=</mml:mo><mml:msub><mml:mi>H</mml:mi><mml:mi>f</mml:mi></mml:msub><mml:mo>−</mml:mo><mml:msub><mml:mi>H</mml:mi><mml:mi>i</mml:mi></mml:msub></mml:mrow></mml:math></alternatives></inline-formula>
+  is the energy difference between the final and initial state.</p>
+  <p>In our method, as depicted in Algorithm 2, we select multiple
+  atomic spins at the same time and change them all at once, treating
+  them as independent events. For any individual spin, they do not feel
+  the effects of the other changed spins. In each of these points, we
+  use the Metropolis criteria to accept or reject the changed spin
+  vectors. This becomes our new state. Here
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[P]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>P</mml:mi></mml:math></alternatives></inline-formula>
+  denotes the number of lattice points we are evaluating at the same
+  time for any given state, while <inline-formula><alternatives>
+  <tex-math><![CDATA[\Gamma]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>Γ</mml:mi></mml:math></alternatives></inline-formula>
+  is the batch size. Tuning <inline-formula><alternatives>
+  <tex-math><![CDATA[\Gamma]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>Γ</mml:mi></mml:math></alternatives></inline-formula>
+  ensures that we can fill up our VRAM with pre-generated random numbers
+  instead of generating <inline-formula><alternatives>
+  <tex-math><![CDATA[4\times P]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mn>4</mml:mn><mml:mo>×</mml:mo><mml:mi>P</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>
+  numbers per step. These 4 random number arrays are further divided
+  into an array depicting the site location
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[n]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>n</mml:mi></mml:math></alternatives></inline-formula>,
+  the angle coordinates for a new random spin vector
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[\theta]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>θ</mml:mi></mml:math></alternatives></inline-formula>
+  and <inline-formula><alternatives>
+  <tex-math><![CDATA[\phi]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>ϕ</mml:mi></mml:math></alternatives></inline-formula>,
+  and a conditional uniform random number <inline-formula><alternatives>
+  <tex-math><![CDATA[r]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>r</mml:mi></mml:math></alternatives></inline-formula>,
+  which is used to evaluate the Metropolis criteria.</p>
+  <boxed-text>
+    <boxed-text>
+      <p>Read Initial state Create 4 <inline-formula><alternatives>
+      <tex-math><![CDATA[P\times \Gamma]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>P</mml:mi><mml:mo>×</mml:mo><mml:mi>Γ</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>
+      length uniform random arrays Process the 4 uniform random number
+      arrays Slice the 4 arrays into subarrays with range
+      <inline-formula><alternatives>
+      <tex-math><![CDATA[[P\times i:P\times (i+1)-1]]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mo stretchy="true" form="prefix">[</mml:mo><mml:mi>P</mml:mi><mml:mo>×</mml:mo><mml:mi>i</mml:mi><mml:mo>:</mml:mo><mml:mi>P</mml:mi><mml:mo>×</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>i</mml:mi><mml:mo>+</mml:mo><mml:mn>1</mml:mn><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>−</mml:mo><mml:mn>1</mml:mn><mml:mo stretchy="true" form="postfix">]</mml:mo></mml:mrow></mml:math></alternatives></inline-formula>
+      Execute P parallel BLOCKS with these subarrays Evaluate
+      <inline-formula><alternatives>
+      <tex-math><![CDATA[H]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>H</mml:mi></mml:math></alternatives></inline-formula>
+      before <inline-formula><alternatives>
+      <tex-math><![CDATA[(T0)]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>T</mml:mi><mml:mn>0</mml:mn><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:math></alternatives></inline-formula>
+      and after <inline-formula><alternatives>
+      <tex-math><![CDATA[(T1)]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>T</mml:mi><mml:mn>1</mml:mn><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:math></alternatives></inline-formula>
+      spin change Wait for all BLOCKS to finish then increment
+      <inline-formula><alternatives>
+      <tex-math><![CDATA[i]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>i</mml:mi></mml:math></alternatives></inline-formula>
+      Update all <inline-formula><alternatives>
+      <tex-math><![CDATA[P]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>P</mml:mi></mml:math></alternatives></inline-formula>
+      spins to next state This state is now our next state</p>
+    </boxed-text>
+  </boxed-text>
+  <p>At present, five different lattice types (square, rectangular,
+  centred-rectangular, hexagonal and honeycomb) are implemented in our
+  code since most of the 2D magnetic materials fall into this category
+  (<xref alt="Kabiraj et al., 2022" rid="ref-kabiraj_massive_2022" ref-type="bibr">Kabiraj
+  et al., 2022</xref>), and for neighbour mapping, we use analytical
+  relations
+  (<xref alt="Koziol, 2020" rid="ref-Koziol2020-cp" ref-type="bibr">Koziol,
+  2020</xref>).</p>
+  <p>For a lattice of size <inline-formula><alternatives>
+  <tex-math><![CDATA[N\times N]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>N</mml:mi><mml:mo>×</mml:mo><mml:mi>N</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>,
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[100\%]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mn>100</mml:mn><mml:mi>%</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>
+  parallelisation would correspond to selecting
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[N^2]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msup><mml:mi>N</mml:mi><mml:mn>2</mml:mn></mml:msup></mml:math></alternatives></inline-formula>
+  spins at random. Since each spin selection and its consequent
+  Metropolis criterion is evaluated on a separate CUDA core, it becomes
+  apparent that we would need <inline-formula><alternatives>
+  <tex-math><![CDATA[N^2]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msup><mml:mi>N</mml:mi><mml:mn>2</mml:mn></mml:msup></mml:math></alternatives></inline-formula>
+  CUDA cores to achieve this <inline-formula><alternatives>
+  <tex-math><![CDATA[100\%]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mn>100</mml:mn><mml:mi>%</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>
+  parallelisation. Since the proposed algorithm may not adhere to the
+  SSU detailed balance conditions, it yields approximate results, and
+  there is a trade-off between parallelisation/acceleration and
+  accuracy. It is found that if the parallelisation is limited to
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[10\%]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mn>10</mml:mn><mml:mi>%</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>
+  of the lattice size, we obtain very accurate results with significant
+  acceleration.</p>
+  <p>Unlike the SSU scheme, we do not extract simulation data after
+  every <inline-formula><alternatives>
+  <tex-math><![CDATA[N^2]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msup><mml:mi>N</mml:mi><mml:mn>2</mml:mn></mml:msup></mml:math></alternatives></inline-formula>
+  spin change, rather we let it run till all the CUDA cores have
+  synchronise and arrived at the next block check, which defines our
+  step. To directly compare, if the SSU has
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[1]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mn>1</mml:mn></mml:math></alternatives></inline-formula>
+  spin changed between each step, our algorithm will have
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[P]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>P</mml:mi></mml:math></alternatives></inline-formula>
+  amount of spins changed per iteration, where
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[P]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>P</mml:mi></mml:math></alternatives></inline-formula>
+  is also the number of CUDA cores used or parallelisation used. In the
+  conventional SSU, data is extracted at every
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[N^2]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msup><mml:mi>N</mml:mi><mml:mn>2</mml:mn></mml:msup></mml:math></alternatives></inline-formula>
+  (a full sweep) steps, compared to which, we would take
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[\frac{N^2}{P}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mfrac><mml:msup><mml:mi>N</mml:mi><mml:mn>2</mml:mn></mml:msup><mml:mi>P</mml:mi></mml:mfrac></mml:math></alternatives></inline-formula>
+  steps to reach the same data point.</p>
+  <p>We validate our algorithm by accurately reproducing
+  temperature-dependent magnetic phase transitions and intricate
+  topological spin textures already reported in the literature, either
+  by SSU based Monte Carlo or by Landau Lifshitz Gilbert (LLG)
+  (<xref alt="Gilbert, 2004" rid="ref-gilbert_classics_2004" ref-type="bibr">Gilbert,
+  2004</xref>) spin dynamics, for diverse crystal structures.</p>
+  <p>In their seminal work, Mermin and Wagner
+  (<xref alt="Mermin &amp; Wagner, 1966" rid="ref-PhysRevLett.17.1133" ref-type="bibr">Mermin
+  &amp; Wagner, 1966</xref>) used the isotropic Heisenberg model to
+  analytically demonstrate that long-range order could not exist in
+  materials with less than three dimensions. Nonetheless, in 2017 two
+  independent research groups experimentally proved the existence of
+  long-range ferromagnetism at low finite temperatures in two distinct
+  2D crystals: <inline-formula><alternatives>
+  <tex-math><![CDATA[\text{CrI}_\text{3}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mtext mathvariant="normal">CrI</mml:mtext><mml:mtext mathvariant="normal">3</mml:mtext></mml:msub></mml:math></alternatives></inline-formula>
+  (<xref alt="Huang et al., 2017" rid="ref-Huang2017" ref-type="bibr">Huang
+  et al., 2017</xref>) and <inline-formula><alternatives>
+  <tex-math><![CDATA[\text{Cr}_\text{2}\text{Ge}_\text{2}\text{Te}_\text{6}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mtext mathvariant="normal">Cr</mml:mtext><mml:mtext mathvariant="normal">2</mml:mtext></mml:msub><mml:msub><mml:mtext mathvariant="normal">Ge</mml:mtext><mml:mtext mathvariant="normal">2</mml:mtext></mml:msub><mml:msub><mml:mtext mathvariant="normal">Te</mml:mtext><mml:mtext mathvariant="normal">6</mml:mtext></mml:msub></mml:mrow></mml:math></alternatives></inline-formula>
+  (<xref alt="Gong et al., 2017" rid="ref-Gong2017-br" ref-type="bibr">Gong
+  et al., 2017</xref>). A new frontier in nanotechnology has eventually
+  emerged, since multiple other research groups have shown that 2D
+  magnetism can exist in various materials, even at room temperature.
+  Finite-size effects and magneto-crystalline anisotropy, which Mermin
+  and Wagner did not consider, are thought to be connected to the
+  formation of 2D magnetism. To accurately simulate the magnetic states
+  of two-dimensional materials, the Heisenberg model must be augmented
+  with necessary anisotropic terms. Using CUDA-METRO, we first simulate
+  the magnetic phase transition of <inline-formula><alternatives>
+  <tex-math><![CDATA[\text{CrI}_\text{3}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mtext mathvariant="normal">CrI</mml:mtext><mml:mtext mathvariant="normal">3</mml:mtext></mml:msub></mml:math></alternatives></inline-formula>
+  from ferromagnetic to paramagnetic with increasing temperature. In Fig
+  1, we reproduce the magnetic phase transition from Kartsev et al.
+  (<xref alt="2020" rid="ref-Kartsev2020" ref-type="bibr">2020</xref>),
+  and show the effect of parallelisation with respect to the reference
+  data. As mentioned before, we can obtain very accurate results with
+  respect to SSU methods by limiting the parallelisation at
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[10\%]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mn>10</mml:mn><mml:mi>%</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>
+  or below of <inline-formula><alternatives>
+  <tex-math><![CDATA[N^2]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msup><mml:mi>N</mml:mi><mml:mn>2</mml:mn></mml:msup></mml:math></alternatives></inline-formula>.
+  The temperature of the ferromagnetic to paramagnetic transition point
+  is known as critical temperature (or the Curie point) and is extracted
+  from the peak of the susceptibility versus temperature plot.</p>
+  <p>Next, we demonstrate the nucleation of topological spin textures
+  which is an emergent phenomenon in condensed matter physics and is
+  gaining importance in information technology
+  (<xref alt="Bessarab et al., 2018" rid="ref-bessarab_lifetime_2018" ref-type="bibr">Bessarab
+  et al., 2018</xref>;
+  <xref alt="Luo &amp; You, 2021" rid="ref-luo_skyrmion_2021" ref-type="bibr">Luo
+  &amp; You, 2021</xref>). While MC simulations of medium-sized
+  supercells <inline-formula><alternatives>
+  <tex-math><![CDATA[(64 \times 64)]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mn>64</mml:mn><mml:mo>×</mml:mo><mml:mn>64</mml:mn><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:math></alternatives></inline-formula>
+  yield quite accurate results for critical temperature calculation,
+  observing topological spin textures, one needs much larger
+  supercells.</p>
+</sec>
+<sec id="results">
+  <title>Results</title>
+  <p>In these examples, we always initialise the lattice with random
+  spin configurations. First, we simulate skyrmions in
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[\text{MnBr}_\text{2}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mtext mathvariant="normal">MnBr</mml:mtext><mml:mtext mathvariant="normal">2</mml:mtext></mml:msub></mml:math></alternatives></inline-formula>
+  (<xref alt="Cui et al., 2022" rid="ref-acs_nanolett" ref-type="bibr">Cui
+  et al., 2022</xref>) as shown in Fig 2. <inline-formula><alternatives>
+  <tex-math><![CDATA[\text{MnBr}_\text{2}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mtext mathvariant="normal">MnBr</mml:mtext><mml:mtext mathvariant="normal">2</mml:mtext></mml:msub></mml:math></alternatives></inline-formula>
+  is a square lattice and for this simulation, we have considered up to
+  the second nearest neighbour. This material exhibits anisotropic DMI
+  with an antiferromagnetic ground state. An antiferromagnetic skyrmion
+  spin texture is accurately reproduced in our simulation, which is
+  technologically significant due to the absence of a skyrmion Hall
+  effect in such systems. We further study the material
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[\text{CrInSe}_\text{3}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mtext mathvariant="normal">CrInSe</mml:mtext><mml:mtext mathvariant="normal">3</mml:mtext></mml:msub></mml:math></alternatives></inline-formula>
+  (<xref alt="Du et al., 2022" rid="ref-du_spontaneous_2022" ref-type="bibr">Du
+  et al., 2022</xref>) which has a hexagonal lattice. This simulation
+  was conducted considering only the nearest neighbours and the
+  formation of skyrmions is shown in Fig 2. Once again our results are
+  in agreement with the original report. All these simulations were
+  conducted in a <inline-formula><alternatives>
+  <tex-math><![CDATA[200 \times 200]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mn>200</mml:mn><mml:mo>×</mml:mo><mml:mn>200</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[(49 \times 49 \text{nm}^2)]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mn>49</mml:mn><mml:mo>×</mml:mo><mml:mn>49</mml:mn><mml:msup><mml:mtext mathvariant="normal">nm</mml:mtext><mml:mn>2</mml:mn></mml:msup><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:math></alternatives></inline-formula>
+  supercell and took 30s to stabilise these topological spin textures at
+  a parallelisation of <inline-formula><alternatives>
+  <tex-math><![CDATA[20\%]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mn>20</mml:mn><mml:mi>%</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>
+  conducted on a V100-SXM2 processor.</p>
+  <p>In Fig 3 we demonstrate the skyrmion nucleation process for the
+  material <inline-formula><alternatives>
+  <tex-math><![CDATA[\text{MnSTe}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mtext mathvariant="normal">MnSTe</mml:mtext></mml:math></alternatives></inline-formula>
+  (<xref alt="Liang et al., 2020" rid="ref-liang_very_2020" ref-type="bibr">Liang
+  et al., 2020</xref>), which has a hexagonal lattice. While we first
+  observe several skyrmions, with evolving MCS, they disappear and the
+  whole lattice eventually becomes uniformly ferromagnetic, which
+  happens to be the direction of the applied magnetic field. This has
+  not been reported in the original literature
+  (<xref alt="Liang et al., 2020" rid="ref-liang_very_2020" ref-type="bibr">Liang
+  et al., 2020</xref>), possibly because of the high computational time
+  required for a traditional SSU scheme.</p>
+  <p>In the main page
+  [https://github.com/arkavo/CUDA-METRO/blob/main/figures/Figure_5.PNG],
+  we further show a similar life cycle evolution for a giant skyrmion of
+  diameter 21nm hosted in the material <inline-formula><alternatives>
+  <tex-math><![CDATA[\text{VZr}_\text{3}\text{C}_\text{3}\text{II}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mtext mathvariant="normal">VZr</mml:mtext><mml:mtext mathvariant="normal">3</mml:mtext></mml:msub><mml:msub><mml:mtext mathvariant="normal">C</mml:mtext><mml:mtext mathvariant="normal">3</mml:mtext></mml:msub><mml:mtext mathvariant="normal">II</mml:mtext></mml:mrow></mml:math></alternatives></inline-formula>
+  (<xref alt="Kabiraj &amp; Mahapatra, 2023" rid="ref-kabiraj_realizing_2023" ref-type="bibr">Kabiraj
+  &amp; Mahapatra, 2023</xref>). To host such a large skyrmion, the
+  simulation was conducted in a supercell of size
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[750\times750]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mn>750</mml:mn><mml:mo>×</mml:mo><mml:mn>750</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>
+  and the ground state was achieved in 9 hours using an A100-SXM4
+  GPU.</p>
+  <p><inline-graphic mimetype="image" mime-subtype="png" xlink:href="Figure_1.png">
+    <alt-text>Figure 1</alt-text>
+  </inline-graphic> Fig 1: Discrepancy between simulation and reference
+  (<xref alt="Kartsev et al., 2020" rid="ref-Kartsev2020" ref-type="bibr">Kartsev
+  et al., 2020</xref>) results at differing levels of parallelisation.
+  At <inline-formula><alternatives>
+  <tex-math><![CDATA[10\%]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mn>10</mml:mn><mml:mi>%</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>,
+  the simulation results are almost indistinguishable from the reference
+  data.</p>
+  <p><inline-graphic mimetype="image" mime-subtype="png" xlink:href="Figure_3.png">
+    <alt-text>Figure 2</alt-text>
+  </inline-graphic> Fig 2: Presence of skyrmions in
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[\text{MnBr}_\text{2}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mtext mathvariant="normal">MnBr</mml:mtext><mml:mtext mathvariant="normal">2</mml:mtext></mml:msub></mml:math></alternatives></inline-formula>
+  and <inline-formula><alternatives>
+  <tex-math><![CDATA[\text{CrInSe}_\text{3}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mtext mathvariant="normal">CrInSe</mml:mtext><mml:mtext mathvariant="normal">3</mml:mtext></mml:msub></mml:math></alternatives></inline-formula>.
+  The material parameters are taken from Cui et al.
+  (<xref alt="2022" rid="ref-acs_nanolett" ref-type="bibr">2022</xref>)
+  and Du et al.
+  (<xref alt="2022" rid="ref-du_spontaneous_2022" ref-type="bibr">2022</xref>)
+  respectively. The color bar represents normalised spin vectors in the
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[z]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>z</mml:mi></mml:math></alternatives></inline-formula>
+  direction. Note that the spins of <inline-formula><alternatives>
+  <tex-math><![CDATA[\text{MnBr}_\text{2}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mtext mathvariant="normal">MnBr</mml:mtext><mml:mtext mathvariant="normal">2</mml:mtext></mml:msub></mml:math></alternatives></inline-formula>
+  appear purple because there are “red-blue” spin pairs for the vast
+  majority.</p>
+  <p><inline-graphic mimetype="image" mime-subtype="png" xlink:href="Figure_4.png">
+    <alt-text>Figure 3</alt-text>
+  </inline-graphic> Fig 3: Lifetime of a skyrmion in
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[\text{MnSTe}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mtext mathvariant="normal">MnSTe</mml:mtext></mml:math></alternatives></inline-formula>
+  from its creation to annihilation. The graph denotes the average
+  energy per atom. As we approach the global minima, the entire field
+  becomes aligned to the magnetic field as expected. Total time:
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[30s]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mn>30</mml:mn><mml:mi>s</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>.</p>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>This work is supported by the Core Research Grant (CRG) scheme of
+  the Science and Engineering Research Board (SERB), Government of
+  India, under Grant No. CRG/2020/000758.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <title></title>
+  <ref id="ref-heisenberg_zur_1928">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Heisenberg</surname><given-names>W.</given-names></name>
+      </person-group>
+      <article-title>Zur Theorie des Ferromagnetismus</article-title>
+      <source>Zeitschrift für Physik</source>
+      <year iso-8601-date="1928-09">1928</year><month>09</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2024-10-07">2024</year><month>10</month><day>07</day></date-in-citation>
+      <volume>49</volume>
+      <issue>9</issue>
+      <issn>0044-3328</issn>
+      <uri>https://doi.org/10.1007/BF01328601</uri>
+      <pub-id pub-id-type="doi">10.1007/BF01328601</pub-id>
+      <fpage>619</fpage>
+      <lpage>636</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-metropolis_equation_1953">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Metropolis</surname><given-names>Nicholas</given-names></name>
+        <name><surname>Rosenbluth</surname><given-names>Arianna W.</given-names></name>
+        <name><surname>Rosenbluth</surname><given-names>Marshall N.</given-names></name>
+        <name><surname>Teller</surname><given-names>Augusta H.</given-names></name>
+        <name><surname>Teller</surname><given-names>Edward</given-names></name>
+      </person-group>
+      <article-title>Equation of State Calculations by Fast Computing Machines</article-title>
+      <source>The Journal of Chemical Physics</source>
+      <year iso-8601-date="1953-06">1953</year><month>06</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2024-10-07">2024</year><month>10</month><day>07</day></date-in-citation>
+      <volume>21</volume>
+      <issue>6</issue>
+      <issn>0021-9606</issn>
+      <uri>https://pubs.aip.org/jcp/article/21/6/1087/202680/Equation-of-State-Calculations-by-Fast-Computing</uri>
+      <pub-id pub-id-type="doi">10.1063/1.1699114</pub-id>
+      <fpage>1087</fpage>
+      <lpage>1092</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-luo_skyrmion_2021">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Luo</surname><given-names>Shijiang</given-names></name>
+        <name><surname>You</surname><given-names>Long</given-names></name>
+      </person-group>
+      <article-title>Skyrmion devices for memory and logic applications</article-title>
+      <source>APL Materials</source>
+      <year iso-8601-date="2021-05">2021</year><month>05</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2024-10-07">2024</year><month>10</month><day>07</day></date-in-citation>
+      <volume>9</volume>
+      <issue>5</issue>
+      <issn>2166-532X</issn>
+      <uri>https://pubs.aip.org/apm/article/9/5/050901/43554/Skyrmion-devices-for-memory-and-logic-applications</uri>
+      <pub-id pub-id-type="doi">10.1063/5.0042917</pub-id>
+      <fpage>050901</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-muller_spirit_2019">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Müller</surname><given-names>Gideon P.</given-names></name>
+        <name><surname>Hoffmann</surname><given-names>Markus</given-names></name>
+        <name><surname>Dißelkamp</surname><given-names>Constantin</given-names></name>
+        <name><surname>Schürhoff</surname><given-names>Daniel</given-names></name>
+        <name><surname>Mavros</surname><given-names>Stefanos</given-names></name>
+        <name><surname>Sallermann</surname><given-names>Moritz</given-names></name>
+        <name><surname>Kiselev</surname><given-names>Nikolai S.</given-names></name>
+        <name><surname>Jónsson</surname><given-names>Hannes</given-names></name>
+        <name><surname>Blügel</surname><given-names>Stefan</given-names></name>
+      </person-group>
+      <article-title>Spirit : Multifunctional framework for atomistic spin simulations</article-title>
+      <source>Physical Review B</source>
+      <year iso-8601-date="2019-06">2019</year><month>06</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2024-10-08">2024</year><month>10</month><day>08</day></date-in-citation>
+      <volume>99</volume>
+      <issue>22</issue>
+      <issn>2469-9950</issn>
+      <uri>https://link.aps.org/doi/10.1103/PhysRevB.99.224414</uri>
+      <pub-id pub-id-type="doi">10.1103/PhysRevB.99.224414</pub-id>
+      <fpage>224414</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-augustin_properties_2021">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Augustin</surname><given-names>Mathias</given-names></name>
+        <name><surname>Jenkins</surname><given-names>Sarah</given-names></name>
+        <name><surname>Evans</surname><given-names>Richard F. L.</given-names></name>
+        <name><surname>Novoselov</surname><given-names>Kostya S.</given-names></name>
+        <name><surname>Santos</surname><given-names>Elton J. G.</given-names></name>
+      </person-group>
+      <article-title>Properties and dynamics of meron topological spin textures in the two-dimensional magnet \text{CrCl}_\text{3}</article-title>
+      <source>Nature Communications</source>
+      <year iso-8601-date="2021-01">2021</year><month>01</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2024-10-08">2024</year><month>10</month><day>08</day></date-in-citation>
+      <volume>12</volume>
+      <issue>1</issue>
+      <issn>2041-1723</issn>
+      <uri>https://www.nature.com/articles/s41467-020-20497-2</uri>
+      <pub-id pub-id-type="doi">10.1038/s41467-020-20497-2</pub-id>
+      <fpage>185</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-kabiraj_realizing_2023">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Kabiraj</surname><given-names>Arnab</given-names></name>
+        <name><surname>Mahapatra</surname><given-names>Santanu</given-names></name>
+      </person-group>
+      <article-title>Realizing unipolar and bipolar intrinsic skyrmions in MXenes from high-fidelity first-principles calculations</article-title>
+      <source>npj Computational Materials</source>
+      <year iso-8601-date="2023-09">2023</year><month>09</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2024-10-08">2024</year><month>10</month><day>08</day></date-in-citation>
+      <volume>9</volume>
+      <issue>1</issue>
+      <issn>2057-3960</issn>
+      <uri>https://www.nature.com/articles/s41524-023-01129-x</uri>
+      <pub-id pub-id-type="doi">10.1038/s41524-023-01129-x</pub-id>
+      <fpage>1</fpage>
+      <lpage>12</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-liang_very_2020">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Liang</surname><given-names>Jinghua</given-names></name>
+        <name><surname>Wang</surname><given-names>Weiwei</given-names></name>
+        <name><surname>Du</surname><given-names>Haifeng</given-names></name>
+        <name><surname>Hallal</surname><given-names>Ali</given-names></name>
+        <name><surname>Garcia</surname><given-names>Karin</given-names></name>
+        <name><surname>Chshiev</surname><given-names>Mairbek</given-names></name>
+        <name><surname>Fert</surname><given-names>Albert</given-names></name>
+        <name><surname>Yang</surname><given-names>Hongxin</given-names></name>
+      </person-group>
+      <article-title>Very large Dzyaloshinskii-Moriya interaction in two-dimensional Janus manganese dichalcogenides and its application to realize skyrmion states</article-title>
+      <source>Physical Review B</source>
+      <year iso-8601-date="2020-05">2020</year><month>05</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2024-10-08">2024</year><month>10</month><day>08</day></date-in-citation>
+      <volume>101</volume>
+      <issue>18</issue>
+      <issn>2469-9950</issn>
+      <uri>https://link.aps.org/doi/10.1103/PhysRevB.101.184401</uri>
+      <pub-id pub-id-type="doi">10.1103/PhysRevB.101.184401</pub-id>
+      <fpage>184401</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-kabiraj_massive_2022">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Kabiraj</surname><given-names>Arnab</given-names></name>
+        <name><surname>Jain</surname><given-names>Tripti</given-names></name>
+        <name><surname>Mahapatra</surname><given-names>Santanu</given-names></name>
+      </person-group>
+      <article-title>Massive Monte Carlo simulations-guided interpretable learning of two-dimensional Curie temperature</article-title>
+      <source>Patterns</source>
+      <year iso-8601-date="2022-12">2022</year><month>12</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2024-10-08">2024</year><month>10</month><day>08</day></date-in-citation>
+      <volume>3</volume>
+      <issue>12</issue>
+      <issn>2666-3899</issn>
+      <uri>https://www.sciencedirect.com/science/article/pii/S2666389922002574</uri>
+      <pub-id pub-id-type="doi">10.1016/j.patter.2022.100625</pub-id>
+      <fpage>100625</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-evans_atomistic_2014">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Evans</surname><given-names>R F L</given-names></name>
+        <name><surname>Fan</surname><given-names>W J</given-names></name>
+        <name><surname>Chureemart</surname><given-names>P</given-names></name>
+        <name><surname>Ostler</surname><given-names>T A</given-names></name>
+        <name><surname>Ellis</surname><given-names>M O A</given-names></name>
+        <name><surname>Chantrell</surname><given-names>R W</given-names></name>
+      </person-group>
+      <article-title>Atomistic spin model simulations of magnetic nanomaterials</article-title>
+      <source>Journal of Physics: Condensed Matter</source>
+      <year iso-8601-date="2014-03">2014</year><month>03</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2024-10-10">2024</year><month>10</month><day>10</day></date-in-citation>
+      <volume>26</volume>
+      <issue>10</issue>
+      <issn>0953-8984</issn>
+      <uri>https://iopscience.iop.org/article/10.1088/0953-8984/26/10/103202</uri>
+      <pub-id pub-id-type="doi">10.1088/0953-8984/26/10/103202</pub-id>
+      <fpage>103202</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-bessarab_lifetime_2018">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Bessarab</surname><given-names>Pavel F.</given-names></name>
+        <name><surname>Müller</surname><given-names>Gideon P.</given-names></name>
+        <name><surname>Lobanov</surname><given-names>Igor S.</given-names></name>
+        <name><surname>Rybakov</surname><given-names>Filipp N.</given-names></name>
+        <name><surname>Kiselev</surname><given-names>Nikolai S.</given-names></name>
+        <name><surname>Jónsson</surname><given-names>Hannes</given-names></name>
+        <name><surname>Uzdin</surname><given-names>Valery M.</given-names></name>
+        <name><surname>Blügel</surname><given-names>Stefan</given-names></name>
+        <name><surname>Bergqvist</surname><given-names>Lars</given-names></name>
+        <name><surname>Delin</surname><given-names>Anna</given-names></name>
+      </person-group>
+      <article-title>Lifetime of racetrack skyrmions</article-title>
+      <source>Scientific Reports</source>
+      <year iso-8601-date="2018-02">2018</year><month>02</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2024-10-10">2024</year><month>10</month><day>10</day></date-in-citation>
+      <volume>8</volume>
+      <issue>1</issue>
+      <issn>2045-2322</issn>
+      <uri>https://www.nature.com/articles/s41598-018-21623-3</uri>
+      <pub-id pub-id-type="doi">10.1038/s41598-018-21623-3</pub-id>
+      <fpage>3433</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-acs_nanolett">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Cui</surname><given-names>Qirui</given-names></name>
+        <name><surname>Zhu</surname><given-names>Yingmei</given-names></name>
+        <name><surname>Ga</surname><given-names>Yonglong</given-names></name>
+        <name><surname>Liang</surname><given-names>Jinghua</given-names></name>
+        <name><surname>Li</surname><given-names>Peng</given-names></name>
+        <name><surname>Yu</surname><given-names>Dongxing</given-names></name>
+        <name><surname>Cui</surname><given-names>Ping</given-names></name>
+        <name><surname>Yang</surname><given-names>Hongxin</given-names></name>
+      </person-group>
+      <article-title>Anisotropic Dzyaloshinskii-Moriya interaction and topological magnetism in two-dimensional magnets protected by P\bar{4}m2 crystal symmetry</article-title>
+      <source>Nano Letters</source>
+      <year iso-8601-date="2022">2022</year>
+      <volume>22</volume>
+      <issue>6</issue>
+      <uri>https://doi.org/10.1021/acs.nanolett.1c04803</uri>
+      <pub-id pub-id-type="doi">10.1021/acs.nanolett.1c04803</pub-id>
+      <fpage>2334</fpage>
+      <lpage>2341</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-gilbert_classics_2004">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Gilbert</surname><given-names>T. L.</given-names></name>
+      </person-group>
+      <article-title>Classics in Magnetics A Phenomenological Theory of Damping in Ferromagnetic Materials</article-title>
+      <source>IEEE Transactions on Magnetics</source>
+      <year iso-8601-date="2004-11">2004</year><month>11</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2024-10-10">2024</year><month>10</month><day>10</day></date-in-citation>
+      <volume>40</volume>
+      <issue>6</issue>
+      <issn>0018-9464</issn>
+      <uri>http://ieeexplore.ieee.org/document/1353448/</uri>
+      <pub-id pub-id-type="doi">10.1109/TMAG.2004.836740</pub-id>
+      <fpage>3443</fpage>
+      <lpage>3449</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-du_spontaneous_2022">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Du</surname><given-names>Wenhui</given-names></name>
+        <name><surname>Dou</surname><given-names>Kaiying</given-names></name>
+        <name><surname>He</surname><given-names>Zhonglin</given-names></name>
+        <name><surname>Dai</surname><given-names>Ying</given-names></name>
+        <name><surname>Huang</surname><given-names>Baibiao</given-names></name>
+        <name><surname>Ma</surname><given-names>Yandong</given-names></name>
+      </person-group>
+      <article-title>Spontaneous magnetic skyrmions in single-layer \text{CrInX}_\text{3} (X = Te, Se)</article-title>
+      <source>Nano Letters</source>
+      <year iso-8601-date="2022-04">2022</year><month>04</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2024-10-10">2024</year><month>10</month><day>10</day></date-in-citation>
+      <volume>22</volume>
+      <issue>8</issue>
+      <issn>1530-6984</issn>
+      <uri>https://pubs.acs.org/doi/10.1021/acs.nanolett.2c00836</uri>
+      <pub-id pub-id-type="doi">10.1021/acs.nanolett.2c00836</pub-id>
+      <fpage>3440</fpage>
+      <lpage>3446</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-PhysRevLett.17.1133">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Mermin</surname><given-names>N. D.</given-names></name>
+        <name><surname>Wagner</surname><given-names>H.</given-names></name>
+      </person-group>
+      <article-title>Absence of ferromagnetism or antiferromagnetism in one- or two-dimensional isotropic Heisenberg models</article-title>
+      <source>Phys. Rev. Lett.</source>
+      <publisher-name>American Physical Society</publisher-name>
+      <year iso-8601-date="1966-11">1966</year><month>11</month>
+      <volume>17</volume>
+      <uri>https://link.aps.org/doi/10.1103/PhysRevLett.17.1133</uri>
+      <pub-id pub-id-type="doi">10.1103/PhysRevLett.17.1133</pub-id>
+      <fpage>1133</fpage>
+      <lpage>1136</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Huang2017">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Huang</surname><given-names>Bevin</given-names></name>
+        <name><surname>Clark</surname><given-names>Genevieve</given-names></name>
+        <name><surname>Navarro-Moratalla</surname><given-names>Efrén</given-names></name>
+        <name><surname>Klein</surname><given-names>Dahlia R.</given-names></name>
+        <name><surname>Cheng</surname><given-names>Ran</given-names></name>
+        <name><surname>Seyler</surname><given-names>Kyle L.</given-names></name>
+        <name><surname>Zhong</surname><given-names>Ding</given-names></name>
+        <name><surname>Schmidgall</surname><given-names>Emma</given-names></name>
+        <name><surname>McGuire</surname><given-names>Michael A.</given-names></name>
+        <name><surname>Cobden</surname><given-names>David H.</given-names></name>
+        <name><surname>Yao</surname><given-names>Wang</given-names></name>
+        <name><surname>Xiao</surname><given-names>Di</given-names></name>
+        <name><surname>Jarillo-Herrero</surname><given-names>Pablo</given-names></name>
+        <name><surname>Xu</surname><given-names>Xiaodong</given-names></name>
+      </person-group>
+      <article-title>Layer-dependent ferromagnetism in a van der Waals crystal down to the monolayer limit</article-title>
+      <source>Nature</source>
+      <publisher-name>Springer Science; Business Media LLC</publisher-name>
+      <year iso-8601-date="2017-06">2017</year><month>06</month>
+      <volume>546</volume>
+      <issue>7657</issue>
+      <issn>1476-4687</issn>
+      <uri>http://dx.doi.org/10.1038/nature22391</uri>
+      <pub-id pub-id-type="doi">10.1038/nature22391</pub-id>
+      <fpage>270</fpage>
+      <lpage>273</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Kartsev2020">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Kartsev</surname><given-names>Alexey</given-names></name>
+        <name><surname>Augustin</surname><given-names>Mathias</given-names></name>
+        <name><surname>Evans</surname><given-names>Richard F. L.</given-names></name>
+        <name><surname>Novoselov</surname><given-names>Kostya S.</given-names></name>
+        <name><surname>Santos</surname><given-names>Elton J. G.</given-names></name>
+      </person-group>
+      <article-title>Biquadratic exchange interactions in two-dimensional magnets</article-title>
+      <source>npj Computational Materials</source>
+      <publisher-name>Springer Science; Business Media LLC</publisher-name>
+      <year iso-8601-date="2020-10">2020</year><month>10</month>
+      <volume>6</volume>
+      <issue>1</issue>
+      <issn>2057-3960</issn>
+      <uri>http://dx.doi.org/10.1038/s41524-020-00416-1</uri>
+      <pub-id pub-id-type="doi">10.1038/s41524-020-00416-1</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-Koziol2020-cp">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Koziol</surname><given-names>Zbigniew</given-names></name>
+      </person-group>
+      <article-title>Number of equidistant neighbors on honeycomb lattice</article-title>
+      <source>J. Phys. Commun.</source>
+      <publisher-name>IOP Publishing</publisher-name>
+      <year iso-8601-date="2020-07">2020</year><month>07</month>
+      <volume>4</volume>
+      <issue>7</issue>
+      <pub-id pub-id-type="doi">10.1088/2399-6528/aba035</pub-id>
+      <fpage>075003</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Gong2017-br">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Gong</surname><given-names>Cheng</given-names></name>
+        <name><surname>Li</surname><given-names>Lin</given-names></name>
+        <name><surname>Li</surname><given-names>Zhenglu</given-names></name>
+        <name><surname>Ji</surname><given-names>Huiwen</given-names></name>
+        <name><surname>Stern</surname><given-names>Alex</given-names></name>
+        <name><surname>Xia</surname><given-names>Yang</given-names></name>
+        <name><surname>Cao</surname><given-names>Ting</given-names></name>
+        <name><surname>Bao</surname><given-names>Wei</given-names></name>
+        <name><surname>Wang</surname><given-names>Chenzhe</given-names></name>
+        <name><surname>Wang</surname><given-names>Yuan</given-names></name>
+        <name><surname>Qiu</surname><given-names>Z Q</given-names></name>
+        <name><surname>Cava</surname><given-names>R J</given-names></name>
+        <name><surname>Louie</surname><given-names>Steven G</given-names></name>
+        <name><surname>Xia</surname><given-names>Jing</given-names></name>
+        <name><surname>Zhang</surname><given-names>Xiang</given-names></name>
+      </person-group>
+      <article-title>Discovery of intrinsic ferromagnetism in two-dimensional van der Waals crystals</article-title>
+      <source>Nature</source>
+      <publisher-name>Springer Science; Business Media LLC</publisher-name>
+      <year iso-8601-date="2017-06">2017</year><month>06</month>
+      <volume>546</volume>
+      <issue>7657</issue>
+      <pub-id pub-id-type="doi">10.1038/nature22060</pub-id>
+      <fpage>265</fpage>
+      <lpage>269</lpage>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
