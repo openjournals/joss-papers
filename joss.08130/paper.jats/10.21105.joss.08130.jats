@@ -1,0 +1,937 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">8130</article-id>
+<article-id pub-id-type="doi">10.21105/joss.08130</article-id>
+<title-group>
+<article-title>PositiveIntegrators.jl: A Julia library of
+positivity-preserving time integration methods</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0003-0593-450X</contrib-id>
+<name>
+<surname>Kopecz</surname>
+<given-names>Stefan</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0009-0007-0971-6709</contrib-id>
+<name>
+<surname>Lampert</surname>
+<given-names>Joshua</given-names>
+</name>
+<xref ref-type="aff" rid="aff-2"/>
+</contrib>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0002-3456-2277</contrib-id>
+<name>
+<surname>Ranocha</surname>
+<given-names>Hendrik</given-names>
+</name>
+<xref ref-type="aff" rid="aff-3"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Institute of Mathematics, University of Kassel,
+Germany</institution>
+</institution-wrap>
+</aff>
+<aff id="aff-2">
+<institution-wrap>
+<institution>Department of Mathematics, University of Hamburg,
+Germany</institution>
+</institution-wrap>
+</aff>
+<aff id="aff-3">
+<institution-wrap>
+<institution>Institute of Mathematics, Johannes Gutenberg University
+Mainz, Germany</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2025-05-24">
+<day>24</day>
+<month>5</month>
+<year>2025</year>
+</pub-date>
+<volume>10</volume>
+<issue>109</issue>
+<fpage>8130</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2025</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>Julia</kwd>
+<kwd>numerical analysis</kwd>
+<kwd>differential equations</kwd>
+<kwd>production-destruction systems</kwd>
+<kwd>ODE solvers</kwd>
+<kwd>positivity</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p>We introduce PositiveIntegrators.jl, a Julia package that provides
+  efficient implementations of various time integration schemes for the
+  solution of positive ordinary differential equations, making these
+  methods accessible for users and comparable for researchers.
+  Currently, the package provides the unconditionally
+  positivity-preserving MPRK, SSP-MPRK, and MPDeC schemes, which are
+  also conservative when applied to a conservative system. The package
+  is fully compatible with DifferentialEquations.jl, which allows a
+  direct comparison between the provided schemes and standard
+  methods.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p>Many systems of ordinary differential equations that model
+  real-life applications have positive solutions. For some of these
+  systems unconditionally positivity-preserving time integration methods
+  are helpful or even necessary to obtain meaningful solutions.</p>
+  <p>Unfortunately, positivity is not preserved in almost any of the
+  standard time integration schemes, such as Runge–Kutta methods,
+  Rosenbrock methods, or linear multistep methods. In particular,
+  higher-order general linear methods cannot preserve positivity
+  unconditionally
+  (<xref alt="Bolley &amp; Crouzeix, 1978" rid="ref-bolley1978conservation" ref-type="bibr">Bolley
+  &amp; Crouzeix, 1978</xref>). The only standard scheme with which
+  unconditional positivity can be achieved is the implicit Euler method
+  (assuming that the nonlinear systems are solved exactly). However,
+  this is only first-order accurate and the preservation of positivity
+  within the nonlinear iteration process poses a problem. For example,
+  it may happen that the right-hand side of the differential equation is
+  only defined for nonnegative values and would throw an error if a
+  negative value is passed to it, e.g., in the case of a square root.
+  Standard nonlinear solvers like Newton’s method or fixed-point
+  iterations will in general not only produce iterates that are
+  nonnegative, causing the iteration to fail. Another strategy for
+  preserving positivity used in existing open source or commercial
+  packages (like MATLAB) is to set negative solution components that are
+  accepted by the step size control to zero. Unfortunately, this can
+  have a negative impact on possible conservation properties. Further
+  approaches in the literature include projections in between time steps
+  (<xref alt="Nüßlein et al., 2021" rid="ref-nusslein2021positivity" ref-type="bibr">Nüßlein
+  et al., 2021</xref>;
+  <xref alt="Sandu, 2001" rid="ref-sandu2001positive" ref-type="bibr">Sandu,
+  2001</xref>), if a negative solution was computed, or it is tried to
+  reduce the time step size as long as a nonnegative solution is
+  calculated. Finally, strong stability preserving (SSP) methods can
+  also be used to preserve positivity, but this is again subject to step
+  size limitations
+  (<xref alt="Gottlieb et al., 2011" rid="ref-gottlieb2011strong" ref-type="bibr">Gottlieb
+  et al., 2011</xref>).</p>
+  <p>Consequently, various new, unconditionally positive schemes have
+  been introduced in recent years, see Burchard et al.
+  (<xref alt="2003" rid="ref-burchard2003" ref-type="bibr">2003</xref>),
+  Bruggeman et al.
+  (<xref alt="2007" rid="ref-Bruggeman2007" ref-type="bibr">2007</xref>),
+  Broekhuizen et al.
+  (<xref alt="2008" rid="ref-Broekhuizen2008" ref-type="bibr">2008</xref>),
+  Formaggia &amp; Scotti
+  (<xref alt="2011" rid="ref-Formaggia2011" ref-type="bibr">2011</xref>),
+  Ortleb &amp; Hundsdorfer
+  (<xref alt="2017" rid="ref-Ortleb2017" ref-type="bibr">2017</xref>),
+  Kopecz &amp; Meister
+  (<xref alt="2018a" rid="ref-kopeczmeister2018order2" ref-type="bibr">2018a</xref>),
+  Kopecz &amp; Meister
+  (<xref alt="2018b" rid="ref-kopeczmeister2018order3" ref-type="bibr">2018b</xref>),
+  Huang &amp; Shu
+  (<xref alt="2019" rid="ref-huang2019order2" ref-type="bibr">2019</xref>),
+  Huang et al.
+  (<xref alt="2019" rid="ref-huang2019order3" ref-type="bibr">2019</xref>),
+  Öffner &amp; Torlo
+  (<xref alt="2020" rid="ref-OeffnerTorlo2020" ref-type="bibr">2020</xref>),
+  Martiradonna et al.
+  (<xref alt="2020" rid="ref-Martiradonna2020" ref-type="bibr">2020</xref>),
+  Ávila et al.
+  (<xref alt="2020" rid="ref-Avila2020" ref-type="bibr">2020</xref>),
+  Ávila et al.
+  (<xref alt="2021" rid="ref-Avila2021" ref-type="bibr">2021</xref>),
+  Blanes et al.
+  (<xref alt="2022" rid="ref-Blanes2022" ref-type="bibr">2022</xref>),
+  Zhu et al.
+  (<xref alt="2024" rid="ref-Zhu2024" ref-type="bibr">2024</xref>), Izzo
+  et al.
+  (<xref alt="2025" rid="ref-Izzo2025" ref-type="bibr">2025</xref>), and
+  Izgin et al.
+  (<xref alt="2025" rid="ref-Izgin2025" ref-type="bibr">2025</xref>).
+  Among these, most of the literature is devoted to modified
+  Patankar–Runge–Kutta (MPRK) methods.</p>
+  <p>Unfortunately, these new methods are not yet available in software
+  packages, making them inaccessible to most users and limiting their
+  comparability within the scientific community. PositiveIntegrators.jl
+  aims at making these methods available and thus usable and
+  comparable.</p>
+</sec>
+<sec id="features">
+  <title>Features</title>
+  <p>PositiveIntegrators.jl is written in Julia
+  (<xref alt="Bezanson et al., 2017" rid="ref-bezanson2017julia" ref-type="bibr">Bezanson
+  et al., 2017</xref>) and makes use of its strengths for scientific
+  computing, e.g., ease of use and performance. The package is fully
+  compatible with DifferentialEquations.jl
+  (<xref alt="Rackauckas &amp; Nie, 2017" rid="ref-rackauckas2017differentialequations" ref-type="bibr">Rackauckas
+  &amp; Nie, 2017</xref>) and therefore many features that are available
+  there can be used directly. In particular, this allows a direct
+  comparison of the provided methods and standard schemes. Moreover, it
+  integrates well with the Julia ecosystem, e.g., by making it simple to
+  visualize numerical solutions using dense output in Plots.jl
+  (<xref alt="Christ et al., 2023" rid="ref-christ2023plots" ref-type="bibr">Christ
+  et al., 2023</xref>).</p>
+  <p>The package offers implementations of conservative as well as
+  non-conservative production-destruction systems (PDS), which are the
+  building blocks for the solution of differential equations with MPRK
+  schemes. Furthermore, conversions of these PDS to standard
+  <monospace>ODEProblem</monospace>s from DifferentialEquations.jl are
+  provided.</p>
+  <p>Currently, the package contains the following methods:</p>
+  <list list-type="bullet">
+    <list-item>
+      <p>The MPRK methods <monospace>MPE</monospace>,
+      <monospace>MPRK22</monospace>, <monospace>MPRK43I</monospace>, and
+      <monospace>MPRK43II</monospace> of Kopecz &amp; Meister
+      (<xref alt="2018a" rid="ref-kopeczmeister2018order2" ref-type="bibr">2018a</xref>)
+      and Kopecz &amp; Meister
+      (<xref alt="2018b" rid="ref-kopeczmeister2018order3" ref-type="bibr">2018b</xref>)
+      are based on the classical formulation of Runge–Kutta schemes and
+      have accuracies from first to third order.</p>
+    </list-item>
+    <list-item>
+      <p>The MPRK methods <monospace>SSPMPRK22</monospace> and
+      <monospace>SSPMPRK43</monospace> of Huang &amp; Shu
+      (<xref alt="2019" rid="ref-huang2019order2" ref-type="bibr">2019</xref>)
+      and Huang et al.
+      (<xref alt="2019" rid="ref-huang2019order3" ref-type="bibr">2019</xref>)
+      are based on the SSP formulation of Runge–Kutta schemes and are of
+      second and third order, respectively.</p>
+    </list-item>
+    <list-item>
+      <p>The <monospace>MPDeC</monospace> methods of Öffner &amp; Torlo
+      (<xref alt="2020" rid="ref-OeffnerTorlo2020" ref-type="bibr">2020</xref>)
+      combine the deferred correction approach with the idea of MPRK
+      schemes to obtain schemes of arbitrary order. In the package
+      methods from second up to 10th order are implemented.</p>
+    </list-item>
+  </list>
+  <p>In addition, all implemented methods have been extended so that
+  non-conservative and non-autonomous PDS can be solved as well.
+  Furthermore, adaptive step size control is available for almost all
+  schemes.</p>
+</sec>
+<sec id="related-research-and-software">
+  <title>Related research and software</title>
+  <p>The first MPRK methods were introduced by Burchard et al.
+  (<xref alt="2003" rid="ref-burchard2003" ref-type="bibr">2003</xref>).
+  These are the first-order scheme <monospace>MPE</monospace> and a
+  second-order scheme based on Heun’s method. To avoid the restriction
+  to Heun’s method, the second-order <monospace>MPRK22</monospace>
+  schemes were developed by Kopecz &amp; Meister
+  (<xref alt="2018a" rid="ref-kopeczmeister2018order2" ref-type="bibr">2018a</xref>).
+  The techniques developed therein also enabled a generalization to
+  third-order schemes and thus the introduction of
+  <monospace>MPRK43I</monospace> and <monospace>MPRK43II</monospace>
+  methods by Kopecz &amp; Meister
+  (<xref alt="2018b" rid="ref-kopeczmeister2018order3" ref-type="bibr">2018b</xref>).</p>
+  <p>The aforementioned schemes were derived from the classical
+  formulation of Runge-Kutta methods. Using the Shu-Osher formulation
+  instead lead to the introduction of the second-order schemes
+  <monospace>SSPMPRK22</monospace> by Huang &amp; Shu
+  (<xref alt="2019" rid="ref-huang2019order2" ref-type="bibr">2019</xref>)
+  and the third-order scheme <monospace>SSPMPRK43</monospace> by Huang
+  et al.
+  (<xref alt="2019" rid="ref-huang2019order3" ref-type="bibr">2019</xref>).</p>
+  <p>Starting from a low-order method, the deferred correction approach
+  can be used to increase the method’s approximation order iteratively.
+  Öffner &amp; Torlo
+  (<xref alt="2020" rid="ref-OeffnerTorlo2020" ref-type="bibr">2020</xref>)
+  combined deferred correction with the MPRK idea to devise MPRK schemes
+  of arbitrary order. These are implemented as
+  <monospace>MPDeC</monospace> schemes for orders 2 up to 10.</p>
+  <p>The implemented methods were originally introduced for conservative
+  production-destruction systems only. An extension to non-conservative
+  production-destruction systems was presented by Meister &amp; Benz
+  (<xref alt="2015" rid="ref-benzmeister2015" ref-type="bibr">2015</xref>).
+  We implemented a modification of this algorithm, by treating the
+  non-conservative production and destruction terms separately,
+  weighting the destruction terms and leaving the production terms
+  unweighted.</p>
+  <p>Readers interested in additional theoretical background, further
+  properties of the implemented schemes, and some applications are
+  referred to the publications of Kopecz &amp; Meister
+  (<xref alt="2019" rid="ref-kopeczmeister2019" ref-type="bibr">2019</xref>),
+  Izgin et al.
+  (<xref alt="2022a" rid="ref-izgin2022stability1" ref-type="bibr">2022a</xref>),
+  Izgin et al.
+  (<xref alt="2022b" rid="ref-izgin2022stability2" ref-type="bibr">2022b</xref>),
+  Huang et al.
+  (<xref alt="2023" rid="ref-huang2023" ref-type="bibr">2023</xref>),
+  Torlo et al.
+  (<xref alt="2022" rid="ref-torlo2022" ref-type="bibr">2022</xref>),
+  and Izgin &amp; Öffner
+  (<xref alt="2023" rid="ref-izginoeffner2023" ref-type="bibr">2023</xref>).
+  PositiveIntegrators.jl was successfully applied in the work of Bartel
+  et al.
+  (<xref alt="2024" rid="ref-bartel2024structure" ref-type="bibr">2024</xref>)
+  to solve Fokker-Planck equations, ensuring the positivity of the
+  unknown quantities.</p>
+  <p>Existing software libraries do not have a strong focus on
+  unconditional positivity and, to the authors’ knowledge, there is no
+  other software library offering MPRK schemes. A common strategy to
+  obtain nonnegative solutions used in the
+  <monospace>PositiveDomain</monospace> callback of
+  DifferentialEquations.jl or the commercial package MATLAB is described
+  by Shampine et al.
+  (<xref alt="2005" rid="ref-Shampine2005" ref-type="bibr">2005</xref>).
+  In this approach negative components of approximate solutions that
+  have been accepted by the adaptive time stepping algorithm are set to
+  zero. Another possibility is to reduce the chosen time step size
+  beyond accuracy considerations until a nonnegative approximation is
+  calculated. This can be achieved in DifferentialEquations.jl using the
+  solver option <monospace>isoutofdomain</monospace>.</p>
+  <p>We also mention that some papers on MPRK schemes offer
+  supplementary codes. However, these are mainly small scripts for the
+  reproduction of results shown in the papers and are not intended as
+  software libraries.</p>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>JL acknowledges the support by the Deutsche Forschungsgemeinschaft
+  (DFG) within the Research Training Group GRK 2583 “Modeling,
+  Simulation and Optimization of Fluid Dynamic Applications”. HR was
+  supported by the German Research Foundation (Deutsche
+  Forschungsgemeinschaft DFG, project number 513301895) and the Daimler
+  und Benz Stiftung (Daimler and Benz foundation, project number
+  32-10/22).</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <title></title>
+  <ref id="ref-bartel2024structure">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Bartel</surname><given-names>Hanna</given-names></name>
+        <name><surname>Lampert</surname><given-names>Joshua</given-names></name>
+        <name><surname>Ranocha</surname><given-names>Hendrik</given-names></name>
+      </person-group>
+      <article-title>Structure-preserving numerical methods for Fokker-Planck equations</article-title>
+      <source>Proceedings in Applied Mathematics and Mechanics</source>
+      <year iso-8601-date="2024-11">2024</year><month>11</month>
+      <uri>https://arxiv.org/abs/2404.07641</uri>
+      <pub-id pub-id-type="doi">10.1002/pamm.202400007</pub-id>
+      <fpage>e202400007</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-burchard2003">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Burchard</surname><given-names>Hans</given-names></name>
+        <name><surname>Deleersnijder</surname><given-names>Eric</given-names></name>
+        <name><surname>Meister</surname><given-names>Andreas</given-names></name>
+      </person-group>
+      <article-title>A high-order conservative Patankar-type discretisation for stiff systems of production–destruction equations</article-title>
+      <source>Applied Numerical Mathematics</source>
+      <publisher-name>Elsevier</publisher-name>
+      <year iso-8601-date="2003">2003</year>
+      <volume>47</volume>
+      <issue>1</issue>
+      <pub-id pub-id-type="doi">10.1016/S0168-9274(03)00101-6</pub-id>
+      <fpage>1</fpage>
+      <lpage>30</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-kopeczmeister2018order2">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Kopecz</surname><given-names>Stefan</given-names></name>
+        <name><surname>Meister</surname><given-names>Andreas</given-names></name>
+      </person-group>
+      <article-title>On order conditions for modified Patankar-Runge-Kutta schemes</article-title>
+      <source>Applied Numerical Mathematics</source>
+      <publisher-name>Elsevier</publisher-name>
+      <year iso-8601-date="2018">2018</year>
+      <volume>123</volume>
+      <pub-id pub-id-type="doi">10.1016/j.apnum.2017.09.004</pub-id>
+      <fpage>159</fpage>
+      <lpage>179</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-kopeczmeister2018order3">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Kopecz</surname><given-names>Stefan</given-names></name>
+        <name><surname>Meister</surname><given-names>Andreas</given-names></name>
+      </person-group>
+      <article-title>Unconditionally positive and conservative third order modified Patankar-Runge-Kutta discretizations of production–destruction systems</article-title>
+      <source>BIT Numerical Mathematics</source>
+      <publisher-name>Springer</publisher-name>
+      <year iso-8601-date="2018">2018</year>
+      <volume>58</volume>
+      <issue>3</issue>
+      <pub-id pub-id-type="doi">10.1007/s10543-018-0705-1</pub-id>
+      <fpage>691</fpage>
+      <lpage>728</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-kopeczmeister2019">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Kopecz</surname><given-names>Stefan</given-names></name>
+        <name><surname>Meister</surname><given-names>Andreas</given-names></name>
+      </person-group>
+      <article-title>On the existence of three-stage third-order modified Patankar-Runge-Kutta schemes</article-title>
+      <source>Numerical Algorithms</source>
+      <publisher-name>Springer</publisher-name>
+      <year iso-8601-date="2019">2019</year>
+      <pub-id pub-id-type="doi">10.1007/s11075-019-00680-3</pub-id>
+      <fpage>1</fpage>
+      <lpage>12</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-izgin2022stability1">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Izgin</surname><given-names>Thomas</given-names></name>
+        <name><surname>Kopecz</surname><given-names>Stefan</given-names></name>
+        <name><surname>Meister</surname><given-names>Andreas</given-names></name>
+      </person-group>
+      <article-title>On Lyapunov stability of positive and conservative time integrators and application to second order modified Patankar-Runge-Kutta schemes</article-title>
+      <source>ESAIM: Mathematical Modelling and Numerical Analysis</source>
+      <publisher-name>EDP Sciences</publisher-name>
+      <year iso-8601-date="2022">2022</year>
+      <volume>56</volume>
+      <issue>3</issue>
+      <pub-id pub-id-type="doi">10.1051/m2an/2022031</pub-id>
+      <fpage>1053</fpage>
+      <lpage>1080</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-izgin2022stability2">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Izgin</surname><given-names>Thomas</given-names></name>
+        <name><surname>Kopecz</surname><given-names>Stefan</given-names></name>
+        <name><surname>Meister</surname><given-names>Andreas</given-names></name>
+      </person-group>
+      <article-title>On the stability of unconditionally positive and linear invariants preserving time integration schemes</article-title>
+      <source>SIAM Journal on Numerical Analysis</source>
+      <publisher-name>SIAM</publisher-name>
+      <year iso-8601-date="2022">2022</year>
+      <volume>60</volume>
+      <issue>6</issue>
+      <pub-id pub-id-type="doi">10.1137/22M1480318</pub-id>
+      <fpage>3029</fpage>
+      <lpage>3051</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-huang2023">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Huang</surname><given-names>Juntao</given-names></name>
+        <name><surname>Izgin</surname><given-names>Thomas</given-names></name>
+        <name><surname>Kopecz</surname><given-names>Stefan</given-names></name>
+        <name><surname>Meister</surname><given-names>Andreas</given-names></name>
+        <name><surname>Shu</surname><given-names>Chi-Wang</given-names></name>
+      </person-group>
+      <article-title>On the stability of strong-stability-preserving modified Patankar-Runge-Kutta schemes</article-title>
+      <source>ESAIM: Mathematical Modelling and Numerical Analysis</source>
+      <publisher-name>EDP Sciences</publisher-name>
+      <year iso-8601-date="2023">2023</year>
+      <volume>57</volume>
+      <issue>2</issue>
+      <pub-id pub-id-type="doi">10.1051/m2an/2023005</pub-id>
+      <fpage>1063</fpage>
+      <lpage>1086</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-huang2019order3">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Huang</surname><given-names>Juntao</given-names></name>
+        <name><surname>Zhao</surname><given-names>Weifeng</given-names></name>
+        <name><surname>Shu</surname><given-names>Chi-Wang</given-names></name>
+      </person-group>
+      <article-title>A third-order unconditionally positivity-preserving scheme for production-destruction equations with applications to non-equilibrium flows</article-title>
+      <source>Journal of Scientific Computing</source>
+      <publisher-name>Springer</publisher-name>
+      <year iso-8601-date="2019">2019</year>
+      <volume>79</volume>
+      <issue>2</issue>
+      <pub-id pub-id-type="doi">10.1007/s10915-018-0881-9</pub-id>
+      <fpage>1015</fpage>
+      <lpage>1056</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-huang2019order2">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Huang</surname><given-names>Juntao</given-names></name>
+        <name><surname>Shu</surname><given-names>Chi-Wang</given-names></name>
+      </person-group>
+      <article-title>Positivity-preserving time discretizations for production-destruction equations with applications to non-equilibrium flows</article-title>
+      <source>Journal of Scientific Computing</source>
+      <publisher-name>Springer</publisher-name>
+      <year iso-8601-date="2019">2019</year>
+      <volume>78</volume>
+      <issue>3</issue>
+      <pub-id pub-id-type="doi">10.1007/s10915-018-0852-1</pub-id>
+      <fpage>1811</fpage>
+      <lpage>1839</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-torlo2022">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Torlo</surname><given-names>Davide</given-names></name>
+        <name><surname>Öffner</surname><given-names>Philipp</given-names></name>
+        <name><surname>Ranocha</surname><given-names>Hendrik</given-names></name>
+      </person-group>
+      <article-title>Issues with positivity-preserving Patankar-type schemes</article-title>
+      <source>Applied Numerical Mathematics</source>
+      <year iso-8601-date="2022-08">2022</year><month>08</month>
+      <volume>182</volume>
+      <uri>https://arxiv.org/abs/2108.07347</uri>
+      <pub-id pub-id-type="doi">10.1016/j.apnum.2022.07.014</pub-id>
+      <fpage>117</fpage>
+      <lpage>147</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-benzmeister2015">
+    <element-citation publication-type="chapter">
+      <person-group person-group-type="author">
+        <name><surname>Meister</surname><given-names>Andreas</given-names></name>
+        <name><surname>Benz</surname><given-names>Joachim</given-names></name>
+      </person-group>
+      <article-title>Phosphorus cycles in lakes and rivers: Modeling, analysis, and simulation</article-title>
+      <source>Handbook of geomathematics</source>
+      <person-group person-group-type="editor">
+        <name><surname>Freeden</surname><given-names>Willi</given-names></name>
+        <name><surname>Nashed</surname><given-names>M. Zuhair</given-names></name>
+        <name><surname>Sonar</surname><given-names>Thomas</given-names></name>
+      </person-group>
+      <publisher-name>Springer Berlin Heidelberg</publisher-name>
+      <publisher-loc>Berlin, Heidelberg</publisher-loc>
+      <year iso-8601-date="2015">2015</year>
+      <isbn>978-3-642-54551-1</isbn>
+      <uri>https://doi.org/10.1007/978-3-642-54551-1_23</uri>
+      <pub-id pub-id-type="doi">10.1007/978-3-642-54551-1_23</pub-id>
+      <fpage>1387</fpage>
+      <lpage>1416</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-izginoeffner2023">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Izgin</surname><given-names>Thomas</given-names></name>
+        <name><surname>Öffner</surname><given-names>Philipp</given-names></name>
+      </person-group>
+      <article-title>A study of the local dynamics of modified Patankar DeC and higher order modified Patankar-RK methods</article-title>
+      <source>ESAIM: Mathematical Modelling and Numerical Analysis</source>
+      <year iso-8601-date="2023">2023</year>
+      <volume>57</volume>
+      <issue>4</issue>
+      <issn>2822-7840</issn>
+      <uri>https://doi.org/10.1051/m2an/2023053</uri>
+      <pub-id pub-id-type="doi">10.1051/m2an/2023053</pub-id>
+      <fpage>2319</fpage>
+      <lpage>2348</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-OeffnerTorlo2020">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Öffner</surname><given-names>Philipp</given-names></name>
+        <name><surname>Torlo</surname><given-names>Davide</given-names></name>
+      </person-group>
+      <article-title>Arbitrary high-order, conservative and positivity preserving Patankar-type deferred correction schemes</article-title>
+      <source>Applied Numerical Mathematics</source>
+      <year iso-8601-date="2020">2020</year>
+      <volume>153</volume>
+      <issn>0168-9274</issn>
+      <uri>https://doi.org/10.1016/j.apnum.2020.01.025</uri>
+      <pub-id pub-id-type="doi">10.1016/j.apnum.2020.01.025</pub-id>
+      <fpage>15</fpage>
+      <lpage>34</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Shampine2005">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Shampine</surname><given-names>L. F.</given-names></name>
+        <name><surname>Thompson</surname><given-names>S.</given-names></name>
+        <name><surname>Kierzenka</surname><given-names>J. A.</given-names></name>
+        <name><surname>Byrne</surname><given-names>G. D.</given-names></name>
+      </person-group>
+      <article-title>Non-negative solutions of ODEs</article-title>
+      <source>Applied Mathematics and Computation</source>
+      <year iso-8601-date="2005">2005</year>
+      <volume>170</volume>
+      <issue>1</issue>
+      <issn>0096-3003</issn>
+      <uri>https://doi.org/10.1016/j.amc.2004.12.011</uri>
+      <pub-id pub-id-type="doi">10.1016/j.amc.2004.12.011</pub-id>
+      <fpage>556</fpage>
+      <lpage>569</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-rackauckas2017differentialequations">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Rackauckas</surname><given-names>Christopher</given-names></name>
+        <name><surname>Nie</surname><given-names>Qing</given-names></name>
+      </person-group>
+      <article-title>DifferentialEquations.jl – A performant and feature-rich ecosystem for solving differential equations in Julia</article-title>
+      <source>Journal of Open Research Software</source>
+      <publisher-name>Ubiquity Press</publisher-name>
+      <year iso-8601-date="2017">2017</year>
+      <volume>5</volume>
+      <issue>1</issue>
+      <pub-id pub-id-type="doi">10.5334/jors.151</pub-id>
+      <fpage>15</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-bezanson2017julia">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Bezanson</surname><given-names>Jeff</given-names></name>
+        <name><surname>Edelman</surname><given-names>Alan</given-names></name>
+        <name><surname>Karpinski</surname><given-names>Stefan</given-names></name>
+        <name><surname>Shah</surname><given-names>Viral B</given-names></name>
+      </person-group>
+      <article-title>Julia: A fresh approach to numerical computing</article-title>
+      <source>SIAM Review</source>
+      <publisher-name>SIAM</publisher-name>
+      <year iso-8601-date="2017">2017</year>
+      <volume>59</volume>
+      <issue>1</issue>
+      <uri>https://arxiv.org/abs/1411.1607</uri>
+      <pub-id pub-id-type="doi">10.1137/141000671</pub-id>
+      <fpage>65</fpage>
+      <lpage>98</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-christ2023plots">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Christ</surname><given-names>Simon</given-names></name>
+        <name><surname>Schwabeneder</surname><given-names>Daniel</given-names></name>
+        <name><surname>Rackauckas</surname><given-names>Christopher</given-names></name>
+        <name><surname>Borregaard</surname><given-names>Michael Krabbe</given-names></name>
+        <name><surname>Breloff</surname><given-names>Thomas</given-names></name>
+      </person-group>
+      <article-title>Plots.jl — a user extendable plotting API for the Julia programming language</article-title>
+      <source>Journal of Open Research Software</source>
+      <year iso-8601-date="2023">2023</year>
+      <volume>11</volume>
+      <issue>1</issue>
+      <uri>https://arxiv.org/abs/2204.08775</uri>
+      <pub-id pub-id-type="doi">10.5334/jors.431</pub-id>
+      <fpage>5</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-nusslein2021positivity">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Nüßlein</surname><given-names>Stephan</given-names></name>
+        <name><surname>Ranocha</surname><given-names>Hendrik</given-names></name>
+        <name><surname>Ketcheson</surname><given-names>David I</given-names></name>
+      </person-group>
+      <article-title>Positivity-preserving adaptive Runge-Kutta methods</article-title>
+      <source>Communications in Applied Mathematics and Computational Science</source>
+      <year iso-8601-date="2021-11">2021</year><month>11</month>
+      <volume>16</volume>
+      <issue>2</issue>
+      <uri>https://arxiv.org/abs/2005.06268</uri>
+      <pub-id pub-id-type="doi">10.2140/camcos.2021.16.155</pub-id>
+      <fpage>155</fpage>
+      <lpage>179</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-sandu2001positive">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Sandu</surname><given-names>Adrian</given-names></name>
+      </person-group>
+      <article-title>Positive numerical integration methods for chemical kinetic systems</article-title>
+      <source>Journal of Computational Physics</source>
+      <publisher-name>Elsevier</publisher-name>
+      <year iso-8601-date="2001">2001</year>
+      <volume>170</volume>
+      <issue>2</issue>
+      <pub-id pub-id-type="doi">10.1006/jcph.2001.6750</pub-id>
+      <fpage>589</fpage>
+      <lpage>602</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-bolley1978conservation">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Bolley</surname><given-names>Catherine</given-names></name>
+        <name><surname>Crouzeix</surname><given-names>Michel</given-names></name>
+      </person-group>
+      <article-title>Conservation de la positivité lors de la discrétisation des problèmes d’évolution paraboliques</article-title>
+      <source>RAIRO. Analyse numérique</source>
+      <publisher-name>EDP Sciences</publisher-name>
+      <year iso-8601-date="1978">1978</year>
+      <volume>12</volume>
+      <issue>3</issue>
+      <pub-id pub-id-type="doi">10.1051/m2an/1978120302371</pub-id>
+      <fpage>237</fpage>
+      <lpage>245</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-gottlieb2011strong">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Gottlieb</surname><given-names>Sigal</given-names></name>
+        <name><surname>Ketcheson</surname><given-names>David I</given-names></name>
+        <name><surname>Shu</surname><given-names>Chi-Wang</given-names></name>
+      </person-group>
+      <source>Strong stability preserving Runge-Kutta and multistep time discretizations</source>
+      <publisher-name>World Scientific</publisher-name>
+      <publisher-loc>Singapore</publisher-loc>
+      <year iso-8601-date="2011">2011</year>
+      <pub-id pub-id-type="doi">10.1142/7498</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-Bruggeman2007">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Bruggeman</surname><given-names>Jorn</given-names></name>
+        <name><surname>Burchard</surname><given-names>Hans</given-names></name>
+        <name><surname>Kooi</surname><given-names>Bob W.</given-names></name>
+        <name><surname>Sommeijer</surname><given-names>Ben</given-names></name>
+      </person-group>
+      <article-title>A second-order, unconditionally positive, mass-conserving integration scheme for biochemical systems</article-title>
+      <source>Applied Numerical Mathematics</source>
+      <year iso-8601-date="2007">2007</year>
+      <volume>57</volume>
+      <issue>1</issue>
+      <issn>0168-9274</issn>
+      <uri>https://doi.org/10.1016/j.apnum.2005.12.001</uri>
+      <pub-id pub-id-type="doi">10.1016/j.apnum.2005.12.001</pub-id>
+      <fpage>36</fpage>
+      <lpage>58</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Broekhuizen2008">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Broekhuizen</surname><given-names>N.</given-names></name>
+        <name><surname>Rickard</surname><given-names>Graham J.</given-names></name>
+        <name><surname>Bruggeman</surname><given-names>J.</given-names></name>
+        <name><surname>Meister</surname><given-names>A.</given-names></name>
+      </person-group>
+      <article-title>An improved and generalized second order, unconditionally positive, mass conserving integration scheme for biochemical systems</article-title>
+      <source>Applied Numerical Mathematics</source>
+      <year iso-8601-date="2008">2008</year>
+      <volume>58</volume>
+      <issue>3</issue>
+      <issn>0168-9274</issn>
+      <uri>https://doi.org/10.1016/j.apnum.2006.12.002</uri>
+      <pub-id pub-id-type="doi">10.1016/j.apnum.2006.12.002</pub-id>
+      <fpage>319</fpage>
+      <lpage>340</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Martiradonna2020">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Martiradonna</surname><given-names>Angela</given-names></name>
+        <name><surname>Colonna</surname><given-names>Gianpiero</given-names></name>
+        <name><surname>Diele</surname><given-names>Fasma</given-names></name>
+      </person-group>
+      <article-title>GeCo: Geometric Conservative nonstandard schemes for biochemical systems</article-title>
+      <source>Applied Numerical Mathematics</source>
+      <year iso-8601-date="2020">2020</year>
+      <volume>155</volume>
+      <issn>0168-9274</issn>
+      <uri>https://doi.org/10.1016/j.apnum.2019.12.004</uri>
+      <pub-id pub-id-type="doi">10.1016/j.apnum.2019.12.004</pub-id>
+      <fpage>38</fpage>
+      <lpage>57</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Avila2021">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Ávila</surname><given-names>Andrés I.</given-names></name>
+        <name><surname>González</surname><given-names>Galo Javier</given-names></name>
+        <name><surname>Kopecz</surname><given-names>Stefan</given-names></name>
+        <name><surname>Meister</surname><given-names>Andreas</given-names></name>
+      </person-group>
+      <article-title>Extension of modified Patankar-Runge-Kutta schemes to nonautonomous production-destruction systems based on Oliver’s approach</article-title>
+      <source>Journal of Computational and Applied Mathematics</source>
+      <year iso-8601-date="2021">2021</year>
+      <volume>389</volume>
+      <issn>0377-0427</issn>
+      <uri>https://doi.org/10.1016/j.cam.2020.113350</uri>
+      <pub-id pub-id-type="doi">10.1016/j.cam.2020.113350</pub-id>
+      <fpage>Paper No. 113350, 13</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Avila2020">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Ávila</surname><given-names>Andrés I.</given-names></name>
+        <name><surname>Kopecz</surname><given-names>Stefan</given-names></name>
+        <name><surname>Meister</surname><given-names>Andreas</given-names></name>
+      </person-group>
+      <article-title>A comprehensive theory on generalized BBKS schemes</article-title>
+      <source>Applied Numerical Mathematics</source>
+      <year iso-8601-date="2020">2020</year>
+      <volume>157</volume>
+      <issn>0168-9274</issn>
+      <uri>https://doi.org/10.1016/j.apnum.2020.05.027</uri>
+      <pub-id pub-id-type="doi">10.1016/j.apnum.2020.05.027</pub-id>
+      <fpage>19</fpage>
+      <lpage>37</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Formaggia2011">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Formaggia</surname><given-names>L.</given-names></name>
+        <name><surname>Scotti</surname><given-names>A.</given-names></name>
+      </person-group>
+      <article-title>Positivity and conservation properties of some integration schemes for mass action kinetics</article-title>
+      <source>SIAM Journal on Numerical Analysis</source>
+      <year iso-8601-date="2011">2011</year>
+      <volume>49</volume>
+      <issue>3</issue>
+      <issn>0036-1429</issn>
+      <uri>https://doi.org/10.1137/100789592</uri>
+      <pub-id pub-id-type="doi">10.1137/100789592</pub-id>
+      <fpage>1267</fpage>
+      <lpage>1288</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Izzo2025">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Izzo</surname><given-names>Giuseppe</given-names></name>
+        <name><surname>Messina</surname><given-names>Eleonora</given-names></name>
+        <name><surname>Pezzella</surname><given-names>Mario</given-names></name>
+        <name><surname>Vecchio</surname><given-names>Antonia</given-names></name>
+      </person-group>
+      <article-title>Modified Patankar linear multistep methods for production-destruction systems</article-title>
+      <source>Journal of Scientific Computing</source>
+      <year iso-8601-date="2025">2025</year>
+      <volume>102</volume>
+      <issue>3</issue>
+      <issn>0885-7474</issn>
+      <uri>https://doi.org/10.1007/s10915-025-02804-5</uri>
+      <pub-id pub-id-type="doi">10.1007/s10915-025-02804-5</pub-id>
+      <fpage>Paper No. 87, 39</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Zhu2024">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Zhu</surname><given-names>Fangyao</given-names></name>
+        <name><surname>Huang</surname><given-names>Juntao</given-names></name>
+        <name><surname>Yang</surname><given-names>Yang</given-names></name>
+      </person-group>
+      <article-title>Bound-preserving discontinuous Galerkin methods with modified Patankar time integrations for chemical reacting flows</article-title>
+      <source>Communications on Applied Mathematics and Computation</source>
+      <year iso-8601-date="2024">2024</year>
+      <volume>6</volume>
+      <issue>1</issue>
+      <issn>2096-6385</issn>
+      <uri>https://doi.org/10.1007/s42967-022-00231-z</uri>
+      <pub-id pub-id-type="doi">10.1007/s42967-022-00231-z</pub-id>
+      <fpage>190</fpage>
+      <lpage>217</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Blanes2022">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Blanes</surname><given-names>Sergio</given-names></name>
+        <name><surname>Iserles</surname><given-names>Arieh</given-names></name>
+        <name><surname>Macnamara</surname><given-names>Shev</given-names></name>
+      </person-group>
+      <article-title>Positivity-preserving methods for ordinary differential equations</article-title>
+      <source>ESAIM. Mathematical Modelling and Numerical Analysis</source>
+      <year iso-8601-date="2022">2022</year>
+      <volume>56</volume>
+      <issue>6</issue>
+      <issn>2822-7840</issn>
+      <uri>https://doi.org/10.1051/m2an/2022042</uri>
+      <pub-id pub-id-type="doi">10.1051/m2an/2022042</pub-id>
+      <fpage>1843</fpage>
+      <lpage>1870</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Izgin2025">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Izgin</surname><given-names>Thomas</given-names></name>
+        <name><surname>Ketcheson</surname><given-names>David I.</given-names></name>
+        <name><surname>Meister</surname><given-names>Andreas</given-names></name>
+      </person-group>
+      <article-title>Order conditions for Runge–Kutta-like methods with solution-dependent coefficients</article-title>
+      <source>Communications in Applied Mathematics and Computational Science</source>
+      <year iso-8601-date="2025">2025</year>
+      <volume>20</volume>
+      <issue>1</issue>
+      <issn>1559-3940</issn>
+      <uri>https://doi.org/10.2140/camcos.2025.20.29</uri>
+      <pub-id pub-id-type="doi">10.2140/camcos.2025.20.29</pub-id>
+      <fpage>29</fpage>
+      <lpage>66</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Ortleb2017">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Ortleb</surname><given-names>Sigrun</given-names></name>
+        <name><surname>Hundsdorfer</surname><given-names>Willem</given-names></name>
+      </person-group>
+      <article-title>Patankar-type runge-kutta schemes for linear PDEs</article-title>
+      <source>AIP Conference Proceedings</source>
+      <year iso-8601-date="2017-07">2017</year><month>07</month>
+      <volume>1863</volume>
+      <issue>1</issue>
+      <issn>0094-243X</issn>
+      <uri>https://doi.org/10.1063/1.4992489</uri>
+      <pub-id pub-id-type="doi">10.1063/1.4992489</pub-id>
+      <fpage>320008</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
