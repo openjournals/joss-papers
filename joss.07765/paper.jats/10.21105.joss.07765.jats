@@ -1,0 +1,1429 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">7765</article-id>
+<article-id pub-id-type="doi">10.21105/joss.07765</article-id>
+<title-group>
+<article-title><monospace>diverse-seq</monospace>: an application for
+alignment-free selecting and clustering biological
+sequences</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0001-7224-2074</contrib-id>
+<name>
+<surname>Huttley</surname>
+<given-names>Gavin</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0002-8459-6168</contrib-id>
+<name>
+<surname>Caley</surname>
+<given-names>Katherine</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0001-9099-339X</contrib-id>
+<name>
+<surname>McArthur</surname>
+<given-names>Robert</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Research School of Biology, Australian National University,
+Australia</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2024-08-13">
+<day>13</day>
+<month>8</month>
+<year>2024</year>
+</pub-date>
+<volume>10</volume>
+<issue>109</issue>
+<fpage>7765</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2025</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>Python</kwd>
+<kwd>genomics</kwd>
+<kwd>statistics</kwd>
+<kwd>machine learning</kwd>
+<kwd>bioinformatics</kwd>
+<kwd>molecular evolution</kwd>
+<kwd>phylogenetics</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p><monospace>diverse-seq</monospace> implements computationally
+  efficient alignment-free algorithms that enable efficient prototyping
+  for phylogenetic workflows. It can accelerate parameter selection
+  searches for sequence alignment and phylogeny estimation by
+  identifying a subset of sequences that are representative of the
+  diversity in a collection. We show that selecting representative
+  sequences with an entropy measure of <inline-formula><alternatives>
+  <tex-math><![CDATA[k]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>k</mml:mi></mml:math></alternatives></inline-formula>-mer
+  frequencies corresponds well to sampling via conventional genetic
+  distances. The computational performance is linear with respect to the
+  number of sequences and can be run in parallel. Applied to a
+  collection of 10.5k whole microbial genomes on a laptop took ~8
+  minutes to prepare the data and 4 minutes to select 100
+  representatives. <monospace>diverse-seq</monospace> can further boost
+  the performance of phylogenetic estimation by providing a seed
+  phylogeny that can be further refined by a more sophisticated
+  algorithm. For ~1k whole microbial genomes on a laptop, it takes ~1.8
+  minutes to estimate a bifurcating tree from mash distances.</p>
+  <p>The <monospace>diverse-seq</monospace> algorithms are not limited
+  to homologous sequences. As such, they can improve the performance of
+  other workflows. For instance, machine learning projects that involve
+  non-homologous sequences can benefit as representative sampling can
+  mitigate biases from imbalanced groups.</p>
+  <p><monospace>diverse-seq</monospace> is a BSD-3 licensed Python
+  package that provides both a command-line interface and
+  <monospace>cogent3</monospace> plugins. The latter simplifies
+  integration by users into their own analyses. It is available via the
+  Python Package Index and GitHub.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p>The algorithms required for phylogenetics — multiple sequence
+  alignment and phylogeny estimation — are both compute intensive. As
+  the size of DNA sequence datasets continues to increase, there is a
+  need for a tool that can effectively lessen the computational burden
+  associated with this widely used analysis.</p>
+  <p>Accurately selecting a representative subset of biological
+  sequences can improve the statistical accuracy and computational
+  performance of data sampling workflows. In many cases, the reliability
+  of such analyses is contingent on the sample capturing the full
+  diversity of the original collection (e.g. estimating large
+  phylogenies
+  <xref alt="Parks et al., 2018" rid="ref-parks.2018.natbiotechnol" ref-type="bibr">Parks
+  et al., 2018</xref>;
+  <xref alt="Zhu et al., 2019" rid="ref-zhu.2019.nat.commun" ref-type="bibr">Zhu
+  et al., 2019</xref>). Additionally, the computation time of algorithms
+  reliant on numerical optimisation, such as phylogenetic estimation,
+  can be markedly reduced by having a good initial estimate.</p>
+  <p>Existing tools for the data sampling problem require input data in
+  formats that themselves can be computationally costly to acquire. For
+  instance, tree-based sequence selection procedures can be efficient,
+  but they rely on a phylogenetic tree or a pairwise genetic distance
+  matrix, both of which require alignment of homologous sequences
+  (<xref alt="Balaban et al., 2019" rid="ref-balaban.2019.plosone" ref-type="bibr">Balaban
+  et al., 2019</xref>; e.g.
+  <xref alt="Widmann et al., 2006" rid="ref-widmann.2006.molcellproteomics" ref-type="bibr">Widmann
+  et al., 2006</xref>). Adding both the time for sequence alignment and
+  tree estimation presents a barrier to their use.</p>
+  <p>The <monospace>diverse-seq</monospace> sequence selection
+  algorithms are linear in time for the number of sequences and more
+  flexible than published approaches
+  (<xref alt="Balaban et al., 2019" rid="ref-balaban.2019.plosone" ref-type="bibr">Balaban
+  et al., 2019</xref>; e.g.
+  <xref alt="Widmann et al., 2006" rid="ref-widmann.2006.molcellproteomics" ref-type="bibr">Widmann
+  et al., 2006</xref>). While the algorithms do not require homologous
+  sequences, they can be applied to them. In the homologous sequence
+  case, the set selected is comparable to what would be produced using a
+  genetic distance measure. The <monospace>diverse-seq</monospace>
+  clustering algorithm is linear in time for the combined sequence
+  length. For homologous sequences, the estimated trees are
+  approximations of those estimated from an alignment by IQ-TREE2
+  (<xref alt="Minh et al., 2020" rid="ref-minh.2020.iq" ref-type="bibr">Minh
+  et al., 2020</xref>).</p>
+</sec>
+<sec id="definitions">
+  <title>Definitions</title>
+  <p>A <inline-formula><alternatives>
+  <tex-math><![CDATA[k]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>k</mml:mi></mml:math></alternatives></inline-formula>-mer
+  is a subsequence of length <inline-formula><alternatives>
+  <tex-math><![CDATA[k]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>k</mml:mi></mml:math></alternatives></inline-formula>,
+  and the frequency of each <inline-formula><alternatives>
+  <tex-math><![CDATA[k]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>k</mml:mi></mml:math></alternatives></inline-formula>-mer
+  in a sequence forms a <inline-formula><alternatives>
+  <tex-math><![CDATA[k]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>k</mml:mi></mml:math></alternatives></inline-formula>-mer
+  probability vector. The Shannon entropy is a measure of “uncertainty”
+  in a probability vector and is commonly used in sequence analysis
+  (e.g.
+  <xref alt="Schneider &amp; Stephens, 1990" rid="ref-schneider.1990.nucleicacidsres" ref-type="bibr">Schneider
+  &amp; Stephens, 1990</xref>). The Shannon entropy is calculated as
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[H=-\sum_i p_i \log_2 p_i]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>H</mml:mi><mml:mo>=</mml:mo><mml:mi>−</mml:mi><mml:msub><mml:mo>∑</mml:mo><mml:mi>i</mml:mi></mml:msub><mml:msub><mml:mi>p</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:msub><mml:mo>log</mml:mo><mml:mn>2</mml:mn></mml:msub><mml:msub><mml:mi>p</mml:mi><mml:mi>i</mml:mi></mml:msub></mml:mrow></mml:math></alternatives></inline-formula>
+  where <inline-formula><alternatives>
+  <tex-math><![CDATA[p_i]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>p</mml:mi><mml:mi>i</mml:mi></mml:msub></mml:math></alternatives></inline-formula>
+  is the probability of the <inline-formula><alternatives>
+  <tex-math><![CDATA[i]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>i</mml:mi></mml:math></alternatives></inline-formula>-th
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[k]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>k</mml:mi></mml:math></alternatives></inline-formula>-mer.
+  As an indication of the interpretability of Shannon entropy, with
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[k=1]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>k</mml:mi><mml:mo>=</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>
+  a DNA sequence with equifrequent nucleotides has the maximum possible
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[H=2]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>H</mml:mi><mml:mo>=</mml:mo><mml:mn>2</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>
+  (high uncertainty) while a sequence with a single nucleotide has
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[H=0]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>H</mml:mi><mml:mo>=</mml:mo><mml:mn>0</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>
+  (no uncertainty).</p>
+  <p>Shannon entropy is integral to other statistical measures that
+  quantify uncertainty
+  (<xref alt="Lin, 1991" rid="ref-lin.1991.ieeetrans.inf.theory" ref-type="bibr">Lin,
+  1991</xref>), including Jensen-Shannon divergence (JSD), which we
+  employ in this work. As illustrated in Table 1, the magnitude of JSD
+  reflects the level of relatedness amongst sequences via the similarity
+  between their <inline-formula><alternatives>
+  <tex-math><![CDATA[k]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>k</mml:mi></mml:math></alternatives></inline-formula>-mer
+  probability vectors. For a collection of
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[N]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>N</mml:mi></mml:math></alternatives></inline-formula>
+  DNA sequences <inline-formula><alternatives>
+  <tex-math><![CDATA[\mathbb{S}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>𝕊</mml:mi></mml:math></alternatives></inline-formula>,
+  define <inline-formula><alternatives>
+  <tex-math><![CDATA[f_i]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>f</mml:mi><mml:mi>i</mml:mi></mml:msub></mml:math></alternatives></inline-formula>
+  as the <inline-formula><alternatives>
+  <tex-math><![CDATA[k]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>k</mml:mi></mml:math></alternatives></inline-formula>-mer
+  frequency vector for sequence <inline-formula><alternatives>
+  <tex-math><![CDATA[s_i]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>s</mml:mi><mml:mi>i</mml:mi></mml:msub></mml:math></alternatives></inline-formula>.
+  The JSD for the resulting set of vectors,
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[\mathbb{F}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>𝔽</mml:mi></mml:math></alternatives></inline-formula>,
+  is</p>
+  <p><disp-formula><alternatives>
+  <tex-math><![CDATA[JSD(\mathbb{F})=H \left( \frac{1}{N}\sum_i^N f_i \right) - \overline{H(\mathbb{F})},]]></tex-math>
+  <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>J</mml:mi><mml:mi>S</mml:mi><mml:mi>D</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>𝔽</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>=</mml:mo><mml:mi>H</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mfrac><mml:mn>1</mml:mn><mml:mi>N</mml:mi></mml:mfrac><mml:munderover><mml:mo>∑</mml:mo><mml:mi>i</mml:mi><mml:mi>N</mml:mi></mml:munderover><mml:msub><mml:mi>f</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>−</mml:mo><mml:mover><mml:mrow><mml:mi>H</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>𝔽</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow><mml:mo accent="true">¯</mml:mo></mml:mover><mml:mo>,</mml:mo></mml:mrow></mml:math></alternatives></disp-formula></p>
+  <p>where the first term corresponds to the Shannon entropy of the mean
+  of the <inline-formula><alternatives>
+  <tex-math><![CDATA[N]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>N</mml:mi></mml:math></alternatives></inline-formula>
+  probability vectors and the second term <inline-formula><alternatives>
+  <tex-math><![CDATA[\overline{H(\mathbb{F})}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mover><mml:mrow><mml:mi>H</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>𝔽</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow><mml:mo accent="true">¯</mml:mo></mml:mover></mml:math></alternatives></inline-formula>
+  is the mean of their corresponding Shannon entropies. For vector
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[f_i \in \mathbb{F}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>f</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mo>∈</mml:mo><mml:mi>𝔽</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>
+  its contribution to the total JSD of <inline-formula><alternatives>
+  <tex-math><![CDATA[\mathbb{F}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>𝔽</mml:mi></mml:math></alternatives></inline-formula>
+  is</p>
+  <p><disp-formula><alternatives>
+  <tex-math><![CDATA[\delta_{JSD}(i)=JSD(\mathbb{F})-JSD(\mathbb{F} - \{f_i\}).]]></tex-math>
+  <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>δ</mml:mi><mml:mrow><mml:mi>J</mml:mi><mml:mi>S</mml:mi><mml:mi>D</mml:mi></mml:mrow></mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>i</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>=</mml:mo><mml:mi>J</mml:mi><mml:mi>S</mml:mi><mml:mi>D</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>𝔽</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>−</mml:mo><mml:mi>J</mml:mi><mml:mi>S</mml:mi><mml:mi>D</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>𝔽</mml:mi><mml:mo>−</mml:mo><mml:mo stretchy="false" form="prefix">{</mml:mo><mml:msub><mml:mi>f</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mo stretchy="false" form="postfix">}</mml:mo><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mi>.</mml:mi></mml:mrow></mml:math></alternatives></disp-formula><styled-content id="eqnU003Adelta-jsd"></styled-content></p>
+  <p>From the equation, it is apparent that to update the JSD of a
+  collection efficiently, we need only track
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[k]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>k</mml:mi></mml:math></alternatives></inline-formula>-mer
+  counts, total Shannon entropy and the number of sequences. Thus, the
+  algorithm can be implemented with a single pass through the data.</p>
+  <p>To facilitate the description below, we define the record with the
+  minimum <inline-formula><alternatives>
+  <tex-math><![CDATA[\delta_{JSD}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>δ</mml:mi><mml:mrow><mml:mi>J</mml:mi><mml:mi>S</mml:mi><mml:mi>D</mml:mi></mml:mrow></mml:msub></mml:math></alternatives></inline-formula>
+  as <disp-formula><alternatives>
+  <tex-math><![CDATA[lowest = \mathop{\mathrm{argmin}}_{i \in N} \delta_{JSD}(i).]]></tex-math>
+  <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>l</mml:mi><mml:mi>o</mml:mi><mml:mi>w</mml:mi><mml:mi>e</mml:mi><mml:mi>s</mml:mi><mml:mi>t</mml:mi><mml:mo>=</mml:mo><mml:msub><mml:mo>argmin</mml:mo><mml:mrow><mml:mi>i</mml:mi><mml:mo>∈</mml:mo><mml:mi>N</mml:mi></mml:mrow></mml:msub><mml:msub><mml:mi>δ</mml:mi><mml:mrow><mml:mi>J</mml:mi><mml:mi>S</mml:mi><mml:mi>D</mml:mi></mml:mrow></mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>i</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mi>.</mml:mi></mml:mrow></mml:math></alternatives></disp-formula></p>
+</sec>
+<sec id="algorithms">
+  <title>Algorithms</title>
+  <p><italic><monospace>dvs</monospace> subcommand:
+  <monospace>prep</monospace> converts sequences into
+  <monospace>numpy</monospace> arrays for faster
+  processing.</italic></p>
+  <p>The <monospace>prep</monospace> sub-command converts plain text
+  sequence data into an on-disk storage format for efficient access in
+  the other steps. A user can provide either fasta or GenBank formatted
+  DNA sequence files. The sequences are converted into unsigned 8-bit
+  integer <monospace>numpy</monospace> arrays and stored in a single
+  HDF5 file on disk. The resulting <monospace>.dvseqs</monospace> file
+  is required for all the sub-commands.</p>
+  <sec id="selection-of-representative-sequences">
+    <title>Selection of representative sequences</title>
+    <p><italic><monospace>dvs</monospace> subcommands:
+    <monospace>nmost</monospace> samples the
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[n]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>n</mml:mi></mml:math></alternatives></inline-formula>
+    sequences that increase JSD most; <monospace>max</monospace> samples
+    sequences that maximise a user specified statistic, either the
+    standard deviation or the coefficient of variation of
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[\delta_{JSD}]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>δ</mml:mi><mml:mrow><mml:mi>J</mml:mi><mml:mi>S</mml:mi><mml:mi>D</mml:mi></mml:mrow></mml:msub></mml:math></alternatives></inline-formula>.</italic></p>
+    <p>The following optimisations have been employed to make the
+    algorithm for computing the JSD scalable in terms of the number of
+    sequences.</p>
+    <list list-type="order">
+      <list-item>
+        <p>Sequence data is BLOSC2 compressed as unsigned-8 bit integers
+        and saved in HDF5 format on disk.</p>
+      </list-item>
+      <list-item>
+        <p><monospace>numba</monospace>, a just-in-time compiler, is
+        used for the core algorithms producing
+        <inline-formula><alternatives>
+        <tex-math><![CDATA[k]]></tex-math>
+        <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>k</mml:mi></mml:math></alternatives></inline-formula>-mers
+        and their counts, providing a significant speed up over a pure
+        python implementation
+        (<xref alt="Lam et al., 2015" rid="ref-numba" ref-type="bibr">Lam
+        et al., 2015</xref>).</p>
+      </list-item>
+      <list-item>
+        <p>Sequence loading and <inline-formula><alternatives>
+        <tex-math><![CDATA[k]]></tex-math>
+        <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>k</mml:mi></mml:math></alternatives></inline-formula>-mer
+        counting is triggered when a sequence record is considered for
+        inclusion in the divergent set, reducing the memory required to
+        that for the user-nominated size.</p>
+      </list-item>
+    </list>
+    <p>The <monospace>nmost</monospace> algorithm defines an exact
+    number of sequences to be selected that maximise the JSD. The order
+    of input sequences is randomised and the selected set is initialised
+    with the first <inline-formula><alternatives>
+    <tex-math><![CDATA[n]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>n</mml:mi></mml:math></alternatives></inline-formula>
+    sequences. As shown in
+    <xref alt="[algo:nmost]" rid="algoU003Anmost">[algo:nmost]</xref>,
+    for each of the remaining sequences, if adding it to the set
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[\mathbb{F} - \{lowest\}]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>𝔽</mml:mi><mml:mo>−</mml:mo><mml:mo stretchy="false" form="prefix">{</mml:mo><mml:mi>l</mml:mi><mml:mi>o</mml:mi><mml:mi>w</mml:mi><mml:mi>e</mml:mi><mml:mi>s</mml:mi><mml:mi>t</mml:mi><mml:mo stretchy="false" form="postfix">}</mml:mo></mml:mrow></mml:math></alternatives></inline-formula>
+    increases JSD, it replaces <inline-formula><alternatives>
+    <tex-math><![CDATA[lowest]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>l</mml:mi><mml:mi>o</mml:mi><mml:mi>w</mml:mi><mml:mi>e</mml:mi><mml:mi>s</mml:mi><mml:mi>t</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>.
+    The <monospace>max</monospace> algorithm
+    (<xref alt="[algo:max]" rid="algoU003Amax">[algo:max]</xref>)
+    differs from <monospace>nmost</monospace>
+    (<xref alt="[algo:nmost]" rid="algoU003Anmost">[algo:nmost]</xref>)
+    by defining lower and upper bounds for the number of sequences in
+    the divergent set. It further amends the within-loop condition,
+    allowing the number of sequences in the set to change when a
+    statistical measure of <inline-formula><alternatives>
+    <tex-math><![CDATA[\delta_{JSD}]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>δ</mml:mi><mml:mrow><mml:mi>J</mml:mi><mml:mi>S</mml:mi><mml:mi>D</mml:mi></mml:mrow></mml:msub></mml:math></alternatives></inline-formula>
+    variance increases. We provide users a choice of two measures of
+    variance in <inline-formula><alternatives>
+    <tex-math><![CDATA[\delta_{JSD}]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>δ</mml:mi><mml:mrow><mml:mi>J</mml:mi><mml:mi>S</mml:mi><mml:mi>D</mml:mi></mml:mrow></mml:msub></mml:math></alternatives></inline-formula>:
+    the standard deviation or the coefficient of variation.</p>
+  </sec>
+  <sec id="constructing-a-tree-from-k-mers">
+    <title>Constructing a tree from <inline-formula><alternatives>
+    <tex-math><![CDATA[k]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>k</mml:mi></mml:math></alternatives></inline-formula>-mers</title>
+    <p><italic><monospace>dvs</monospace> subcommand:
+    <monospace>ctree</monospace> estimates a phylogenetic tree from
+    unaligned sequences using mash distances.</italic></p>
+    <p>The mash distance
+    (<xref alt="Ondov et al., 2016" rid="ref-ondov.2016.mash" ref-type="bibr">Ondov
+    et al., 2016</xref>) estimates the proportion of changes between two
+    sequences and can be computed in near linear time. It approximates
+    the Jaccard distance between the <inline-formula><alternatives>
+    <tex-math><![CDATA[k]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>k</mml:mi></mml:math></alternatives></inline-formula>-mer
+    sets of the two sequences (the proportion of shared
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[k]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>k</mml:mi></mml:math></alternatives></inline-formula>-mers)
+    from a subset of all <inline-formula><alternatives>
+    <tex-math><![CDATA[k]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>k</mml:mi></mml:math></alternatives></inline-formula>-mers
+    in the two sequences. This subset is called the MinHash sketch and
+    its size is the <italic>sketch size</italic>. When the
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[k]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>k</mml:mi></mml:math></alternatives></inline-formula>-mers
+    are converted to integers through a hash function, and then sorted,
+    the MinHash sketch contains the first sketch size
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[k]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>k</mml:mi></mml:math></alternatives></inline-formula>-mers.
+    We apply agglomerative clustering with average linkage
+    (<xref alt="Murtagh &amp; Contreras, 2012" rid="ref-murtagh.2012.algorithms" ref-type="bibr">Murtagh
+    &amp; Contreras, 2012</xref>) to the pairwise mash distances to
+    estimate a phylogenetic tree from unaligned sequences. We allow the
+    user to select the distance metric, <inline-formula><alternatives>
+    <tex-math><![CDATA[k]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>k</mml:mi></mml:math></alternatives></inline-formula>
+    and the sketch size.</p>
+  </sec>
+  <sec id="dvs-cogent3-apps">
+    <title><monospace>dvs</monospace> <monospace>cogent3</monospace>
+    apps</title>
+    <p>We provide <monospace>dvs_nmost</monospace>,
+    <monospace>dvs_max</monospace>, <monospace>dvs_ctree</monospace> and
+    <monospace>dvs_par_ctree</monospace> as
+    <monospace>cogent3</monospace> apps
+    (<xref alt="Huttley, Caley, et al., 2025" rid="ref-cogent3" ref-type="bibr">Huttley,
+    Caley, et al., 2025</xref>). For users with
+    <monospace>cogent3</monospace> installed, these are available at
+    runtime via the <monospace>cogent3</monospace> function
+    <monospace>get_app()</monospace>. The apps mirror the settings from
+    their command-line implementation but differ in that they operate
+    directly on a sequence collection, skipping conversion to disk
+    storage. The <monospace>dvs_nmost</monospace> and
+    <monospace>dvs_max</monospace> directly return the selected subset
+    of sequences, <monospace>dvs_ctree</monospace> and
+    <monospace>dvs_par_ctree</monospace> returns the estimated
+    phylogenetic tree. The <monospace>dvs_par_ctree</monospace> app runs
+    in parallel on a single alignment. The
+    <monospace>dvs_max</monospace> and <monospace>dvs_ctree</monospace>
+    apps are demonstrated in the
+    <ext-link ext-link-type="uri" xlink:href="https://github.com/HuttleyLab/DiverseSeq/blob/JOSS/paper/nbks/plugin_demo.ipynb">plugin_demo.ipynb</ext-link>
+    notebook.</p>
+  </sec>
+</sec>
+<sec id="performance">
+  <title>Performance</title>
+  <sec id="selection-of-representative-sequences-1">
+    <title>Selection of representative sequences</title>
+    <sec id="recovery-of-representatives-from-synthetic-knowns">
+      <title>Recovery of representatives from synthetic knowns</title>
+      <p>We evaluate the ability of <monospace>dvs max</monospace> to
+      recover known divergent lineages using simulated data. The
+      experimental design was intended to assess whether rare sequences
+      can be recovered. We defined four sequence families that differ in
+      nucleotide composition and two distinct “pools”:
+      <italic>balanced</italic>, in which there were 25 members from
+      each sequence family, or <italic>imbalanced</italic>, where one
+      sequence family occurred once, another 49 times and the remaining
+      two families 25 times each. If <monospace>dvs max</monospace>
+      identifies a set of precisely 4 sequences with each sequence
+      family represented, this is counted as a success. Each scenario
+      was repeated 50 times. As shown in
+      <xref alt="[fig:synthetic-knowns]" rid="figU003Asynthetic-knowns">[fig:synthetic-knowns]</xref>,
+      the primary determinant of the success was the length of the
+      simulated sequences.</p>
+    </sec>
+    <sec id="the-selected-sequences-are-phylogenetically-diverse">
+      <title>The selected sequences are phylogenetically diverse</title>
+      <p>For homologous DNA sequences, increasing the amount of elapsed
+      time since they shared a common ancestor increases their genetic
+      distance due to time-dependent accumulation of sequence changes.
+      We expect that the JSD between two sequences will also increase
+      proportional to the time since they last shared a common ancestor.
+      We therefore pose the null hypothesis that if JSD is not
+      informative, then the minimum pairwise genetic distance amongst
+      <inline-formula><alternatives>
+      <tex-math><![CDATA[n]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>n</mml:mi></mml:math></alternatives></inline-formula>
+      sequences chosen by <monospace>diverse_seq</monospace> will be
+      approximately equal to the minimum pairwise genetic distance
+      between a random selection of <inline-formula><alternatives>
+      <tex-math><![CDATA[n]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>n</mml:mi></mml:math></alternatives></inline-formula>
+      sequences. Under the alternate hypothesis that JSD is informative,
+      the minimum genetic distance between sequences chosen by
+      <monospace>diverse_seq</monospace> will be larger than between
+      randomly selected sequences. We test this hypothesis using a
+      resampling statistic
+      (<xref alt="Sokal &amp; Rohlf, 1995, p. 808" rid="ref-sokal.1995" ref-type="bibr">Sokal
+      &amp; Rohlf, 1995, p. 808</xref>), estimating the probability of
+      the algorithmic choice being consistent with the null hypothesis.
+      This probability is calculated as the proportion of 1000 randomly
+      selected sets of sequences whose minimum genetic distance was
+      greater or equal to that obtained from the sequences chosen by
+      <monospace>dvs max</monospace>. We further summarised the
+      performance of the <monospace>dvs</monospace> commands as the
+      percentage of loci which gave a <inline-formula><alternatives>
+      <tex-math><![CDATA[p]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>p</mml:mi></mml:math></alternatives></inline-formula>-value
+      less than 0.05. A bigger percentage is better.</p>
+      <p>We addressed the above hypothesis using 185 alignments of
+      protein coding DNA sequences from the following 31 mammals:
+      Alpaca, Armadillo, Bushbaby, Cat, Chimp, Cow, Dog, Dolphin,
+      Elephant, Gorilla, Hedgehog, Horse, Human, Hyrax, Macaque,
+      Marmoset, Megabat, Microbat, Mouse, Orangutan, Pig, Pika,
+      Platypus, Rabbit, Rat, Shrew, Sloth, Squirrel, Tarsier, Tenrec and
+      Wallaby. The sequences were obtained from Ensembl.org release 113
+      (<xref alt="Harrison et al., 2024" rid="ref-harrison.2024.nucleicacidsresearch" ref-type="bibr">Harrison
+      et al., 2024</xref>) using <monospace>ensembl-tui</monospace>
+      (<xref alt="Huttley, Ying, et al., 2025" rid="ref-ensembl-tui" ref-type="bibr">Huttley,
+      Ying, et al., 2025</xref>). We refer to this as the <italic>mammal
+      data set</italic>. In order to obtain genetic distances, the
+      sequences were aligned using the <monospace>cogent3</monospace>
+      progressive aligner
+      (<xref alt="Huttley, Caley, et al., 2025" rid="ref-cogent3" ref-type="bibr">Huttley,
+      Caley, et al., 2025</xref>;
+      <xref alt="Knight et al., 2007" rid="ref-knight.2007.genomebiol" ref-type="bibr">Knight
+      et al., 2007</xref>) and pairwise paralinear distances were
+      calculated
+      (<xref alt="Huttley, Caley, et al., 2025" rid="ref-cogent3" ref-type="bibr">Huttley,
+      Caley, et al., 2025</xref>;
+      <xref alt="Lake, 1994" rid="ref-lake.1994.procnatlacadsciua" ref-type="bibr">Lake,
+      1994</xref>).</p>
+      <p>The results of the analysis
+      (<xref alt="[fig:jsd-v-dist]" rid="figU003Ajsd-v-dist">[fig:jsd-v-dist]</xref>)
+      indicated the sucess of <monospace>dvs max</monospace> in
+      identifying genetically diverse sequences was principally
+      sensitive to the choice of <inline-formula><alternatives>
+      <tex-math><![CDATA[k]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>k</mml:mi></mml:math></alternatives></inline-formula>.
+      While
+      <xref alt="[fig:jsd-v-dist]" rid="figU003Ajsd-v-dist">[fig:jsd-v-dist]</xref>(a)
+      showed close equivalence between the statistics,
+      <xref alt="[fig:jsd-v-dist]" rid="figU003Ajsd-v-dist">[fig:jsd-v-dist]</xref>(b)
+      indicates the size of the selected set using the standard
+      deviation was systematically lower than for the coefficient of
+      variation. The result from the <monospace>dvs nmost</monospace>
+      analysis, performed using the minimum set size argument given to
+      <monospace>dvs max</monospace>, is represented by the
+      <inline-formula><alternatives>
+      <tex-math><![CDATA[JSD(\mathbb{F})]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>J</mml:mi><mml:mi>S</mml:mi><mml:mi>D</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>𝔽</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>
+      statistic. An example of the phylogenetic placement of selected
+      sequences is shown in
+      <xref alt="[fig:selected-edges]" rid="figU003Aselected-edges">[fig:selected-edges]</xref>.</p>
+    </sec>
+    <sec id="computational-performance">
+      <title>Computational performance</title>
+      <p>Using random samples of whole microbial genomes from the 960
+      REFSOIL dataset
+      (<xref alt="Choi et al., 2017" rid="ref-choi.2017.ismej" ref-type="bibr">Choi
+      et al., 2017</xref>) we established that compute time was linear
+      with respect to the number of sequences
+      (<xref alt="[fig:compute-time]" rid="figU003Acompute-time">[fig:compute-time]</xref>).
+      We further trialled the algorithm on the dataset of Zhu et al.
+      (<xref alt="2019" rid="ref-zhu.2019.nat.commun" ref-type="bibr">2019</xref>),
+      which consists of 10,560 whole microbial genomes. Using 10 cores
+      on a MacBook Pro M2 Max, application of
+      <monospace>dvs prep</monospace> followed by
+      <monospace>dvs nmost</monospace> took 8’9” and 3’45” (to select
+      100 sequences) respectively. The RAM memory per process was
+      ~300MB.</p>
+    </sec>
+  </sec>
+  <sec id="constructing-trees-from-k-mers">
+    <title>Constructing trees from <inline-formula><alternatives>
+    <tex-math><![CDATA[k]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>k</mml:mi></mml:math></alternatives></inline-formula>-mers</title>
+    <p>We use the mammal dataset described above to evaluate the
+    statistical performance of the <monospace>ctree</monospace> method.
+    All sequences were concatenated and a phylogenetic tree was
+    estimated from this alignment with different
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[k]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>k</mml:mi></mml:math></alternatives></inline-formula>-mer
+    sizes and sketch sizes. The trees generated by
+    <monospace>dvs ctree</monospace> are compared to the maximum
+    likelihood tree found by IQ-TREE2
+    (<xref alt="Minh et al., 2020" rid="ref-minh.2020.iq" ref-type="bibr">Minh
+    et al., 2020</xref>) using a general time-reversible model
+    (<xref alt="Tavare, 1986" rid="ref-tavare.1986.some" ref-type="bibr">Tavare,
+    1986</xref>) on the concatenated alignment.</p>
+    <p>The likelihood of the generated trees changes with
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[k]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>k</mml:mi></mml:math></alternatives></inline-formula>
+    (<xref alt="[fig:ctree-k]" rid="figU003Actree-k">[fig:ctree-k]</xref>).
+    When <inline-formula><alternatives>
+    <tex-math><![CDATA[k \leq 5]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>k</mml:mi><mml:mo>≤</mml:mo><mml:mn>5</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>,
+    the <inline-formula><alternatives>
+    <tex-math><![CDATA[k]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>k</mml:mi></mml:math></alternatives></inline-formula>-mers
+    are non-unique (all mash-distances are zero) and the method
+    generates a caterpillar tree. It is not until
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[k=8]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>k</mml:mi><mml:mo>=</mml:mo><mml:mn>8</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>
+    when the caterpillar tree is statistically outperformed. As
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[k]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>k</mml:mi></mml:math></alternatives></inline-formula>
+    increases further, the likelihood approaches that of IQ-TREE2 but
+    plateaus before it at <inline-formula><alternatives>
+    <tex-math><![CDATA[k=12]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>k</mml:mi><mml:mo>=</mml:mo><mml:mn>12</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>.
+    <xref alt="[fig:ctree-ss]" rid="figU003Actree-ss">[fig:ctree-ss]</xref>
+    shows how the likelihood of the generated trees changes as the
+    sketch size increases for varying <inline-formula><alternatives>
+    <tex-math><![CDATA[k \geq 8]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>k</mml:mi><mml:mo>≥</mml:mo><mml:mn>8</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>.</p>
+    <p>Sketch size also impacts on the tree likelihood. An upward trend
+    with increasing sketch size was evident with the likelihood
+    approaching but not reaching that found by IQ-TREE2 on the aligned
+    data. For the best performing values of
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[k]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>k</mml:mi></mml:math></alternatives></inline-formula>,
+    there was no benefit to increasing sketch size beyond ~2,500.</p>
+    <sec id="computational-performance-1">
+      <title>Computational performance</title>
+      <p>While the time complexity of the standard algorithm for
+      agglomerative clustering is <inline-formula><alternatives>
+      <tex-math><![CDATA[\mathcal{O}(n^3)]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>𝒪</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msup><mml:mi>n</mml:mi><mml:mn>3</mml:mn></mml:msup><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>,
+      with respect to the number of sequences, the number of sequences
+      is often small in comparison to the sequence lengths. As such, it
+      was found that the most time consuming step of the algorithm was
+      within the distance calculation. The pairwise distance calculation
+      is done in two steps. First, is constructing the MinHash sketch
+      for each sequence (a subset of sketch size
+      <inline-formula><alternatives>
+      <tex-math><![CDATA[k]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>k</mml:mi></mml:math></alternatives></inline-formula>-mers),
+      followed by the computation of distances from these sketches
+      (<xref alt="Ondov et al., 2016" rid="ref-ondov.2016.mash" ref-type="bibr">Ondov
+      et al., 2016</xref>). The expected runtime for constructing the
+      MinHash sketch for a sequence is <inline-formula><alternatives>
+      <tex-math><![CDATA[\mathcal{O}(l + s \cdot \log s \cdot \log l)]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>𝒪</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>l</mml:mi><mml:mo>+</mml:mo><mml:mi>s</mml:mi><mml:mo>⋅</mml:mo><mml:mo>log</mml:mo><mml:mi>s</mml:mi><mml:mo>⋅</mml:mo><mml:mo>log</mml:mo><mml:mi>l</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>
+      where <inline-formula><alternatives>
+      <tex-math><![CDATA[l]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>l</mml:mi></mml:math></alternatives></inline-formula>
+      is the length of the sequence, and <inline-formula><alternatives>
+      <tex-math><![CDATA[s]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>s</mml:mi></mml:math></alternatives></inline-formula>
+      is the sketch size. This is linear with respect to
+      <inline-formula><alternatives>
+      <tex-math><![CDATA[l]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>l</mml:mi></mml:math></alternatives></inline-formula>
+      when <inline-formula><alternatives>
+      <tex-math><![CDATA[l > > s]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>l</mml:mi><mml:mo>&gt;</mml:mo><mml:mo>&gt;</mml:mo><mml:mi>s</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>.
+      Hence, the time complexity for constructing all MinHash sketches
+      is linear with respect to the combined length of all sequences.
+      The time complexity for calculating the distance between two
+      sequences from the MinHash sketch is
+      <inline-formula><alternatives>
+      <tex-math><![CDATA[\mathcal{O}(s)]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>𝒪</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>s</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>.
+      Hence, the time complexity for calculating the pairwise distance
+      matrix between all pairs of sequences from the sketches is
+      <inline-formula><alternatives>
+      <tex-math><![CDATA[\mathcal{O} (sn^2)]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>𝒪</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>s</mml:mi><mml:msup><mml:mi>n</mml:mi><mml:mn>2</mml:mn></mml:msup><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>.
+      For suitable applications of this algorithm however, both the
+      sketch size and the number of sequences are numerically dominated
+      by the combined length of the sequences. Thus, the expected time
+      to run the algorithm is linear with respect to the combined length
+      of the sequences. This has been verified empirically with the 960
+      REFSOIL dataset
+      (<xref alt="[fig:ctree-time]" rid="figU003Actree-time">[fig:ctree-time]</xref>).
+      The figure shows that as the number of sequences grows (and hence
+      the combined length of the sequences), the time taken to construct
+      the cluster tree grows linearly. When applied to the full REFSOIL
+      dataset using 10 cores on a MacBook Pro M2 Max,
+      <monospace>ctree</monospace> took ~3.5 minutes.</p>
+    </sec>
+  </sec>
+</sec>
+<sec id="recommendations">
+  <title>Recommendations</title>
+  <p>For selecting representative sequences for large-scale analyses, we
+  recommend use of the <monospace>nmost</monospace> command line tool.
+  The choice of <inline-formula><alternatives>
+  <tex-math><![CDATA[k]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>k</mml:mi></mml:math></alternatives></inline-formula>
+  should be guided by the maximum number of unique
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[k]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>k</mml:mi></mml:math></alternatives></inline-formula>-mers
+  in a DNA sequence of length <inline-formula><alternatives>
+  <tex-math><![CDATA[L]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>L</mml:mi></mml:math></alternatives></inline-formula>,
+  indicated as the result of the expression
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[\log(\frac{L}{4})]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mo>log</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mfrac><mml:mi>L</mml:mi><mml:mn>4</mml:mn></mml:mfrac><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>.
+  For instance, <inline-formula><alternatives>
+  <tex-math><![CDATA[k\approx 12]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>k</mml:mi><mml:mo>≈</mml:mo><mml:mn>12</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>
+  for bacterial genomes (which are of the order
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[10^6]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msup><mml:mn>10</mml:mn><mml:mn>6</mml:mn></mml:msup></mml:math></alternatives></inline-formula>bp).
+  For individual protein coding genes, as
+  <xref alt="[fig:jsd-v-dist]" rid="figU003Ajsd-v-dist">[fig:jsd-v-dist]</xref>
+  indicates, <inline-formula><alternatives>
+  <tex-math><![CDATA[k=6]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>k</mml:mi><mml:mo>=</mml:mo><mml:mn>6</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>
+  for <monospace>nmost</monospace> gives a reasonable accuracy. For
+  estimating a phylogeny, we recommend <inline-formula><alternatives>
+  <tex-math><![CDATA[k=12]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>k</mml:mi><mml:mo>=</mml:mo><mml:mn>12</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>
+  and a sketch size of <inline-formula><alternatives>
+  <tex-math><![CDATA[3000]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mn>3000</mml:mn></mml:math></alternatives></inline-formula>.</p>
+</sec>
+<sec id="availability">
+  <title>Availability</title>
+  <p><monospace>diverse-seq</monospace> can be installed from the Python
+  Package Index. The GitHub repository for
+  <monospace>diverse-seq</monospace> contains
+  <ext-link ext-link-type="uri" xlink:href="https://github.com/HuttleyLab/DiverseSeq/tree/JOSS/paper/nbks">all
+  the scripts</ext-link> used to generate the results in this work. The
+  data sets used in this work are available from
+  <ext-link ext-link-type="uri" xlink:href="https://doi.org/10.5281/zenodo.15098583">Zenodo
+  10.5281/zenodo.15098583</ext-link>. The repository includes a script
+  for downloading these.</p>
+</sec>
+<sec id="figures">
+  <title>Figures</title>
+  <fig id="algoU003Anmost">
+    <caption><p>The <monospace>diverse-seq nmost</monospace> algorithm
+    selects the <inline-formula><alternatives>
+    <tex-math><![CDATA[n]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>n</mml:mi></mml:math></alternatives></inline-formula>
+    sequences that produce the largest JSD.</p></caption>
+    <graphic mimetype="application" mime-subtype="pdf" xlink:href="nmost.pdf" />
+  </fig>
+  <fig id="algoU003Amax">
+    <caption><p>The <monospace>diverse-seq max</monospace> algorithm.
+    This includes upper and lower bounds for the size of the divergent
+    set and amends the within-loop condition of
+    <monospace>nmost</monospace>. The set size is increased when a
+    record that increases JSD also increases the standard deviation of
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[\delta_{JSD}]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>δ</mml:mi><mml:mrow><mml:mi>J</mml:mi><mml:mi>S</mml:mi><mml:mi>D</mml:mi></mml:mrow></mml:msub></mml:math></alternatives></inline-formula>.</p></caption>
+    <graphic mimetype="application" mime-subtype="pdf" xlink:href="max.pdf" />
+  </fig>
+  <fig id="figU003Asynthetic-knowns">
+    <caption><p>Identification of representatives of known groups is
+    affected by sequence length. <monospace>dvs max</monospace>
+    identified representatives of known groups in both
+    <italic>balanced</italic>, and <italic>imbalanced</italic> pools.
+    std(<inline-formula><alternatives>
+    <tex-math><![CDATA[\delta_{JSD}]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>δ</mml:mi><mml:mrow><mml:mi>J</mml:mi><mml:mi>S</mml:mi><mml:mi>D</mml:mi></mml:mrow></mml:msub></mml:math></alternatives></inline-formula>)
+    and cov(<inline-formula><alternatives>
+    <tex-math><![CDATA[\delta_{JSD}]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>δ</mml:mi><mml:mrow><mml:mi>J</mml:mi><mml:mi>S</mml:mi><mml:mi>D</mml:mi></mml:mrow></mml:msub></mml:math></alternatives></inline-formula>)
+    are the standard deviation and coefficient of variation of
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[\delta_{JSD}]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>δ</mml:mi><mml:mrow><mml:mi>J</mml:mi><mml:mi>S</mml:mi><mml:mi>D</mml:mi></mml:mrow></mml:msub></mml:math></alternatives></inline-formula>
+    respectively.</p></caption>
+    <graphic mimetype="application" mime-subtype="pdf" xlink:href="synthetic_known_bar.pdf" />
+  </fig>
+  <fig id="figU003Ajsd-v-dist">
+    <caption><p>The statistical performance of
+    <monospace>dvs max</monospace> in recovering representative
+    sequences is a function of <inline-formula><alternatives>
+    <tex-math><![CDATA[k]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>k</mml:mi></mml:math></alternatives></inline-formula>
+    and the chosen statistic. The minimum and maximum allowed set sizes
+    were 5 and 30, respectively. std <monospace>dvs nmost</monospace> is
+    represented by <inline-formula><alternatives>
+    <tex-math><![CDATA[JSD(\mathbb{F})]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>J</mml:mi><mml:mi>S</mml:mi><mml:mi>D</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>𝔽</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>
+    run with n=5. Trendlines were estimated using LOWESS
+    (<xref alt="Cleveland, 1979" rid="ref-cleveland.1979.j.am.stat.assoc" ref-type="bibr">Cleveland,
+    1979</xref>). (a) <italic>Significant %</italic> is the percentage
+    of cases where <monospace>dvs max</monospace> was significantly
+    better (<inline-formula><alternatives>
+    <tex-math><![CDATA[p-\text{value} \le 0.05]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>p</mml:mi><mml:mo>−</mml:mo><mml:mtext mathvariant="normal">value</mml:mtext><mml:mo>≤</mml:mo><mml:mn>0.05</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>)
+    at selecting divergent sequences than a random selection process.
+    (b) The mean and standard deviations of the number of sequences
+    selected by <monospace>dvs max</monospace>.</p></caption>
+    <graphic mimetype="application" mime-subtype="pdf" xlink:href="jsd_v_dist.pdf" />
+  </fig>
+  <fig id="figU003Aselected-edges">
+    <caption><p>Result of applying the <monospace>dvs_max</monospace>
+    app to a single sequence alignment. The phylogenetic tree was
+    estimated using Neighbour-Joining
+    (<xref alt="Saitou &amp; Nei, 1987" rid="ref-saitou.1987.mol.biol.evol" ref-type="bibr">Saitou
+    &amp; Nei, 1987</xref>) from the pairwise paralinear distances
+    (<xref alt="Lake, 1994" rid="ref-lake.1994.procnatlacadsciua" ref-type="bibr">Lake,
+    1994</xref>). The branch to the sequence selected by
+    <monospace>dvs_max</monospace> are shown in red. See the
+    <monospace>plugin_demo</monospace> notebook for the code used to
+    produce this figure.</p></caption>
+    <graphic mimetype="application" mime-subtype="pdf" xlink:href="selected_edges.pdf" />
+  </fig>
+  <fig id="figU003Acompute-time">
+    <caption><p><monospace>dvs max</monospace> exhibits linear time
+    performance with respect to the number of microbial genome
+    sequences. Three replicates were performed for each condition. For
+    each repeat, sequences were randomly sampled without replacement
+    from the 960 REFSOIL microbial dataset
+    (<xref alt="Choi et al., 2017" rid="ref-choi.2017.ismej" ref-type="bibr">Choi
+    et al., 2017</xref>).</p></caption>
+    <graphic mimetype="application" mime-subtype="pdf" xlink:href="compute_time.pdf" />
+  </fig>
+  <fig id="figU003Actree-k">
+    <caption><p>Statistical performance of the
+    <monospace>dvs_ctree</monospace> app on the concatenated mammals
+    alignment as the <inline-formula><alternatives>
+    <tex-math><![CDATA[k]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>k</mml:mi></mml:math></alternatives></inline-formula>-mer
+    size increases. The likelihood of trees, represented as the
+    log-likelihood (lnL), generated by the app is compared to the
+    maximum likelihood tree found by IQ-TREE2
+    (<xref alt="Minh et al., 2020" rid="ref-minh.2020.iq" ref-type="bibr">Minh
+    et al., 2020</xref>). For large enough sketch sizes, the likelihood
+    approaches that of IQ-TREE2 and plateaus beyond a
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[k]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>k</mml:mi></mml:math></alternatives></inline-formula>-mer
+    size of ~12.</p></caption>
+    <graphic mimetype="application" mime-subtype="pdf" xlink:href="likelihood_vs_k_for_ss.pdf" />
+  </fig>
+  <fig id="figU003Actree-ss">
+    <caption><p>Statistical performance of the
+    <monospace>dvs_ctree</monospace> app on the concatenated mammals
+    alignment as the sketch size increases. The likelihood of trees,
+    represented as the log-likelihood (lnL), generated by the app is
+    compared to the maximum likelihood tree found by IQ-TREE2
+    (<xref alt="Minh et al., 2020" rid="ref-minh.2020.iq" ref-type="bibr">Minh
+    et al., 2020</xref>). For optimal <inline-formula><alternatives>
+    <tex-math><![CDATA[k]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>k</mml:mi></mml:math></alternatives></inline-formula>-mer
+    sizes, the likelihood approaches that of IQ-TREE2 and plateaus
+    beyond a sketch size of ~2500.</p></caption>
+    <graphic mimetype="application" mime-subtype="pdf" xlink:href="likelihood_vs_ss_for_k.pdf" />
+  </fig>
+  <fig id="figU003Actree-time">
+    <caption><p>Computational performance of the
+    <monospace>dvs_ctree</monospace> app on 960 REFSOIL microbial
+    dataset using 8 cores. The wall time taken to run the algorithm
+    grows linearly with respect to the number of
+    sequences.</p></caption>
+    <graphic mimetype="application" mime-subtype="pdf" xlink:href="compute_time-ctree.pdf" />
+  </fig>
+</sec>
+<sec id="tables">
+  <title>Tables</title>
+  <p><bold>Table 1</bold> Examples of Jensen-Shanon Divergence (JSD) for
+  the relationship of nucleotide frequencies between two sequences with
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[k=1]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>k</mml:mi><mml:mo>=</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>.<styled-content id="JSD-examples"></styled-content></p>
+  <table-wrap>
+    <table>
+      <colgroup>
+        <col width="21%" />
+        <col width="12%" />
+        <col width="12%" />
+        <col width="8%" />
+      </colgroup>
+      <thead>
+        <tr>
+          <th>Relationship</th>
+          <th>seq1</th>
+          <th>seq2</th>
+          <th>JSD</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Identical</td>
+          <td><monospace>ATCG</monospace></td>
+          <td><monospace>TCGA</monospace></td>
+          <td>0.0</td>
+        </tr>
+        <tr>
+          <td>No overlap</td>
+          <td><monospace>AAAA</monospace></td>
+          <td><monospace>TTTT</monospace></td>
+          <td>1.0</td>
+        </tr>
+        <tr>
+          <td>Intermediate</td>
+          <td><monospace>ATCG</monospace></td>
+          <td><monospace>ATCC</monospace></td>
+          <td>0.5</td>
+        </tr>
+      </tbody>
+    </table>
+  </table-wrap>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>We thank Yapeng Lang for comments on the manuscript and @iimog and
+  @xin-huang for their constructive reviews.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <title></title>
+  <ref id="ref-balaban.2019.plosone">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Balaban</surname><given-names>Metin</given-names></name>
+        <name><surname>Moshiri</surname><given-names>Niema</given-names></name>
+        <name><surname>Mai</surname><given-names>Uyen</given-names></name>
+        <name><surname>Jia</surname><given-names>Xingfan</given-names></name>
+        <name><surname>Mirarab</surname><given-names>Siavash</given-names></name>
+      </person-group>
+      <article-title>TreeCluster: Clustering biological sequences using phylogenetic trees</article-title>
+      <source>PLOS ONE</source>
+      <person-group person-group-type="editor">
+        <name><surname>Bozdag</surname><given-names>Serdar</given-names></name>
+      </person-group>
+      <year iso-8601-date="2019-08">2019</year><month>08</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2024-08-14">2024</year><month>08</month><day>14</day></date-in-citation>
+      <volume>14</volume>
+      <issue>8</issue>
+      <issn>1932-6203</issn>
+      <uri>https://dx.plos.org/10.1371/journal.pone.0221068</uri>
+      <pub-id pub-id-type="doi">10.1371/journal.pone.0221068</pub-id>
+      <fpage>e0221068</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-widmann.2006.molcellproteomics">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Widmann</surname><given-names>Jeremy</given-names></name>
+        <name><surname>Hamady</surname><given-names>Micah</given-names></name>
+        <name><surname>Knight</surname><given-names>Rob</given-names></name>
+      </person-group>
+      <article-title>DivergentSet, a tool for picking non-redundant sequences from large sequence collections.</article-title>
+      <source>Mol Cell Proteomics</source>
+      <year iso-8601-date="2006">2006</year>
+      <volume>5</volume>
+      <issue>8</issue>
+      <pub-id pub-id-type="doi">10.1074/mcp.T600022-MCP200</pub-id>
+      <pub-id pub-id-type="pmid">16769708</pub-id>
+      <fpage>1520</fpage>
+      <lpage>1532</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-schneider.1990.nucleicacidsres">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Schneider</surname><given-names>T D</given-names></name>
+        <name><surname>Stephens</surname><given-names>R M</given-names></name>
+      </person-group>
+      <article-title>Sequence logos: A new way to display consensus sequences.</article-title>
+      <source>Nucleic acids research</source>
+      <year iso-8601-date="1990-10">1990</year><month>10</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2016-11-08">2016</year><month>11</month><day>08</day></date-in-citation>
+      <volume>18</volume>
+      <issue>20</issue>
+      <issn>0305-1048</issn>
+      <uri>http://www.ncbi.nlm.nih.gov/pubmed/2172928</uri>
+      <pub-id pub-id-type="doi">10.1093/NAR/18.20.6097</pub-id>
+      <pub-id pub-id-type="pmid">2172928</pub-id>
+      <fpage>6097</fpage>
+      <lpage>100</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-lin.1991.ieeetrans.inf.theory">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Lin</surname><given-names>J.</given-names></name>
+      </person-group>
+      <article-title>Divergence measures based on the Shannon entropy</article-title>
+      <source>IEEE Transactions on Information Theory</source>
+      <year iso-8601-date="1991-01">1991</year><month>01</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2024-08-21">2024</year><month>08</month><day>21</day></date-in-citation>
+      <volume>37</volume>
+      <issue>1</issue>
+      <issn>1557-9654</issn>
+      <uri>https://ieeexplore.ieee.org/document/61115</uri>
+      <pub-id pub-id-type="doi">10.1109/18.61115</pub-id>
+      <fpage>145</fpage>
+      <lpage>151</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-lake.1994.procnatlacadsciua">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Lake</surname><given-names>J A</given-names></name>
+      </person-group>
+      <article-title>Reconstructing evolutionary trees from DNA and protein sequences: Paralinear distances.</article-title>
+      <source>Proc Natl Acad Sci U S A</source>
+      <year iso-8601-date="1994">1994</year>
+      <volume>91</volume>
+      <issue>4</issue>
+      <uri>https://pubmed.ncbi.nlm.nih.gov/8108430</uri>
+      <pub-id pub-id-type="doi">10.1073/pnas.91.4.1455</pub-id>
+      <pub-id pub-id-type="pmid">8108430</pub-id>
+      <fpage>1455</fpage>
+      <lpage>1459</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-harrison.2024.nucleicacidsresearch">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Harrison</surname><given-names>Peter W</given-names></name>
+        <name><surname>Amode</surname><given-names>M Ridwan</given-names></name>
+        <name><surname>Austine-Orimoloye</surname><given-names>Olanrewaju</given-names></name>
+        <name><surname>Azov</surname><given-names>Andrey G</given-names></name>
+        <name><surname>Barba</surname><given-names>Matthieu</given-names></name>
+        <name><surname>Barnes</surname><given-names>If</given-names></name>
+        <name><surname>Becker</surname><given-names>Arne</given-names></name>
+        <name><surname>Bennett</surname><given-names>Ruth</given-names></name>
+        <name><surname>Berry</surname><given-names>Andrew</given-names></name>
+        <name><surname>Bhai</surname><given-names>Jyothish</given-names></name>
+        <name><surname>Bhurji</surname><given-names>Simarpreet Kaur</given-names></name>
+        <name><surname>Boddu</surname><given-names>Sanjay</given-names></name>
+        <name><surname>Branco Lins</surname><given-names>Paulo R</given-names></name>
+        <name><surname>Brooks</surname><given-names>Lucy</given-names></name>
+        <name><surname>Ramaraju</surname><given-names>Shashank Budhanuru</given-names></name>
+        <name><surname>Campbell</surname><given-names>Lahcen I</given-names></name>
+        <name><surname>Martinez</surname><given-names>Manuel Carbajo</given-names></name>
+        <name><surname>Charkhchi</surname><given-names>Mehrnaz</given-names></name>
+        <name><surname>Chougule</surname><given-names>Kapeel</given-names></name>
+        <name><surname>Cockburn</surname><given-names>Alexander</given-names></name>
+        <name><surname>Davidson</surname><given-names>Claire</given-names></name>
+        <name><surname>De Silva</surname><given-names>Nishadi H</given-names></name>
+        <name><surname>Dodiya</surname><given-names>Kamalkumar</given-names></name>
+        <name><surname>Donaldson</surname><given-names>Sarah</given-names></name>
+        <name><surname>El Houdaigui</surname><given-names>Bilal</given-names></name>
+        <name><surname>Naboulsi</surname><given-names>Tamara El</given-names></name>
+        <name><surname>Fatima</surname><given-names>Reham</given-names></name>
+        <name><surname>Giron</surname><given-names>Carlos Garcia</given-names></name>
+        <name><surname>Genez</surname><given-names>Thiago</given-names></name>
+        <name><surname>Grigoriadis</surname><given-names>Dionysios</given-names></name>
+        <name><surname>Ghattaoraya</surname><given-names>Gurpreet S</given-names></name>
+        <name><surname>Martinez</surname><given-names>Jose Gonzalez</given-names></name>
+        <name><surname>Gurbich</surname><given-names>Tatiana A</given-names></name>
+        <name><surname>Hardy</surname><given-names>Matthew</given-names></name>
+        <name><surname>Hollis</surname><given-names>Zoe</given-names></name>
+        <name><surname>Hourlier</surname><given-names>Thibaut</given-names></name>
+        <name><surname>Hunt</surname><given-names>Toby</given-names></name>
+        <name><surname>Kay</surname><given-names>Mike</given-names></name>
+        <name><surname>Kaykala</surname><given-names>Vinay</given-names></name>
+        <name><surname>Le</surname><given-names>Tuan</given-names></name>
+        <name><surname>Lemos</surname><given-names>Diana</given-names></name>
+        <name><surname>Lodha</surname><given-names>Disha</given-names></name>
+        <name><surname>Marques-Coelho</surname><given-names>Diego</given-names></name>
+        <name><surname>Maslen</surname><given-names>Gareth</given-names></name>
+        <name><surname>Merino</surname><given-names>Gabriela Alejandra</given-names></name>
+        <name><surname>Mirabueno</surname><given-names>Louisse Paola</given-names></name>
+        <name><surname>Mushtaq</surname><given-names>Aleena</given-names></name>
+        <name><surname>Hossain</surname><given-names>Syed Nakib</given-names></name>
+        <name><surname>Ogeh</surname><given-names>Denye N</given-names></name>
+        <name><surname>Sakthivel</surname><given-names>Manoj Pandian</given-names></name>
+        <name><surname>Parker</surname><given-names>Anne</given-names></name>
+        <name><surname>Perry</surname><given-names>Malcolm</given-names></name>
+        <name><surname>Piližota</surname><given-names>Ivana</given-names></name>
+        <name><surname>Poppleton</surname><given-names>Daniel</given-names></name>
+        <name><surname>Prosovetskaia</surname><given-names>Irina</given-names></name>
+        <name><surname>Raj</surname><given-names>Shriya</given-names></name>
+        <name><surname>Pérez-Silva</surname><given-names>José G</given-names></name>
+        <name><surname>Salam</surname><given-names>Ahamed Imran Abdul</given-names></name>
+        <name><surname>Saraf</surname><given-names>Shradha</given-names></name>
+        <name><surname>Saraiva-Agostinho</surname><given-names>Nuno</given-names></name>
+        <name><surname>Sheppard</surname><given-names>Dan</given-names></name>
+        <name><surname>Sinha</surname><given-names>Swati</given-names></name>
+        <name><surname>Sipos</surname><given-names>Botond</given-names></name>
+        <name><surname>Sitnik</surname><given-names>Vasily</given-names></name>
+        <name><surname>Stark</surname><given-names>William</given-names></name>
+        <name><surname>Steed</surname><given-names>Emily</given-names></name>
+        <name><surname>Suner</surname><given-names>Marie-Marthe</given-names></name>
+        <name><surname>Surapaneni</surname><given-names>Likhitha</given-names></name>
+        <name><surname>Sutinen</surname><given-names>Kyösti</given-names></name>
+        <name><surname>Tricomi</surname><given-names>Francesca Floriana</given-names></name>
+        <name><surname>Urbina-Gómez</surname><given-names>David</given-names></name>
+        <name><surname>Veidenberg</surname><given-names>Andres</given-names></name>
+        <name><surname>Walsh</surname><given-names>Thomas A</given-names></name>
+        <name><surname>Ware</surname><given-names>Doreen</given-names></name>
+        <name><surname>Wass</surname><given-names>Elizabeth</given-names></name>
+        <name><surname>Willhoft</surname><given-names>Natalie L</given-names></name>
+        <name><surname>Allen</surname><given-names>Jamie</given-names></name>
+        <name><surname>Alvarez-Jarreta</surname><given-names>Jorge</given-names></name>
+        <name><surname>Chakiachvili</surname><given-names>Marc</given-names></name>
+        <name><surname>Flint</surname><given-names>Bethany</given-names></name>
+        <name><surname>Giorgetti</surname><given-names>Stefano</given-names></name>
+        <name><surname>Haggerty</surname><given-names>Leanne</given-names></name>
+        <name><surname>Ilsley</surname><given-names>Garth R</given-names></name>
+        <name><surname>Keatley</surname><given-names>Jon</given-names></name>
+        <name><surname>Loveland</surname><given-names>Jane E</given-names></name>
+        <name><surname>Moore</surname><given-names>Benjamin</given-names></name>
+        <name><surname>Mudge</surname><given-names>Jonathan M</given-names></name>
+        <name><surname>Naamati</surname><given-names>Guy</given-names></name>
+        <name><surname>Tate</surname><given-names>John</given-names></name>
+        <name><surname>Trevanion</surname><given-names>Stephen J</given-names></name>
+        <name><surname>Winterbottom</surname><given-names>Andrea</given-names></name>
+        <name><surname>Frankish</surname><given-names>Adam</given-names></name>
+        <name><surname>Hunt</surname><given-names>Sarah E</given-names></name>
+        <name><surname>Cunningham</surname><given-names>Fiona</given-names></name>
+        <name><surname>Dyer</surname><given-names>Sarah</given-names></name>
+        <name><surname>Finn</surname><given-names>Robert D</given-names></name>
+        <name><surname>Martin</surname><given-names>Fergal J</given-names></name>
+        <name><surname>Yates</surname><given-names>Andrew D</given-names></name>
+      </person-group>
+      <article-title>Ensembl 2024</article-title>
+      <source>Nucleic Acids Research</source>
+      <year iso-8601-date="2024-01">2024</year><month>01</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2024-08-22">2024</year><month>08</month><day>22</day></date-in-citation>
+      <volume>52</volume>
+      <issue>D1</issue>
+      <issn>0305-1048</issn>
+      <uri>https://doi.org/10.1093/nar/gkad1049</uri>
+      <pub-id pub-id-type="doi">10.1093/nar/gkad1049</pub-id>
+      <fpage>D891</fpage>
+      <lpage>D899</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-zhu.2019.nat.commun">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Zhu</surname><given-names>Qiyun</given-names></name>
+        <name><surname>Mai</surname><given-names>Uyen</given-names></name>
+        <name><surname>Pfeiffer</surname><given-names>Wayne</given-names></name>
+        <name><surname>Janssen</surname><given-names>Stefan</given-names></name>
+        <name><surname>Asnicar</surname><given-names>Francesco</given-names></name>
+        <name><surname>Sanders</surname><given-names>Jon G.</given-names></name>
+        <name><surname>Belda-Ferre</surname><given-names>Pedro</given-names></name>
+        <name><surname>Al-Ghalith</surname><given-names>Gabriel A.</given-names></name>
+        <name><surname>Kopylova</surname><given-names>Evguenia</given-names></name>
+        <name><surname>McDonald</surname><given-names>Daniel</given-names></name>
+        <name><surname>Kosciolek</surname><given-names>Tomasz</given-names></name>
+        <name><surname>Yin</surname><given-names>John B.</given-names></name>
+        <name><surname>Huang</surname><given-names>Shi</given-names></name>
+        <name><surname>Salam</surname><given-names>Nimaichand</given-names></name>
+        <name><surname>Jiao</surname><given-names>Jian-Yu</given-names></name>
+        <name><surname>Wu</surname><given-names>Zijun</given-names></name>
+        <name><surname>Xu</surname><given-names>Zhenjiang Z.</given-names></name>
+        <name><surname>Cantrell</surname><given-names>Kalen</given-names></name>
+        <name><surname>Yang</surname><given-names>Yimeng</given-names></name>
+        <name><surname>Sayyari</surname><given-names>Erfan</given-names></name>
+        <name><surname>Rabiee</surname><given-names>Maryam</given-names></name>
+        <name><surname>Morton</surname><given-names>James T.</given-names></name>
+        <name><surname>Podell</surname><given-names>Sheila</given-names></name>
+        <name><surname>Knights</surname><given-names>Dan</given-names></name>
+        <name><surname>Li</surname><given-names>Wen-Jun</given-names></name>
+        <name><surname>Huttenhower</surname><given-names>Curtis</given-names></name>
+        <name><surname>Segata</surname><given-names>Nicola</given-names></name>
+        <name><surname>Smarr</surname><given-names>Larry</given-names></name>
+        <name><surname>Mirarab</surname><given-names>Siavash</given-names></name>
+        <name><surname>Knight</surname><given-names>Rob</given-names></name>
+      </person-group>
+      <article-title>Phylogenomics of 10,575 genomes reveals evolutionary proximity between domains Bacteria and Archaea</article-title>
+      <source>Nature Communications</source>
+      <year iso-8601-date="2019">2019</year>
+      <volume>10</volume>
+      <issue>1</issue>
+      <uri>https://doi.org/10.1038/s41467-019-13443-4</uri>
+      <pub-id pub-id-type="doi">10.1038/s41467-019-13443-4</pub-id>
+      <pub-id pub-id-type="pmid">31792218</pub-id>
+      <fpage>5477</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-sokal.1995">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Sokal</surname><given-names>R R</given-names></name>
+        <name><surname>Rohlf</surname><given-names>F J</given-names></name>
+      </person-group>
+      <source>Biometry</source>
+      <publisher-name>W. H. Freeman; Company</publisher-name>
+      <publisher-loc>New York</publisher-loc>
+      <year iso-8601-date="1995">1995</year>
+      <edition>3</edition>
+    </element-citation>
+  </ref>
+  <ref id="ref-knight.2007.genomebiol">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Knight</surname><given-names>R</given-names></name>
+        <name><surname>Maxwell</surname><given-names>P</given-names></name>
+        <name><surname>Birmingham</surname><given-names>A</given-names></name>
+        <name><surname>Carnes</surname><given-names>J</given-names></name>
+        <name><surname>Caporaso</surname><given-names>J G</given-names></name>
+        <name><surname>Easton</surname><given-names>B C</given-names></name>
+        <name><surname>Eaton</surname><given-names>M</given-names></name>
+        <name><surname>Hamady</surname><given-names>M</given-names></name>
+        <name><surname>Lindsay</surname><given-names>H</given-names></name>
+        <name><surname>Liu</surname><given-names>Z</given-names></name>
+        <name><surname>Lozupone</surname><given-names>C</given-names></name>
+        <name><surname>McDonald</surname><given-names>D</given-names></name>
+        <name><surname>Robeson</surname><given-names>M</given-names></name>
+        <name><surname>Sammut</surname><given-names>R</given-names></name>
+        <name><surname>Smit</surname><given-names>S</given-names></name>
+        <name><surname>Wakefield</surname><given-names>M J</given-names></name>
+        <name><surname>Widmann</surname><given-names>J</given-names></name>
+        <name><surname>Wikman</surname><given-names>S</given-names></name>
+        <name><surname>Wilson</surname><given-names>S</given-names></name>
+        <name><surname>Ying</surname><given-names>H</given-names></name>
+        <name><surname>Huttley</surname><given-names>G A</given-names></name>
+      </person-group>
+      <article-title>PyCogent: A toolkit for making sense from sequence.</article-title>
+      <source>Genome Biol</source>
+      <year iso-8601-date="2007">2007</year>
+      <volume>8</volume>
+      <issue>8</issue>
+      <uri>https://www.ncbi.nlm.nih.gov/pubmed/17708774</uri>
+      <pub-id pub-id-type="doi">10.1186/gb-2007-8-8-r171</pub-id>
+      <pub-id pub-id-type="pmid">17708774</pub-id>
+      <fpage>R171</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-cleveland.1979.j.am.stat.assoc">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Cleveland</surname><given-names>William S.</given-names></name>
+      </person-group>
+      <article-title>Robust Locally Weighted Regression and Smoothing Scatterplots</article-title>
+      <source>Journal of the American Statistical Association</source>
+      <year iso-8601-date="1979-12">1979</year><month>12</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2024-08-26">2024</year><month>08</month><day>26</day></date-in-citation>
+      <volume>74</volume>
+      <issue>368</issue>
+      <issn>0162-1459</issn>
+      <uri>https://www.tandfonline.com/doi/abs/10.1080/01621459.1979.10481038</uri>
+      <pub-id pub-id-type="doi">10.1080/01621459.1979.10481038</pub-id>
+      <fpage>829</fpage>
+      <lpage>836</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-saitou.1987.mol.biol.evol">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Saitou</surname><given-names>N</given-names></name>
+        <name><surname>Nei</surname><given-names>M</given-names></name>
+      </person-group>
+      <article-title>The neighbor-joining method: A new method for reconstructing phylogenetic trees</article-title>
+      <source>Mol. Biol. Evol.</source>
+      <year iso-8601-date="1987">1987</year>
+      <volume>4</volume>
+      <issue>4</issue>
+      <uri>https://www.ncbi.nlm.nih.gov/pubmed/3447015</uri>
+      <pub-id pub-id-type="doi">10.1093/oxfordjournals.molbev.a040454</pub-id>
+      <fpage>406</fpage>
+      <lpage>425</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-choi.2017.ismej">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Choi</surname><given-names>Jinlyung</given-names></name>
+        <name><surname>Yang</surname><given-names>Fan</given-names></name>
+        <name><surname>Stepanauskas</surname><given-names>Ramunas</given-names></name>
+        <name><surname>Cardenas</surname><given-names>Erick</given-names></name>
+        <name><surname>Garoutte</surname><given-names>Aaron</given-names></name>
+        <name><surname>Williams</surname><given-names>Ryan</given-names></name>
+        <name><surname>Flater</surname><given-names>Jared</given-names></name>
+        <name><surname>Tiedje</surname><given-names>James M.</given-names></name>
+        <name><surname>Hofmockel</surname><given-names>Kirsten S.</given-names></name>
+        <name><surname>Gelder</surname><given-names>Brian</given-names></name>
+        <name><surname>Howe</surname><given-names>Adina</given-names></name>
+      </person-group>
+      <article-title>Strategies to improve reference databases for soil microbiomes</article-title>
+      <source>The ISME journal</source>
+      <year iso-8601-date="2017-04">2017</year><month>04</month>
+      <volume>11</volume>
+      <issue>4</issue>
+      <issn>1751-7370</issn>
+      <pub-id pub-id-type="doi">10.1038/ismej.2016.168</pub-id>
+      <pub-id pub-id-type="pmid">27935589</pub-id>
+      <fpage>829</fpage>
+      <lpage>834</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-parks.2018.natbiotechnol">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Parks</surname><given-names>Donovan H.</given-names></name>
+        <name><surname>Chuvochina</surname><given-names>Maria</given-names></name>
+        <name><surname>Waite</surname><given-names>David W.</given-names></name>
+        <name><surname>Rinke</surname><given-names>Christian</given-names></name>
+        <name><surname>Skarshewski</surname><given-names>Adam</given-names></name>
+        <name><surname>Chaumeil</surname><given-names>Pierre-Alain</given-names></name>
+        <name><surname>Hugenholtz</surname><given-names>Philip</given-names></name>
+      </person-group>
+      <article-title>A standardized bacterial taxonomy based on genome phylogeny substantially revises the tree of life</article-title>
+      <source>Nature Biotechnology</source>
+      <year iso-8601-date="2018-11">2018</year><month>11</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2024-08-27">2024</year><month>08</month><day>27</day></date-in-citation>
+      <volume>36</volume>
+      <issue>10</issue>
+      <issn>1546-1696</issn>
+      <uri>https://www.nature.com/articles/nbt.4229</uri>
+      <pub-id pub-id-type="doi">10.1038/nbt.4229</pub-id>
+      <fpage>996</fpage>
+      <lpage>1004</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-numba">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Lam</surname><given-names>Siu Kwan</given-names></name>
+        <name><surname>Pitrou</surname><given-names>Antoine</given-names></name>
+        <name><surname>Seibert</surname><given-names>Stanley</given-names></name>
+      </person-group>
+      <article-title>Numba: A LLVM-based Python JIT compiler</article-title>
+      <source>Proceedings of the Second Workshop on the LLVM Compiler Infrastructure in HPC</source>
+      <publisher-name>Association for Computing Machinery</publisher-name>
+      <publisher-loc>New York, NY, USA</publisher-loc>
+      <year iso-8601-date="2015-11">2015</year><month>11</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2024-09-22">2024</year><month>09</month><day>22</day></date-in-citation>
+      <isbn>978-1-4503-4005-2</isbn>
+      <uri>https://dl.acm.org/doi/10.1145/2833157.2833162</uri>
+      <pub-id pub-id-type="doi">10.1145/2833157.2833162</pub-id>
+      <fpage>1</fpage>
+      <lpage>6</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-minh.2020.iq">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Minh</surname><given-names>Bui Quang</given-names></name>
+        <name><surname>Schmidt</surname><given-names>Heiko A</given-names></name>
+        <name><surname>Chernomor</surname><given-names>Olga</given-names></name>
+        <name><surname>Schrempf</surname><given-names>Dominik</given-names></name>
+        <name><surname>Woodhams</surname><given-names>Michael D</given-names></name>
+        <name><surname>Haeseler</surname><given-names>Arndt von</given-names></name>
+        <name><surname>Lanfear</surname><given-names>Robert</given-names></name>
+      </person-group>
+      <article-title>IQ-TREE 2: New Models and Efficient Methods for Phylogenetic Inference in the Genomic Era</article-title>
+      <source>Molecular Biology and Evolution</source>
+      <year iso-8601-date="2020-05">2020</year><month>05</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2024-10-16">2024</year><month>10</month><day>16</day></date-in-citation>
+      <volume>37</volume>
+      <issue>5</issue>
+      <issn>0737-4038</issn>
+      <uri>https://doi.org/10.1093/molbev/msaa015</uri>
+      <pub-id pub-id-type="doi">10.1093/molbev/msaa015</pub-id>
+      <fpage>1530</fpage>
+      <lpage>1534</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-murtagh.2012.algorithms">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Murtagh</surname><given-names>Fionn</given-names></name>
+        <name><surname>Contreras</surname><given-names>Pedro</given-names></name>
+      </person-group>
+      <article-title>Algorithms for hierarchical clustering: An overview</article-title>
+      <source>WIREs Data Mining and Knowledge Discovery</source>
+      <year iso-8601-date="2012">2012</year>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2025-01-12">2025</year><month>01</month><day>12</day></date-in-citation>
+      <volume>2</volume>
+      <issue>1</issue>
+      <issn>1942-4795</issn>
+      <uri>https://onlinelibrary.wiley.com/doi/abs/10.1002/widm.53</uri>
+      <pub-id pub-id-type="doi">10.1002/widm.53</pub-id>
+      <fpage>86</fpage>
+      <lpage>97</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-ondov.2016.mash">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Ondov</surname><given-names>Brian D.</given-names></name>
+        <name><surname>Treangen</surname><given-names>Todd J.</given-names></name>
+        <name><surname>Melsted</surname><given-names>P?ll</given-names></name>
+        <name><surname>Mallonee</surname><given-names>Adam B.</given-names></name>
+        <name><surname>Bergman</surname><given-names>Nicholas H.</given-names></name>
+        <name><surname>Koren</surname><given-names>Sergey</given-names></name>
+        <name><surname>Phillippy</surname><given-names>Adam M.</given-names></name>
+      </person-group>
+      <article-title>Mash: Fast genome and metagenome distance estimation using MinHash</article-title>
+      <source>Genome Biology</source>
+      <year iso-8601-date="2016-12">2016</year><month>12</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2017-07-04">2017</year><month>07</month><day>04</day></date-in-citation>
+      <volume>17</volume>
+      <issue>1</issue>
+      <issn>1474-760X</issn>
+      <uri>http://genomebiology.biomedcentral.com/articles/10.1186/s13059-016-0997-x</uri>
+      <pub-id pub-id-type="doi">10.1186/s13059-016-0997-x</pub-id>
+      <fpage>132</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-tavare.1986.some">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Tavare</surname><given-names>S</given-names></name>
+      </person-group>
+      <article-title>Some probabilistic and statistical problems in the analysis of DNA sequences.</article-title>
+      <source>Lec. Math. Life Sci.</source>
+      <year iso-8601-date="1986">1986</year>
+      <volume>17</volume>
+      <fpage>57</fpage>
+      <lpage>86</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-ensembl-tui">
+    <element-citation publication-type="software">
+      <person-group person-group-type="author">
+        <name><surname>Huttley</surname><given-names>Gavin</given-names></name>
+        <name><surname>Ying</surname><given-names>Hua</given-names></name>
+        <name><surname>Becker</surname><given-names>Arne</given-names></name>
+        <name><surname>Giorgetti</surname><given-names>Stefano</given-names></name>
+      </person-group>
+      <article-title>Ensembl_tui: Version 0.2.1</article-title>
+      <publisher-name>Zenodo</publisher-name>
+      <year iso-8601-date="2025-03">2025</year><month>03</month>
+      <uri>https://doi.org/10.5281/zenodo.15098646</uri>
+      <pub-id pub-id-type="doi">10.5281/zenodo.15098646</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-cogent3">
+    <element-citation publication-type="software">
+      <person-group person-group-type="author">
+        <name><surname>Huttley</surname><given-names>Gavin</given-names></name>
+        <name><surname>Caley</surname><given-names>Katherine</given-names></name>
+        <name><surname>Nick-Foto</surname></name>
+        <name><surname>Ma</surname><given-names>Stephen Ka-Wah</given-names></name>
+        <name><surname>Koh</surname><given-names>Moses</given-names></name>
+        <name><surname>Morris</surname><given-names>Richard</given-names></name>
+        <name><surname>McArthur</surname><given-names>Robert</given-names></name>
+        <name><surname>Jaya</surname><given-names>Fred</given-names></name>
+        <name><surname>Maxwell</surname><given-names>Peter</given-names></name>
+        <name><surname>Martini</surname><given-names>James</given-names></name>
+        <name><surname>La</surname><given-names>Thomas</given-names></name>
+        <name><surname>Lang</surname><given-names>Yapeng</given-names></name>
+      </person-group>
+      <article-title>cogent3: Version 2025.3.22a4</article-title>
+      <publisher-name>Zenodo</publisher-name>
+      <year iso-8601-date="2025-03">2025</year><month>03</month>
+      <uri>https://doi.org/10.5281/zenodo.15094004</uri>
+      <pub-id pub-id-type="doi">10.5281/zenodo.15094004</pub-id>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
