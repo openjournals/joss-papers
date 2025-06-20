@@ -1,0 +1,984 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">7346</article-id>
+<article-id pub-id-type="doi">10.21105/joss.07346</article-id>
+<title-group>
+<article-title>CompressedBeliefMDPs.jl: A Julia Package for Solving
+Large POMDPs with Belief Compression</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0009-0001-3978-9462</contrib-id>
+<name>
+<surname>Bhamidipaty</surname>
+<given-names>Logan Mondal</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0002-7238-9663</contrib-id>
+<name>
+<surname>Kochenderfer</surname>
+<given-names>Mykel J.</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Stanford University</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2024-04-13">
+<day>13</day>
+<month>4</month>
+<year>2024</year>
+</pub-date>
+<volume>10</volume>
+<issue>110</issue>
+<fpage>7346</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2025</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>POMDP</kwd>
+<kwd>MDP</kwd>
+<kwd>Julia</kwd>
+<kwd>sequential decision making</kwd>
+<kwd>RL</kwd>
+<kwd>compression</kwd>
+<kwd>dimensionality reduction</kwd>
+<kwd>open-source</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p>Partially observable Markov decision processes (POMDPs) are a
+  standard mathematical model for sequential decision making under state
+  and outcome uncertainty
+  (<xref alt="Kochenderfer et al., 2022" rid="ref-AFDM" ref-type="bibr">Kochenderfer
+  et al., 2022</xref>). They commonly feature in reinforcement learning
+  research and have applications spanning medicine
+  (<xref alt="Zhou et al., 2019" rid="ref-drugs" ref-type="bibr">Zhou et
+  al., 2019</xref>), sustainability
+  (<xref alt="Wang et al., 2023" rid="ref-carbon" ref-type="bibr">Wang
+  et al., 2023</xref>), and aerospace
+  (<xref alt="Folsom et al., 2021" rid="ref-planes" ref-type="bibr">Folsom
+  et al., 2021</xref>). Unfortunately, real-world POMDPs often require
+  bespoke solutions, because they are too large to be tractable with
+  traditional methods
+  (<xref alt="Madani et al., 2003" rid="ref-complexity2" ref-type="bibr">Madani
+  et al., 2003</xref>;
+  <xref alt="Papadimitriou &amp; Tsitsiklis, 1987" rid="ref-complexity1" ref-type="bibr">Papadimitriou
+  &amp; Tsitsiklis, 1987</xref>). Belief compression
+  (<xref alt="Roy et al., 2005" rid="ref-Roy" ref-type="bibr">Roy et
+  al., 2005</xref>) is a general-purpose technique that focuses planning
+  on relevant belief states, thereby making it feasible to solve
+  complex, real-world POMDPs more efficiently.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of Need</title>
+  <sec id="research-purpose">
+    <title>Research Purpose</title>
+    <p><ext-link ext-link-type="uri" xlink:href="https://github.com/JuliaPOMDP/CompressedBeliefMDPs.jl">CompressedBeliefMDPs.jl</ext-link>
+    is a Julia package
+    (<xref alt="Bezanson et al., 2012" rid="ref-Julia" ref-type="bibr">Bezanson
+    et al., 2012</xref>) for solving large POMDPs in the POMDPs.jl
+    ecosystem
+    (<xref alt="Egorov et al., 2017" rid="ref-POMDPs.jl" ref-type="bibr">Egorov
+    et al., 2017</xref>) with belief compression (described below). It
+    offers a simple interface for efficiently sampling and compressing
+    beliefs and for constructing and solving belief-state MDPs. The
+    package can be used to benchmark techniques for sampling,
+    compressing, and planning. It can also solve complex POMDPs to
+    support applications in a variety of domains.</p>
+  </sec>
+  <sec id="relation-to-prior-work">
+    <title>Relation to Prior Work</title>
+    <sec id="other-methods-for-solving-large-pomdps">
+      <title>Other Methods for Solving Large POMDPs</title>
+      <p>While traditional tabular methods like policy and value
+      iteration scale poorly, there are modern methods such as
+      point-based algorithms
+      (<xref alt="Kurniawati et al., 2008" rid="ref-SARSOP" ref-type="bibr">Kurniawati
+      et al., 2008</xref>;
+      <xref alt="Pineau et al., 2003" rid="ref-PBVI" ref-type="bibr">Pineau
+      et al., 2003</xref>;
+      <xref alt="Smith &amp; Simmons, 2012" rid="ref-hsvi" ref-type="bibr">Smith
+      &amp; Simmons, 2012</xref>;
+      <xref alt="Spaan &amp; Vlassis, 2005" rid="ref-perseus" ref-type="bibr">Spaan
+      &amp; Vlassis, 2005</xref>) and online planners
+      (<xref alt="Kocsis &amp; Szepesvári, 2006" rid="ref-mcts" ref-type="bibr">Kocsis
+      &amp; Szepesvári, 2006</xref>;
+      <xref alt="Ross et al., 2007" rid="ref-AEMS" ref-type="bibr">Ross
+      et al., 2007</xref>;
+      <xref alt="Silver &amp; Veness, 2010" rid="ref-pomcp" ref-type="bibr">Silver
+      &amp; Veness, 2010</xref>;
+      <xref alt="Somani et al., 2013" rid="ref-despot" ref-type="bibr">Somani
+      et al., 2013</xref>;
+      <xref alt="Sunberg &amp; Kochenderfer, 2018" rid="ref-sunberg2018online" ref-type="bibr">Sunberg
+      &amp; Kochenderfer, 2018</xref>) that perform well on real-world
+      POMDPs in practice. Belief compression is an equally powerful but
+      often overlooked alternative that is especially potent when belief
+      is sparse.</p>
+      <p>CompressedBeliefMDPs.jl is a modular generalization of the
+      original algorithm. It can be used independently or in conjunction
+      with other planners. It also supports <italic>both</italic>
+      continuous and discrete state, action, and observation spaces.</p>
+    </sec>
+    <sec id="belief-compression">
+      <title>Belief Compression</title>
+      <p>CompressedBeliefMDPs.jl abstracts the belief compression
+      algorithm of Roy et al.
+      (<xref alt="2005" rid="ref-Roy" ref-type="bibr">2005</xref>) into
+      four steps: sampling, compression, construction, and planning. The
+      <monospace>Sampler</monospace> abstract type handles belief
+      sampling; the <monospace>Compressor</monospace> abstract type
+      handles belief compression; the
+      <monospace>CompressedBeliefMDP</monospace> struct handles
+      constructing the compressed belief-state MDP; and the
+      <monospace>CompressedBeliefSolver</monospace> and
+      <monospace>CompressedBeliefPolicy</monospace> structs handle
+      planning in the compressed belief-state MDP.</p>
+      <p>Our framework is a generalization of the original belief
+      compression algorithm. Roy et al.
+      (<xref alt="2005" rid="ref-Roy" ref-type="bibr">2005</xref>) uses
+      a heuristic controller for sampling beliefs; exponential family
+      principal component analysis with Poisson loss for compression
+      (<xref alt="Collins et al., 2001" rid="ref-EPCA" ref-type="bibr">Collins
+      et al., 2001</xref>); and local approximation value iteration for
+      the base solver. CompressedBeliefMDPs.jl, on the other hand, is a
+      modular framework, meaning that belief compression can be applied
+      with <italic>any</italic> combination of sampler, compressor, and
+      MDP solver.</p>
+    </sec>
+    <sec id="related-packages">
+      <title>Related Packages</title>
+      <p>To our knowledge, no prior Julia or Python package implements
+      POMDP belief compression. There are, however, two packages that
+      implement exponential family principal component analysis (EPCA):
+      one in MATLAB
+      (<xref alt="Chambrier, 2016" rid="ref-epca-MATLAB" ref-type="bibr">Chambrier,
+      2016</xref>) for Poisson EPCA; the other in Julia for general EPCA
+      (<xref alt="Bhamidipaty et al., 2025" rid="ref-Bhamidipaty2025" ref-type="bibr">Bhamidipaty
+      et al., 2025</xref>). The later API is explicitly designed to be
+      compatible with CompressedBeliefMDPs.jl and may be used to
+      reimplement the original belief compression algorithm in Roy et
+      al.
+      (<xref alt="2005" rid="ref-Roy" ref-type="bibr">2005</xref>).</p>
+    </sec>
+  </sec>
+</sec>
+<sec id="sampling">
+  <title>Sampling</title>
+  <p>The <monospace>Sampler</monospace> abstract type handles sampling.
+  CompressedBeliefMDPs.jl supports sampling with policy rollouts through
+  <monospace>PolicySampler</monospace> and
+  <monospace>ExplorationSampler</monospace> which wrap
+  <monospace>Policy</monospace> and
+  <monospace>ExplorationPolicy</monospace> from POMDPs.jl respectively.
+  These objects can be used to collect beliefs with a random or
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[\epsilon]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>ϵ</mml:mi></mml:math></alternatives></inline-formula>-greedy
+  policy, for example.</p>
+  <p>CompressedBeliefMDPs.jl also supports <italic>exploratory belief
+  expansion</italic> on POMDPs with discrete state, action, and
+  observation spaces. Our implementation is an adaptation of Algorithm
+  21.13 in Kochenderfer et al.
+  (<xref alt="2022" rid="ref-AFDM" ref-type="bibr">2022</xref>). We use
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[k]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>k</mml:mi></mml:math></alternatives></inline-formula>-d
+  trees
+  (<xref alt="Bentley, 1975" rid="ref-kd-trees" ref-type="bibr">Bentley,
+  1975</xref>) to efficiently find the furthest belief sample.</p>
+</sec>
+<sec id="compression">
+  <title>Compression</title>
+  <p>The <monospace>Compressor</monospace> abstract type handles
+  compression in CompressedBeliefMDPs.jl. CompressedBeliefMDPs.jl
+  provides seven off-the-shelf compressors:</p>
+  <list list-type="order">
+    <list-item>
+      <p>Principal component analysis (PCA)
+      (<xref alt="Hotelling, 1933" rid="ref-PCA" ref-type="bibr">Hotelling,
+      1933</xref>),</p>
+    </list-item>
+    <list-item>
+      <p>Kernel PCA
+      (<xref alt="Schölkopf et al., 1998" rid="ref-kernelPCA" ref-type="bibr">Schölkopf
+      et al., 1998</xref>),</p>
+    </list-item>
+    <list-item>
+      <p>Probabilistic PCA
+      (<xref alt="Tipping &amp; Bishop, 2002" rid="ref-PPCA" ref-type="bibr">Tipping
+      &amp; Bishop, 2002</xref>),</p>
+    </list-item>
+    <list-item>
+      <p>Factor analysis
+      (<xref alt="Thurstone, 1931" rid="ref-factor" ref-type="bibr">Thurstone,
+      1931</xref>),</p>
+    </list-item>
+    <list-item>
+      <p>Isomap
+      (<xref alt="Tenenbaum et al., 2000" rid="ref-isomap" ref-type="bibr">Tenenbaum
+      et al., 2000</xref>),</p>
+    </list-item>
+    <list-item>
+      <p>Autoencoder
+      (<xref alt="Kramer, 1991" rid="ref-autoencoder" ref-type="bibr">Kramer,
+      1991</xref>), and</p>
+    </list-item>
+    <list-item>
+      <p>Variational auto-encoder (VAE)
+      (<xref alt="Kingma &amp; Welling, 2013" rid="ref-VAE" ref-type="bibr">Kingma
+      &amp; Welling, 2013</xref>).</p>
+    </list-item>
+  </list>
+  <p>The first four are supported through
+  <ext-link ext-link-type="uri" xlink:href="https://juliastats.org/MultivariateStats.jl/stable/">MultivariateState.jl</ext-link>;
+  Isomap is supported through
+  <ext-link ext-link-type="uri" xlink:href="https://wildart.github.io/ManifoldLearning.jl/stable/">ManifoldLearning.jl</ext-link>;
+  and the last two are implemented in Flux.jl
+  (<xref alt="Innes, 2018" rid="ref-flux" ref-type="bibr">Innes,
+  2018</xref>).</p>
+</sec>
+<sec id="compressed-belief-state-mdps">
+  <title>Compressed Belief-State MDPs</title>
+  <sec id="definition">
+    <title>Definition</title>
+    <p>First, recall that any POMDP can be viewed as a belief-state MDP
+    (<xref alt="Åström, 1965" rid="ref-belief-state-MDP" ref-type="bibr">Åström,
+    1965</xref>), where states are beliefs and transitions are belief
+    updates (e.g., with Bayesian or Kalman filters). Formally, a POMDP
+    is a tuple <inline-formula><alternatives>
+    <tex-math><![CDATA[\langle S, A, T, R, \Omega, O, \gamma \rangle]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mo stretchy="false" form="prefix">⟨</mml:mo><mml:mi>S</mml:mi><mml:mo>,</mml:mo><mml:mi>A</mml:mi><mml:mo>,</mml:mo><mml:mi>T</mml:mi><mml:mo>,</mml:mo><mml:mi>R</mml:mi><mml:mo>,</mml:mo><mml:mi>Ω</mml:mi><mml:mo>,</mml:mo><mml:mi>O</mml:mi><mml:mo>,</mml:mo><mml:mi>γ</mml:mi><mml:mo stretchy="false" form="postfix">⟩</mml:mo></mml:mrow></mml:math></alternatives></inline-formula>,
+    where <inline-formula><alternatives>
+    <tex-math><![CDATA[S]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>S</mml:mi></mml:math></alternatives></inline-formula>
+    is the state space, <inline-formula><alternatives>
+    <tex-math><![CDATA[A]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>A</mml:mi></mml:math></alternatives></inline-formula>
+    is the action space, <inline-formula><alternatives>
+    <tex-math><![CDATA[T: S \times A \times S \to \mathbb{R}]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>T</mml:mi><mml:mo>:</mml:mo><mml:mi>S</mml:mi><mml:mo>×</mml:mo><mml:mi>A</mml:mi><mml:mo>×</mml:mo><mml:mi>S</mml:mi><mml:mo>→</mml:mo><mml:mi>ℝ</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>
+    is the transition model, <inline-formula><alternatives>
+    <tex-math><![CDATA[R: S \times A \to \mathbb{R}]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>R</mml:mi><mml:mo>:</mml:mo><mml:mi>S</mml:mi><mml:mo>×</mml:mo><mml:mi>A</mml:mi><mml:mo>→</mml:mo><mml:mi>ℝ</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>
+    is the reward model, <inline-formula><alternatives>
+    <tex-math><![CDATA[\Omega]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>Ω</mml:mi></mml:math></alternatives></inline-formula>
+    is the observation space, <inline-formula><alternatives>
+    <tex-math><![CDATA[O: \Omega \times S \times A \to \mathbb{R}]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>O</mml:mi><mml:mo>:</mml:mo><mml:mi>Ω</mml:mi><mml:mo>×</mml:mo><mml:mi>S</mml:mi><mml:mo>×</mml:mo><mml:mi>A</mml:mi><mml:mo>→</mml:mo><mml:mi>ℝ</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>
+    is the observation model, and <inline-formula><alternatives>
+    <tex-math><![CDATA[\gamma \in [0, 1)]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>γ</mml:mi><mml:mo>∈</mml:mo><mml:mo stretchy="false" form="prefix">[</mml:mo><mml:mn>0</mml:mn><mml:mo>,</mml:mo><mml:mn>1</mml:mn><mml:mo stretchy="false" form="postfix">)</mml:mo></mml:mrow></mml:math></alternatives></inline-formula>
+    is the discount factor. The POMDP is said to induce the belief-state
+    MDP <inline-formula><alternatives>
+    <tex-math><![CDATA[\langle B, A, T', R', \gamma \rangle]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mo stretchy="false" form="prefix">⟨</mml:mo><mml:mi>B</mml:mi><mml:mo>,</mml:mo><mml:mi>A</mml:mi><mml:mo>,</mml:mo><mml:mi>T</mml:mi><mml:mi>′</mml:mi><mml:mo>,</mml:mo><mml:mi>R</mml:mi><mml:mi>′</mml:mi><mml:mo>,</mml:mo><mml:mi>γ</mml:mi><mml:mo stretchy="false" form="postfix">⟩</mml:mo></mml:mrow></mml:math></alternatives></inline-formula>,
+    where <inline-formula><alternatives>
+    <tex-math><![CDATA[B]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>B</mml:mi></mml:math></alternatives></inline-formula>
+    is the POMDP belief space, <inline-formula><alternatives>
+    <tex-math><![CDATA[T': B \times A \times B \to \mathbb{R}]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>T</mml:mi><mml:mi>′</mml:mi><mml:mo>:</mml:mo><mml:mi>B</mml:mi><mml:mo>×</mml:mo><mml:mi>A</mml:mi><mml:mo>×</mml:mo><mml:mi>B</mml:mi><mml:mo>→</mml:mo><mml:mi>ℝ</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>
+    is the belief update model, and <inline-formula><alternatives>
+    <tex-math><![CDATA[R': B \times A \to \mathbb{R}]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>R</mml:mi><mml:mi>′</mml:mi><mml:mo>:</mml:mo><mml:mi>B</mml:mi><mml:mo>×</mml:mo><mml:mi>A</mml:mi><mml:mo>→</mml:mo><mml:mi>ℝ</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>
+    is the reward model. <inline-formula><alternatives>
+    <tex-math><![CDATA[A]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>A</mml:mi></mml:math></alternatives></inline-formula>
+    and <inline-formula><alternatives>
+    <tex-math><![CDATA[\gamma]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>γ</mml:mi></mml:math></alternatives></inline-formula>
+    remain the same.</p>
+    <p>We define the corresponding <italic>compressed belief-state
+    MDP</italic> (CBMDP) as <inline-formula><alternatives>
+    <tex-math><![CDATA[\langle \tilde{B}, A, \tilde{T}, \tilde{R}, \gamma \rangle]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mo stretchy="false" form="prefix">⟨</mml:mo><mml:mover><mml:mi>B</mml:mi><mml:mo accent="true">̃</mml:mo></mml:mover><mml:mo>,</mml:mo><mml:mi>A</mml:mi><mml:mo>,</mml:mo><mml:mover><mml:mi>T</mml:mi><mml:mo accent="true">̃</mml:mo></mml:mover><mml:mo>,</mml:mo><mml:mover><mml:mi>R</mml:mi><mml:mo accent="true">̃</mml:mo></mml:mover><mml:mo>,</mml:mo><mml:mi>γ</mml:mi><mml:mo stretchy="false" form="postfix">⟩</mml:mo></mml:mrow></mml:math></alternatives></inline-formula>
+    where <inline-formula><alternatives>
+    <tex-math><![CDATA[\tilde{B}]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mover><mml:mi>B</mml:mi><mml:mo accent="true">̃</mml:mo></mml:mover></mml:math></alternatives></inline-formula>
+    is the compressed belief space obtained from the compression
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[\phi: B \to \tilde{B}]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>ϕ</mml:mi><mml:mo>:</mml:mo><mml:mi>B</mml:mi><mml:mo>→</mml:mo><mml:mover><mml:mi>B</mml:mi><mml:mo accent="true">̃</mml:mo></mml:mover></mml:mrow></mml:math></alternatives></inline-formula>.
+    Then <inline-formula><alternatives>
+    <tex-math><![CDATA[\tilde{R}(\tilde{b}, a) = R(\phi^{-1}(\tilde{b}), a)]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mover><mml:mi>R</mml:mi><mml:mo accent="true">̃</mml:mo></mml:mover><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mover><mml:mi>b</mml:mi><mml:mo accent="true">̃</mml:mo></mml:mover><mml:mo>,</mml:mo><mml:mi>a</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>=</mml:mo><mml:mi>R</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msup><mml:mi>ϕ</mml:mi><mml:mrow><mml:mi>−</mml:mi><mml:mn>1</mml:mn></mml:mrow></mml:msup><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mover><mml:mi>b</mml:mi><mml:mo accent="true">̃</mml:mo></mml:mover><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>,</mml:mo><mml:mi>a</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>
+    and <inline-formula><alternatives>
+    <tex-math><![CDATA[\tilde{T}(\tilde{b}, a, \tilde{b}') = T(\phi^{-1}(\tilde{b}), a, \phi^{-1}(\tilde{b}'))]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mover><mml:mi>T</mml:mi><mml:mo accent="true">̃</mml:mo></mml:mover><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mover><mml:mi>b</mml:mi><mml:mo accent="true">̃</mml:mo></mml:mover><mml:mo>,</mml:mo><mml:mi>a</mml:mi><mml:mo>,</mml:mo><mml:mover><mml:mi>b</mml:mi><mml:mo accent="true">̃</mml:mo></mml:mover><mml:mi>′</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>=</mml:mo><mml:mi>T</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msup><mml:mi>ϕ</mml:mi><mml:mrow><mml:mi>−</mml:mi><mml:mn>1</mml:mn></mml:mrow></mml:msup><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mover><mml:mi>b</mml:mi><mml:mo accent="true">̃</mml:mo></mml:mover><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>,</mml:mo><mml:mi>a</mml:mi><mml:mo>,</mml:mo><mml:msup><mml:mi>ϕ</mml:mi><mml:mrow><mml:mi>−</mml:mi><mml:mn>1</mml:mn></mml:mrow></mml:msup><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mover><mml:mi>b</mml:mi><mml:mo accent="true">̃</mml:mo></mml:mover><mml:mi>′</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>.
+    When <inline-formula><alternatives>
+    <tex-math><![CDATA[\phi]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>ϕ</mml:mi></mml:math></alternatives></inline-formula>
+    is lossy, <inline-formula><alternatives>
+    <tex-math><![CDATA[\phi]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>ϕ</mml:mi></mml:math></alternatives></inline-formula>
+    may not be invertible. In practice, we circumvent this issue by
+    caching items on a first-come, first-served basis (or under an
+    arbitrary ranking over <inline-formula><alternatives>
+    <tex-math><![CDATA[B]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>B</mml:mi></mml:math></alternatives></inline-formula>
+    if the compression is parallel), so that if
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[\phi(b_1) = \phi(b_2) = \tilde{b}]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>ϕ</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>b</mml:mi><mml:mn>1</mml:mn></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>=</mml:mo><mml:mi>ϕ</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>b</mml:mi><mml:mn>2</mml:mn></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>=</mml:mo><mml:mover><mml:mi>b</mml:mi><mml:mo accent="true">̃</mml:mo></mml:mover></mml:mrow></mml:math></alternatives></inline-formula>
+    we have <inline-formula><alternatives>
+    <tex-math><![CDATA[\phi^{-1}(\tilde{b}) = b_1]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msup><mml:mi>ϕ</mml:mi><mml:mrow><mml:mi>−</mml:mi><mml:mn>1</mml:mn></mml:mrow></mml:msup><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mover><mml:mi>b</mml:mi><mml:mo accent="true">̃</mml:mo></mml:mover><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>=</mml:mo><mml:msub><mml:mi>b</mml:mi><mml:mn>1</mml:mn></mml:msub></mml:mrow></mml:math></alternatives></inline-formula>
+    if <inline-formula><alternatives>
+    <tex-math><![CDATA[b_1]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>b</mml:mi><mml:mn>1</mml:mn></mml:msub></mml:math></alternatives></inline-formula>
+    was ranked higher than <inline-formula><alternatives>
+    <tex-math><![CDATA[b_2]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>b</mml:mi><mml:mn>2</mml:mn></mml:msub></mml:math></alternatives></inline-formula>
+    for <inline-formula><alternatives>
+    <tex-math><![CDATA[b_1, b_2 \in B]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>b</mml:mi><mml:mn>1</mml:mn></mml:msub><mml:mo>,</mml:mo><mml:msub><mml:mi>b</mml:mi><mml:mn>2</mml:mn></mml:msub><mml:mo>∈</mml:mo><mml:mi>B</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>
+    and <inline-formula><alternatives>
+    <tex-math><![CDATA[\tilde{b} \in \tilde{B}]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mover><mml:mi>b</mml:mi><mml:mo accent="true">̃</mml:mo></mml:mover><mml:mo>∈</mml:mo><mml:mover><mml:mi>B</mml:mi><mml:mo accent="true">̃</mml:mo></mml:mover></mml:mrow></mml:math></alternatives></inline-formula>.</p>
+  </sec>
+  <sec id="implementation">
+    <title>Implementation</title>
+    <p>The <monospace>CompressedBeliefMDP</monospace> struct contains a
+    <ext-link ext-link-type="uri" xlink:href="https://juliapomdp.github.io/POMDPs.jl/latest/POMDPTools/model/#POMDPTools.ModelTools.GenerativeBeliefMDP"><monospace>GenerativeBeliefMDP</monospace></ext-link>,
+    a <monospace>Compressor</monospace>, and a cache
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[\phi]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>ϕ</mml:mi></mml:math></alternatives></inline-formula>
+    that recovers the original belief. The default constructor handles
+    belief sampling, compressor fitting, belief compressing, and cache
+    management. Any POMDPs.jl <monospace>Solver</monospace> can solve a
+    <monospace>CompressedBeliefMDP</monospace>.</p>
+    <code language="julia">using POMDPs, POMDPModels, POMDPTools
+using CompressedBeliefMDPs
+
+# construct the CBMDP
+pomdp = BabyPOMDP()
+sampler = BeliefExpansionSampler(pomdp)
+updater = DiscreteUpdater(pomdp)
+compressor = PCACompressor(1)
+cbmdp = CompressedBeliefMDP(pomdp, sampler, updater, compressor)
+
+# solve the CBMDP
+solver = MyMDPSolver()::POMDPs.Solver
+policy = solve(solver, cbmdp)</code>
+  </sec>
+</sec>
+<sec id="solvers">
+  <title>Solvers</title>
+  <p><monospace>CompressedBeliefSolver</monospace> and
+  <monospace>CompressedBeliefPolicy</monospace> wrap the belief
+  compression pipeline, meaning belief compression can be applied
+  without explicitly constructing a
+  <monospace>CompressedBeliefMDP</monospace>.</p>
+  <code language="julia">using POMDPs, POMDPModels, POMDPTools
+using CompressedBeliefMDPs
+
+pomdp = BabyPOMDP()
+base_solver = MyMDPSolver()
+solver = CompressedBeliefSolver(
+  pomdp,
+  base_solver;
+  updater=DiscreteUpdater(pomdp),
+  sampler=BeliefExpansionSampler(pomdp),
+  compressor=PCACompressor(1),
+)
+policy = POMDPs.solve(solver, pomdp)  # CompressedBeliefPolicy
+s = initialstate(pomdp)
+v = value(policy, s)
+a = action(policy, s)</code>
+  <p>Following Roy et al.
+  (<xref alt="2005" rid="ref-Roy" ref-type="bibr">2005</xref>), we use
+  local value approximation as our default base solver, because it
+  bounds the value estimation error
+  (<xref alt="Gordon, 1995" rid="ref-error_bound" ref-type="bibr">Gordon,
+  1995</xref>).</p>
+  <code language="julia">using POMDPs, POMDPTools, POMDPModels
+using CompressedBeliefMDPs
+
+pomdp = BabyPOMDP()
+solver = CompressedBeliefSolver(pomdp)
+policy = solve(solver, pomdp)</code>
+  <p>To solve a continuous-space POMDP, simply swap the base solver.
+  More details, examples, and instructions on implementing custom
+  components can be found in the
+  <ext-link ext-link-type="uri" xlink:href="https://juliapomdp.github.io/CompressedBeliefMDPs.jl/dev/">documentation</ext-link>.</p>
+</sec>
+<sec id="circular-maze">
+  <title>Circular Maze</title>
+  <p>CompressedBeliefMDPs.jl also includes the Circular Maze POMDP from
+  Roy et al.
+  (<xref alt="2005" rid="ref-Roy" ref-type="bibr">2005</xref>) and
+  scripts to recreate figures from the original paper. Additional
+  details can be found in the
+  <ext-link ext-link-type="uri" xlink:href="https://juliapomdp.github.io/CompressedBeliefMDPs.jl/dev/">documentation</ext-link>.</p>
+  <code language="julia">using CompressedBeliefMDPs
+
+n_corridors = 2
+corridor_length = 100
+pomdp = CircularMaze(n_corridors, corridor_length)</code>
+</sec>
+<sec id="acknowledgments">
+  <title>Acknowledgments</title>
+  <p>We thank Arec Jamgochian, Robert Moss, Dylan Asmar, and Zachary
+  Sunberg for their help and guidance.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <title></title>
+  <ref id="ref-POMDPs.jl">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Egorov</surname><given-names>Maxim</given-names></name>
+        <name><surname>Sunberg</surname><given-names>Zachary N.</given-names></name>
+        <name><surname>Balaban</surname><given-names>Edward</given-names></name>
+        <name><surname>Wheeler</surname><given-names>Tim A.</given-names></name>
+        <name><surname>Gupta</surname><given-names>Jayesh K.</given-names></name>
+        <name><surname>Kochenderfer</surname><given-names>Mykel J.</given-names></name>
+      </person-group>
+      <article-title>POMDPs.jl: A framework for sequential decision making under uncertainty</article-title>
+      <source>Journal of Machine Learning Research</source>
+      <publisher-name>JMLR.org</publisher-name>
+      <year iso-8601-date="2017-01">2017</year><month>01</month>
+      <volume>18</volume>
+      <issue>1</issue>
+      <issn>1532-4435</issn>
+      <fpage>831</fpage>
+      <lpage>835</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Bhamidipaty2025">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Bhamidipaty</surname><given-names>Logan Mondal</given-names></name>
+        <name><surname>Kochenderfer</surname><given-names>Mykel J.</given-names></name>
+        <name><surname>Hastie</surname><given-names>Trevor</given-names></name>
+      </person-group>
+      <article-title>ExpFamilyPCA.jl: A Julia package for exponential family principal component analysis</article-title>
+      <source>Journal of Open Source Software</source>
+      <publisher-name>The Open Journal</publisher-name>
+      <year iso-8601-date="2025">2025</year>
+      <volume>10</volume>
+      <issue>105</issue>
+      <uri>https://doi.org/10.21105/joss.07403</uri>
+      <pub-id pub-id-type="doi">10.21105/joss.07403</pub-id>
+      <fpage>7403</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Roy">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Roy</surname><given-names>N.</given-names></name>
+        <name><surname>Gordon</surname><given-names>G.</given-names></name>
+        <name><surname>Thrun</surname><given-names>S.</given-names></name>
+      </person-group>
+      <article-title>Finding approximate POMDP solutions through belief compression</article-title>
+      <source>Journal of Artificial Intelligence Research</source>
+      <publisher-name>AI Access Foundation</publisher-name>
+      <year iso-8601-date="2005-01">2005</year><month>01</month>
+      <volume>23</volume>
+      <issn>1076-9757</issn>
+      <uri>http://dx.doi.org/10.1613/jair.1496</uri>
+      <pub-id pub-id-type="doi">10.1613/jair.1496</pub-id>
+      <fpage>1</fpage>
+      <lpage>40</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-carbon">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Wang</surname><given-names>Yizheng</given-names></name>
+        <name><surname>Zechner</surname><given-names>Markus</given-names></name>
+        <name><surname>Wen</surname><given-names>Gege</given-names></name>
+        <name><surname>Corso</surname><given-names>Anthony Louis</given-names></name>
+        <name><surname>Mern</surname><given-names>John Michael</given-names></name>
+        <name><surname>Kochenderfer</surname><given-names>Mykel J.</given-names></name>
+        <name><surname>Karel Caers</surname><given-names>Jef</given-names></name>
+      </person-group>
+      <article-title>Optimizing Carbon Storage Operations for Long-Term Safety</article-title>
+      <source>arXiv e-prints</source>
+      <year iso-8601-date="2023-04">2023</year><month>04</month>
+      <uri>https://arxiv.org/abs/2304.09352</uri>
+      <pub-id pub-id-type="doi">10.48550/arXiv.2304.09352</pub-id>
+      <fpage>arXiv:2304.09352</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-drugs">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Zhou</surname><given-names>Zhenpeng</given-names></name>
+        <name><surname>Kearnes</surname><given-names>Steven</given-names></name>
+        <name><surname>Li</surname><given-names>Li</given-names></name>
+        <name><surname>Zare</surname><given-names>Richard N.</given-names></name>
+        <name><surname>Riley</surname><given-names>Patrick</given-names></name>
+      </person-group>
+      <article-title>Optimization of molecules via deep reinforcement learning</article-title>
+      <source>Scientific Reports</source>
+      <publisher-name>Springer Science; Business Media LLC</publisher-name>
+      <year iso-8601-date="2019-07">2019</year><month>07</month>
+      <volume>9</volume>
+      <issue>1</issue>
+      <issn>2045-2322</issn>
+      <uri>http://dx.doi.org/10.1038/s41598-019-47148-x</uri>
+      <pub-id pub-id-type="doi">10.1038/s41598-019-47148-x</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-planes">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Folsom</surname><given-names>Larkin</given-names></name>
+        <name><surname>Ono</surname><given-names>Masahiro</given-names></name>
+        <name><surname>Otsu</surname><given-names>Kyohei</given-names></name>
+        <name><surname>Park</surname><given-names>Hyoshin</given-names></name>
+      </person-group>
+      <article-title>Scalable information-theoretic path planning for a rover-helicopter team in uncertain environments</article-title>
+      <source>International Journal of Advanced Robotic Systems</source>
+      <year iso-8601-date="2021">2021</year>
+      <volume>18</volume>
+      <issue>2</issue>
+      <uri>https://doi.org/10.1177/1729881421999587</uri>
+      <pub-id pub-id-type="doi">10.1177/1729881421999587</pub-id>
+      <fpage>1729881421999587</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-factor">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Thurstone</surname><given-names>Louis Leon</given-names></name>
+      </person-group>
+      <article-title>Multiple factor analysis.</article-title>
+      <source>Psychological review</source>
+      <publisher-name>Psychological Review Company</publisher-name>
+      <year iso-8601-date="1931">1931</year>
+      <volume>38</volume>
+      <issue>5</issue>
+      <pub-id pub-id-type="doi">10.1037/h0069792</pub-id>
+      <fpage>406</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-autoencoder">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Kramer</surname><given-names>Mark A</given-names></name>
+      </person-group>
+      <article-title>Nonlinear principal component analysis using autoassociative neural networks</article-title>
+      <source>AIChE journal</source>
+      <publisher-name>Wiley Online Library</publisher-name>
+      <year iso-8601-date="1991">1991</year>
+      <volume>37</volume>
+      <issue>2</issue>
+      <pub-id pub-id-type="doi">10.1002/aic.690370209</pub-id>
+      <fpage>233</fpage>
+      <lpage>243</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-VAE">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Kingma</surname><given-names>Diederik P</given-names></name>
+        <name><surname>Welling</surname><given-names>Max</given-names></name>
+      </person-group>
+      <article-title>Auto-encoding variational Bayes</article-title>
+      <source>arXiv preprint arXiv:1312.6114</source>
+      <year iso-8601-date="2013">2013</year>
+      <pub-id pub-id-type="doi">10.48550/arXiv.1312.6114</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-PBVI">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Pineau</surname><given-names>Joelle</given-names></name>
+        <name><surname>Gordon</surname><given-names>Geoff</given-names></name>
+        <name><surname>Thrun</surname><given-names>Sebastian</given-names></name>
+      </person-group>
+      <article-title>Point-based value iteration: An anytime algorithm for POMDPs</article-title>
+      <source>International Joint Conference on Artificial Intelligence</source>
+      <publisher-name>Morgan Kaufmann Publishers Inc.</publisher-name>
+      <publisher-loc>San Francisco, CA, USA</publisher-loc>
+      <year iso-8601-date="2003">2003</year>
+      <fpage>1025</fpage>
+      <lpage>1030</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-perseus">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Spaan</surname><given-names>Matthijs TJ</given-names></name>
+        <name><surname>Vlassis</surname><given-names>Nikos</given-names></name>
+      </person-group>
+      <article-title>Perseus: Randomized point-based value iteration for POMDPs</article-title>
+      <source>Journal of artificial intelligence research</source>
+      <year iso-8601-date="2005">2005</year>
+      <volume>24</volume>
+      <pub-id pub-id-type="doi">10.1613/jair.1659</pub-id>
+      <fpage>195</fpage>
+      <lpage>220</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-hsvi">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Smith</surname><given-names>Trey</given-names></name>
+        <name><surname>Simmons</surname><given-names>Reid</given-names></name>
+      </person-group>
+      <article-title>Point-based POMDP algorithms: Improved analysis and implementation</article-title>
+      <source>arXiv preprint arXiv:1207.1412</source>
+      <year iso-8601-date="2012">2012</year>
+      <pub-id pub-id-type="doi">10.48550/arXiv.1207.1412</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-isomap">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Tenenbaum</surname><given-names>Joshua B</given-names></name>
+        <name><surname>Silva</surname><given-names>Vin de</given-names></name>
+        <name><surname>Langford</surname><given-names>John C</given-names></name>
+      </person-group>
+      <article-title>A global geometric framework for nonlinear dimensionality reduction</article-title>
+      <source>science</source>
+      <publisher-name>American Association for the Advancement of Science</publisher-name>
+      <year iso-8601-date="2000">2000</year>
+      <volume>290</volume>
+      <issue>5500</issue>
+      <pub-id pub-id-type="doi">10.1126/science.290.5500.2319</pub-id>
+      <fpage>2319</fpage>
+      <lpage>2323</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-kd-trees">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Bentley</surname><given-names>Jon Louis</given-names></name>
+      </person-group>
+      <article-title>Multidimensional binary search trees used for associative searching</article-title>
+      <source>Communications of the ACM</source>
+      <publisher-name>Association for Computing Machinery</publisher-name>
+      <publisher-loc>New York, NY, USA</publisher-loc>
+      <year iso-8601-date="1975-09">1975</year><month>09</month>
+      <volume>18</volume>
+      <issue>9</issue>
+      <issn>0001-0782</issn>
+      <uri>10.1145/361002.361007</uri>
+      <pub-id pub-id-type="doi">10.1145/361002.361007</pub-id>
+      <fpage>509</fpage>
+      <lpage>517</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-AFDM">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Kochenderfer</surname><given-names>M. J.</given-names></name>
+        <name><surname>Wheeler</surname><given-names>T. A.</given-names></name>
+        <name><surname>Wray</surname><given-names>K. H.</given-names></name>
+      </person-group>
+      <source>Algorithms for Decision Making</source>
+      <publisher-name>MIT Press</publisher-name>
+      <year iso-8601-date="2022">2022</year>
+      <isbn>9780262370233</isbn>
+      <uri>https://books.google.com/books?id=zKtaEAAAQBAJ</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-Julia">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Bezanson</surname><given-names>Jeff</given-names></name>
+        <name><surname>Karpinski</surname><given-names>Stefan</given-names></name>
+        <name><surname>Shah</surname><given-names>Viral B.</given-names></name>
+        <name><surname>Edelman</surname><given-names>Alan</given-names></name>
+      </person-group>
+      <article-title>Julia: A fast dynamic language for technical computing</article-title>
+      <year iso-8601-date="2012">2012</year>
+      <uri>https://doi.org/10.48550/arXiv.1209.5145</uri>
+      <pub-id pub-id-type="doi">10.48550/arXiv.1209.5145</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-SARSOP">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Kurniawati</surname><given-names>Hanna</given-names></name>
+        <name><surname>Hsu</surname><given-names>David Hsu</given-names></name>
+        <name><surname>Lee</surname><given-names>Wee Sun</given-names></name>
+      </person-group>
+      <article-title>SARSOP: Efficient point-based POMDP planning by approximating optimally reachable belief spaces</article-title>
+      <source>Robotics: Science and Systems</source>
+      <publisher-loc>Zurich, Switzerland</publisher-loc>
+      <year iso-8601-date="2008">2008</year>
+      <pub-id pub-id-type="doi">10.15607/RSS.2008.IV.009</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-despot">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Somani</surname><given-names>Adhiraj</given-names></name>
+        <name><surname>Ye</surname><given-names>Nan</given-names></name>
+        <name><surname>Hsu</surname><given-names>David</given-names></name>
+        <name><surname>Lee</surname><given-names>Wee Sun</given-names></name>
+      </person-group>
+      <article-title>DESPOT: Online POMDP planning with regularization</article-title>
+      <source>Advances in Neural Information Processing Systems</source>
+      <year iso-8601-date="2013">2013</year>
+      <volume>26</volume>
+      <pub-id pub-id-type="doi">10.1613/jair.5328</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-sunberg2018online">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Sunberg</surname><given-names>Zachary</given-names></name>
+        <name><surname>Kochenderfer</surname><given-names>Mykel</given-names></name>
+      </person-group>
+      <article-title>Online algorithms for POMDPs with continuous state, action, and observation spaces</article-title>
+      <source>International conference on automated planning and scheduling</source>
+      <year iso-8601-date="2018">2018</year>
+      <volume>28</volume>
+      <pub-id pub-id-type="doi">10.1609/icaps.v28i1.13882</pub-id>
+      <fpage>259</fpage>
+      <lpage>263</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-pomcp">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Silver</surname><given-names>David</given-names></name>
+        <name><surname>Veness</surname><given-names>Joel</given-names></name>
+      </person-group>
+      <article-title>Monte-Carlo planning in large POMDPs</article-title>
+      <source>Advances in neural information processing systems</source>
+      <year iso-8601-date="2010">2010</year>
+      <volume>23</volume>
+    </element-citation>
+  </ref>
+  <ref id="ref-mcts">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Kocsis</surname><given-names>Levente</given-names></name>
+        <name><surname>Szepesvári</surname><given-names>Csaba</given-names></name>
+      </person-group>
+      <article-title>Bandit based Monte-Carlo planning</article-title>
+      <source>European conference on machine learning</source>
+      <publisher-name>Springer</publisher-name>
+      <year iso-8601-date="2006">2006</year>
+      <pub-id pub-id-type="doi">10.1007/11871842_29</pub-id>
+      <fpage>282</fpage>
+      <lpage>293</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-AEMS">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Ross</surname><given-names>Stéphane</given-names></name>
+        <name><surname>Chaib-Draa</surname><given-names>Brahim</given-names></name>
+        <name><surname>others</surname></name>
+      </person-group>
+      <article-title>AEMS: An anytime online search algorithm for approximate policy refinement in large POMDPs.</article-title>
+      <source>IJCAI</source>
+      <year iso-8601-date="2007">2007</year>
+      <fpage>2592</fpage>
+      <lpage>2598</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-EPCA">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Collins</surname><given-names>Michael</given-names></name>
+        <name><surname>Dasgupta</surname><given-names>S.</given-names></name>
+        <name><surname>Schapire</surname><given-names>Robert E</given-names></name>
+      </person-group>
+      <article-title>A generalization of principal components analysis to the exponential family</article-title>
+      <source>Advances in Neural Information Processing Systems</source>
+      <year iso-8601-date="2001">2001</year>
+      <uri>https://proceedings.neurips.cc/paper_files/paper/2001/file/f410588e48dc83f2822a880a68f78923-Paper.pdf</uri>
+      <pub-id pub-id-type="doi">10.7551/mitpress/1120.003.0084</pub-id>
+      <fpage></fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-epca-MATLAB">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Chambrier</surname><given-names>Guillaume de</given-names></name>
+      </person-group>
+      <article-title>E-PCA</article-title>
+      <year iso-8601-date="2016">2016</year>
+      <uri>https://github.com/gpldecha/e-pca</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-complexity1">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Papadimitriou</surname><given-names>Christos H.</given-names></name>
+        <name><surname>Tsitsiklis</surname><given-names>John N.</given-names></name>
+      </person-group>
+      <article-title>The complexity of Markov decision processes</article-title>
+      <source>Mathematics of Operations Research</source>
+      <publisher-name>INFORMS</publisher-name>
+      <publisher-loc>Linthicum, MD, USA</publisher-loc>
+      <year iso-8601-date="1987-08">1987</year><month>08</month>
+      <volume>12</volume>
+      <issue>3</issue>
+      <issn>0364-765X</issn>
+      <uri>https://doi.org/10.1287/moor.12.3.441</uri>
+      <pub-id pub-id-type="doi">10.1287/moor.12.3.441</pub-id>
+      <fpage>441</fpage>
+      <lpage>450</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-complexity2">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Madani</surname><given-names>Omid</given-names></name>
+        <name><surname>Hanks</surname><given-names>Steve</given-names></name>
+        <name><surname>Condon</surname><given-names>Anne</given-names></name>
+      </person-group>
+      <article-title>On the undecidability of probabilistic planning and related stochastic optimization problems</article-title>
+      <source>Artificial Intelligence</source>
+      <year iso-8601-date="2003">2003</year>
+      <volume>147</volume>
+      <issue>1</issue>
+      <issn>0004-3702</issn>
+      <uri>https://doi.org/10.1016/S0004-3702(02)00378-8</uri>
+      <pub-id pub-id-type="doi">10.1016/S0004-3702(02)00378-8</pub-id>
+      <fpage>5</fpage>
+      <lpage>34</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-PCA">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Hotelling</surname><given-names>Harold</given-names></name>
+      </person-group>
+      <article-title>Analysis of a complex of statistical variables into principal components</article-title>
+      <source>Journal of Educational Psychology</source>
+      <year iso-8601-date="1933">1933</year>
+      <volume>24</volume>
+      <uri>https://api.semanticscholar.org/CorpusID:144828484</uri>
+      <pub-id pub-id-type="doi">10.1037/h0070888</pub-id>
+      <fpage>498</fpage>
+      <lpage>520</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-kernelPCA">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Schölkopf</surname><given-names>Bernhard</given-names></name>
+        <name><surname>Smola</surname><given-names>Alexander</given-names></name>
+        <name><surname>Müller</surname><given-names>Klaus-Robert</given-names></name>
+      </person-group>
+      <article-title>Nonlinear component analysis as a kernel eigenvalue problem</article-title>
+      <source>Neural Computation</source>
+      <year iso-8601-date="1998">1998</year>
+      <volume>10</volume>
+      <issue>5</issue>
+      <pub-id pub-id-type="doi">10.1162/089976698300017467</pub-id>
+      <fpage>1299</fpage>
+      <lpage>1319</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-PPCA">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Tipping</surname><given-names>Michael E.</given-names></name>
+        <name><surname>Bishop</surname><given-names>Christopher M.</given-names></name>
+      </person-group>
+      <article-title>Probabilistic Principal Component Analysis</article-title>
+      <source>Journal of the Royal Statistical Society</source>
+      <year iso-8601-date="2002-01">2002</year><month>01</month>
+      <volume>61</volume>
+      <issue>3</issue>
+      <issn>1369-7412</issn>
+      <uri>https://doi.org/10.1111/1467-9868.00196</uri>
+      <pub-id pub-id-type="doi">10.1111/1467-9868.00196</pub-id>
+      <fpage>611</fpage>
+      <lpage>622</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-error_bound">
+    <element-citation publication-type="chapter">
+      <person-group person-group-type="author">
+        <name><surname>Gordon</surname><given-names>Geoffrey J.</given-names></name>
+      </person-group>
+      <article-title>Stable function approximation in dynamic programming</article-title>
+      <source>Machine Learning</source>
+      <person-group person-group-type="editor">
+        <name><surname>Prieditis</surname><given-names>Armand</given-names></name>
+        <name><surname>Russell</surname><given-names>Stuart</given-names></name>
+      </person-group>
+      <publisher-name>Morgan Kaufmann</publisher-name>
+      <publisher-loc>San Francisco (CA)</publisher-loc>
+      <year iso-8601-date="1995">1995</year>
+      <isbn>978-1-55860-377-6</isbn>
+      <uri>https://doi.org/10.1016/B978-1-55860-377-6.50040-2</uri>
+      <pub-id pub-id-type="doi">10.1016/B978-1-55860-377-6.50040-2</pub-id>
+      <fpage>261</fpage>
+      <lpage>268</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-flux">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Innes</surname><given-names>Mike</given-names></name>
+      </person-group>
+      <article-title>Flux: Elegant machine learning with Julia</article-title>
+      <source>Journal of Open Source Software</source>
+      <year iso-8601-date="2018">2018</year>
+      <pub-id pub-id-type="doi">10.21105/joss.00602</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-belief-state-MDP">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Åström</surname><given-names>K. J</given-names></name>
+      </person-group>
+      <article-title>Optimal control of Markov processes with incomplete state information</article-title>
+      <source>Journal of Mathematical Analysis and Applications</source>
+      <year iso-8601-date="1965">1965</year>
+      <volume>10</volume>
+      <issue>1</issue>
+      <issn>0022-247X</issn>
+      <uri>https://doi.org/10.1016/0022-247X(65)90154-X</uri>
+      <pub-id pub-id-type="doi">10.1016/0022-247X(65)90154-X</pub-id>
+      <fpage>174</fpage>
+      <lpage>205</lpage>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
