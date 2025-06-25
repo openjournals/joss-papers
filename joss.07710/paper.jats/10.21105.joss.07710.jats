@@ -1,0 +1,899 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">7710</article-id>
+<article-id pub-id-type="doi">10.21105/joss.07710</article-id>
+<title-group>
+<article-title>CAD_to_OpenMC: from CAD design to particle
+transport</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author" corresp="yes">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0003-1827-9188</contrib-id>
+<name>
+<surname>Knudsen</surname>
+<given-names>Erik Bergbäck</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+<xref ref-type="corresp" rid="cor-1"><sup>*</sup></xref>
+</contrib>
+<contrib contrib-type="author">
+<name>
+<surname>Chierici</surname>
+<given-names>Lorenzo</given-names>
+</name>
+<xref ref-type="aff" rid="aff-2"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>United Neux, Denmark</institution>
+</institution-wrap>
+</aff>
+<aff id="aff-2">
+<institution-wrap>
+<institution>Copenhagen Atomics A/S, Denmark</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<author-notes>
+<corresp id="cor-1">* E-mail: <email></email></corresp>
+</author-notes>
+<volume>10</volume>
+<issue>110</issue>
+<fpage>7710</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2025</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>Python</kwd>
+<kwd>Monte Carlo</kwd>
+<kwd>Model preparation</kwd>
+<kwd>CAD</kwd>
+<kwd>Mesh</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p>We present <monospace>CAD_to_OpenMC</monospace>: a practical tool
+  for allowing geometries designed in CAD systems to be used in Monte
+  Carlo particle transport simulation systems. Written in Python, and
+  easily installable through pip and/or conda channels,
+  <monospace>CAD_to_openMC</monospace> does so by importing a geometry
+  in the form of a step-file, a common export format among many CAD
+  systems, identifying objects within that file, and running a
+  triangularization algorithm on all surfaces contained within the
+  geometry. The geometry is written to an HDF5 file in a format defined
+  by the DAGMC library, which is usable by the main particle-transport
+  packages.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p>Most Monte Carlo neutronics, and general particle transport
+  software packages (e.g., OpenMC, GEANT4, MCNP, Fluka)
+  (<xref alt="Agostinelli et al., 2003" rid="ref-geant4_2003" ref-type="bibr">Agostinelli
+  et al., 2003</xref>;
+  <xref alt="Böhlen et al., 2014" rid="ref-fluka_2014" ref-type="bibr">Böhlen
+  et al., 2014</xref>;
+  <xref alt="Ferrari et al., 2005" rid="ref-fluka_2005" ref-type="bibr">Ferrari
+  et al., 2005</xref>;
+  <xref alt="Kulesza et al., 2022" rid="ref-mcnp_2022" ref-type="bibr">Kulesza
+  et al., 2022</xref>;
+  <xref alt="Romano &amp; Forget, 2013" rid="ref-openmc_2013" ref-type="bibr">Romano
+  &amp; Forget, 2013</xref>) are ubiquitous in nuclear science. Almost
+  all of these use Constructive Solid Geometry (CSG) to describe the
+  geometry in which computations are to be performed. CSG is
+  computationally efficient but also tricky to work with, in that all
+  object boundaries must be constructed from analytical descriptions of
+  geometrical primaries (cylinders, planes, 2nd-order surfaces, etc.).
+  Most engineering design, however, is performed using CAD tools, which
+  are optimized for ease of design.</p>
+  <p>These facts form a compelling argument for bridging the gap between
+  these worlds. So far, a number of solutions have been proposed which
+  can mostly be put into two categories.</p>
+  <list list-type="order">
+    <list-item>
+      <p>tools that convert CAD models into CSG
+      (<xref alt="Catalán et al., 2024" rid="ref-catalan_geouned_2024" ref-type="bibr">Catalán
+      et al., 2024</xref>;
+      <xref alt="Du et al., 2018" rid="ref-du_inversecsg_2018" ref-type="bibr">Du
+      et al., 2018</xref>), and</p>
+    </list-item>
+    <list-item>
+      <p>tools that allow ray-tracing on CAD geometries, or close
+      derivatives thereof.</p>
+    </list-item>
+  </list>
+  <p>In the second category, one of the most widespread open source
+  solutions is DAGMC
+  (<xref alt="Wilson et al., 2010" rid="ref-wilson_acceleration_2010" ref-type="bibr">Wilson
+  et al., 2010</xref>), a library with couplings to OpenMC, MCNP, Fluka,
+  and Geant4. DAGMC is proven to be fast and reliable, yet one hurdle
+  remains: DAGMC requires a discretized (meshed) approximation of the
+  CAD geometry. In general, it is not a trivial requirement.</p>
+  <p>Most CAD software packages are, though often proprietary packages,
+  able to write to the STEP-format, which is backed by an international
+  standard
+  (<xref alt="Industrial Automation Systems and Integration—Product Data Representation and Exchange – Part 1, 2024" rid="ref-stepStd_2024" ref-type="bibr"><italic>Industrial
+  Automation Systems and Integration—Product Data Representation and
+  Exchange – Part 1</italic>, 2024</xref>). For this reason, the STEP
+  format was chosen as the input format.</p>
+  <p>The <monospace>CAD_to_OpenMC</monospace> tool eases the process of
+  generating a meshed description of a CAD-generated geometry (in the
+  form of a step file) ready for inclusion in transport codes through
+  DAGMC.</p>
+</sec>
+<sec id="method">
+  <title>Method</title>
+  <p><monospace>CAD_to_OpenMC</monospace> uses OCCT
+  (<xref alt="OCCT3D Collaborative Development Portal, n.d." rid="ref-occt3d" ref-type="bibr"><italic>OCCT3D
+  Collaborative Development Portal</italic>, n.d.</xref>) to interact
+  with CAD geometries, i.e., step-files. Once the geometry has been
+  imported, one of several meshing backends may be called to create a
+  discretized version of the geometry. In the end, the generated
+  geometry is exported into the DAGMC-expected format.</p>
+  <p>OCCT uses a hierarchical boundary representation model (BREP). In a
+  simplified picture, objects consist of a set of bounded surfaces
+  (faces), formed by a set of boundaries (edges), which themselves
+  consist of line segments connecting points or simply mathematical
+  descriptions of curves. More specifically, the BREP-description used
+  in OCCT also includes notions of shells (the boundary of a volume),
+  loops (a circular set of edges), etc. The BREP concept is
+  fundamentally different from CSG, where objects are formed by boolean
+  operations on halfspaces. For example, the OCCT BREP-description
+  allows several more types of operations for forming a geometry, such
+  as extrusions and rotations.</p>
+  <p>Thus, a need for conversion always exists, regardless of whether
+  one discretizes the geometry or not.</p>
+  <sec id="triangularization-surface-meshing">
+    <title>Triangularization / Surface Meshing</title>
+    <p>When a curved geometry is to be discretized, the result is an
+    approximation. This leads to potential problems with overlaps
+    between regions if</p>
+    <list list-type="alpha-lower">
+      <list-item>
+        <p>objects are close to each other, such as for a cylindrical
+        can with thin walls</p>
+      </list-item>
+      <list-item>
+        <p>objects share a surface such as the case for a liquid inside
+        a can.</p>
+      </list-item>
+      <list-item>
+        <p>when objects have surfaces that touch each other.</p>
+      </list-item>
+    </list>
+    <p>The first case puts a constraint on the absolute tolerance of the
+    discretization, i.e., triangles have to be small enough not to cause
+    crossing surfaces.</p>
+    <p>In terms of case b, each surface must only be discretized once.
+    <monospace>CAD_to_OpenMC</monospace> handles this by filling a hash
+    table for surfaces upon processing, enabling reuse without
+    reprocessing.</p>
+    <p>In the last case (c), imprinting has to be performed. This is the
+    process where the boundary curves of one surface are projected onto
+    another, splitting it into two or more sub surfaces.</p>
+    <sec id="meshing-backends">
+      <title>Meshing backends</title>
+      <p><monospace>CAD_to_OpenMC</monospace> is made to be flexible in
+      terms of the algorithms, backends, used to generate triangularized
+      surfaces. The present release supports a range of backends:
+      <monospace>{'gmsh','stl','stl2','db'}</monospace>. In most cases
+      <monospace>stl2</monospace> performs well, but sometimes fails to
+      produce a watertight mesh. In such cases, we recommend using the
+      <monospace>db</monospace> backend if available. Further, the
+      <monospace>gmsh</monospace> backend consistently produces a
+      practical model, but is memory hungry.</p>
+    </sec>
+    <sec id="material-tags">
+      <title>Material tags</title>
+      <p><monospace>CAD_to_OpenMC</monospace> can use the CAD part names
+      as material tags. The default is to use the first part of the part
+      name as a material tag. This may be changed by supplying a
+      dictionary as the tags-argument. Here, the keys are regular
+      expressions, and the values are the material tags to use.
+      Unmatched parts are tagged as vacuum (the default) but may be
+      tagged by extracted part names. The below example shows how to tag
+      all parts with the name <monospace>wall</monospace> in them with
+      <monospace>concrete</monospace> and all parts ending with bellows
+      with <monospace>steel</monospace>.</p>
+      <code language="python">tag_dict = {&quot;.*bellows&quot; : &quot;steel&quot;, &quot;.*wall.*&quot; : &quot;concrete&quot;}</code>
+    </sec>
+  </sec>
+  <sec id="implicit-complement">
+    <title>Implicit complement</title>
+    <p><monospace>CAD_to_OpenMC</monospace> can add an implicit
+    complement to the output file. That is, the material tag applied to
+    any part of the geometry <italic>not</italic> claimed by any CAD
+    part. This is done by simply assigning the name of the material as a
+    string (with a suffix of <monospace>\_comp\</monospace>) to the
+    implicit complement attribute of the base Assembly object. That
+    string gets picked up by the DAGMC system and is used for the
+    unclaimed volume.</p>
+  </sec>
+</sec>
+<sec id="results">
+  <title>Results</title>
+  <p>As a test system we have chosen a tabletop reactor (GODIVA IV)
+  model from the ICSBEP-benchmark project
+  (<xref alt="International Handbook of Evaluated Criticality Safety Benchmark Experiments, 2022/2023" rid="ref-icsbep_2022" ref-type="bibr"><italic>International
+  Handbook of Evaluated Criticality Safety Benchmark
+  Experiments</italic>, 2022/2023</xref>) known as case
+  HEU-MET-FAST-086.</p>
+  <sec id="godiva-iv">
+    <title>GODIVA IV</title>
+    <p>This reactor consists of a cylindrical core
+    (<xref alt="[fig:GIV_CAD]" rid="figU003AGIV_CAD">[fig:GIV_CAD]</xref>)
+    held by three sets of clamps set. Additionally, the core has three
+    vertical holes into which control and burst rods may be inserted
+    from below. The rods themselves are similar in composition to the
+    fuel elements.</p>
+    <p>The benchmark includes five experimental cases, which differ in
+    terms of control- and burst-rod positions. Three geometries are
+    described:</p>
+    <list list-type="order">
+      <list-item>
+        <p>a detailed model which includes as-built things (curved clamp
+        etc.),</p>
+      </list-item>
+      <list-item>
+        <p>simplified model, where all surfaces are along the principal
+        axis, all corners 90 deg. etc., and</p>
+      </list-item>
+      <list-item>
+        <p>cylindrically symmetric model.</p>
+      </list-item>
+    </list>
+    <p>The benchmark reports only experimental results for the two
+    first, but contains MCNP geometries for all three in
+    (<xref alt="International Handbook of Evaluated Criticality Safety Benchmark Experiments, 2022/2023" rid="ref-icsbep_2022" ref-type="bibr"><italic>International
+    Handbook of Evaluated Criticality Safety Benchmark
+    Experiments</italic>, 2022/2023</xref>). The 3rd model is created in
+    order to use some legacy analysis tools which are purely 1D/2D.</p>
+    <p>Corresponding to
+    <xref alt="[fig:GIV_CAD]" rid="figU003AGIV_CAD">[fig:GIV_CAD]</xref>,
+    <xref alt="[fig:GIV_meshed]" rid="figU003AGIV_meshed">[fig:GIV_meshed]</xref>
+    shows the discretized version of the two reactor models used for our
+    further analysis.</p>
+    <fig id="GIV_CAD">
+      <caption><p>CAD-drawings of the Godiva IV reactor, detailed (left)
+      and simplified (right) versions. Note the rectangular clamps and
+      supports in the simplified version. Visible are also the set of
+      control and burst
+      rods.<styled-content id="figU003AGIV_CAD"></styled-content></p></caption>
+      <graphic mimetype="application" mime-subtype="pdf" xlink:href="GIV_both.pdf" />
+    </fig>
+    <fig id="GIV_meshed">
+      <caption><p>Discretized Godiva IV-models, detailed (left) and
+      simplified (right)
+      versions.<styled-content id="figU003AGIV_meshed"></styled-content></p></caption>
+      <graphic mimetype="application" mime-subtype="pdf" xlink:href="both_meshed.pdf" />
+    </fig>
+    <fig>
+      <caption><p>Part-by-part comparison between volume calculations
+      using stochastic volume estimation in OpenMC and volumes reported
+      by CAD-software for the detailed (green) and simplified (magenta)
+      benchmark models. The intervals are the computational error
+      margins, almost exclusively stemming from the estimated error in
+      the stochastic volume computation. The additional black circles
+      denote the relative difference between the extracted benchmark
+      CSG-model (as computed by stochastic volume runs in OpenMC) and
+      the
+      CAD-model.<styled-content id="figU003Avoldiff"></styled-content></p></caption>
+      <graphic mimetype="image" mime-subtype="png" xlink:href="both_rel_voldiff.png" />
+    </fig>
+    <p>Figure
+    <xref alt="[fig:voldiff]" rid="figU003Avoldiff">[fig:voldiff]</xref>
+    shows volume differences between discretized and exact CAD models
+    for the various objects in the model.</p>
+    <p>Differences in volume often influence the neutronics of a reactor
+    more than boundary shifts. Hence, this is a useful measure for
+    performance. The errors found (Fig.
+    <xref alt="[fig:voldiff]" rid="figU003Avoldiff">[fig:voldiff]</xref>)
+    are dominated by the error in the stochastic volume estimator, not
+    the volume error itself. This is evidenced by the very small error
+    in burst- and control-rod volume for the detailed model, which were
+    run with smaller tolerances. Additionally, we have used the
+    benchmark CSG-model to verify a few volumes in the detailed model. A
+    CSG model generally yields shorter runtimes, which allows tighter
+    tolerances while remaining practical. The CSG-benchmark deviates
+    slightly from the CAD-model constructed from drawings, suggesting an
+    underlying discrepancy internally in the benchmark.</p>
+    <p>The considered cases have different settings for the control- and
+    burst-rods (see Tables
+    <xref alt="1" rid="tab_bm_giv_rod_pos">1</xref> and
+    <xref alt="2" rid="tab_det_giv_rod_pos">2</xref>).</p>
+    <table-wrap>
+      <caption>
+        <p>Control-rod (CR) and burst-rod (BR) positions for the five
+        cases of the Godiva-IV benchmark/simplified model from
+        HEU-MET-FAST-086
+        (<xref alt="Goda et al., 2021" rid="ref-goda2021" ref-type="bibr">Goda
+        et al., 2021</xref>;
+        <xref alt="International Handbook of Evaluated Criticality Safety Benchmark Experiments, 2022/2023" rid="ref-icsbep_2022" ref-type="bibr"><italic>International
+        Handbook of Evaluated Criticality Safety Benchmark
+        Experiments</italic>,
+        2022/2023</xref>)<styled-content id="tab_bm_giv_rod_pos"></styled-content>.
+        Measures in inches withdrawn from the fully inserted position.
+        The two rightmost columns contain criticality numbers for the
+        device. MC denotes Monte Carlo, whereas Lit. denotes numbers
+        from the benchmark.</p>
+      </caption>
+      <table>
+        <colgroup>
+          <col width="17%" />
+          <col width="21%" />
+          <col width="17%" />
+          <col width="17%" />
+          <col width="14%" />
+          <col width="14%" />
+        </colgroup>
+        <thead>
+          <tr>
+            <th>case</th>
+            <th>CR 1 top</th>
+            <th>CR 2 top</th>
+            <th>BR top</th>
+            <th><inline-formula><alternatives>
+            <tex-math><![CDATA[k_{\textrm{eff}}]]></tex-math>
+            <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>k</mml:mi><mml:mtext mathvariant="normal">eff</mml:mtext></mml:msub></mml:math></alternatives></inline-formula>
+            CAD</th>
+            <th><inline-formula><alternatives>
+            <tex-math><![CDATA[k_{\textrm{eff}}]]></tex-math>
+            <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>k</mml:mi><mml:mtext mathvariant="normal">eff</mml:mtext></mml:msub></mml:math></alternatives></inline-formula>
+            CSG</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>1</td>
+            <td>-4.001</td>
+            <td>-0.449</td>
+            <td>0.0</td>
+            <td>0.98026</td>
+            <td>0.98187</td>
+          </tr>
+          <tr>
+            <td>2</td>
+            <td>-1.998</td>
+            <td>-1.666</td>
+            <td>0.0</td>
+            <td>0.98101</td>
+            <td>0.98185</td>
+          </tr>
+          <tr>
+            <td>3</td>
+            <td>-0.493</td>
+            <td>-3.794</td>
+            <td>0.0</td>
+            <td>0.98124</td>
+            <td>0.98297</td>
+          </tr>
+          <tr>
+            <td>4</td>
+            <td>-0.469</td>
+            <td>-0.447</td>
+            <td>-2.970</td>
+            <td>0.98745</td>
+            <td>0.98359</td>
+          </tr>
+          <tr>
+            <td>5</td>
+            <td>-0.319</td>
+            <td>-0.656</td>
+            <td>0.0</td>
+            <td>0.98706</td>
+            <td>0.98844</td>
+          </tr>
+        </tbody>
+      </table>
+    </table-wrap>
+    <table-wrap>
+      <caption>
+        <p>Control-rod (CR) and burst-rod (BR) positions for the five
+        cases of the detailed Godiva-IV model from HEU-MET-FAST-08
+        (<xref alt="Goda et al., 2021" rid="ref-goda2021" ref-type="bibr">Goda
+        et al., 2021</xref>;
+        <xref alt="International Handbook of Evaluated Criticality Safety Benchmark Experiments, 2022/2023" rid="ref-icsbep_2022" ref-type="bibr"><italic>International
+        Handbook of Evaluated Criticality Safety Benchmark
+        Experiments</italic>,
+        2022/2023</xref>)<styled-content id="tab_det_giv_rod_pos"></styled-content>.
+        Measures in inches withdrawn from the fully inserted position.
+        The two rightmost columns contain criticality numbers for the
+        device. MC denotes Monte Carlo, whereas Lit. denotes numbers
+        from the benchmark report.</p>
+      </caption>
+      <table>
+        <colgroup>
+          <col width="15%" />
+          <col width="18%" />
+          <col width="15%" />
+          <col width="15%" />
+          <col width="12%" />
+          <col width="12%" />
+          <col width="12%" />
+        </colgroup>
+        <thead>
+          <tr>
+            <th>case</th>
+            <th>CR 1 top</th>
+            <th>CR 2 top</th>
+            <th>BR top</th>
+            <th><inline-formula><alternatives>
+            <tex-math><![CDATA[k_{\textrm{eff}}]]></tex-math>
+            <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>k</mml:mi><mml:mtext mathvariant="normal">eff</mml:mtext></mml:msub></mml:math></alternatives></inline-formula>
+            CAD</th>
+            <th><inline-formula><alternatives>
+            <tex-math><![CDATA[k_{\textrm{eff}}]]></tex-math>
+            <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>k</mml:mi><mml:mtext mathvariant="normal">eff</mml:mtext></mml:msub></mml:math></alternatives></inline-formula>
+            CSG</th>
+            <th><inline-formula><alternatives>
+            <tex-math><![CDATA[k_{\textrm{eff}}]]></tex-math>
+            <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>k</mml:mi><mml:mtext mathvariant="normal">eff</mml:mtext></mml:msub></mml:math></alternatives></inline-formula>
+            Lit.</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>1</td>
+            <td>-4.001</td>
+            <td>-0.449</td>
+            <td>0.0</td>
+            <td>0.97905</td>
+            <td>0.98303</td>
+            <td>0.9880</td>
+          </tr>
+          <tr>
+            <td>2</td>
+            <td>-1.998</td>
+            <td>-1.666</td>
+            <td>0.0</td>
+            <td>0.98390</td>
+            <td>0.98275</td>
+            <td>0.9880</td>
+          </tr>
+          <tr>
+            <td>3</td>
+            <td>-0.493</td>
+            <td>-3.794</td>
+            <td>0.0</td>
+            <td>0.97885</td>
+            <td>0.98330</td>
+            <td>0.9887</td>
+          </tr>
+          <tr>
+            <td>4</td>
+            <td>-0.469</td>
+            <td>-0.447</td>
+            <td>-2.970</td>
+            <td>0.98352</td>
+            <td>0.98426</td>
+            <td>0.9897</td>
+          </tr>
+          <tr>
+            <td>5</td>
+            <td>-0.319</td>
+            <td>-0.656</td>
+            <td>0.0</td>
+            <td>0.98390</td>
+            <td>0.98969</td>
+            <td>0.9945</td>
+          </tr>
+        </tbody>
+      </table>
+    </table-wrap>
+    <p>Two minor adjustments (<inline-formula><alternatives>
+    <tex-math><![CDATA[\approx 1]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mo>≈</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>
+    mm) had to be made to the stated measurements; locking bolts and
+    intermediate sub-assembly plate, for the model to fit. Both edits
+    were ~1 mm and did not affect the results. We assume the errors are
+    misprints in the drawings.</p>
+    <p>It is clear from Tables
+    <xref alt="1" rid="tab_bm_giv_rod_pos">1</xref> and
+    <xref alt="2" rid="tab_det_giv_rod_pos">2</xref> that the agreement
+    between model and experiment is not perfect, yet the difference
+    between CAD-based and CSG-based models is small (generally on the
+    order of <inline-formula><alternatives>
+    <tex-math><![CDATA[5 \times 10^{-3}]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mn>5</mml:mn><mml:mo>×</mml:mo><mml:msup><mml:mn>10</mml:mn><mml:mrow><mml:mi>−</mml:mi><mml:mn>3</mml:mn></mml:mrow></mml:msup></mml:mrow></mml:math></alternatives></inline-formula>).
+    We take this as proof that the geometry generation works as
+    intended.</p>
+  </sec>
+</sec>
+<sec id="discussion-and-conclusion">
+  <title>Discussion and Conclusion</title>
+  <p>We submit that the tool presented is a convenient tool for making
+  CAD geometries available for Monte Carlo particle transport. By
+  utilizing the DAGMC-layer, the resulting geometries are not restricted
+  to OpenMC, but in fact may be used also in MCNP, Fluka, etc.
+  Experience has shown that a particularly useful feature is to extract
+  tags from CAD-defined parts and interpret them as material tags for
+  transport. This enables a consistent material naming scheme throughout
+  the entire modeling procedure.</p>
+  <p>Finally, other active projects exist targeting the problem. In the
+  interest of efficiency and resource management, there are active
+  efforts aiming unification, which may bear fruit in coming
+  releases.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <title></title>
+  <ref id="ref-wilson_acceleration_2010">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Wilson</surname><given-names>Paul P. H.</given-names></name>
+        <name><surname>Tautges</surname><given-names>Timothy J.</given-names></name>
+        <name><surname>Kraftcheck</surname><given-names>Jason A.</given-names></name>
+        <name><surname>Smith</surname><given-names>Brandon M.</given-names></name>
+        <name><surname>Henderson</surname><given-names>Douglass L.</given-names></name>
+      </person-group>
+      <article-title>Acceleration techniques for the direct use of CAD-based geometry in fusion neutronics analysis</article-title>
+      <source>Fusion Engineering and Design</source>
+      <year iso-8601-date="2010-12">2010</year><month>12</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2024-09-18">2024</year><month>09</month><day>18</day></date-in-citation>
+      <volume>85</volume>
+      <issue>10</issue>
+      <uri>https://linkinghub.elsevier.com/retrieve/pii/S0920379610002425</uri>
+      <pub-id pub-id-type="doi">10.1016/j.fusengdes.2010.05.030</pub-id>
+      <fpage>1759</fpage>
+      <lpage>1765</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-catalan_geouned_2024">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Catalán</surname><given-names>J. P.</given-names></name>
+        <name><surname>Sauvan</surname><given-names>P.</given-names></name>
+        <name><surname>García</surname><given-names>J.</given-names></name>
+        <name><surname>Alguacil</surname><given-names>J.</given-names></name>
+        <name><surname>Ogando</surname><given-names>F.</given-names></name>
+        <name><surname>Sanz</surname><given-names>J.</given-names></name>
+      </person-group>
+      <article-title>GEOUNED: A new conversion tool from CAD to Monte Carlo geometry</article-title>
+      <source>Nuclear Engineering and Technology</source>
+      <year iso-8601-date="2024-06">2024</year><month>06</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2024-09-18">2024</year><month>09</month><day>18</day></date-in-citation>
+      <volume>56</volume>
+      <issue>6</issue>
+      <uri>https://linkinghub.elsevier.com/retrieve/pii/S1738573324000548</uri>
+      <pub-id pub-id-type="doi">10.1016/j.net.2024.01.052</pub-id>
+      <fpage>2404</fpage>
+      <lpage>2411</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-du_inversecsg_2018">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Du</surname><given-names>Tao</given-names></name>
+        <name><surname>Inala</surname><given-names>Jeevana Priya</given-names></name>
+        <name><surname>Pu</surname><given-names>Yewen</given-names></name>
+        <name><surname>Spielberg</surname><given-names>Andrew</given-names></name>
+        <name><surname>Schulz</surname><given-names>Adriana</given-names></name>
+        <name><surname>Rus</surname><given-names>Daniela</given-names></name>
+        <name><surname>Solar-Lezama</surname><given-names>Armando</given-names></name>
+        <name><surname>Matusik</surname><given-names>Wojciech</given-names></name>
+      </person-group>
+      <article-title>InverseCSG: Automatic conversion of 3D models to CSG trees</article-title>
+      <source>ACM Transactions on Graphics</source>
+      <year iso-8601-date="2018-12-31">2018</year><month>12</month><day>31</day>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2024-09-18">2024</year><month>09</month><day>18</day></date-in-citation>
+      <volume>37</volume>
+      <issue>6</issue>
+      <issn>0730-0301</issn>
+      <uri>https://dl.acm.org/doi/10.1145/3272127.3275006</uri>
+      <pub-id pub-id-type="doi">10.1145/3272127.3275006</pub-id>
+      <fpage>1</fpage>
+      <lpage>16</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-geant4_2003">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Agostinelli</surname><given-names>S.</given-names></name>
+        <name><surname>Allison</surname><given-names>J.</given-names></name>
+        <name><surname>Amako</surname><given-names>K.</given-names></name>
+        <name><surname>Apostolakis</surname><given-names>J.</given-names></name>
+        <name><surname>Araujo</surname><given-names>H.</given-names></name>
+        <name><surname>Arce</surname><given-names>P.</given-names></name>
+        <name><surname>Asai</surname><given-names>M.</given-names></name>
+        <name><surname>Axen</surname><given-names>D.</given-names></name>
+        <name><surname>Banerjee</surname><given-names>S.</given-names></name>
+        <name><surname>Barrand</surname><given-names>G.</given-names></name>
+        <name><surname>Behner</surname><given-names>F.</given-names></name>
+        <name><surname>Bellagamba</surname><given-names>L.</given-names></name>
+        <name><surname>Boudreau</surname><given-names>J.</given-names></name>
+        <name><surname>Broglia</surname><given-names>L.</given-names></name>
+        <name><surname>Brunengo</surname><given-names>A.</given-names></name>
+        <name><surname>Burkhardt</surname><given-names>H.</given-names></name>
+        <name><surname>Chauvie</surname><given-names>S.</given-names></name>
+        <name><surname>Chuma</surname><given-names>J.</given-names></name>
+        <name><surname>Chytracek</surname><given-names>R.</given-names></name>
+        <name><surname>Cooperman</surname><given-names>G.</given-names></name>
+        <name><surname>Cosmo</surname><given-names>G.</given-names></name>
+        <name><surname>Degtyarenko</surname><given-names>P.</given-names></name>
+        <name><surname>Dell’Acqua</surname><given-names>A.</given-names></name>
+        <name><surname>Depaola</surname><given-names>G.</given-names></name>
+        <name><surname>Dietrich</surname><given-names>D.</given-names></name>
+        <name><surname>Enami</surname><given-names>R.</given-names></name>
+        <name><surname>Feliciello</surname><given-names>A.</given-names></name>
+        <name><surname>Ferguson</surname><given-names>C.</given-names></name>
+        <name><surname>Fesefeldt</surname><given-names>H.</given-names></name>
+        <name><surname>Folger</surname><given-names>G.</given-names></name>
+        <name><surname>Foppiano</surname><given-names>F.</given-names></name>
+        <name><surname>Forti</surname><given-names>A.</given-names></name>
+        <name><surname>Garelli</surname><given-names>S.</given-names></name>
+        <name><surname>Giani</surname><given-names>S.</given-names></name>
+        <name><surname>Giannitrapani</surname><given-names>R.</given-names></name>
+        <name><surname>Gibin</surname><given-names>D.</given-names></name>
+        <name><surname>Gómez Cadenas</surname><given-names>J. J.</given-names></name>
+        <name><surname>González</surname><given-names>I.</given-names></name>
+        <name><surname>Gracia Abril</surname><given-names>G.</given-names></name>
+        <name><surname>Greeniaus</surname><given-names>G.</given-names></name>
+        <name><surname>Greiner</surname><given-names>W.</given-names></name>
+        <name><surname>Grichine</surname><given-names>V.</given-names></name>
+        <name><surname>Grossheim</surname><given-names>A.</given-names></name>
+        <name><surname>Guatelli</surname><given-names>S.</given-names></name>
+        <name><surname>Gumplinger</surname><given-names>P.</given-names></name>
+        <name><surname>Hamatsu</surname><given-names>R.</given-names></name>
+        <name><surname>Hashimoto</surname><given-names>K.</given-names></name>
+        <name><surname>Hasui</surname><given-names>H.</given-names></name>
+        <name><surname>Heikkinen</surname><given-names>A.</given-names></name>
+        <name><surname>Howard</surname><given-names>A.</given-names></name>
+        <name><surname>Ivanchenko</surname><given-names>V.</given-names></name>
+        <name><surname>Johnson</surname><given-names>A.</given-names></name>
+        <name><surname>Jones</surname><given-names>F. W.</given-names></name>
+        <name><surname>Kallenbach</surname><given-names>J.</given-names></name>
+        <name><surname>Kanaya</surname><given-names>N.</given-names></name>
+        <name><surname>Kawabata</surname><given-names>M.</given-names></name>
+        <name><surname>Kawabata</surname><given-names>Y.</given-names></name>
+        <name><surname>Kawaguti</surname><given-names>M.</given-names></name>
+        <name><surname>Kelner</surname><given-names>S.</given-names></name>
+        <name><surname>Kent</surname><given-names>P.</given-names></name>
+        <name><surname>Kimura</surname><given-names>A.</given-names></name>
+        <name><surname>Kodama</surname><given-names>T.</given-names></name>
+        <name><surname>Kokoulin</surname><given-names>R.</given-names></name>
+        <name><surname>Kossov</surname><given-names>M.</given-names></name>
+        <name><surname>Kurashige</surname><given-names>H.</given-names></name>
+        <name><surname>Lamanna</surname><given-names>E.</given-names></name>
+        <name><surname>Lampén</surname><given-names>T.</given-names></name>
+        <name><surname>Lara</surname><given-names>V.</given-names></name>
+        <name><surname>Lefebure</surname><given-names>V.</given-names></name>
+        <name><surname>Lei</surname><given-names>F.</given-names></name>
+        <name><surname>Liendl</surname><given-names>M.</given-names></name>
+        <name><surname>Lockman</surname><given-names>W.</given-names></name>
+        <name><surname>Longo</surname><given-names>F.</given-names></name>
+        <name><surname>Magni</surname><given-names>S.</given-names></name>
+        <name><surname>Maire</surname><given-names>M.</given-names></name>
+        <name><surname>Medernach</surname><given-names>E.</given-names></name>
+        <name><surname>Minamimoto</surname><given-names>K.</given-names></name>
+        <name><surname>Mora De Freitas</surname><given-names>P.</given-names></name>
+        <name><surname>Morita</surname><given-names>Y.</given-names></name>
+        <name><surname>Murakami</surname><given-names>K.</given-names></name>
+        <name><surname>Nagamatu</surname><given-names>M.</given-names></name>
+        <name><surname>Nartallo</surname><given-names>R.</given-names></name>
+        <name><surname>Nieminen</surname><given-names>P.</given-names></name>
+        <name><surname>Nishimura</surname><given-names>T.</given-names></name>
+        <name><surname>Ohtsubo</surname><given-names>K.</given-names></name>
+        <name><surname>Okamura</surname><given-names>M.</given-names></name>
+        <name><surname>O’Neale</surname><given-names>S.</given-names></name>
+        <name><surname>Oohata</surname><given-names>Y.</given-names></name>
+        <name><surname>Paech</surname><given-names>K.</given-names></name>
+        <name><surname>Perl</surname><given-names>J.</given-names></name>
+        <name><surname>Pfeiffer</surname><given-names>A.</given-names></name>
+        <name><surname>Pia</surname><given-names>M. G.</given-names></name>
+        <name><surname>Ranjard</surname><given-names>F.</given-names></name>
+        <name><surname>Rybin</surname><given-names>A.</given-names></name>
+        <name><surname>Sadilov</surname><given-names>S.</given-names></name>
+        <name><surname>Di Salvo</surname><given-names>E.</given-names></name>
+        <name><surname>Santin</surname><given-names>G.</given-names></name>
+        <name><surname>Sasaki</surname><given-names>T.</given-names></name>
+        <name><surname>Savvas</surname><given-names>N.</given-names></name>
+        <name><surname>Sawada</surname><given-names>Y.</given-names></name>
+        <name><surname>Scherer</surname><given-names>S.</given-names></name>
+        <name><surname>Sei</surname><given-names>S.</given-names></name>
+        <name><surname>Sirotenko</surname><given-names>V.</given-names></name>
+        <name><surname>Smith</surname><given-names>D.</given-names></name>
+        <name><surname>Starkov</surname><given-names>N.</given-names></name>
+        <name><surname>Stoecker</surname><given-names>H.</given-names></name>
+        <name><surname>Sulkimo</surname><given-names>J.</given-names></name>
+        <name><surname>Takahata</surname><given-names>M.</given-names></name>
+        <name><surname>Tanaka</surname><given-names>S.</given-names></name>
+        <name><surname>Tcherniaev</surname><given-names>E.</given-names></name>
+        <name><surname>Safai Tehrani</surname><given-names>E.</given-names></name>
+        <name><surname>Tropeano</surname><given-names>M.</given-names></name>
+        <name><surname>Truscott</surname><given-names>P.</given-names></name>
+        <name><surname>Uno</surname><given-names>H.</given-names></name>
+        <name><surname>Urban</surname><given-names>L.</given-names></name>
+        <name><surname>Urban</surname><given-names>P.</given-names></name>
+        <name><surname>Verderi</surname><given-names>M.</given-names></name>
+        <name><surname>Walkden</surname><given-names>A.</given-names></name>
+        <name><surname>Wander</surname><given-names>W.</given-names></name>
+        <name><surname>Weber</surname><given-names>H.</given-names></name>
+        <name><surname>Wellisch</surname><given-names>J. P.</given-names></name>
+        <name><surname>Wenaus</surname><given-names>T.</given-names></name>
+        <name><surname>Williams</surname><given-names>D. C.</given-names></name>
+        <name><surname>Wright</surname><given-names>D.</given-names></name>
+        <name><surname>Yamada</surname><given-names>T.</given-names></name>
+        <name><surname>Yoshida</surname><given-names>H.</given-names></name>
+        <name><surname>Zschiesche</surname><given-names>D.</given-names></name>
+      </person-group>
+      <article-title>Geant4—a simulation toolkit</article-title>
+      <source>Nuclear Instruments and Methods in Physics Research Section A: Accelerators, Spectrometers, Detectors and Associated Equipment</source>
+      <year iso-8601-date="2003-07">2003</year><month>07</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2024-08-13">2024</year><month>08</month><day>13</day></date-in-citation>
+      <volume>506</volume>
+      <issue>3</issue>
+      <uri>https://linkinghub.elsevier.com/retrieve/pii/S0168900203013688</uri>
+      <pub-id pub-id-type="doi">10.1016/S0168-9002(03)01368-8</pub-id>
+      <fpage>250</fpage>
+      <lpage>303</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-mcnp_2022">
+    <element-citation publication-type="report">
+      <person-group person-group-type="author">
+        <name><surname>Kulesza</surname><given-names>Joel Aaron</given-names></name>
+        <name><surname>Adams</surname><given-names>Terry R.</given-names></name>
+        <name><surname>Armstrong</surname><given-names>Jerawan Chudoung</given-names></name>
+        <name><surname>Bolding</surname><given-names>Simon R.</given-names></name>
+        <name><surname>Brown</surname><given-names>Forrest Brooks</given-names></name>
+        <name><surname>Bull</surname><given-names>Jeffrey S.</given-names></name>
+        <name><surname>Burke</surname><given-names>Timothy Patrick</given-names></name>
+        <name><surname>Clark</surname><given-names>Alexander Rich</given-names></name>
+        <name><surname>Forster</surname><given-names>Robert Arthur</given-names><suffix>III</suffix></name>
+        <name><surname>Giron</surname><given-names>Jesse Frank</given-names></name>
+        <name><surname>Grieve</surname><given-names>Tristan Sumner</given-names></name>
+        <name><surname>Josey</surname><given-names>Colin James</given-names></name>
+        <name><surname>Martz</surname><given-names>Roger Lee</given-names></name>
+        <name><surname>McKinney</surname><given-names>Gregg Walter</given-names></name>
+        <name><surname>Pearson</surname><given-names>Eric J.</given-names></name>
+        <name><surname>Rising</surname><given-names>Michael Evan</given-names></name>
+        <name><surname>Solomon</surname><given-names>Clell Jeffrey</given-names><suffix>Jr.</suffix></name>
+        <name><surname>Swaminarayan</surname><given-names>Sriram</given-names></name>
+        <name><surname>Trahan</surname><given-names>Travis John</given-names></name>
+        <name><surname>Wilson</surname><given-names>Stephen Christian</given-names></name>
+        <name><surname>Zukaitis</surname><given-names>Anthony J.</given-names></name>
+        <name><surname>Kulesza</surname><given-names>Joel Aaron</given-names></name>
+      </person-group>
+      <article-title>MCNP code version 6.3.0 theory &amp; user manual</article-title>
+      <publisher-name>Los Alamos National Laboratory</publisher-name>
+      <publisher-loc>Los Alamos, NM, USA</publisher-loc>
+      <year iso-8601-date="2022-09">2022</year><month>09</month>
+      <uri>https://www.osti.gov/biblio/1889957</uri>
+      <pub-id pub-id-type="doi">10.2172/1889957</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-fluka_2014">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Böhlen</surname><given-names>T. T.</given-names></name>
+        <name><surname>Cerutti</surname><given-names>F.</given-names></name>
+        <name><surname>Chin</surname><given-names>M. P. W.</given-names></name>
+        <name><surname>Fassò</surname><given-names>A.</given-names></name>
+        <name><surname>Ferrari</surname><given-names>A.</given-names></name>
+        <name><surname>Ortega</surname><given-names>P. G.</given-names></name>
+        <name><surname>Mairani</surname><given-names>A.</given-names></name>
+        <name><surname>Sala</surname><given-names>P. R.</given-names></name>
+        <name><surname>Smirnov</surname><given-names>G.</given-names></name>
+        <name><surname>Vlachoudis</surname><given-names>V.</given-names></name>
+      </person-group>
+      <article-title>The FLUKA code: Developments and challenges for high energy and medical applications</article-title>
+      <source>Nuclear Data Sheets</source>
+      <year iso-8601-date="2014-06">2014</year><month>06</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2024-08-13">2024</year><month>08</month><day>13</day></date-in-citation>
+      <volume>120</volume>
+      <uri>https://linkinghub.elsevier.com/retrieve/pii/S0090375214005018</uri>
+      <pub-id pub-id-type="doi">10.1016/j.nds.2014.07.049</pub-id>
+      <fpage>211</fpage>
+      <lpage>214</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-openmc_2013">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Romano</surname><given-names>Paul K.</given-names></name>
+        <name><surname>Forget</surname><given-names>Benoit</given-names></name>
+      </person-group>
+      <article-title>The OpenMC Monte Carlo particle transport code</article-title>
+      <source>Annals of Nuclear Energy</source>
+      <year iso-8601-date="2013-01">2013</year><month>01</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2024-08-12">2024</year><month>08</month><day>12</day></date-in-citation>
+      <volume>51</volume>
+      <uri>https://linkinghub.elsevier.com/retrieve/pii/S0306454912003283</uri>
+      <pub-id pub-id-type="doi">10.1016/j.anucene.2012.06.040</pub-id>
+      <fpage>274</fpage>
+      <lpage>281</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-fluka_2005">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Ferrari</surname><given-names>Alfredo</given-names></name>
+        <name><surname>Sala</surname><given-names>Paola R.</given-names></name>
+        <name><surname>Fasso</surname><given-names>Alberto</given-names></name>
+        <name><surname>Ranft</surname><given-names>Johannes</given-names></name>
+      </person-group>
+      <article-title>FLUKA: A multi-particle transport code (program version 2005)</article-title>
+      <year iso-8601-date="2005-10">2005</year><month>10</month>
+      <pub-id pub-id-type="doi">10.2172/877507</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-goda2021">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Goda</surname><given-names>Joetta</given-names></name>
+        <name><surname>Bravo</surname><given-names>Caiser</given-names></name>
+        <name><surname>Cutler</surname><given-names>Theresa</given-names></name>
+        <name><surname>Grove</surname><given-names>Travis</given-names></name>
+        <name><surname>Hayes</surname><given-names>David</given-names></name>
+        <name><surname>Hutchinson</surname><given-names>Jesson</given-names></name>
+        <name><surname>McKenzie</surname><given-names>George</given-names></name>
+        <name><surname>McSpaden</surname><given-names>Alexander</given-names></name>
+        <name><surname>Myers</surname><given-names>William</given-names></name>
+        <name><surname>Sanchez</surname><given-names>Rene</given-names></name>
+        <name><surname>and</surname><given-names>Jessie Walker</given-names></name>
+      </person-group>
+      <article-title>A new era of nuclear criticality experiments: The first 10 years of Godiva IV operations at NCERC</article-title>
+      <source>Nuclear Science and Engineering</source>
+      <publisher-name>Taylor &amp; Francis</publisher-name>
+      <year iso-8601-date="2021">2021</year>
+      <volume>195</volume>
+      <issue>sup1</issue>
+      <uri>
+              https://doi.org/10.1080/00295639.2021.1947103
+        </uri>
+      <pub-id pub-id-type="doi">10.1080/00295639.2021.1947103</pub-id>
+      <fpage>S55</fpage>
+      <lpage>S79</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-stepStd_2024">
+    <element-citation>
+      <article-title>Industrial automation systems and integration—product data representation and exchange – part 1: Overview and fundamental principles (standard no. ISO 10303-1:2024).</article-title>
+      <year iso-8601-date="2024">2024</year>
+      <uri>https://www.iso.org/standard/83105.html</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-occt3d">
+    <element-citation publication-type="webpage">
+      <article-title>OCCT3D collaborative development portal</article-title>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2024-09-18">2024</year><month>09</month><day>18</day></date-in-citation>
+      <uri>https://dev.opencascade.org/</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-icsbep_2022">
+    <element-citation>
+      <article-title>International handbook of evaluated criticality safety benchmark experiments</article-title>
+      <publisher-name>OECD Nuclear Energy Agency</publisher-name>
+      <publisher-loc>Paris</publisher-loc>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
