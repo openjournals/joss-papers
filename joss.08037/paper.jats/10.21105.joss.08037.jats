@@ -1,0 +1,427 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">8037</article-id>
+<article-id pub-id-type="doi">10.21105/joss.08037</article-id>
+<title-group>
+<article-title>AutoUncertainties: A Python Package for Uncertainty
+Propagation</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author" equal-contrib="yes">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0002-8013-9314</contrib-id>
+<name>
+<surname>Gopalaswamy</surname>
+<given-names>Varchas</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<contrib contrib-type="author" equal-contrib="yes">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0009-0003-8206-5050</contrib-id>
+<name>
+<surname>Mentzer</surname>
+<given-names>Ethan</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Laboratory for Laser Energetics, Rochester,
+USA</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2025-06-20">
+<day>20</day>
+<month>6</month>
+<year>2025</year>
+</pub-date>
+<volume>10</volume>
+<issue>110</issue>
+<fpage>8037</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2025</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>Python</kwd>
+<kwd>uncertainty propagation</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p>Propagation of uncertainties is of great utility in the
+  experimental sciences. While the rules of (linear) uncertainty
+  propagation are straightforward, managing many variables with
+  uncertainty information can quickly become complicated in large
+  scientific software stacks. Often, this requires programmers to keep
+  track of many variables and implement custom error propagation rules
+  for each mathematical operator and function. The Python package
+  <monospace>AutoUncertainties</monospace>, described here, provides a
+  solution to this problem.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of Need</title>
+  <p><monospace>AutoUncertainties</monospace> is a Python package for
+  uncertainty propagation of independent random variables. It provides a
+  drop-in mechanism to add uncertainty information to Python scalar and
+  <monospace>NumPy</monospace>
+  (<xref alt="Harris et al., 2020" rid="ref-harris2020array" ref-type="bibr">Harris
+  et al., 2020</xref>) array objects. It implements manual propagation
+  rules for the Python dunder math methods, and uses automatic
+  differentiation via <monospace>JAX</monospace>
+  (<xref alt="Bradbury et al., 2018" rid="ref-jax2018github" ref-type="bibr">Bradbury
+  et al., 2018</xref>) to propagate uncertainties for most
+  <monospace>NumPy</monospace> methods applied to both scalar and
+  <monospace>NumPy</monospace> array variables. In doing so, it
+  eliminates the need for carrying around additional uncertainty
+  variables or for implementing custom propagation rules for any
+  <monospace>NumPy</monospace> operator with a gradient rule implemented
+  by <monospace>JAX</monospace>. Furthermore, in most cases, it requires
+  minimal modification to existing code—typically only when
+  uncertainties are attached to central values.</p>
+</sec>
+<sec id="prior-work">
+  <title>Prior Work</title>
+  <p>To the author’s knowledge, the only existing error propagation
+  library in Python is the <monospace>uncertainties</monospace>
+  (<xref alt="Lebigot et al., 2024" rid="ref-lebigot2024" ref-type="bibr">Lebigot
+  et al., 2024</xref>) package, which inspired the current work. While
+  extremely useful, the <monospace>uncertainties</monospace> package
+  relies on hand-implemented rules and functions for uncertainty
+  propagation of array and scalar data. This is mostly trivial for
+  Python’s intrinsic arithmetic and logical operations such as
+  <monospace>__add__</monospace>, however it becomes problematic for
+  more advanced mathematical operations. For instance, calculating the
+  uncertainty propagation due to the cosine function requires the import
+  of separate math libraries, rather than being able to use
+  <monospace>NumPy</monospace> directly.</p>
+  <code language="python"># Using uncertainties v3.2.3
+import numpy as np
+from uncertainties import unumpy, ufloat
+arr = np.array([ufloat(1, 0.1), ufloat(2, 0.002)])
+unumpy.cos(arr)  # calculation succeeds
+np.cos(arr)      # raises an exception</code>
+  <p>The example above illustrates a primary limitation of the
+  <monospace>uncertainties</monospace> package: arrays of
+  <monospace>ufloat</monospace> objects cannot be seamlessly integrated
+  with common <monospace>NumPy</monospace> functions, and can only be
+  operated on by the <monospace>unumpy</monospace> suite of
+  functions.</p>
+</sec>
+<sec id="implementation">
+  <title>Implementation</title>
+  <p>For a function <inline-formula><alternatives>
+  <tex-math><![CDATA[f : \mathbb{R}^n \rightarrow \mathbb{R}^m]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>f</mml:mi><mml:mo>:</mml:mo><mml:msup><mml:mi>ℝ</mml:mi><mml:mi>n</mml:mi></mml:msup><mml:mo>→</mml:mo><mml:msup><mml:mi>ℝ</mml:mi><mml:mi>m</mml:mi></mml:msup></mml:mrow></mml:math></alternatives></inline-formula>
+  of <inline-formula><alternatives>
+  <tex-math><![CDATA[n]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>n</mml:mi></mml:math></alternatives></inline-formula>
+  independent variables, linear uncertainty propagation can be computed
+  via the simple rule <disp-formula><alternatives>
+  <tex-math><![CDATA[ \delta f_j (\mathbf x)^2 = \sum_i^n \left(\dfrac{\partial f_j}{\partial x_i} \delta x_i \right)^2, \quad\quad j \in [1, m].]]></tex-math>
+  <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>δ</mml:mi><mml:msub><mml:mi>f</mml:mi><mml:mi>j</mml:mi></mml:msub><mml:msup><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>𝐱</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mn>2</mml:mn></mml:msup><mml:mo>=</mml:mo><mml:munderover><mml:mo>∑</mml:mo><mml:mi>i</mml:mi><mml:mi>n</mml:mi></mml:munderover><mml:msup><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mfrac displaystyle="true"><mml:mrow><mml:mi>∂</mml:mi><mml:msub><mml:mi>f</mml:mi><mml:mi>j</mml:mi></mml:msub></mml:mrow><mml:mrow><mml:mi>∂</mml:mi><mml:msub><mml:mi>x</mml:mi><mml:mi>i</mml:mi></mml:msub></mml:mrow></mml:mfrac><mml:mi>δ</mml:mi><mml:msub><mml:mi>x</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mn>2</mml:mn></mml:msup><mml:mo>,</mml:mo><mml:mspace width="1.0em"></mml:mspace><mml:mspace width="1.0em"></mml:mspace><mml:mi>j</mml:mi><mml:mo>∈</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">[</mml:mo><mml:mn>1</mml:mn><mml:mo>,</mml:mo><mml:mi>m</mml:mi><mml:mo stretchy="true" form="postfix">]</mml:mo></mml:mrow><mml:mi>.</mml:mi></mml:mrow></mml:math></alternatives></disp-formula></p>
+  <p>To compute <inline-formula><alternatives>
+  <tex-math><![CDATA[\dfrac{\partial f_j}{\partial x_i}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mfrac displaystyle="true"><mml:mrow><mml:mi>∂</mml:mi><mml:msub><mml:mi>f</mml:mi><mml:mi>j</mml:mi></mml:msub></mml:mrow><mml:mrow><mml:mi>∂</mml:mi><mml:msub><mml:mi>x</mml:mi><mml:mi>i</mml:mi></mml:msub></mml:mrow></mml:mfrac></mml:math></alternatives></inline-formula>
+  for arbitrary <inline-formula><alternatives>
+  <tex-math><![CDATA[f]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>f</mml:mi></mml:math></alternatives></inline-formula>,
+  the implementation in <monospace>AutoUncertainties</monospace> relies
+  on automatic differentiation provided by <monospace>JAX</monospace>.
+  Calls to any <monospace>NumPy</monospace> array function or universal
+  function (ufunc) are intercepted via the
+  <monospace>__array_function__</monospace> and
+  <monospace>__array_ufunc__</monospace> mechanism, and dispatched to a
+  <monospace>NumPy</monospace> wrapper routine that computes the
+  Jacobian matrix via <monospace>jax.jacfwd</monospace>.</p>
+  <p>The user API for the <monospace>Uncertainty</monospace> object
+  exposes a number of properties and methods, of which some of the most
+  important are:</p>
+  <list list-type="bullet">
+    <list-item>
+      <p><monospace>value -&gt; float</monospace>: The central value of
+      the object.</p>
+    </list-item>
+    <list-item>
+      <p><monospace>error -&gt; float</monospace>: The error (standard
+      deviation) of the object.</p>
+    </list-item>
+    <list-item>
+      <p><monospace>relative -&gt; float</monospace>: The relative error
+      (i.e. error / value) of the object.</p>
+    </list-item>
+    <list-item>
+      <p><monospace>plus_minus(self, err: float) -&gt; Uncertainty</monospace>:
+      Adds error (in quadrature).</p>
+    </list-item>
+  </list>
+  <p>These attributes and methods can be used in the following
+  manner:</p>
+  <code language="python">from auto_uncertainties import Uncertainty
+u1 = Uncertainty(5.25, 0.75)
+u2 = Uncertainty(1.85, 0.4)
+
+print(u1)                  # 5.25 +/- 0.75
+print(u1.value)            # 5.25
+print(u1.error)            # 0.75
+print(u1.relative)         # 0.142857
+print(u1.plus_minus(0.5))  # 5.25 +/- 0.901388
+
+# Construct a vector Uncertainty from a sequence.
+seq = Uncertainty([u1, u2]) 
+print(seq.value)  # [5.25 1.85]
+print(seq.error)  # [0.75 0.4 ]</code>
+  <p>Of course, one of the most important aspects of
+  <monospace>AutoUncertainties</monospace> is its seamless support for
+  <monospace>NumPy</monospace>:</p>
+  <code language="python">import numpy as np
+from auto_uncertainties import Uncertainty
+vals = np.array([0.5, 0.75])
+errs = np.array([0.05, 0.3])
+u = Uncertainty(vals, errs)
+
+print(np.cos(u))  # [0.877583 +/- 0.0239713, 0.731689 +/- 0.204492]</code>
+  <p>This is in contrast to the <monospace>uncertainties</monospace>
+  package, which would have necessitated using the
+  <monospace>unumpy</monospace> module of hand-implemented
+  <monospace>NumPy</monospace> function analogs.</p>
+  <p>The <monospace>Uncertainty</monospace> class automatically
+  determines which methods should be implemented based on whether it
+  represents a vector uncertainty, or a scalar uncertainty. When
+  instantiated with sequences or <monospace>NumPy</monospace> arrays,
+  vector-based operations are enabled; when instantiated with scalars,
+  only scalar operations are permitted.</p>
+  <p><monospace>AutoUncertainties</monospace> also provides certain
+  exceptions, helper functions, accessors, and display rounding
+  adjustors, whose details can be found in the
+  <ext-link ext-link-type="uri" xlink:href="https://autouncertainties.readthedocs.io/en/latest/">documentation</ext-link>.</p>
+  <sec id="support-for-pint">
+    <title>Support for Pint</title>
+    <p><monospace>AutoUncertainties</monospace> provides some support
+    for working with objects from the <monospace>Pint</monospace>
+    package
+    (<xref alt="Grecco &amp; Chéron, 2025" rid="ref-pint" ref-type="bibr">Grecco
+    &amp; Chéron, 2025</xref>). For example,
+    <monospace>Uncertainty</monospace> objects can be instantiated from
+    <monospace>pint.Quantity</monospace> objects, and then automatically
+    wrapped into new <monospace>pint.Quantity</monospace> objects via
+    the <monospace>from_quantities</monospace> method. This guarantees
+    that unit information is preserved when moving between
+    <monospace>Uncertainty</monospace> objects and
+    <monospace>pint.Quantity</monospace> objects.</p>
+    <code language="python">from auto_uncertainties import Uncertainty
+from pint import Quantity
+
+val = Quantity(2.24, 'kg')
+err = Quantity(0.208, 'kg')
+new_quantity = Uncertainty.from_quantities(val, err)
+
+print(new_quantity)        # 2.24 +/- 0.208 kilogram
+print(type(new_quantity))  # &lt;class 'pint.Quantity'&gt;</code>
+  </sec>
+</sec>
+<sec id="current-limitations-and-future-work">
+  <title>Current Limitations and Future Work</title>
+  <sec id="dependent-random-variables">
+    <title>Dependent Random Variables</title>
+    <p>To simplify operations on <monospace>Uncertainty</monospace>
+    objects, <monospace>AutoUncertainties</monospace> assumes all
+    variables are independent. This means that, in the case where the
+    programmer assumes dependence between two or more
+    <monospace>Uncertainty</monospace> objects, unexpected and
+    counter-intuitive behavior may arise during uncertainty propagation.
+    This is a common pitfall when working with
+    <monospace>Uncertainty</monospace> objects, especially since the
+    package will not prevent programmers from manipulating variables in
+    a manner that implies dependence. Examples of this behavior, along
+    with certain potential workarounds, can be found
+    <ext-link ext-link-type="uri" xlink:href="https://autouncertainties.readthedocs.io/en/latest/index.html#current-limitations-and-future-work">here</ext-link>
+    in the documentation. In general, most binary operations involving
+    the same variable twice will produce undesired results (for
+    instance, performing <monospace>X - X</monospace>, where
+    <monospace>X</monospace> is an <monospace>Uncertainty</monospace>
+    object, will <italic>not</italic> result in a standard deviation of
+    zero).</p>
+    <p>The workarounds are nevertheless cumbersome, and cause
+    <monospace>AutoUncertainties</monospace> to fall somewhat short of
+    the original goals of automated error propagation. In principle,
+    this could be addressed by storing a full computational graph of the
+    result of chained operations, similar to what is done in
+    <monospace>uncertainties</monospace>. However, the complexity of
+    such a system places it out of scope for
+    <monospace>AutoUncertainties</monospace> at this time.</p>
+  </sec>
+</sec>
+<sec id="further-information">
+  <title>Further Information</title>
+  <p>Full API information and additional usage examples can be found on
+  the
+  <ext-link ext-link-type="uri" xlink:href="https://autouncertainties.readthedocs.io/en/latest/">documentation
+  website</ext-link>. All source code for the project is stored and
+  maintained on the <monospace>AutoUncertainties</monospace>
+  <ext-link ext-link-type="uri" xlink:href="https://github.com/varchasgopalaswamy/AutoUncertainties">GitHub
+  repository</ext-link>, where contributions, suggestions, and bug
+  reports are welcome.</p>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>This material is based upon work supported by the Department of
+  Energy [National Nuclear Security Administration] University of
+  Rochester “National Inertial Confinement Fusion Program” under Award
+  Number(s) DE-NA0004144, and Department of Energy [Office of Fusion
+  Energy Sciences] University of Rochester “Applications of Machine
+  Learning and Data Science to predict, design and improve laser-fusion
+  implosions for inertial fusion energy” under Award Number(s)
+  DE-SC0024381.</p>
+  <p>This report was prepared as an account of work sponsored by an
+  agency of the United States Government. Neither the United States
+  Government nor any agency thereof, nor any of their employees, makes
+  any warranty, express or implied, or assumes any legal liability or
+  responsibility for the accuracy, completeness, or usefulness of any
+  information, apparatus, product, or process disclosed, or represents
+  that its use would not infringe privately owned rights. Reference
+  herein to any specific commercial product, process, or service by
+  trade name, trademark, manufacturer, or otherwise does not necessarily
+  constitute or imply its endorsement, recommendation, or favoring by
+  the United States Government or any agency thereof. The views and
+  opinions of authors expressed herein do not necessarily state or
+  reflect those of the United States Government or any agency
+  thereof.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <title></title>
+  <ref id="ref-harris2020array">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Harris</surname><given-names>Charles R.</given-names></name>
+        <name><surname>Millman</surname><given-names>K. Jarrod</given-names></name>
+        <name><surname>Walt</surname><given-names>Stéfan J. van der</given-names></name>
+        <name><surname>Gommers</surname><given-names>Ralf</given-names></name>
+        <name><surname>Virtanen</surname><given-names>Pauli</given-names></name>
+        <name><surname>Cournapeau</surname><given-names>David</given-names></name>
+        <name><surname>Wieser</surname><given-names>Eric</given-names></name>
+        <name><surname>Taylor</surname><given-names>Julian</given-names></name>
+        <name><surname>Berg</surname><given-names>Sebastian</given-names></name>
+        <name><surname>Smith</surname><given-names>Nathaniel J.</given-names></name>
+        <name><surname>Kern</surname><given-names>Robert</given-names></name>
+        <name><surname>Picus</surname><given-names>Matti</given-names></name>
+        <name><surname>Hoyer</surname><given-names>Stephan</given-names></name>
+        <name><surname>Kerkwijk</surname><given-names>Marten H. van</given-names></name>
+        <name><surname>Brett</surname><given-names>Matthew</given-names></name>
+        <name><surname>Haldane</surname><given-names>Allan</given-names></name>
+        <name><surname>Río</surname><given-names>Jaime Fernández del</given-names></name>
+        <name><surname>Wiebe</surname><given-names>Mark</given-names></name>
+        <name><surname>Peterson</surname><given-names>Pearu</given-names></name>
+        <name><surname>Gérard-Marchant</surname><given-names>Pierre</given-names></name>
+        <name><surname>Sheppard</surname><given-names>Kevin</given-names></name>
+        <name><surname>Reddy</surname><given-names>Tyler</given-names></name>
+        <name><surname>Weckesser</surname><given-names>Warren</given-names></name>
+        <name><surname>Abbasi</surname><given-names>Hameer</given-names></name>
+        <name><surname>Gohlke</surname><given-names>Christoph</given-names></name>
+        <name><surname>Oliphant</surname><given-names>Travis E.</given-names></name>
+      </person-group>
+      <article-title>Array programming with NumPy</article-title>
+      <source>Nature</source>
+      <publisher-name>Springer Science; Business Media LLC</publisher-name>
+      <year iso-8601-date="2020-09">2020</year><month>09</month>
+      <volume>585</volume>
+      <issue>7825</issue>
+      <uri>https://doi.org/10.1038/s41586-020-2649-2</uri>
+      <pub-id pub-id-type="doi">10.1038/s41586-020-2649-2</pub-id>
+      <fpage>357</fpage>
+      <lpage>362</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-jax2018github">
+    <element-citation publication-type="software">
+      <person-group person-group-type="author">
+        <name><surname>Bradbury</surname><given-names>James</given-names></name>
+        <name><surname>Frostig</surname><given-names>Roy</given-names></name>
+        <name><surname>Hawkins</surname><given-names>Peter</given-names></name>
+        <name><surname>Johnson</surname><given-names>Matthew James</given-names></name>
+        <name><surname>Leary</surname><given-names>Chris</given-names></name>
+        <name><surname>Maclaurin</surname><given-names>Dougal</given-names></name>
+        <name><surname>Necula</surname><given-names>George</given-names></name>
+        <name><surname>Paszke</surname><given-names>Adam</given-names></name>
+        <name><surname>VanderPlas</surname><given-names>Jake</given-names></name>
+        <name><surname>Wanderman-Milne</surname><given-names>Skye</given-names></name>
+        <name><surname>Zhang</surname><given-names>Qiao</given-names></name>
+      </person-group>
+      <article-title>JAX: Composable transformations of Python+NumPy programs</article-title>
+      <year iso-8601-date="2018">2018</year>
+      <uri>https://github.com/jax-ml/jax</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-pint">
+    <element-citation publication-type="software">
+      <person-group person-group-type="author">
+        <name><surname>Grecco</surname><given-names>Hernan E.</given-names></name>
+        <name><surname>Chéron</surname><given-names>Jules</given-names></name>
+      </person-group>
+      <article-title>Pint: Makes units easy</article-title>
+      <source>GitHub repository</source>
+      <publisher-name>GitHub</publisher-name>
+      <year iso-8601-date="2025">2025</year>
+      <uri>https://github.com/hgrecco/pint</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-lebigot2024">
+    <element-citation publication-type="software">
+      <person-group person-group-type="author">
+        <name><surname>Lebigot</surname><given-names>Eric O.</given-names></name>
+        <name><surname>Newville</surname><given-names>Matt</given-names></name>
+        <name><surname>Deil</surname><given-names>Christoph</given-names></name>
+        <name><surname>Davar</surname><given-names>Gabi</given-names></name>
+        <name><surname>Shanks</surname><given-names>Will</given-names></name>
+        <name><surname>Savara</surname><given-names>Aditya</given-names></name>
+        <name><surname>Yurchak</surname><given-names>Roman</given-names></name>
+        <name><surname>andrewgsavage</surname></name>
+        <name><surname>ep12</surname></name>
+        <name><surname>Gerber</surname><given-names>Justin</given-names></name>
+        <name><surname>Pieters</surname><given-names>Martijn</given-names></name>
+        <name><surname>Romano</surname><given-names>Paul</given-names></name>
+        <name><surname>Riley</surname><given-names>Will</given-names></name>
+        <name><surname>Baldwin</surname><given-names>Austin</given-names></name>
+        <name><surname>Abel</surname><given-names>Benjamin</given-names></name>
+        <name><surname>Burr</surname><given-names>Chris</given-names></name>
+        <name><surname>op3</surname></name>
+        <name><surname>Eendebak</surname><given-names>Pieter</given-names></name>
+        <name><surname>Cladé</surname><given-names>Pierre</given-names></name>
+      </person-group>
+      <article-title>Lmfit/uncertainties: 3.2.2</article-title>
+      <publisher-name>Zenodo</publisher-name>
+      <year iso-8601-date="2024-07">2024</year><month>07</month>
+      <uri>https://doi.org/10.5281/zenodo.12682754</uri>
+      <pub-id pub-id-type="doi">10.5281/zenodo.12682754</pub-id>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
