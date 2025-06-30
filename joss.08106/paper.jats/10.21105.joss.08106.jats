@@ -1,0 +1,961 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">8106</article-id>
+<article-id pub-id-type="doi">10.21105/joss.08106</article-id>
+<title-group>
+<article-title>fastatomstruct: A High-Performance Library for Structural
+and Dynamical Analysis of Atomic Systems</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0001-9830-6881</contrib-id>
+<name>
+<surname>Holle</surname>
+<given-names>Nils</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0003-1748-3603</contrib-id>
+<name>
+<surname>Walfort</surname>
+<given-names>Sebastian</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0003-2319-375X</contrib-id>
+<name>
+<surname>Mazzarello</surname>
+<given-names>Riccardo</given-names>
+</name>
+<xref ref-type="aff" rid="aff-2"/>
+</contrib>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0002-2228-6244</contrib-id>
+<name>
+<surname>Salinga</surname>
+<given-names>Martin</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>University of Münster, Institute of Materials Physics,
+Germany</institution>
+<institution-id institution-id-type="ROR">00pd74e08</institution-id>
+</institution-wrap>
+</aff>
+<aff id="aff-2">
+<institution-wrap>
+<institution>Sapienza Università di Roma</institution>
+<institution-id institution-id-type="ROR">02be6w209</institution-id>
+</institution-wrap>
+</aff>
+</contrib-group>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2025-06-17">
+<day>17</day>
+<month>6</month>
+<year>2025</year>
+</pub-date>
+<volume>10</volume>
+<issue>110</issue>
+<fpage>8106</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2025</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>Python</kwd>
+<kwd>atomic structure</kwd>
+<kwd>dynamics</kwd>
+<kwd>molecular dynamics simulations</kwd>
+<kwd>parallel computing</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p><monospace>fastatomstruct</monospace> is a Python library,
+  implemented primarily in Rust, designed to efficiently calculate a
+  wide range of atomic structural and dynamical parameters. Using
+  thread-based parallelization via Rust’s <monospace>rayon</monospace>
+  crate, the package provides fast and scalable performance for
+  analyzing atomic configurations. In particular, many functions in this
+  library are targeted at the structural and dynamical analysis of large
+  liquid, supercooled-liquid, and amorphous systems. Its primary
+  audience includes researchers in computational materials physics,
+  materials science, and chemistry, though it is also broadly applicable
+  to any field requiring detailed structural analysis of atomic
+  systems.</p>
+  <p>The library provides a comprehensive suite of tools for analyzing
+  atomic configurations, supporting the calculation of radial
+  distribution functions, static structure factors, bond-orientational
+  parameters, and vibrational density of states, among others. By
+  leveraging MPI-based parallelization (<monospace>mpi4py</monospace>)
+  alongside Rust’s <monospace>rayon</monospace> crate for thread-based
+  parallelization, <monospace>fastatomstruct</monospace> achieves high
+  efficiency, making it particularly useful for large-scale
+  simulations.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p>Understanding atomic structure and dynamics is fundamental in many
+  scientific disciplines, including the study of phase transitions, the
+  behavior of supercooled liquids, and the exploration of molecular
+  interactions. Answering many questions in these fields requires
+  simulations of large systems. Today, this is possible with quantum
+  mechanical accuracy using machine-learned potentials
+  (<xref alt="Friederich et al., 2021" rid="ref-friederichMachinelearnedPotentialsNextgeneration2021" ref-type="bibr">Friederich
+  et al., 2021</xref>). However, efficiently calculating structural
+  quantities from large atomic simulations can be computationally
+  expensive. Existing tools often lack support for high-performance
+  parallelization or the ability to integrate seamlessly with
+  Python-based analysis workflows, such as those built around the widely
+  used Atomic Simulation Environment (ASE)
+  (<xref alt="Hjorth Larsen et al., 2017" rid="ref-hjorthlarsenAtomicSimulationEnvironment2017" ref-type="bibr">Hjorth
+  Larsen et al., 2017</xref>).</p>
+  <p><monospace>fastatomstruct</monospace> addresses this gap by
+  offering a Rust-backed implementation with efficient parallelization
+  techniques that exploit multicore processors and thread-based
+  parallelization. This allows researchers to investigate a wide range
+  of atomic-scale phenomena. In materials science, the library
+  facilitates the study of phase transitions, e.g., crystallization or
+  melting, by tracking bond-orientational parameters and radial
+  distribution functions, providing insights into how atomic structures
+  evolve under changing conditions. In condensed matter physics and
+  engineering, it enables the characterization of atomic defects, local
+  structural distortions, and vibrational properties, aiding in the
+  design of materials with specific desired properties. The library is
+  particularly useful in the study of soft matter and supercooled
+  liquids, where non-Gaussian transport behavior, mean squared
+  displacement, and velocity autocorrelation functions help uncover the
+  fundamental mechanisms of glassy dynamics. Furthermore,
+  <monospace>fastatomstruct</monospace> provides tools for analyzing
+  molecular structure through three-body correlations and other
+  structural parameters that go beyond the traditional two-body
+  quantities like pair radial distribution functions.</p>
+  <p>The library’s scalability makes it particularly suited for
+  analyzing large datasets. For instance, computing the coordination
+  numbers of a bulk structure containing half a million atoms can be
+  completed in approximately <inline-formula><alternatives>
+  <tex-math><![CDATA[0.3]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mn>0.3</mml:mn></mml:math></alternatives></inline-formula>
+  seconds on <inline-formula><alternatives>
+  <tex-math><![CDATA[96]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mn>96</mml:mn></mml:math></alternatives></inline-formula>
+  cores (see
+  <xref alt="[fig:size]" rid="figU003Asize">[fig:size]</xref>),
+  demonstrating its ability to handle high-throughput simulations
+  efficiently. <xref alt="[fig:rdf]" rid="figU003Ardf">[fig:rdf]</xref>
+  shows a comparison of a radial distribution function calculation using
+  <monospace>fastatomstruct</monospace> and the widely used
+  <monospace>MDAnalysis</monospace> Python library. The calculations
+  yield equivalent results, but <monospace>fastatomstruct</monospace> is
+  approximately <inline-formula><alternatives>
+  <tex-math><![CDATA[20]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mn>20</mml:mn></mml:math></alternatives></inline-formula>
+  times faster due to its parallelized implementation. In comparison to
+  other commonly used packages such as <monospace>MDAnalysis</monospace>
+  (<xref alt="Gowers et al., 2016" rid="ref-gowersMDAnalysisPythonPackage2016" ref-type="bibr">Gowers
+  et al., 2016</xref>;
+  <xref alt="Michaud-Agrawal et al., 2011" rid="ref-michaud-agrawalMDAnalysisToolkitAnalysis2011" ref-type="bibr">Michaud-Agrawal
+  et al., 2011</xref>), <monospace>pymatgen</monospace>
+  (<xref alt="Ong et al., 2013" rid="ref-ongPythonMaterialsGenomics2013" ref-type="bibr">Ong
+  et al., 2013</xref>), or functions built into ASE,
+  <monospace>fastatomstruct</monospace> distinguishes itself through its
+  high-performance design and scalability. Its Rust-based core leverages
+  advanced thread and MPI parallelization strategies to achieve
+  substantially faster processing of large datasets, while ensuring
+  memory and thread safety. Easy installation and direct integration
+  with Python workflows and established tools like ASE further
+  streamline its usage, avoiding the complexity often encountered with
+  other codes.</p>
+  <fig>
+    <caption><p>Comparison of radial distribution function calculation
+    between <monospace>fastatomstruct</monospace> and
+    <monospace>MDAnalysis</monospace> shows a
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[20\times]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mn>20</mml:mn><mml:mo>×</mml:mo></mml:mrow></mml:math></alternatives></inline-formula>
+    speedup with the parallelized implementation in
+    <monospace>fastatomstruct</monospace>. The RDF was calculated for a
+    copper crystal with <inline-formula><alternatives>
+    <tex-math><![CDATA[108,000]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mn>108</mml:mn><mml:mo>,</mml:mo><mml:mn>000</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>
+    atoms. Calculations were performed on two Intel Xeon Gold 6140
+    processors with a total of <inline-formula><alternatives>
+    <tex-math><![CDATA[36]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mn>36</mml:mn></mml:math></alternatives></inline-formula>
+    cores and threads. The speedup is mainly due to the parallelization
+    of distance calculations. Note that we do not observe an ideal
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[36\times]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mn>36</mml:mn><mml:mo>×</mml:mo></mml:mrow></mml:math></alternatives></inline-formula>
+    speedup as a) the simple distance calculations required for the
+    computation of the radial distribution function do not scale as well
+    as the calculation of more complex quantities like bond order
+    correlation parameters (see
+    <xref alt="[fig:scaling]" rid="figU003Ascaling">[fig:scaling]</xref>),
+    b) some calculation time is spent on the non-parallelized creation
+    of the histogram, and c) there is overhead due to the dual-processor
+    setup.<styled-content id="figU003Ardf"></styled-content></p></caption>
+    <graphic mimetype="image" mime-subtype="svg+xml" xlink:href="rdf_comparison.svg" />
+  </fig>
+</sec>
+<sec id="features-and-background">
+  <title>Features and background</title>
+  <p>The <monospace>fastatomstruct</monospace> library calculates a
+  variety of structural quantities that provide insights into atomic
+  arrangements. Distances between atoms are calculated using a linear
+  scaling method (see
+  <xref alt="[fig:size]" rid="figU003Asize">[fig:size]</xref>), which
+  also allows for fast calculations of quantities like coordination
+  numbers. Spatial hashing enables efficient neighbor finding and
+  distance calculations with <inline-formula><alternatives>
+  <tex-math><![CDATA[\mathcal{O}(N)]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>𝒪</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>N</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>
+  scaling instead of the <inline-formula><alternatives>
+  <tex-math><![CDATA[\mathcal{O}(N^2)]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>𝒪</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msup><mml:mi>N</mml:mi><mml:mn>2</mml:mn></mml:msup><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>
+  complexity of naive all-pairs approaches. This algorithm divides the
+  simulation box into a regular grid of cells, where each cell has
+  dimensions larger than the maximum interaction cutoff radius. Each
+  atom’s coordinates are converted into a cell index using a hash
+  function based on discretized spatial coordinates—hence the term
+  “spatial hashing”. Atoms are assigned to cells based on these hashed
+  coordinates, and neighbor searches only consider atoms within the same
+  cell and its neighboring cells. For large systems, this dramatically
+  reduces the number of pairwise distance calculations required.</p>
+  <fig>
+    <caption><p>Linear scaling of distance calculations in
+    <monospace>fastatomstruct</monospace> allows for efficient
+    computation of structural quantities. The distance between atoms is
+    calculated using spatial hashing, which divides the simulation box
+    into cells and only considers atoms within neighboring cells. The
+    calculations have been performed on an AMD EPYC Genoa 9654 processor
+    with <inline-formula><alternatives>
+    <tex-math><![CDATA[96]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mn>96</mml:mn></mml:math></alternatives></inline-formula>
+    cores and
+    threads.<styled-content id="figU003Asize"></styled-content></p></caption>
+    <graphic mimetype="image" mime-subtype="svg+xml" xlink:href="system-size-benchmarks.svg" />
+  </fig>
+  <p>The implemented structural quantities range from basic coordination
+  analysis to more sophisticated higher-order correlation functions that
+  capture complex geometric motifs. Bond-orientational parameters
+  (<xref alt="Steinhardt et al., 1983" rid="ref-steinhardtBondorientationalOrderLiquids1983" ref-type="bibr">Steinhardt
+  et al., 1983</xref>) and bond-order correlation parameters
+  (<xref alt="Ronneberger et al., 2016" rid="ref-ronnebergerComputationalStudyCrystallization2016a" ref-type="bibr">Ronneberger
+  et al., 2016</xref>) use spherical harmonics with smooth cutoff
+  functions to distinguish between liquid and crystalline phases, while
+  three-body correlations and their angular-limited variants
+  (<xref alt="Bichara et al., 1993" rid="ref-bicharaPropertiesLiquidGroupV1993" ref-type="bibr">Bichara
+  et al., 1993</xref>) are particularly effective for identifying
+  Peierls-like distortions in disordered systems.</p>
+  <p>For dynamical analysis, the library provides tools to study both
+  diffusive and vibrational motion. Mean squared displacement
+  calculations leverage the efficient <monospace>tidynamics</monospace>
+  library
+  (<xref alt="Buyl, 2018" rid="ref-buylTidynamicsTinyPackage2018" ref-type="bibr">Buyl,
+  2018</xref>), while non-Gaussian parameters quantify deviations from
+  normal diffusion that indicate dynamical heterogeneities. Intermediate
+  scattering functions (both coherent and incoherent) probe density
+  fluctuations and single-particle motion, respectively. The overlap
+  parameter and four-point susceptibility measure spatial correlations
+  in dynamics
+  (<xref alt="Lačević et al., 2003" rid="ref-lacevicSpatiallyHeterogeneousDynamics2003" ref-type="bibr">Lačević
+  et al., 2003</xref>) and help identify dynamically correlated regions.
+  Vibrational properties are accessible through velocity autocorrelation
+  functions and vibrational density of states, while transport
+  properties like viscosity can be calculated via Green-Kubo relations
+  from stress tensor autocorrelations.</p>
+  <p><xref alt="Table 1" rid="tabU003Aquantities">Table 1</xref>
+  provides a complete overview of all supported quantities, their
+  mathematical definitions, and relevant literature references.</p>
+  <table-wrap>
+    <caption>
+      <p>Summary of structural and dynamical quantities supported by
+      <monospace>fastatomstruct</monospace>. Structural quantities
+      include basic measures like coordination numbers and radial
+      distribution functions, as well as sophisticated tools for phase
+      identification such as bond-orientational parameters
+      (<inline-formula><alternatives>
+      <tex-math><![CDATA[q_l]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>q</mml:mi><mml:mi>l</mml:mi></mml:msub></mml:math></alternatives></inline-formula>)
+      computed via spherical harmonics, and bond order correlation
+      parameters (<inline-formula><alternatives>
+      <tex-math><![CDATA[q_l^\mathrm{dot}]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msubsup><mml:mi>q</mml:mi><mml:mi>l</mml:mi><mml:mrow><mml:mi mathvariant="normal">d</mml:mi><mml:mi mathvariant="normal">o</mml:mi><mml:mi mathvariant="normal">t</mml:mi></mml:mrow></mml:msubsup></mml:math></alternatives></inline-formula>)
+      that distinguish crystalline from amorphous environments.
+      Three-body correlations (TBC) and angular-limited variants (ALTBC)
+      capture geometric motifs and Peierls-like distortions, while
+      tetrahedral order parameters quantify local tetrahedral
+      coordination. Dynamical quantities encompass diffusive properties
+      (mean squared displacement, non-Gaussian parameters), density
+      fluctuation probes (intermediate scattering functions), dynamical
+      correlation measures (overlap parameters, four-point
+      susceptibility), and vibrational properties (velocity
+      autocorrelation, vibrational density of states). Transport
+      coefficients like viscosity are accessible through Green-Kubo
+      relations. All calculations employ efficient algorithms with
+      spatial hashing for neighbor finding and support both thread-based
+      and MPI parallelization.
+      <styled-content id="tabU003Aquantities"></styled-content></p>
+    </caption>
+    <table>
+      <colgroup>
+        <col width="25%" />
+        <col width="50%" />
+        <col width="25%" />
+      </colgroup>
+      <thead>
+        <tr>
+          <th align="left"><bold>Quantity</bold></th>
+          <th align="left"><bold>Formula</bold></th>
+          <th align="left"><bold>Literature reference(s)</bold></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td align="left"><bold>Structural Quantities</bold></td>
+          <td align="left"></td>
+          <td align="left"></td>
+        </tr>
+        <tr>
+          <td align="left">Coordination Number</td>
+          <td align="left"><inline-formula><alternatives>
+          <tex-math><![CDATA[\mathrm{CN} = \sum_j \Theta(r_\mathrm{cut} - \|\mathbf{r}_i - \mathbf{r}_j\|)]]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mrow><mml:mi mathvariant="normal">C</mml:mi><mml:mi mathvariant="normal">N</mml:mi></mml:mrow><mml:mo>=</mml:mo><mml:msub><mml:mo>∑</mml:mo><mml:mi>j</mml:mi></mml:msub><mml:mi>Θ</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>r</mml:mi><mml:mrow><mml:mi mathvariant="normal">c</mml:mi><mml:mi mathvariant="normal">u</mml:mi><mml:mi mathvariant="normal">t</mml:mi></mml:mrow></mml:msub><mml:mi>−</mml:mi><mml:mo stretchy="false" form="postfix">∥</mml:mo><mml:msub><mml:mi>𝐫</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mo>−</mml:mo><mml:msub><mml:mi>𝐫</mml:mi><mml:mi>j</mml:mi></mml:msub><mml:mo stretchy="false" form="postfix">∥</mml:mo><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula></td>
+          <td align="left">Standard structural analysis</td>
+        </tr>
+        <tr>
+          <td align="left">Radial Distribution Function</td>
+          <td align="left"><inline-formula><alternatives>
+          <tex-math><![CDATA[g(r)=\frac{d n_r}{4 \pi \rho r^2 d r}]]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>g</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>r</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>=</mml:mo><mml:mfrac><mml:mrow><mml:mi>d</mml:mi><mml:msub><mml:mi>n</mml:mi><mml:mi>r</mml:mi></mml:msub></mml:mrow><mml:mrow><mml:mn>4</mml:mn><mml:mi>π</mml:mi><mml:mi>ρ</mml:mi><mml:msup><mml:mi>r</mml:mi><mml:mn>2</mml:mn></mml:msup><mml:mi>d</mml:mi><mml:mi>r</mml:mi></mml:mrow></mml:mfrac></mml:mrow></mml:math></alternatives></inline-formula></td>
+          <td align="left">Standard statistical mechanics</td>
+        </tr>
+        <tr>
+          <td align="left">Static Structure Factor</td>
+          <td align="left"><inline-formula><alternatives>
+          <tex-math><![CDATA[S(q) = 1 + 4 \pi \rho \int_0^\infty r^2 [g(r) - 1] \frac{\sin(qr)}{qr} dr]]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>S</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>q</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>=</mml:mo><mml:mn>1</mml:mn><mml:mo>+</mml:mo><mml:mn>4</mml:mn><mml:mi>π</mml:mi><mml:mi>ρ</mml:mi><mml:msubsup><mml:mo>∫</mml:mo><mml:mn>0</mml:mn><mml:mi>∞</mml:mi></mml:msubsup><mml:msup><mml:mi>r</mml:mi><mml:mn>2</mml:mn></mml:msup><mml:mrow><mml:mo stretchy="true" form="prefix">[</mml:mo><mml:mi>g</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>r</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>−</mml:mo><mml:mn>1</mml:mn><mml:mo stretchy="true" form="postfix">]</mml:mo></mml:mrow><mml:mfrac><mml:mrow><mml:mo>sin</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>q</mml:mi><mml:mi>r</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow><mml:mrow><mml:mi>q</mml:mi><mml:mi>r</mml:mi></mml:mrow></mml:mfrac><mml:mi>d</mml:mi><mml:mi>r</mml:mi></mml:mrow></mml:math></alternatives></inline-formula></td>
+          <td align="left">Standard scattering theory</td>
+        </tr>
+        <tr>
+          <td align="left">Bond Angle Distribution</td>
+          <td align="left"><inline-formula><alternatives>
+          <tex-math><![CDATA[\cos\theta_{ijk} = \frac{\mathbf{r}_{ij} \cdot \mathbf{r}_{ik}}{r_{ij} r_{ik}}]]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mo>cos</mml:mo><mml:msub><mml:mi>θ</mml:mi><mml:mrow><mml:mi>i</mml:mi><mml:mi>j</mml:mi><mml:mi>k</mml:mi></mml:mrow></mml:msub><mml:mo>=</mml:mo><mml:mfrac><mml:mrow><mml:msub><mml:mi>𝐫</mml:mi><mml:mrow><mml:mi>i</mml:mi><mml:mi>j</mml:mi></mml:mrow></mml:msub><mml:mo>⋅</mml:mo><mml:msub><mml:mi>𝐫</mml:mi><mml:mrow><mml:mi>i</mml:mi><mml:mi>k</mml:mi></mml:mrow></mml:msub></mml:mrow><mml:mrow><mml:msub><mml:mi>r</mml:mi><mml:mrow><mml:mi>i</mml:mi><mml:mi>j</mml:mi></mml:mrow></mml:msub><mml:msub><mml:mi>r</mml:mi><mml:mrow><mml:mi>i</mml:mi><mml:mi>k</mml:mi></mml:mrow></mml:msub></mml:mrow></mml:mfrac></mml:mrow></mml:math></alternatives></inline-formula></td>
+          <td align="left">Standard geometric analysis</td>
+        </tr>
+        <tr>
+          <td align="left">Three-Body Correlation</td>
+          <td align="left"><inline-formula><alternatives>
+          <tex-math><![CDATA[g^{(3)}(r_1, r_2) = \frac{V}{\rho (N - 1)(N - 2)} \sum_{i_1, i_2, i_3} \langle\delta(r_1 - r_{i_1 i_2}) \delta(r_2 - r_{i_2 i_3})\rangle]]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msup><mml:mi>g</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mn>3</mml:mn><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:msup><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>r</mml:mi><mml:mn>1</mml:mn></mml:msub><mml:mo>,</mml:mo><mml:msub><mml:mi>r</mml:mi><mml:mn>2</mml:mn></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>=</mml:mo><mml:mfrac><mml:mi>V</mml:mi><mml:mrow><mml:mi>ρ</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>N</mml:mi><mml:mo>−</mml:mo><mml:mn>1</mml:mn><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>N</mml:mi><mml:mo>−</mml:mo><mml:mn>2</mml:mn><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:mfrac><mml:msub><mml:mo>∑</mml:mo><mml:mrow><mml:msub><mml:mi>i</mml:mi><mml:mn>1</mml:mn></mml:msub><mml:mo>,</mml:mo><mml:msub><mml:mi>i</mml:mi><mml:mn>2</mml:mn></mml:msub><mml:mo>,</mml:mo><mml:msub><mml:mi>i</mml:mi><mml:mn>3</mml:mn></mml:msub></mml:mrow></mml:msub><mml:mo stretchy="false" form="prefix">⟨</mml:mo><mml:mi>δ</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>r</mml:mi><mml:mn>1</mml:mn></mml:msub><mml:mo>−</mml:mo><mml:msub><mml:mi>r</mml:mi><mml:mrow><mml:msub><mml:mi>i</mml:mi><mml:mn>1</mml:mn></mml:msub><mml:msub><mml:mi>i</mml:mi><mml:mn>2</mml:mn></mml:msub></mml:mrow></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mi>δ</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>r</mml:mi><mml:mn>2</mml:mn></mml:msub><mml:mo>−</mml:mo><mml:msub><mml:mi>r</mml:mi><mml:mrow><mml:msub><mml:mi>i</mml:mi><mml:mn>2</mml:mn></mml:msub><mml:msub><mml:mi>i</mml:mi><mml:mn>3</mml:mn></mml:msub></mml:mrow></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo stretchy="false" form="postfix">⟩</mml:mo></mml:mrow></mml:math></alternatives></inline-formula></td>
+          <td align="left">Ronneberger et al.
+          (<xref alt="2016" rid="ref-ronnebergerComputationalStudyCrystallization2016a" ref-type="bibr">2016</xref>)</td>
+        </tr>
+        <tr>
+          <td align="left">Angular-Limited TBC</td>
+          <td align="left"><inline-formula><alternatives>
+          <tex-math><![CDATA[g^{(3)}_\mathrm{AL}(r_1, r_2) = \frac{V}{\rho (N - 1)(N - 2)} \sum_{i_1, i_2, i_3} \langle\delta(r_1 - r_{i_1 i_2}) \delta(r_2 - r_{i_2 i_3}) \Theta(\beta - \delta)\rangle]]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msubsup><mml:mi>g</mml:mi><mml:mrow><mml:mi mathvariant="normal">A</mml:mi><mml:mi mathvariant="normal">L</mml:mi></mml:mrow><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mn>3</mml:mn><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:msubsup><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>r</mml:mi><mml:mn>1</mml:mn></mml:msub><mml:mo>,</mml:mo><mml:msub><mml:mi>r</mml:mi><mml:mn>2</mml:mn></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>=</mml:mo><mml:mfrac><mml:mi>V</mml:mi><mml:mrow><mml:mi>ρ</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>N</mml:mi><mml:mo>−</mml:mo><mml:mn>1</mml:mn><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>N</mml:mi><mml:mo>−</mml:mo><mml:mn>2</mml:mn><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:mfrac><mml:msub><mml:mo>∑</mml:mo><mml:mrow><mml:msub><mml:mi>i</mml:mi><mml:mn>1</mml:mn></mml:msub><mml:mo>,</mml:mo><mml:msub><mml:mi>i</mml:mi><mml:mn>2</mml:mn></mml:msub><mml:mo>,</mml:mo><mml:msub><mml:mi>i</mml:mi><mml:mn>3</mml:mn></mml:msub></mml:mrow></mml:msub><mml:mo stretchy="false" form="prefix">⟨</mml:mo><mml:mi>δ</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>r</mml:mi><mml:mn>1</mml:mn></mml:msub><mml:mo>−</mml:mo><mml:msub><mml:mi>r</mml:mi><mml:mrow><mml:msub><mml:mi>i</mml:mi><mml:mn>1</mml:mn></mml:msub><mml:msub><mml:mi>i</mml:mi><mml:mn>2</mml:mn></mml:msub></mml:mrow></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mi>δ</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>r</mml:mi><mml:mn>2</mml:mn></mml:msub><mml:mo>−</mml:mo><mml:msub><mml:mi>r</mml:mi><mml:mrow><mml:msub><mml:mi>i</mml:mi><mml:mn>2</mml:mn></mml:msub><mml:msub><mml:mi>i</mml:mi><mml:mn>3</mml:mn></mml:msub></mml:mrow></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mi>Θ</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>β</mml:mi><mml:mo>−</mml:mo><mml:mi>δ</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo stretchy="false" form="postfix">⟩</mml:mo></mml:mrow></mml:math></alternatives></inline-formula></td>
+          <td align="left">Bichara et al.
+          (<xref alt="1993" rid="ref-bicharaPropertiesLiquidGroupV1993" ref-type="bibr">1993</xref>)</td>
+        </tr>
+        <tr>
+          <td align="left">Bond Length Ratio</td>
+          <td align="left"><inline-formula><alternatives>
+          <tex-math><![CDATA[\mathrm{ALBLR} = \frac{\sum \frac{\mathrm{max}(r_{12}, r_{23})}{\mathrm{min}(r_{12}, r_{23})} \Theta(\beta - \delta) \bar\Theta(r_{12}) \bar\Theta(r_{23})}{\sum \Theta(\beta - \delta) \bar\Theta(r_{12}) \bar\Theta(r_{23})}]]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mrow><mml:mi mathvariant="normal">A</mml:mi><mml:mi mathvariant="normal">L</mml:mi><mml:mi mathvariant="normal">B</mml:mi><mml:mi mathvariant="normal">L</mml:mi><mml:mi mathvariant="normal">R</mml:mi></mml:mrow><mml:mo>=</mml:mo><mml:mfrac><mml:mrow><mml:mo>∑</mml:mo><mml:mfrac><mml:mrow><mml:mrow><mml:mi mathvariant="normal">m</mml:mi><mml:mi mathvariant="normal">a</mml:mi><mml:mi mathvariant="normal">x</mml:mi></mml:mrow><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>r</mml:mi><mml:mn>12</mml:mn></mml:msub><mml:mo>,</mml:mo><mml:msub><mml:mi>r</mml:mi><mml:mn>23</mml:mn></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow><mml:mrow><mml:mrow><mml:mi mathvariant="normal">m</mml:mi><mml:mi mathvariant="normal">i</mml:mi><mml:mi mathvariant="normal">n</mml:mi></mml:mrow><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>r</mml:mi><mml:mn>12</mml:mn></mml:msub><mml:mo>,</mml:mo><mml:msub><mml:mi>r</mml:mi><mml:mn>23</mml:mn></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:mfrac><mml:mi>Θ</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>β</mml:mi><mml:mo>−</mml:mo><mml:mi>δ</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mover><mml:mi>Θ</mml:mi><mml:mo accent="true">‾</mml:mo></mml:mover><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>r</mml:mi><mml:mn>12</mml:mn></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mover><mml:mi>Θ</mml:mi><mml:mo accent="true">‾</mml:mo></mml:mover><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>r</mml:mi><mml:mn>23</mml:mn></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow><mml:mrow><mml:mo>∑</mml:mo><mml:mi>Θ</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>β</mml:mi><mml:mo>−</mml:mo><mml:mi>δ</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mover><mml:mi>Θ</mml:mi><mml:mo accent="true">‾</mml:mo></mml:mover><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>r</mml:mi><mml:mn>12</mml:mn></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mover><mml:mi>Θ</mml:mi><mml:mo accent="true">‾</mml:mo></mml:mover><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>r</mml:mi><mml:mn>23</mml:mn></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:mfrac></mml:mrow></mml:math></alternatives></inline-formula></td>
+          <td align="left">Holle et al.
+          (<xref alt="2025" rid="ref-holleImportanceDensityPhaseChange2025" ref-type="bibr">2025</xref>)</td>
+        </tr>
+        <tr>
+          <td align="left">Bond-Orientational Parameters</td>
+          <td align="left"><inline-formula><alternatives>
+          <tex-math><![CDATA[q_l = \sqrt{\frac{4\pi}{2l+1} \sum_{m=-l}^l \|q_{lm}\|^2}]]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>q</mml:mi><mml:mi>l</mml:mi></mml:msub><mml:mo>=</mml:mo><mml:msqrt><mml:mrow><mml:mfrac><mml:mrow><mml:mn>4</mml:mn><mml:mi>π</mml:mi></mml:mrow><mml:mrow><mml:mn>2</mml:mn><mml:mi>l</mml:mi><mml:mo>+</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:mfrac><mml:msubsup><mml:mo>∑</mml:mo><mml:mrow><mml:mi>m</mml:mi><mml:mo>=</mml:mo><mml:mi>−</mml:mi><mml:mi>l</mml:mi></mml:mrow><mml:mi>l</mml:mi></mml:msubsup><mml:mo stretchy="false" form="postfix">∥</mml:mo><mml:msub><mml:mi>q</mml:mi><mml:mrow><mml:mi>l</mml:mi><mml:mi>m</mml:mi></mml:mrow></mml:msub><mml:msup><mml:mo stretchy="false" form="postfix">∥</mml:mo><mml:mn>2</mml:mn></mml:msup></mml:mrow></mml:msqrt></mml:mrow></mml:math></alternatives></inline-formula></td>
+          <td align="left">Steinhardt et al.
+          (<xref alt="1983" rid="ref-steinhardtBondorientationalOrderLiquids1983" ref-type="bibr">1983</xref>)</td>
+        </tr>
+        <tr>
+          <td align="left">Bond Order Correlation</td>
+          <td align="left"><inline-formula><alternatives>
+          <tex-math><![CDATA[q_l^\mathrm{dot}(i) = \frac{1}{N_i^\mathrm{eff}} \sum_{j} f(r_{ij}) C_{ij}]]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msubsup><mml:mi>q</mml:mi><mml:mi>l</mml:mi><mml:mrow><mml:mi mathvariant="normal">d</mml:mi><mml:mi mathvariant="normal">o</mml:mi><mml:mi mathvariant="normal">t</mml:mi></mml:mrow></mml:msubsup><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>i</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>=</mml:mo><mml:mfrac><mml:mn>1</mml:mn><mml:msubsup><mml:mi>N</mml:mi><mml:mi>i</mml:mi><mml:mrow><mml:mi mathvariant="normal">e</mml:mi><mml:mi mathvariant="normal">f</mml:mi><mml:mi mathvariant="normal">f</mml:mi></mml:mrow></mml:msubsup></mml:mfrac><mml:msub><mml:mo>∑</mml:mo><mml:mi>j</mml:mi></mml:msub><mml:mi>f</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>r</mml:mi><mml:mrow><mml:mi>i</mml:mi><mml:mi>j</mml:mi></mml:mrow></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:msub><mml:mi>C</mml:mi><mml:mrow><mml:mi>i</mml:mi><mml:mi>j</mml:mi></mml:mrow></mml:msub></mml:mrow></mml:math></alternatives></inline-formula></td>
+          <td align="left">Ronneberger et al.
+          (<xref alt="2016" rid="ref-ronnebergerComputationalStudyCrystallization2016a" ref-type="bibr">2016</xref>),
+          ten Wolde et al.
+          (<xref alt="1995" rid="ref-tenwoldeNumericalEvidenceBcc1995a" ref-type="bibr">1995</xref>)</td>
+        </tr>
+        <tr>
+          <td align="left">Tetrahedral Order Parameter</td>
+          <td align="left"><inline-formula><alternatives>
+          <tex-math><![CDATA[q_{\mathrm{tetrahedral}} = 1 - \frac{3}{8} \sum_{i > k} \left(\frac{1}{3} + \theta_{ijk}\right)^2]]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>q</mml:mi><mml:mrow><mml:mi mathvariant="normal">t</mml:mi><mml:mi mathvariant="normal">e</mml:mi><mml:mi mathvariant="normal">t</mml:mi><mml:mi mathvariant="normal">r</mml:mi><mml:mi mathvariant="normal">a</mml:mi><mml:mi mathvariant="normal">h</mml:mi><mml:mi mathvariant="normal">e</mml:mi><mml:mi mathvariant="normal">d</mml:mi><mml:mi mathvariant="normal">r</mml:mi><mml:mi mathvariant="normal">a</mml:mi><mml:mi mathvariant="normal">l</mml:mi></mml:mrow></mml:msub><mml:mo>=</mml:mo><mml:mn>1</mml:mn><mml:mo>−</mml:mo><mml:mfrac><mml:mn>3</mml:mn><mml:mn>8</mml:mn></mml:mfrac><mml:msub><mml:mo>∑</mml:mo><mml:mrow><mml:mi>i</mml:mi><mml:mo>&gt;</mml:mo><mml:mi>k</mml:mi></mml:mrow></mml:msub><mml:msup><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mfrac><mml:mn>1</mml:mn><mml:mn>3</mml:mn></mml:mfrac><mml:mo>+</mml:mo><mml:msub><mml:mi>θ</mml:mi><mml:mrow><mml:mi>i</mml:mi><mml:mi>j</mml:mi><mml:mi>k</mml:mi></mml:mrow></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mn>2</mml:mn></mml:msup></mml:mrow></mml:math></alternatives></inline-formula></td>
+          <td align="left">Lee et al.
+          (<xref alt="1993" rid="ref-leeInitioStudiesStructural1993" ref-type="bibr">1993</xref>),
+          Duboué-Dijon &amp; Laage
+          (<xref alt="2015" rid="ref-duboue-dijonCharacterizationLocalStructure2015a" ref-type="bibr">2015</xref>)</td>
+        </tr>
+        <tr>
+          <td align="left"><bold>Dynamical Quantities</bold></td>
+          <td align="left"></td>
+          <td align="left"></td>
+        </tr>
+        <tr>
+          <td align="left">Mean Squared Displacement</td>
+          <td align="left"><inline-formula><alternatives>
+          <tex-math><![CDATA[\mathrm{MSD}(t) = \frac{1}{N} \sum_{i=1}^N \langle \|\mathbf{r}_i(t) - \mathbf{r}_i(0)\|^2 \rangle]]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mrow><mml:mi mathvariant="normal">M</mml:mi><mml:mi mathvariant="normal">S</mml:mi><mml:mi mathvariant="normal">D</mml:mi></mml:mrow><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>t</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>=</mml:mo><mml:mfrac><mml:mn>1</mml:mn><mml:mi>N</mml:mi></mml:mfrac><mml:msubsup><mml:mo>∑</mml:mo><mml:mrow><mml:mi>i</mml:mi><mml:mo>=</mml:mo><mml:mn>1</mml:mn></mml:mrow><mml:mi>N</mml:mi></mml:msubsup><mml:mo stretchy="false" form="prefix">⟨</mml:mo><mml:mo stretchy="false" form="postfix">∥</mml:mo><mml:msub><mml:mi>𝐫</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>t</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>−</mml:mo><mml:msub><mml:mi>𝐫</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mn>0</mml:mn><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:msup><mml:mo stretchy="false" form="postfix">∥</mml:mo><mml:mn>2</mml:mn></mml:msup><mml:mo stretchy="false" form="postfix">⟩</mml:mo></mml:mrow></mml:math></alternatives></inline-formula></td>
+          <td align="left">Standard diffusion analysis, Buyl
+          (<xref alt="2018" rid="ref-buylTidynamicsTinyPackage2018" ref-type="bibr">2018</xref>)</td>
+        </tr>
+        <tr>
+          <td align="left">Non-Gaussian Parameter</td>
+          <td align="left"><inline-formula><alternatives>
+          <tex-math><![CDATA[\alpha_2(t) = \frac{\frac{1}{N} \sum_{i=1}^N \langle \|\mathbf{r}_i(t) - \mathbf{r}_i(0)\|^4 \rangle}{\left(\frac{1}{N} \sum_{i=1}^N \langle \|\mathbf{r}_i(t) - \mathbf{r}_i(0)\|^2 \rangle\right)^2} - 1]]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>α</mml:mi><mml:mn>2</mml:mn></mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>t</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>=</mml:mo><mml:mfrac><mml:mrow><mml:mfrac><mml:mn>1</mml:mn><mml:mi>N</mml:mi></mml:mfrac><mml:msubsup><mml:mo>∑</mml:mo><mml:mrow><mml:mi>i</mml:mi><mml:mo>=</mml:mo><mml:mn>1</mml:mn></mml:mrow><mml:mi>N</mml:mi></mml:msubsup><mml:mo stretchy="false" form="prefix">⟨</mml:mo><mml:mo stretchy="false" form="postfix">∥</mml:mo><mml:msub><mml:mi>𝐫</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>t</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>−</mml:mo><mml:msub><mml:mi>𝐫</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mn>0</mml:mn><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:msup><mml:mo stretchy="false" form="postfix">∥</mml:mo><mml:mn>4</mml:mn></mml:msup><mml:mo stretchy="false" form="postfix">⟩</mml:mo></mml:mrow><mml:msup><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mfrac><mml:mn>1</mml:mn><mml:mi>N</mml:mi></mml:mfrac><mml:msubsup><mml:mo>∑</mml:mo><mml:mrow><mml:mi>i</mml:mi><mml:mo>=</mml:mo><mml:mn>1</mml:mn></mml:mrow><mml:mi>N</mml:mi></mml:msubsup><mml:mo stretchy="false" form="prefix">⟨</mml:mo><mml:mo stretchy="false" form="postfix">∥</mml:mo><mml:msub><mml:mi>𝐫</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>t</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>−</mml:mo><mml:msub><mml:mi>𝐫</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mn>0</mml:mn><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:msup><mml:mo stretchy="false" form="postfix">∥</mml:mo><mml:mn>2</mml:mn></mml:msup><mml:mo stretchy="false" form="postfix">⟩</mml:mo><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mn>2</mml:mn></mml:msup></mml:mfrac><mml:mo>−</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:math></alternatives></inline-formula></td>
+          <td align="left">Standard diffusion analysis</td>
+        </tr>
+        <tr>
+          <td align="left">Intermediate Scattering Function</td>
+          <td align="left"><inline-formula><alternatives>
+          <tex-math><![CDATA[F(\boldsymbol{q}, t) = \frac{1}{N} \sum_{i,j}^N \langle\exp [i \boldsymbol{q} \cdot(\boldsymbol{r}_i(t)-\boldsymbol{r}_j(0))]\rangle]]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>F</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>𝐪</mml:mi><mml:mo>,</mml:mo><mml:mi>t</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>=</mml:mo><mml:mfrac><mml:mn>1</mml:mn><mml:mi>N</mml:mi></mml:mfrac><mml:msubsup><mml:mo>∑</mml:mo><mml:mrow><mml:mi>i</mml:mi><mml:mo>,</mml:mo><mml:mi>j</mml:mi></mml:mrow><mml:mi>N</mml:mi></mml:msubsup><mml:mo stretchy="false" form="prefix">⟨</mml:mo><mml:mo>exp</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">[</mml:mo><mml:mi>i</mml:mi><mml:mi>𝐪</mml:mi><mml:mo>⋅</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>𝐫</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>t</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>−</mml:mo><mml:msub><mml:mi>𝐫</mml:mi><mml:mi>j</mml:mi></mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mn>0</mml:mn><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo stretchy="true" form="postfix">]</mml:mo></mml:mrow><mml:mo stretchy="false" form="postfix">⟩</mml:mo></mml:mrow></mml:math></alternatives></inline-formula></td>
+          <td align="left">Standard scattering theory</td>
+        </tr>
+        <tr>
+          <td align="left">Incoherent ISF</td>
+          <td align="left"><inline-formula><alternatives>
+          <tex-math><![CDATA[F_{\mathrm{incoh}}(\boldsymbol{q}, t)=\frac{1}{N} \sum_i^N\langle\exp [i \boldsymbol{q} \cdot(\boldsymbol{r}_i(t)-\boldsymbol{r}_i(0))]\rangle]]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>F</mml:mi><mml:mrow><mml:mi mathvariant="normal">i</mml:mi><mml:mi mathvariant="normal">n</mml:mi><mml:mi mathvariant="normal">c</mml:mi><mml:mi mathvariant="normal">o</mml:mi><mml:mi mathvariant="normal">h</mml:mi></mml:mrow></mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>𝐪</mml:mi><mml:mo>,</mml:mo><mml:mi>t</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>=</mml:mo><mml:mfrac><mml:mn>1</mml:mn><mml:mi>N</mml:mi></mml:mfrac><mml:msubsup><mml:mo>∑</mml:mo><mml:mi>i</mml:mi><mml:mi>N</mml:mi></mml:msubsup><mml:mo stretchy="false" form="prefix">⟨</mml:mo><mml:mo>exp</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">[</mml:mo><mml:mi>i</mml:mi><mml:mi>𝐪</mml:mi><mml:mo>⋅</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>𝐫</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>t</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>−</mml:mo><mml:msub><mml:mi>𝐫</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mn>0</mml:mn><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo stretchy="true" form="postfix">]</mml:mo></mml:mrow><mml:mo stretchy="false" form="postfix">⟩</mml:mo></mml:mrow></mml:math></alternatives></inline-formula></td>
+          <td align="left">Standard scattering theory</td>
+        </tr>
+        <tr>
+          <td align="left">Overlap Parameter</td>
+          <td align="left"><inline-formula><alternatives>
+          <tex-math><![CDATA[Q(t) = \sum_{i, j = 1}^N w(\|\mathbf{r}_i(0) - \mathbf{r}_j(t)\|)]]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>Q</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>t</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>=</mml:mo><mml:msubsup><mml:mo>∑</mml:mo><mml:mrow><mml:mi>i</mml:mi><mml:mo>,</mml:mo><mml:mi>j</mml:mi><mml:mo>=</mml:mo><mml:mn>1</mml:mn></mml:mrow><mml:mi>N</mml:mi></mml:msubsup><mml:mi>w</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mo stretchy="false" form="postfix">∥</mml:mo><mml:msub><mml:mi>𝐫</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mn>0</mml:mn><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>−</mml:mo><mml:msub><mml:mi>𝐫</mml:mi><mml:mi>j</mml:mi></mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>t</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo stretchy="false" form="postfix">∥</mml:mo><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula></td>
+          <td align="left">Lačević et al.
+          (<xref alt="2003" rid="ref-lacevicSpatiallyHeterogeneousDynamics2003" ref-type="bibr">2003</xref>)</td>
+        </tr>
+        <tr>
+          <td align="left">Four-Point Susceptibility</td>
+          <td align="left"><inline-formula><alternatives>
+          <tex-math><![CDATA[\chi_4(t) = \frac{\beta V}{N^2} \langle Q^2(t)\rangle - \langle Q(t) \rangle^2]]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>χ</mml:mi><mml:mn>4</mml:mn></mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>t</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>=</mml:mo><mml:mfrac><mml:mrow><mml:mi>β</mml:mi><mml:mi>V</mml:mi></mml:mrow><mml:msup><mml:mi>N</mml:mi><mml:mn>2</mml:mn></mml:msup></mml:mfrac><mml:mo stretchy="false" form="prefix">⟨</mml:mo><mml:msup><mml:mi>Q</mml:mi><mml:mn>2</mml:mn></mml:msup><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>t</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo stretchy="false" form="postfix">⟩</mml:mo><mml:mo>−</mml:mo><mml:mo stretchy="false" form="prefix">⟨</mml:mo><mml:mi>Q</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>t</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:msup><mml:mo stretchy="false" form="postfix">⟩</mml:mo><mml:mn>2</mml:mn></mml:msup></mml:mrow></mml:math></alternatives></inline-formula></td>
+          <td align="left">Lačević et al.
+          (<xref alt="2003" rid="ref-lacevicSpatiallyHeterogeneousDynamics2003" ref-type="bibr">2003</xref>)</td>
+        </tr>
+        <tr>
+          <td align="left">Velocity Autocorrelation</td>
+          <td align="left"><inline-formula><alternatives>
+          <tex-math><![CDATA[C_v(t) = \frac{1}{N} \sum_{i=1}^N \langle \mathbf{v}_i(0) \cdot \mathbf{v}_i(t) \rangle]]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>C</mml:mi><mml:mi>v</mml:mi></mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>t</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>=</mml:mo><mml:mfrac><mml:mn>1</mml:mn><mml:mi>N</mml:mi></mml:mfrac><mml:msubsup><mml:mo>∑</mml:mo><mml:mrow><mml:mi>i</mml:mi><mml:mo>=</mml:mo><mml:mn>1</mml:mn></mml:mrow><mml:mi>N</mml:mi></mml:msubsup><mml:mo stretchy="false" form="prefix">⟨</mml:mo><mml:msub><mml:mi>𝐯</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mn>0</mml:mn><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>⋅</mml:mo><mml:msub><mml:mi>𝐯</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>t</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo stretchy="false" form="postfix">⟩</mml:mo></mml:mrow></mml:math></alternatives></inline-formula></td>
+          <td align="left">Standard vibrational analysis</td>
+        </tr>
+        <tr>
+          <td align="left">Vibrational Density of States</td>
+          <td align="left">Fourier transform of VACF or direct FFT of
+          velocities</td>
+          <td align="left">Schmerler
+          (<xref alt="2025" rid="ref-schmerlerElcortoPwtools2025" ref-type="bibr">2025</xref>)</td>
+        </tr>
+        <tr>
+          <td align="left">Viscosity</td>
+          <td align="left"><inline-formula><alternatives>
+          <tex-math><![CDATA[\eta=\frac{V}{k_{\mathrm{B}} T} \lim_{T \rightarrow \infty} \int_0^T\langle \sigma_{x y}(t') \sigma_{x y}(0)\rangle dt']]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>η</mml:mi><mml:mo>=</mml:mo><mml:mfrac><mml:mi>V</mml:mi><mml:mrow><mml:msub><mml:mi>k</mml:mi><mml:mi mathvariant="normal">B</mml:mi></mml:msub><mml:mi>T</mml:mi></mml:mrow></mml:mfrac><mml:msub><mml:mo>lim</mml:mo><mml:mrow><mml:mi>T</mml:mi><mml:mo>→</mml:mo><mml:mi>∞</mml:mi></mml:mrow></mml:msub><mml:msubsup><mml:mo>∫</mml:mo><mml:mn>0</mml:mn><mml:mi>T</mml:mi></mml:msubsup><mml:mo stretchy="false" form="prefix">⟨</mml:mo><mml:msub><mml:mi>σ</mml:mi><mml:mrow><mml:mi>x</mml:mi><mml:mi>y</mml:mi></mml:mrow></mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>t</mml:mi><mml:mi>′</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:msub><mml:mi>σ</mml:mi><mml:mrow><mml:mi>x</mml:mi><mml:mi>y</mml:mi></mml:mrow></mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mn>0</mml:mn><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo stretchy="false" form="postfix">⟩</mml:mo><mml:mi>d</mml:mi><mml:mi>t</mml:mi><mml:mi>′</mml:mi></mml:mrow></mml:math></alternatives></inline-formula></td>
+          <td align="left">Cui et al.
+          (<xref alt="1996" rid="ref-cuiCalculationViscosityAutocorrelation1996a" ref-type="bibr">1996</xref>)</td>
+        </tr>
+      </tbody>
+    </table>
+  </table-wrap>
+  <p>Finally, we would like to note that parallelization is a core
+  strength of the library. Thread-based parallelization using Rust’s
+  <monospace>rayon</monospace> library ensures efficient use of
+  multicore processors, while image-based parallelization with MPI
+  enables scalability to datasets with many different snapshots.
+  <xref alt="[fig:scaling]" rid="figU003Ascaling">[fig:scaling]</xref>
+  shows the scaling behavior of different functions implemented in
+  <monospace>fastatomstruct</monospace>. The library’s compatibility
+  with ASE and other Python-based tools further simplifies integration
+  and usability for researchers. The Rust implementation has several
+  advantages over more traditional approaches like combining Python with
+  C or Fortran
+  (<xref alt="Perkel, 2020" rid="ref-perkelWhyScientistsAre2020" ref-type="bibr">Perkel,
+  2020</xref>). By design, Rust guarantees both memory and thread
+  safety, which excludes entire classes of bugs that are common in other
+  languages. In particular, Rust’s ownership concept prevents race
+  conditions, which makes it straightforward to write parallel code that
+  is both fast and correct. The Rust compiler provides extensive static
+  analysis, which can catch many bugs at compile time. As a result,
+  <monospace>fastatomstruct</monospace> is a very robust and reliable
+  library for structural and dynamical analysis of atomic systems. We
+  hope that our approach using a rather non-traditional language for
+  scientific computing can inspire other works to adopt Rust for
+  high-performance computing tasks. Besides the advantages over
+  languages like C/C++ or Fortran mentioned above, Rust also offers
+  modern tooling and easy integration with Python through the
+  <monospace>PyO3</monospace> crate, and it can be interfaced with
+  existing C/C++ or Fortran code. Increased usage of Rust should also
+  improve the overall quality of scientific software by finding and
+  eliminating common bugs very early in the development process.</p>
+  <fig>
+    <caption><p>Scaling behavior of exemplary calculations with
+    <monospace>fastatomstruct</monospace>. Relative speed-ups compared
+    to a single thread (top) and total calculation times (bottom) are
+    shown for calculations of coordination numbers, bond order
+    correlation, and the incoherent intermediate scattering function.
+    Tests have been performed on an AMD EPYC Genoa 9654 processor with
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[96]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mn>96</mml:mn></mml:math></alternatives></inline-formula>
+    cores and threads. A system with <inline-formula><alternatives>
+    <tex-math><![CDATA[32,000]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mn>32</mml:mn><mml:mo>,</mml:mo><mml:mn>000</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>
+    atoms was used for the calculation of the bond order correlation
+    parameter <inline-formula><alternatives>
+    <tex-math><![CDATA[q_4^\mathrm{dot}]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msubsup><mml:mi>q</mml:mi><mml:mn>4</mml:mn><mml:mrow><mml:mi mathvariant="normal">d</mml:mi><mml:mi mathvariant="normal">o</mml:mi><mml:mi mathvariant="normal">t</mml:mi></mml:mrow></mml:msubsup></mml:math></alternatives></inline-formula>.
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[256,000]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mn>256</mml:mn><mml:mo>,</mml:mo><mml:mn>000</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>
+    atoms were used for coordination number calculations. The incoherent
+    intermediate scattering function was calculated for
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[600]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mn>600</mml:mn></mml:math></alternatives></inline-formula>
+    snapshots from a molecular dynamics simulation with
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[32,000]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mn>32</mml:mn><mml:mo>,</mml:mo><mml:mn>000</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>
+    atoms. Scalability for large thread counts is limited because the
+    calculations are memory bound, which particularly holds for the
+    intermediate scattering function calculations. The repository
+    contains an example
+    (<monospace>examples/perf_intermediate_scattering</monospace>) to
+    demonstrate
+    this.<styled-content id="figU003Ascaling"></styled-content></p></caption>
+    <graphic mimetype="image" mime-subtype="svg+xml" xlink:href="parallel-benchmarks.svg" />
+  </fig>
+</sec>
+<sec id="applications-in-research">
+  <title>Applications in Research</title>
+  <p>The <monospace>fastatomstruct</monospace> package enables the study
+  of a wide range of structural and dynamical phenomena, while
+  integrating well into many existing workflows based on the Atomic
+  Simulation Environment
+  (<xref alt="Hjorth Larsen et al., 2017" rid="ref-hjorthlarsenAtomicSimulationEnvironment2017" ref-type="bibr">Hjorth
+  Larsen et al., 2017</xref>). For instance, researchers can analyze
+  phase transitions in amorphous materials by calculating
+  bond-orientational parameters, which provide insights into changes in
+  local atomic order. The library is particularly suited for studying
+  the dynamics of supercooled liquids and glasses. This has been
+  exploited in recent studies of liquid, supercooled-liquid and glassy
+  antimony
+  (<xref alt="Holle et al., 2025" rid="ref-holleImportanceDensityPhaseChange2025" ref-type="bibr">Holle
+  et al., 2025</xref>).</p>
+</sec>
+<sec id="acknowledgments">
+  <title>Acknowledgments</title>
+  <p>We acknowledge support from the German Research Foundation (DFG)
+  through the collaborative research centers Nanoswitches (SFB 917) and
+  Intelligent Matter (SFB 1459) as well as the European Research Council
+  (ERC-Grant No. 640003). RM acknowledges funding from the PRIN 2020
+  project “Neuromorphic devices based on chalcogenide heterostructures”
+  funded by the Italian Ministry for University and Research (MUR).
+  Calculations for this publication were performed on the HPC cluster
+  PALMA II of the University of Münster, subsidized by the DFG (INST
+  211/667-1).</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <title></title>
+  <ref id="ref-bicharaPropertiesLiquidGroupV1993">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Bichara</surname><given-names>C.</given-names></name>
+        <name><surname>Pellegatti</surname><given-names>A.</given-names></name>
+        <name><surname>Gaspard</surname><given-names>J.-P.</given-names></name>
+      </person-group>
+      <article-title>Properties of liquid group-V elements: A numerical tight-binding simulation</article-title>
+      <source>Physical Review B</source>
+      <publisher-name>American Physical Society</publisher-name>
+      <year iso-8601-date="1993-03">1993</year><month>03</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2025-02-24">2025</year><month>02</month><day>24</day></date-in-citation>
+      <volume>47</volume>
+      <issue>9</issue>
+      <pub-id pub-id-type="doi">10.1103/PhysRevB.47.5002</pub-id>
+      <fpage>5002</fpage>
+      <lpage>5007</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-buylTidynamicsTinyPackage2018">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Buyl</surname><given-names>Pierre de</given-names></name>
+      </person-group>
+      <article-title>Tidynamics: A tiny package to compute the dynamics of stochastic and molecular simulations</article-title>
+      <source>Journal of Open Source Software</source>
+      <year iso-8601-date="2018-08">2018</year><month>08</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2025-02-19">2025</year><month>02</month><day>19</day></date-in-citation>
+      <volume>3</volume>
+      <issue>28</issue>
+      <issn>2475-9066</issn>
+      <pub-id pub-id-type="doi">10.21105/joss.00877</pub-id>
+      <fpage>877</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-cuiCalculationViscosityAutocorrelation1996a">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Cui</surname><given-names>S. T.</given-names></name>
+        <name><surname>Cummings</surname><given-names>P. T.</given-names></name>
+        <name><surname>Cochran</surname><given-names>H. D.</given-names></name>
+      </person-group>
+      <article-title>The calculation of the viscosity from the autocorrelation function using molecular and atomic stress tensors</article-title>
+      <source>Molecular Physics</source>
+      <year iso-8601-date="1996-08">1996</year><month>08</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2025-02-19">2025</year><month>02</month><day>19</day></date-in-citation>
+      <volume>88</volume>
+      <issue>6</issue>
+      <issn>0026-8976</issn>
+      <pub-id pub-id-type="doi">10.1080/00268979609484542</pub-id>
+      <fpage>1657</fpage>
+      <lpage>1664</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-duboue-dijonCharacterizationLocalStructure2015a">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Duboué-Dijon</surname><given-names>Elise</given-names></name>
+        <name><surname>Laage</surname><given-names>Damien</given-names></name>
+      </person-group>
+      <article-title>Characterization of the Local Structure in Liquid Water by Various Order Parameters</article-title>
+      <source>The Journal of Physical Chemistry B</source>
+      <year iso-8601-date="2015-07">2015</year><month>07</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2024-10-20">2024</year><month>10</month><day>20</day></date-in-citation>
+      <volume>119</volume>
+      <issue>26</issue>
+      <issn>1520-6106</issn>
+      <pub-id pub-id-type="doi">10.1021/acs.jpcb.5b02936</pub-id>
+      <fpage>8406</fpage>
+      <lpage>8418</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-friederichMachinelearnedPotentialsNextgeneration2021">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Friederich</surname><given-names>Pascal</given-names></name>
+        <name><surname>Häse</surname><given-names>Florian</given-names></name>
+        <name><surname>Proppe</surname><given-names>Jonny</given-names></name>
+        <name><surname>Aspuru-Guzik</surname><given-names>Alán</given-names></name>
+      </person-group>
+      <article-title>Machine-learned potentials for next-generation matter simulations</article-title>
+      <source>Nature Materials</source>
+      <publisher-name>Nature Publishing Group</publisher-name>
+      <year iso-8601-date="2021-06">2021</year><month>06</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2024-05-01">2024</year><month>05</month><day>01</day></date-in-citation>
+      <volume>20</volume>
+      <issue>6</issue>
+      <issn>1476-4660</issn>
+      <pub-id pub-id-type="doi">10.1038/s41563-020-0777-6</pub-id>
+      <fpage>750</fpage>
+      <lpage>761</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-gowersMDAnalysisPythonPackage2016">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Gowers</surname><given-names>Richard J.</given-names></name>
+        <name><surname>Linke</surname><given-names>Max</given-names></name>
+        <name><surname>Barnoud</surname><given-names>Jonathan</given-names></name>
+        <name><surname>Reddy</surname><given-names>Tyler J. E.</given-names></name>
+        <name><surname>Melo</surname><given-names>Manuel N.</given-names></name>
+        <name><surname>Seyler</surname><given-names>Sean L.</given-names></name>
+        <name><surname>Domański</surname><given-names>Jan</given-names></name>
+        <name><surname>Dotson</surname><given-names>David L.</given-names></name>
+        <name><surname>Buchoux</surname><given-names>Sébastien</given-names></name>
+        <name><surname>Kenney</surname><given-names>Ian M.</given-names></name>
+        <name><surname>Beckstein</surname><given-names>Oliver</given-names></name>
+      </person-group>
+      <article-title>MDAnalysis: A Python Package for the Rapid Analysis of Molecular Dynamics Simulations</article-title>
+      <source>scipy</source>
+      <year iso-8601-date="2016-06">2016</year><month>06</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2025-02-19">2025</year><month>02</month><day>19</day></date-in-citation>
+      <pub-id pub-id-type="doi">10.25080/Majora-629e541a-00e</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-hjorthlarsenAtomicSimulationEnvironment2017">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Hjorth Larsen</surname><given-names>Ask</given-names></name>
+        <name><surname>Jørgen Mortensen</surname><given-names>Jens</given-names></name>
+        <name><surname>Blomqvist</surname><given-names>Jakob</given-names></name>
+        <name><surname>Castelli</surname><given-names>Ivano E</given-names></name>
+        <name><surname>Christensen</surname><given-names>Rune</given-names></name>
+        <name><surname>Dułak</surname><given-names>Marcin</given-names></name>
+        <name><surname>Friis</surname><given-names>Jesper</given-names></name>
+        <name><surname>Groves</surname><given-names>Michael N</given-names></name>
+        <name><surname>Hammer</surname><given-names>Bjørk</given-names></name>
+        <name><surname>Hargus</surname><given-names>Cory</given-names></name>
+        <name><surname>Hermes</surname><given-names>Eric D</given-names></name>
+        <name><surname>Jennings</surname><given-names>Paul C</given-names></name>
+        <name><surname>Bjerre Jensen</surname><given-names>Peter</given-names></name>
+        <name><surname>Kermode</surname><given-names>James</given-names></name>
+        <name><surname>Kitchin</surname><given-names>John R</given-names></name>
+        <name><surname>Leonhard Kolsbjerg</surname><given-names>Esben</given-names></name>
+        <name><surname>Kubal</surname><given-names>Joseph</given-names></name>
+        <name><surname>Kaasbjerg</surname><given-names>Kristen</given-names></name>
+        <name><surname>Lysgaard</surname><given-names>Steen</given-names></name>
+        <name><surname>Bergmann Maronsson</surname><given-names>Jón</given-names></name>
+        <name><surname>Maxson</surname><given-names>Tristan</given-names></name>
+        <name><surname>Olsen</surname><given-names>Thomas</given-names></name>
+        <name><surname>Pastewka</surname><given-names>Lars</given-names></name>
+        <name><surname>Peterson</surname><given-names>Andrew</given-names></name>
+        <name><surname>Rostgaard</surname><given-names>Carsten</given-names></name>
+        <name><surname>Schiøtz</surname><given-names>Jakob</given-names></name>
+        <name><surname>Schütt</surname><given-names>Ole</given-names></name>
+        <name><surname>Strange</surname><given-names>Mikkel</given-names></name>
+        <name><surname>Thygesen</surname><given-names>Kristian S</given-names></name>
+        <name><surname>Vegge</surname><given-names>Tejs</given-names></name>
+        <name><surname>Vilhelmsen</surname><given-names>Lasse</given-names></name>
+        <name><surname>Walter</surname><given-names>Michael</given-names></name>
+        <name><surname>Zeng</surname><given-names>Zhenhua</given-names></name>
+        <name><surname>Jacobsen</surname><given-names>Karsten W</given-names></name>
+      </person-group>
+      <article-title>The atomic simulation environment—a Python library for working with atoms</article-title>
+      <source>Journal of Physics: Condensed Matter</source>
+      <publisher-name>IOP Publishing</publisher-name>
+      <year iso-8601-date="2017-06">2017</year><month>06</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2025-02-19">2025</year><month>02</month><day>19</day></date-in-citation>
+      <volume>29</volume>
+      <issue>27</issue>
+      <issn>0953-8984</issn>
+      <pub-id pub-id-type="doi">10.1088/1361-648X/aa680e</pub-id>
+      <fpage>273002</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-holleImportanceDensityPhaseChange2025">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Holle</surname><given-names>Nils</given-names></name>
+        <name><surname>Walfort</surname><given-names>Sebastian</given-names></name>
+        <name><surname>Ballmaier</surname><given-names>Jakob</given-names></name>
+        <name><surname>Mazzarello</surname><given-names>Riccardo</given-names></name>
+        <name><surname>Salinga</surname><given-names>Martin</given-names></name>
+      </person-group>
+      <article-title>Importance of Density for Phase-Change Materials Demonstrated by Ab Initio Simulations of Amorphous Antimony</article-title>
+      <source>Physical Review Letters</source>
+      <publisher-name>American Physical Society</publisher-name>
+      <year iso-8601-date="2025-01">2025</year><month>01</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2025-01-29">2025</year><month>01</month><day>29</day></date-in-citation>
+      <volume>134</volume>
+      <issue>4</issue>
+      <pub-id pub-id-type="doi">10.1103/PhysRevLett.134.046101</pub-id>
+      <fpage>046101</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-lacevicSpatiallyHeterogeneousDynamics2003">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Lačević</surname><given-names>N.</given-names></name>
+        <name><surname>Starr</surname><given-names>F. W.</given-names></name>
+        <name><surname>Schrøder</surname><given-names>T. B.</given-names></name>
+        <name><surname>Glotzer</surname><given-names>S. C.</given-names></name>
+      </person-group>
+      <article-title>Spatially heterogeneous dynamics investigated via a time-dependent four-point density correlation function</article-title>
+      <source>The Journal of Chemical Physics</source>
+      <year iso-8601-date="2003-10">2003</year><month>10</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2020-09-09">2020</year><month>09</month><day>09</day></date-in-citation>
+      <volume>119</volume>
+      <issue>14</issue>
+      <issn>0021-9606</issn>
+      <pub-id pub-id-type="doi">10.1063/1.1605094</pub-id>
+      <fpage>7372</fpage>
+      <lpage>7387</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-leeInitioStudiesStructural1993">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Lee</surname><given-names>Changyol</given-names></name>
+        <name><surname>Vanderbilt</surname><given-names>David</given-names></name>
+        <name><surname>Laasonen</surname><given-names>Kari</given-names></name>
+        <name><surname>Car</surname><given-names>R.</given-names></name>
+        <name><surname>Parrinello</surname><given-names>M.</given-names></name>
+      </person-group>
+      <article-title>Ab initio studies on the structural and dynamical properties of ice</article-title>
+      <source>Physical Review B</source>
+      <publisher-name>American Physical Society</publisher-name>
+      <year iso-8601-date="1993-03">1993</year><month>03</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2025-01-29">2025</year><month>01</month><day>29</day></date-in-citation>
+      <volume>47</volume>
+      <issue>9</issue>
+      <pub-id pub-id-type="doi">10.1103/PhysRevB.47.4863</pub-id>
+      <fpage>4863</fpage>
+      <lpage>4872</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-michaud-agrawalMDAnalysisToolkitAnalysis2011">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Michaud-Agrawal</surname><given-names>Naveen</given-names></name>
+        <name><surname>Denning</surname><given-names>Elizabeth J.</given-names></name>
+        <name><surname>Woolf</surname><given-names>Thomas B.</given-names></name>
+        <name><surname>Beckstein</surname><given-names>Oliver</given-names></name>
+      </person-group>
+      <article-title>MDAnalysis: A toolkit for the analysis of molecular dynamics simulations</article-title>
+      <source>Journal of Computational Chemistry</source>
+      <year iso-8601-date="2011">2011</year>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2025-02-19">2025</year><month>02</month><day>19</day></date-in-citation>
+      <volume>32</volume>
+      <issue>10</issue>
+      <issn>1096-987X</issn>
+      <pub-id pub-id-type="doi">10.1002/jcc.21787</pub-id>
+      <fpage>2319</fpage>
+      <lpage>2327</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-ongPythonMaterialsGenomics2013">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Ong</surname><given-names>Shyue Ping</given-names></name>
+        <name><surname>Richards</surname><given-names>William Davidson</given-names></name>
+        <name><surname>Jain</surname><given-names>Anubhav</given-names></name>
+        <name><surname>Hautier</surname><given-names>Geoffroy</given-names></name>
+        <name><surname>Kocher</surname><given-names>Michael</given-names></name>
+        <name><surname>Cholia</surname><given-names>Shreyas</given-names></name>
+        <name><surname>Gunter</surname><given-names>Dan</given-names></name>
+        <name><surname>Chevrier</surname><given-names>Vincent L.</given-names></name>
+        <name><surname>Persson</surname><given-names>Kristin A.</given-names></name>
+        <name><surname>Ceder</surname><given-names>Gerbrand</given-names></name>
+      </person-group>
+      <article-title>Python Materials Genomics (pymatgen): A robust, open-source python library for materials analysis</article-title>
+      <source>Computational Materials Science</source>
+      <year iso-8601-date="2013-02">2013</year><month>02</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2025-02-19">2025</year><month>02</month><day>19</day></date-in-citation>
+      <volume>68</volume>
+      <pub-id pub-id-type="doi">10.1016/j.commatsci.2012.10.028</pub-id>
+      <fpage>314</fpage>
+      <lpage>319</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-perkelWhyScientistsAre2020">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Perkel</surname><given-names>Jeffrey M.</given-names></name>
+      </person-group>
+      <article-title>Why scientists are turning to Rust</article-title>
+      <source>Nature</source>
+      <publisher-name>Nature Publishing Group</publisher-name>
+      <year iso-8601-date="2020-12">2020</year><month>12</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2025-02-24">2025</year><month>02</month><day>24</day></date-in-citation>
+      <volume>588</volume>
+      <issue>7836</issue>
+      <pub-id pub-id-type="doi">10.1038/d41586-020-03382-2</pub-id>
+      <fpage>185</fpage>
+      <lpage>186</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-ronnebergerComputationalStudyCrystallization2016a">
+    <element-citation publication-type="thesis">
+      <person-group person-group-type="author">
+        <name><surname>Ronneberger</surname><given-names>Ider</given-names></name>
+        <name><surname>Mazzarello</surname><given-names>Riccardo</given-names></name>
+        <name><surname>Wuttig</surname><given-names>Matthias</given-names></name>
+      </person-group>
+      <article-title>Computational Study of Crystallization Kinetics of Phase Change Materials</article-title>
+      <publisher-name>RWTH Aachen University</publisher-name>
+      <publisher-loc>Aachen</publisher-loc>
+      <year iso-8601-date="2016">2016</year>
+      <pub-id pub-id-type="doi">10.18154/RWTH-2017-00376</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-schmerlerElcortoPwtools2025">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Schmerler</surname><given-names>Steve</given-names></name>
+      </person-group>
+      <article-title>Elcorto/pwtools</article-title>
+      <year iso-8601-date="2025-01">2025</year><month>01</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2025-02-19">2025</year><month>02</month><day>19</day></date-in-citation>
+      <pub-id pub-id-type="doi">10.5281/zenodo.13128303</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-steinhardtBondorientationalOrderLiquids1983">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Steinhardt</surname><given-names>Paul J.</given-names></name>
+        <name><surname>Nelson</surname><given-names>David R.</given-names></name>
+        <name><surname>Ronchetti</surname><given-names>Marco</given-names></name>
+      </person-group>
+      <article-title>Bond-orientational order in liquids and glasses</article-title>
+      <source>Physical Review B</source>
+      <publisher-name>American Physical Society</publisher-name>
+      <year iso-8601-date="1983-07">1983</year><month>07</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2024-10-20">2024</year><month>10</month><day>20</day></date-in-citation>
+      <volume>28</volume>
+      <issue>2</issue>
+      <pub-id pub-id-type="doi">10.1103/PhysRevB.28.784</pub-id>
+      <fpage>784</fpage>
+      <lpage>805</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-tenwoldeNumericalEvidenceBcc1995a">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>ten Wolde</surname><given-names>Pieter Rein</given-names></name>
+        <name><surname>Ruiz-Montero</surname><given-names>Maria J.</given-names></name>
+        <name><surname>Frenkel</surname><given-names>Daan</given-names></name>
+      </person-group>
+      <article-title>Numerical Evidence for bcc Ordering at the Surface of a Critical fcc Nucleus</article-title>
+      <source>Physical Review Letters</source>
+      <publisher-name>American Physical Society</publisher-name>
+      <year iso-8601-date="1995-10">1995</year><month>10</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2025-02-24">2025</year><month>02</month><day>24</day></date-in-citation>
+      <volume>75</volume>
+      <issue>14</issue>
+      <pub-id pub-id-type="doi">10.1103/PhysRevLett.75.2714</pub-id>
+      <fpage>2714</fpage>
+      <lpage>2717</lpage>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
