@@ -1,0 +1,711 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">8047</article-id>
+<article-id pub-id-type="doi">10.21105/joss.08047</article-id>
+<title-group>
+<article-title>GBNet: Gradient Boosting packages integrated into
+PyTorch</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0009-0001-3091-0342</contrib-id>
+<name>
+<surname>Horrell</surname>
+<given-names>Michael</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Independent Researcher, USA</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2025-03-16">
+<day>16</day>
+<month>3</month>
+<year>2025</year>
+</pub-date>
+<volume>10</volume>
+<issue>111</issue>
+<fpage>8047</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2025</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>Python</kwd>
+<kwd>PyTorch</kwd>
+<kwd>Gradient Boosting</kwd>
+<kwd>XGBoost</kwd>
+<kwd>LightGBM</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p>GBNet is a Python software package that integrates the powerful
+  Gradient Boosting Machines (GBMs)
+  (<xref alt="Friedman, 2001" rid="ref-friedman2001gbm" ref-type="bibr">Friedman,
+  2001</xref>) packages XGBoost
+  (<xref alt="Chen &amp; Guestrin, 2016" rid="ref-chen2016xgboost" ref-type="bibr">Chen
+  &amp; Guestrin, 2016</xref>) and LightGBM
+  (<xref alt="Ke et al., 2017" rid="ref-ke2017lightgbm" ref-type="bibr">Ke
+  et al., 2017</xref>) with PyTorch
+  (<xref alt="Paszke et al., 2019" rid="ref-paszke2019pytorch" ref-type="bibr">Paszke
+  et al., 2019</xref>), a widely-used deep learning library. Gradient
+  boosting is a popular machine learning technique known for its
+  accuracy in predictive modeling. XGBoost and LightGBM are
+  industry-standard implementations of GBMs recognized for their speed
+  and strong performance across numerous applications
+  (<xref alt="Kaggle, 2021" rid="ref-kaggle2021survey" ref-type="bibr">Kaggle,
+  2021</xref>). However, these libraries primarily handle standard
+  machine learning tasks and present challenges when applied to complex
+  or non-standard modeling scenarios. For example, using non-standard
+  loss functions with either XGBoost or LightGBM requires manual
+  computation of gradients and Hessians, a prohibitively difficult
+  requirement for even moderately complex losses.</p>
+  <p>PyTorch is popular for its ease of defining and training neural
+  networks. Its computational graph provides automatic differentiation
+  capabilities. GBNet leverages these capabilities, linking gradient and
+  Hessian calculations from PyTorch to XGBoost or LightGBM models. This
+  integration allows users to construct and train complex hybrid models
+  that combine gradient boosting with neural network architectures.
+  GBNet significantly broadens the scope of problems that can be solved
+  with the world-leading gradient boosting software packages.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p>While XGBoost and LightGBM are industry-standard solutions for
+  tabular data machine learning problems, they offer limited flexibility
+  in defining complex model architectures tailored to specific problem
+  types. Users wishing to define custom loss functions, novel
+  architectures, or other advanced modeling scenarios face substantial
+  difficulty due to the complex gradient and Hessian calculations
+  required by both XGBoost and LightGBM.</p>
+  <p>As a simple motivating example, consider a forecasting model that
+  combines a linear trend with a periodic component. A natural
+  specification of this model might be:</p>
+  <p><disp-formula><alternatives>
+  <tex-math><![CDATA[\text{Forecast}(t) = t\beta + \text{PeriodicFn}(t)]]></tex-math>
+  <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mtext mathvariant="normal">Forecast</mml:mtext><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>t</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>=</mml:mo><mml:mi>t</mml:mi><mml:mi>β</mml:mi><mml:mo>+</mml:mo><mml:mtext mathvariant="normal">PeriodicFn</mml:mtext><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>t</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></disp-formula></p>
+  <p>where <inline-formula><alternatives>
+  <tex-math><![CDATA[\beta]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>β</mml:mi></mml:math></alternatives></inline-formula>
+  is a constant defining the trend and <inline-formula><alternatives>
+  <tex-math><![CDATA[\text{PeriodicFn}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mtext mathvariant="normal">PeriodicFn</mml:mtext></mml:math></alternatives></inline-formula>
+  is modeled using a GBM. Despite its relative simplicity, this model
+  cannot be easily fit using XGBoost or LightGBM alone.</p>
+  <p>GBNet addresses this limitation by providing PyTorch Modules that
+  wrap XGBoost and LightGBM. These Modules serve as model building
+  blocks like any other PyTorch Module. Valid code defining a PyTorch
+  module implementing the above forecast model is given in just a few
+  lines:</p>
+  <code language="python">import torch
+from gbnet.xgbmodule import XGBModule
+
+class ForecastModule(torch.nn.Module):
+    def __init__(self, n, d):
+        super().__init__()
+        self.linear = torch.nn.Linear(d, 1)
+        self.xgb = XGBModule(n, d, 1)
+
+    def forward(self, t):
+        return self.linear(t) + self.xgb(t)
+
+    def gb_step(self):
+        self.xgb.gb_step()</code>
+  <p>The key components of this code are
+  <monospace>XGBModule</monospace>, the wrapper for XGBoost, and
+  <monospace>gb_step()</monospace>, a method that updates the underlying
+  XGBoost model. The <monospace>gb_step()</monospace> method is called
+  after each forward pass to update the gradient boosting model, while
+  PyTorch’s autograd system handles the updates for the linear
+  component.</p>
+  <p>As demonstrated in this example, once an instance of
+  <monospace>XGBModule</monospace> is defined, it can be combined with
+  any other model logic supported by PyTorch. This straightforward
+  example illustrates GBNet’s ease-of-use in defining complex
+  models.</p>
+  <p>GBNet is the first software package to combine state-of-the-art
+  gradient boosting software with neural network packages in a
+  near-seamless and general way. Other packages either solve similar
+  problems by providing Gradient Boosting packages with slightly more
+  complex capabilities
+  (<xref alt="Horrell, 2020" rid="ref-DBLPU003AjournalsU002FcorrU002Fabs-2007-09855" ref-type="bibr">Horrell,
+  2020</xref>;
+  <xref alt="Ingas, 2024" rid="ref-ordinalgbt" ref-type="bibr">Ingas,
+  2024</xref>) or, when combining GBMs and Neural Networks, resort to
+  different types of stacking or other more complex combinations
+  (<xref alt="Balestriero, 2017" rid="ref-ndt" ref-type="bibr">Balestriero,
+  2017</xref>;
+  <xref alt="Ke et al., 2019" rid="ref-deepgbm" ref-type="bibr">Ke et
+  al., 2019</xref>;
+  <xref alt="Kontschieder et al., 2015" rid="ref-dndf" ref-type="bibr">Kontschieder
+  et al., 2015</xref>;
+  <xref alt="Popov et al., 2019" rid="ref-node" ref-type="bibr">Popov et
+  al., 2019</xref>). GBNet allows users of the world’s best gradient
+  boosting packages to explore many of the rich architectural
+  possibilities available through PyTorch.</p>
+  <sec id="research-applications">
+    <title>Research Applications</title>
+    <p>Several research areas stand to benefit from GBNet. The package
+    includes a forecasting application
+    (<monospace>gbnet.models.forecasting</monospace>) that demonstrates
+    improved performance over Meta’s Prophet algorithm
+    (<xref alt="Taylor &amp; Letham, 2018" rid="ref-taylor2018prophet" ref-type="bibr">Taylor
+    &amp; Letham, 2018</xref>) on a set of benchmarks, as shown in the
+    notebook linked
+    <ext-link ext-link-type="uri" xlink:href="https://github.com/mthorrell/gbnet/blob/main/examples/simple_forecast_example.ipynb">here</ext-link>.
+    The package also provides an ordinal regression implementation
+    (<monospace>gbnet.models.ordinal_regression</monospace>) featuring
+    the ordinal loss, which is complex, has fittable parameters, and is
+    not included in either XGBoost or LightGBM. A notebook
+    <ext-link ext-link-type="uri" xlink:href="https://github.com/mthorrell/gbnet/blob/main/examples/ordinal_regression_comparison.ipynb">here</ext-link>
+    demonstrates the ordinal regression application.</p>
+    <p>More broadly, GBNet may benefit any researcher looking to
+    leverage non-parametric methods while maintaining structural control
+    over their model. In particular, researchers using PyTorch primarily
+    for its ability to produce outputs suited for their application may
+    prefer GBNet at times because XGBoost and LightGBM are robust
+    estimators. Neural networks can be finicky, requiring many small
+    adjustments and normalizations, while GBMs often work reliably with
+    minimal tuning.</p>
+    <p>Research into network architectures specifically tailored for
+    GBMs may also hold intrinsic value. Several classic architectures
+    previously explored exclusively with pure neural network methods are
+    now accessible for GBMs through GBNet. Important concepts and
+    methods such as embeddings
+    (<xref alt="Mikolov et al., 2013" rid="ref-mikolov2013distributed" ref-type="bibr">Mikolov
+    et al., 2013</xref>), autoencoders
+    (<xref alt="Hinton &amp; Zemel, 1993" rid="ref-hinton1993autoencoders" ref-type="bibr">Hinton
+    &amp; Zemel, 1993</xref>), variational methods
+    (<xref alt="Kingma et al., 2013" rid="ref-kingma2013auto" ref-type="bibr">Kingma
+    et al., 2013</xref>), and contrastive learning
+    (<xref alt="Hadsell et al., 2006" rid="ref-hadsell2006dimensionality" ref-type="bibr">Hadsell
+    et al., 2006</xref>) may exhibit novel and interesting properties
+    when integrated with GBMs.</p>
+  </sec>
+</sec>
+<sec id="software-description-and-examples">
+  <title>Software Description and Examples</title>
+  <p>GBNet comprises two primary sets of submodules:</p>
+  <list list-type="bullet">
+    <list-item>
+      <p><monospace>gbnet.xgbmodule</monospace>,
+      <monospace>gbnet.lgbmodule</monospace>,
+      <monospace>gbnet.gblinear</monospace>: Contain PyTorch Module
+      classes (<monospace>XGBModule</monospace>,
+      <monospace>LGBModule</monospace> and
+      <monospace>GBLinear</monospace>) that integrate XGBoost, LightGBM
+      and a linear booster respectively.</p>
+    </list-item>
+    <list-item>
+      <p><monospace>gbnet.models</monospace>: Includes practical
+      implementations of models using either
+      <monospace>XGBModule</monospace> or
+      <monospace>LGBModule</monospace>. Currently there are two
+      implementations. <monospace>gbnet.models.forecasting</monospace>
+      provides a scikit-learn interface
+      (<xref alt="Pedregosa et al., 2011" rid="ref-scikit-learn" ref-type="bibr">Pedregosa
+      et al., 2011</xref>) for an optimized version of the forecast
+      model shown above.
+      <monospace>gbnet.models.ordinal_regression</monospace> provides a
+      scikit-learn interface for ordinal regression.</p>
+    </list-item>
+  </list>
+  <sec id="forecasting-example">
+    <title>Forecasting Example</title>
+    <p><monospace>gbnet.models.forecasting.Forecast</monospace> is
+    compared to the Meta Prophet algorithm over 500 independent trials
+    as reported in the following table. Each trial consists of selecting
+    a dataset uniformly at random, selecting a training cutoff uniformly
+    at random, selecting a test period cutoff uniformly at random, and
+    finally training a model and testing performance. The default
+    <monospace>gbnet.models.forecasting.Forecast</monospace> beats
+    Prophet in 74% of trials and has a higher than 50% win rate on 8 out
+    of 9 datasets when comparing RMSE values. In addition,
+    <monospace>gbnet.models.forecasting.Forecast</monospace>, when it
+    has the losing RMSE, tends to lose by less in comparison to
+    Prophet.</p>
+    <table-wrap>
+      <table>
+        <colgroup>
+          <col width="23%" />
+          <col width="8%" />
+          <col width="17%" />
+          <col width="25%" />
+          <col width="27%" />
+        </colgroup>
+        <thead>
+          <tr>
+            <th>Dataset</th>
+            <th>N trials</th>
+            <th>GBNet win Rate (%)</th>
+            <th>Avg. GBNet Losing RMSE Ratio</th>
+            <th>Avg. Prophet Losing RMSE Ratio</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Air Passengers</td>
+            <td>50</td>
+            <td><bold>74%</bold></td>
+            <td><bold>1.42</bold></td>
+            <td>1.64</td>
+          </tr>
+          <tr>
+            <td>Pedestrians Covid</td>
+            <td>56</td>
+            <td><bold>66%</bold></td>
+            <td><bold>1.21</bold></td>
+            <td>1.73</td>
+          </tr>
+          <tr>
+            <td>Pedestrians Multivariate</td>
+            <td>54</td>
+            <td><bold>70%</bold></td>
+            <td><bold>1.34</bold></td>
+            <td>1.35</td>
+          </tr>
+          <tr>
+            <td>Retail Sales</td>
+            <td>75</td>
+            <td><bold>81%</bold></td>
+            <td><bold>1.26</bold></td>
+            <td>1.97</td>
+          </tr>
+          <tr>
+            <td>WP Log R</td>
+            <td>59</td>
+            <td><bold>90%</bold></td>
+            <td><bold>2.19</bold></td>
+            <td>2.60</td>
+          </tr>
+          <tr>
+            <td>WP Log R Outliers1</td>
+            <td>60</td>
+            <td><bold>77%</bold></td>
+            <td><bold>1.40</bold></td>
+            <td>2.56</td>
+          </tr>
+          <tr>
+            <td>WP Log R Outliers2</td>
+            <td>49</td>
+            <td><bold>71%</bold></td>
+            <td><bold>1.85</bold></td>
+            <td>2.47</td>
+          </tr>
+          <tr>
+            <td>WP Log Peyton Manning</td>
+            <td>45</td>
+            <td>44%</td>
+            <td><bold>1.36</bold></td>
+            <td>2.22</td>
+          </tr>
+          <tr>
+            <td>Yosemite Temps</td>
+            <td>52</td>
+            <td><bold>85%</bold></td>
+            <td><bold>2.16</bold></td>
+            <td>2.93</td>
+          </tr>
+        </tbody>
+      </table>
+    </table-wrap>
+    <p>Code for these results is
+    <ext-link ext-link-type="uri" xlink:href="https://github.com/mthorrell/gbnet/blob/main/examples/simple_forecast_example.ipynb">here</ext-link>.</p>
+  </sec>
+  <sec id="ordinal-regression-example">
+    <title>Ordinal Regression Example</title>
+    <p>Ordinal regression fits a model with a 1-dimensional output,
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[F(X) \in \mathbb{R}]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>F</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>X</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>∈</mml:mo><mml:mi>ℝ</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>,
+    that is thresholded at different points to achieve an ordinal
+    classification. McCullagh
+    (<xref alt="1980" rid="ref-mccullagh1980regression" ref-type="bibr">1980</xref>)
+    introduces a cumulative logit model with thresholds to define a
+    consistent statistical model for ordinal regression.
+    <monospace>gbnet.models.ordinal_regression.GBOrd</monospace>
+    implements the cumulative logit model. Specifically
+    <monospace>GBOrd</monospace> fits threshold parameters
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[\theta_i \in \mathbb{R}]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>θ</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mo>∈</mml:mo><mml:mi>ℝ</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>
+    and a GBM, <inline-formula><alternatives>
+    <tex-math><![CDATA[F(X)]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>F</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>X</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>,
+    to optimize the likelihood defined by</p>
+    <p><disp-formula><alternatives>
+    <tex-math><![CDATA[ P(y <= i | X) = \sigma(\theta_i - F(X)). ]]></tex-math>
+    <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>P</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>y</mml:mi><mml:mo>&lt;</mml:mo><mml:mo>=</mml:mo><mml:mi>i</mml:mi><mml:mo stretchy="false" form="prefix">|</mml:mo><mml:mi>X</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>=</mml:mo><mml:mi>σ</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>θ</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mo>−</mml:mo><mml:mi>F</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>X</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mi>.</mml:mi></mml:mrow></mml:math></alternatives></disp-formula></p>
+    <p>Fitting this ordinal regression model using GBMs without a tool
+    like GBNet is complex: (1) neither XGBoost nor LightGBM offer this
+    objective; (2) calculating the negative log-likelihood (that is, its
+    loss) has multiple steps—a cumulative distribution function is
+    calculated and then differenced to find the likelihood; (3) the
+    objective has parameters, <inline-formula><alternatives>
+    <tex-math><![CDATA[\theta_i]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>θ</mml:mi><mml:mi>i</mml:mi></mml:msub></mml:math></alternatives></inline-formula>,
+    that need to be fit along with <inline-formula><alternatives>
+    <tex-math><![CDATA[F(X)]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>F</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>X</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>.</p>
+    <p><monospace>GBOrd</monospace> leverages
+    <monospace>XGBModule</monospace> and
+    <monospace>LGBModule</monospace> and native PyTorch functionality to
+    make fitting an ordinal regression model straightforward using
+    either XGBoost or LightGBM back-ends. As an illustration, Figure
+    <xref alt="[fig:ordinal_probs]" rid="figU003Aordinal_probs">[fig:ordinal_probs]</xref>
+    shows the fitted probabilities on the Ailerons dataset from
+    Gagolewski
+    (<xref alt="2022" rid="ref-gagolewski_ordinal_regression" ref-type="bibr">2022</xref>).
+    The breakpoint parameters are fit via gradient descent
+    simultaneously with the GBM. The uneven spacing of the breakpoints
+    in the figure demonstrates that the model has learned a more optimal
+    separation between classes rather than using evenly spaced
+    breakpoints.</p>
+    <fig id="figU003Aordinal_probs">
+      <caption><p>Fitted ordinal regression probabilities for the
+      Ailerons dataset</p></caption>
+      <graphic mimetype="image" mime-subtype="png" xlink:href="ordinal_probs.png" />
+    </fig>
+    <p>A reproducible benchmark comparing <monospace>GBOrd</monospace>
+    to alternative approaches across several data sets is provided
+    <ext-link ext-link-type="uri" xlink:href="https://github.com/mthorrell/gbnet/blob/main/examples/ordinal_regression_comparison.ipynb">here</ext-link>.</p>
+  </sec>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>The author gratefully acknowledges insightful feedback from Joe
+  Guinness.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <title></title>
+  <ref id="ref-mccullagh1980regression">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>McCullagh</surname><given-names>Peter</given-names></name>
+      </person-group>
+      <article-title>Regression models for ordinal data</article-title>
+      <source>Journal of the Royal Statistical Society. Series B (Methodological)</source>
+      <publisher-name>[Royal Statistical Society, Oxford University Press]</publisher-name>
+      <year iso-8601-date="1980">1980</year>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2025-03-16">2025</year><month>03</month><day>16</day></date-in-citation>
+      <volume>42</volume>
+      <issue>2</issue>
+      <uri>http://www.jstor.org/stable/2984952</uri>
+      <fpage>109</fpage>
+      <lpage>142</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-gagolewski_ordinal_regression">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Gagolewski</surname><given-names>Marek</given-names></name>
+      </person-group>
+      <article-title>Ordinal regression</article-title>
+      <publisher-name>https://github.com/gagolews/teaching-data/tree/master/ordinal_regression</publisher-name>
+      <year iso-8601-date="2022">2022</year>
+    </element-citation>
+  </ref>
+  <ref id="ref-mikolov2013distributed">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Mikolov</surname><given-names>Tomas</given-names></name>
+        <name><surname>Sutskever</surname><given-names>Ilya</given-names></name>
+        <name><surname>Chen</surname><given-names>Kai</given-names></name>
+        <name><surname>Corrado</surname><given-names>Greg S</given-names></name>
+        <name><surname>Dean</surname><given-names>Jeff</given-names></name>
+      </person-group>
+      <article-title>Distributed representations of words and phrases and their compositionality</article-title>
+      <source>Advances in neural information processing systems</source>
+      <year iso-8601-date="2013">2013</year>
+      <volume>26</volume>
+    </element-citation>
+  </ref>
+  <ref id="ref-hinton1993autoencoders">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Hinton</surname><given-names>Geoffrey E</given-names></name>
+        <name><surname>Zemel</surname><given-names>Richard</given-names></name>
+      </person-group>
+      <article-title>Autoencoders, minimum description length and helmholtz free energy</article-title>
+      <source>Advances in neural information processing systems</source>
+      <year iso-8601-date="1993">1993</year>
+      <volume>6</volume>
+    </element-citation>
+  </ref>
+  <ref id="ref-kingma2013auto">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Kingma</surname><given-names>Diederik P</given-names></name>
+        <name><surname>Welling</surname><given-names>Max</given-names></name>
+        <name><surname>others</surname></name>
+      </person-group>
+      <article-title>Auto-encoding variational bayes</article-title>
+      <publisher-name>Banff, Canada</publisher-name>
+      <year iso-8601-date="2013">2013</year>
+    </element-citation>
+  </ref>
+  <ref id="ref-scikit-learn">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Pedregosa</surname><given-names>F.</given-names></name>
+        <name><surname>Varoquaux</surname><given-names>G.</given-names></name>
+        <name><surname>Gramfort</surname><given-names>A.</given-names></name>
+        <name><surname>Michel</surname><given-names>V.</given-names></name>
+        <name><surname>Thirion</surname><given-names>B.</given-names></name>
+        <name><surname>Grisel</surname><given-names>O.</given-names></name>
+        <name><surname>Blondel</surname><given-names>M.</given-names></name>
+        <name><surname>Prettenhofer</surname><given-names>P.</given-names></name>
+        <name><surname>Weiss</surname><given-names>R.</given-names></name>
+        <name><surname>Dubourg</surname><given-names>V.</given-names></name>
+        <name><surname>Vanderplas</surname><given-names>J.</given-names></name>
+        <name><surname>Passos</surname><given-names>A.</given-names></name>
+        <name><surname>Cournapeau</surname><given-names>D.</given-names></name>
+        <name><surname>Brucher</surname><given-names>M.</given-names></name>
+        <name><surname>Perrot</surname><given-names>M.</given-names></name>
+        <name><surname>Duchesnay</surname><given-names>E.</given-names></name>
+      </person-group>
+      <article-title>Scikit-learn: Machine learning in Python</article-title>
+      <source>Journal of Machine Learning Research</source>
+      <year iso-8601-date="2011">2011</year>
+      <volume>12</volume>
+      <fpage>2825</fpage>
+      <lpage>2830</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-friedman2001gbm">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Friedman</surname><given-names>Jerome H.</given-names></name>
+      </person-group>
+      <article-title>Greedy function approximation: A gradient boosting machine</article-title>
+      <source>Annals of Statistics</source>
+      <year iso-8601-date="2001">2001</year>
+      <volume>29</volume>
+      <issue>5</issue>
+      <pub-id pub-id-type="doi">10.1214/aos/1013203451</pub-id>
+      <fpage>1189</fpage>
+      <lpage>1232</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-chen2016xgboost">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Chen</surname><given-names>Tianqi</given-names></name>
+        <name><surname>Guestrin</surname><given-names>Carlos</given-names></name>
+      </person-group>
+      <article-title>XGBoost: A scalable tree boosting system</article-title>
+      <source>Proceedings of the 22nd ACM SIGKDD international conference on knowledge discovery and data mining (KDD ’16)</source>
+      <publisher-name>ACM</publisher-name>
+      <year iso-8601-date="2016">2016</year>
+      <pub-id pub-id-type="doi">10.1145/2939672.2939785</pub-id>
+      <fpage>785</fpage>
+      <lpage>794</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-ke2017lightgbm">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Ke</surname><given-names>Guolin</given-names></name>
+        <name><surname>Meng</surname><given-names>Qi</given-names></name>
+        <name><surname>Finley</surname><given-names>Thomas</given-names></name>
+        <name><surname>Wang</surname><given-names>Taifeng</given-names></name>
+        <name><surname>Chen</surname><given-names>Wei</given-names></name>
+        <name><surname>Ma</surname><given-names>Weidong</given-names></name>
+        <name><surname>Ye</surname><given-names>Qiwei</given-names></name>
+        <name><surname>Liu</surname><given-names>Tie-Yan</given-names></name>
+      </person-group>
+      <article-title>LightGBM: A highly efficient gradient boosting decision tree</article-title>
+      <source>Proceedings of the 31st international conference on neural information processing systems (NIPS ’17)</source>
+      <publisher-name>Curran Associates Inc.</publisher-name>
+      <year iso-8601-date="2017">2017</year>
+      <fpage>3149</fpage>
+      <lpage>3157</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-kaggle2021survey">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Kaggle</surname></name>
+      </person-group>
+      <article-title>2021 kaggle machine learning &amp; data science survey</article-title>
+      <publisher-name>Kaggle, https://www.kaggle.com/c/kaggle-survey-2021</publisher-name>
+      <year iso-8601-date="2021">2021</year>
+    </element-citation>
+  </ref>
+  <ref id="ref-paszke2019pytorch">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Paszke</surname><given-names>Adam</given-names></name>
+        <name><surname>Gross</surname><given-names>Sam</given-names></name>
+        <name><surname>Massa</surname><given-names>Francisco</given-names></name>
+        <name><surname>Lerer</surname><given-names>Adam</given-names></name>
+        <name><surname>Bradbury</surname><given-names>James</given-names></name>
+        <name><surname>Chanan</surname><given-names>Gregory</given-names></name>
+        <name><surname>Killeen</surname><given-names>Trevor</given-names></name>
+        <name><surname>Lin</surname><given-names>Zeming</given-names></name>
+        <name><surname>Gimelshein</surname><given-names>Natalia</given-names></name>
+        <name><surname>Antiga</surname><given-names>Luca</given-names></name>
+        <name><surname>Desmaison</surname><given-names>Alban</given-names></name>
+        <name><surname>Kopf</surname><given-names>Andreas</given-names></name>
+        <name><surname>Yang</surname><given-names>Edward</given-names></name>
+        <name><surname>DeVito</surname><given-names>Zachary</given-names></name>
+        <name><surname>Raison</surname><given-names>Martin</given-names></name>
+        <name><surname>Tejani</surname><given-names>Alykhan</given-names></name>
+        <name><surname>Chilamkurthy</surname><given-names>Sasank</given-names></name>
+        <name><surname>Steiner</surname><given-names>Benoit</given-names></name>
+        <name><surname>Fang</surname><given-names>Lu</given-names></name>
+        <name><surname>Bai</surname><given-names>Junjie</given-names></name>
+        <name><surname>Chintala</surname><given-names>Soumith</given-names></name>
+      </person-group>
+      <article-title>PyTorch: An imperative style, high-performance deep learning library</article-title>
+      <source>Advances in neural information processing systems (NeurIPS 2019)</source>
+      <year iso-8601-date="2019">2019</year>
+      <uri>https://papers.nips.cc/paper/9015-pytorch-an-imperative-style-high-performance-deep-learning-library</uri>
+      <fpage>8024</fpage>
+      <lpage>8035</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-DBLPU003AjournalsU002FcorrU002Fabs-2007-09855">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Horrell</surname><given-names>Michael</given-names></name>
+      </person-group>
+      <article-title>Wide boosting</article-title>
+      <source>CoRR</source>
+      <year iso-8601-date="2020">2020</year>
+      <volume>abs/2007.09855</volume>
+      <uri>https://arxiv.org/abs/2007.09855</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-ordinalgbt">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Ingas</surname><given-names>Adam</given-names></name>
+      </person-group>
+      <article-title>OrdinalGBT - gradient boosting for ordinal regression</article-title>
+      <year iso-8601-date="2024">2024</year>
+      <uri>https://github.com/adamingas/ordinalgbt</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-dndf">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Kontschieder</surname><given-names>Peter</given-names></name>
+        <name><surname>Fiterau</surname><given-names>Madalina</given-names></name>
+        <name><surname>Criminisi</surname><given-names>Antonio</given-names></name>
+        <name><surname>Rota Bulo</surname><given-names>Samuel</given-names></name>
+      </person-group>
+      <article-title>Deep neural decision forests</article-title>
+      <source>Proceedings of the IEEE international conference on computer vision</source>
+      <year iso-8601-date="2015">2015</year>
+      <pub-id pub-id-type="doi">10.1109/ICCV.2015.172</pub-id>
+      <fpage>1467</fpage>
+      <lpage>1475</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-deepgbm">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Ke</surname><given-names>Guolin</given-names></name>
+        <name><surname>Xu</surname><given-names>Zhenhui</given-names></name>
+        <name><surname>Zhang</surname><given-names>Jia</given-names></name>
+        <name><surname>Bian</surname><given-names>Jiang</given-names></name>
+        <name><surname>Liu</surname><given-names>Tie-Yan</given-names></name>
+      </person-group>
+      <article-title>DeepGBM: A deep learning framework distilled by GBDT for online prediction tasks</article-title>
+      <source>Proceedings of the 25th ACM SIGKDD international conference on knowledge discovery &amp; data mining</source>
+      <year iso-8601-date="2019">2019</year>
+      <fpage>384</fpage>
+      <lpage>394</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-node">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Popov</surname><given-names>Sergei</given-names></name>
+        <name><surname>Morozov</surname><given-names>Stanislav</given-names></name>
+        <name><surname>Babenko</surname><given-names>Artem</given-names></name>
+      </person-group>
+      <article-title>Neural oblivious decision ensembles for deep learning on tabular data</article-title>
+      <source>arXiv preprint arXiv:1909.06312</source>
+      <year iso-8601-date="2019">2019</year>
+    </element-citation>
+  </ref>
+  <ref id="ref-ndt">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Balestriero</surname><given-names>Randall</given-names></name>
+      </person-group>
+      <article-title>Neural decision trees</article-title>
+      <source>arXiv preprint arXiv:1702.07360</source>
+      <year iso-8601-date="2017">2017</year>
+    </element-citation>
+  </ref>
+  <ref id="ref-taylor2018prophet">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Taylor</surname><given-names>Sean J.</given-names></name>
+        <name><surname>Letham</surname><given-names>Benjamin</given-names></name>
+      </person-group>
+      <article-title>Forecasting at scale</article-title>
+      <source>The American Statistician</source>
+      <publisher-name>Taylor &amp; Francis</publisher-name>
+      <year iso-8601-date="2018">2018</year>
+      <volume>72</volume>
+      <issue>1</issue>
+      <pub-id pub-id-type="doi">10.1080/00031305.2017.1380080</pub-id>
+      <fpage>37</fpage>
+      <lpage>45</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-hadsell2006dimensionality">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Hadsell</surname><given-names>Raia</given-names></name>
+        <name><surname>Chopra</surname><given-names>Sumit</given-names></name>
+        <name><surname>LeCun</surname><given-names>Yann</given-names></name>
+      </person-group>
+      <article-title>Dimensionality reduction by learning an invariant mapping</article-title>
+      <source>2006 IEEE computer society conference on computer vision and pattern recognition (CVPR’06)</source>
+      <publisher-name>IEEE</publisher-name>
+      <year iso-8601-date="2006">2006</year>
+      <volume>2</volume>
+      <pub-id pub-id-type="doi">10.1109/cvpr.2006.100</pub-id>
+      <fpage>1735</fpage>
+      <lpage>1742</lpage>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
