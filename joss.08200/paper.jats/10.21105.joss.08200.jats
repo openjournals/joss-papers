@@ -1,0 +1,1780 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">8200</article-id>
+<article-id pub-id-type="doi">10.21105/joss.08200</article-id>
+<title-group>
+<article-title><monospace>spike</monospace>: A Tool to Drizzle
+<italic>HST</italic>, <italic>JWST</italic>, and Roman PSFs for Improved
+Analyses</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author" corresp="yes">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0002-5283-933X</contrib-id>
+<name>
+<surname>Polzin</surname>
+<given-names>Ava</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+<xref ref-type="corresp" rid="cor-1"><sup>*</sup></xref>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Department of Astronomy and Astrophysics, The University of
+Chicago, USA</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<author-notes>
+<corresp id="cor-1">* E-mail: <email></email></corresp>
+</author-notes>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2025-07-02">
+<day>2</day>
+<month>7</month>
+<year>2025</year>
+</pub-date>
+<volume>10</volume>
+<issue>111</issue>
+<fpage>8200</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2025</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>Python</kwd>
+<kwd>astronomy</kwd>
+<kwd>point spread functions</kwd>
+<kwd>photometry</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p>An instrumental point spread function (PSF) describes the
+  distribution of light for a pure point source in an astronomical image
+  due to the optics of the instrument. An accurate PSF is key for
+  deconvolution, point source photometry and source removal. Space-based
+  telescopes can then pose a challenge because their PSFs are influenced
+  by their complex construction, and the myriad of pointings and
+  rotations used to capture deep images. These telescopes also capture
+  the highest resolution images of astronomical sources, resolving stars
+  in even relatively distant galaxies. Proper co-addition of PSFs at a
+  specific source position for space-based imaging is then both critical
+  and challenging. The library described in this work,
+  <monospace>spike</monospace>, generates model PSFs and runs them
+  through the same processing pipeline used to derive deep, co-added
+  images, providing correctly co-added and resampled PSFs for images
+  from the <italic>Hubble Space Telescope</italic>, the <italic>James
+  Webb Space Telescope</italic>, and the Nancy Grace Roman Space
+  Telescope.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of Need</title>
+  <p>The PSFs of co-added images are of interest to both ground- and
+  space-based instruments. PSFs can be impacted by different co-addition
+  schemes and may impact the analysis results based those data
+  (<xref alt="Mandelbaum et al., 2023" rid="ref-Mandelbaum.etal.2023" ref-type="bibr">Mandelbaum
+  et al., 2023</xref>). The cumulative effect of the geometric
+  distortions and offsets in angle and pixel location of space-based
+  data are apparent in the effective PSFs of the co-added and resampled
+  (drizzled,
+  <xref alt="Fruchter &amp; Hook, 2002" rid="ref-Fruchter.Hook.2002" ref-type="bibr">Fruchter
+  &amp; Hook, 2002</xref>) images, making the PSFs modeled on uncombined
+  images insufficient for careful photometric analyses. This is a
+  recognized limitation of existing PSF models, and
+  <monospace>DrizzlePac</monospace> recently added functionality to use
+  drizzled pre-computed model PSFs in their native photometric catalog
+  generator
+  (<xref alt="Hack et al., 2021" rid="ref-DrizzlePac3.3.0" ref-type="bibr">Hack
+  et al., 2021</xref>). However, this drizzled PSF uses generic
+  <monospace>TinyTim</monospace>
+  (<xref alt="Krist et al., 2011" rid="ref-Krist.etal.2011" ref-type="bibr">Krist
+  et al., 2011</xref>) models, which do not account for the positions of
+  sources on the chip and do not allow the user to set model parameters
+  without overwriting the existing grid of model PSFs. Simultaneously,
+  the resultant co-added PSF is not availabe to users, and there is not
+  an existing, simple way to generate drizzled PSFs for use in other
+  analyses. Alternatively, an empirical PSF may be created from the data
+  (see, e.g.,
+  <xref alt="Liaudat et al., 2023" rid="ref-Liaudat.etal.2023" ref-type="bibr">Liaudat
+  et al., 2023</xref> for a brief review) or unsaturated stars near the
+  object of interest may be selected as a proxy for the PSF. For
+  particularly crowded fields, or those where most stars are saturated,
+  these alternatives pose a problem.</p>
+  <p>For analyses to be consistent, mock PSFs may be used, but the
+  proper treatment of them involves generating model PSFs and then
+  co-adding and processing them in the same way as the parent images are
+  co-added and processed. Workflows have been created for some
+  instruments<xref ref-type="fn" rid="fn1">1</xref> and surveys (e.g.,
+  <xref alt="Ji et al., 2024" rid="ref-Ji.etal.2024" ref-type="bibr">Ji
+  et al., 2024</xref>), and individual packages have tried to address
+  this in their own data handling, with e.g.,
+  <monospace>grizli</monospace>
+  (<xref alt="Brammer, 2024" rid="ref-Brammer_grizli" ref-type="bibr">Brammer,
+  2024</xref>) returning drizzled standard empirical PSFs, but, similar
+  to the drizzled PSFs computed by <monospace>DrizzlePac</monospace>,
+  such solutions leave little room for users to define the method or
+  specifics of model PSF generation. The code presented here,
+  <monospace>spike</monospace>, streamlines the potentially challenging
+  process of realistic PSF generation, taking images and coordinates and
+  directly outputting correctly co-added model PSFs for the
+  <italic>Hubble Space Telescope</italic> (<italic>HST</italic>), the
+  <italic>James Webb Space Telescope</italic> (<italic>JWST</italic>),
+  and the upcoming Nancy Grace Roman Space Telescope. Model PSFs can be
+  generated using different industry-standard packages, empirical PSFs
+  can be computed from input images, or users can provide PSFs
+  associated with the individual images. <monospace>spike</monospace> is
+  both easy to use and flexible.</p>
+</sec>
+<sec id="workflow">
+  <title>Workflow</title>
+  <p>Given a directory containing reduced and calibrated, but not yet
+  co-added, FITS files from <italic>HST</italic>, <italic>JWST</italic>,
+  or Roman and the coordinates of an object of interest,
+  detector/chip-specifc model PSFs are directly “drizzled” by
+  <monospace>spike</monospace>. A model PSF is generated for each unique
+  input image and coordinate combination. Instrument information,
+  including camera, filter, and, if necessary, chip, is automatically
+  read from the header of each FITS file.</p>
+  <fig>
+    <caption><p>Comparison of drizzled PSFs generated for
+    <italic>HST</italic> images using the default parameters for
+    different methods included in <monospace>spike</monospace>. All
+    panels use the same ACS/WFC imaging of the COSMOS field in F475W.
+    The stretch of each model’s colormap is chosen based on their
+    individual hnadling of the background, wings, and faint features of
+    the PSF. Note that the ePSF panel (second from right) shows some
+    artifacts; the robustness of the effective PSF method is heavily
+    dependent on the number of stars in the chosen field and may be
+    changed by altering the star detection threshold.
+    <styled-content id="figU003Ahstcomparison"></styled-content></p></caption>
+    <graphic mimetype="image" mime-subtype="png" xlink:href="spike_psf_hstcompare.png" />
+  </fig>
+  <p><monospace>spike</monospace> works with both model and empirical
+  PSFs. The built-in PSF generation options are
+  <monospace>TinyTim</monospace>
+  (<xref alt="Krist et al., 2011" rid="ref-Krist.etal.2011" ref-type="bibr">Krist
+  et al., 2011</xref>) and the Gillis et al.
+  (<xref alt="2020" rid="ref-Gillis.etal.2020" ref-type="bibr">2020</xref>)
+  modification, <monospace>STPSF</monospace> – formerly
+  <monospace>WebbPSF</monospace>
+  (<xref alt="M. Perrin et al., 2024" rid="ref-Perrin_WebbPSF" ref-type="bibr">M.
+  Perrin et al., 2024</xref>,
+  <xref alt="2025" rid="ref-Perrin_STPSF" ref-type="bibr">2025</xref>;
+  <xref alt="M. D. Perrin et al., 2012" rid="ref-Perrin.etal.2012" ref-type="bibr">M.
+  D. Perrin et al., 2012</xref>,
+  <xref alt="2014" rid="ref-Perrin.etal.2014" ref-type="bibr">2014</xref>),
+  <monospace>photutils</monospace> ePSFs
+  (<xref alt="Anderson, 2016" rid="ref-Anderson.2016" ref-type="bibr">Anderson,
+  2016</xref>;
+  <xref alt="Anderson &amp; King, 2000" rid="ref-Anderson.King.2000" ref-type="bibr">Anderson
+  &amp; King, 2000</xref>;
+  <xref alt="Bradley et al., 2024" rid="ref-Bradley.etal" ref-type="bibr">Bradley
+  et al., 2024</xref>), <monospace>PSFEx</monospace>
+  (<xref alt="Bertin, 2011" rid="ref-Bertin.2011" ref-type="bibr">Bertin,
+  2011</xref>), and Space Telescope Science Institute’s library of
+  empirical STDPSFs <xref ref-type="fn" rid="fn2">2</xref>
+  (<xref alt="Anderson, 2016" rid="ref-Anderson.2016" ref-type="bibr">Anderson,
+  2016</xref>;
+  <xref alt="Libralato et al., 2023" rid="ref-Libralato.etal.2023" ref-type="bibr">Libralato
+  et al., 2023</xref>,
+  <xref alt="2024" rid="ref-Libralato.etal.2024" ref-type="bibr">2024</xref>),
+  all of which are included for having the ability to generate a model
+  PSF for an arbitrary detector location.
+  <xref alt="[fig:hstcomparison]" rid="figU003Ahstcomparison">[fig:hstcomparison]</xref>
+  compares output drizzled PSFs from the different methods for
+  <italic>HST</italic> and
+  <xref alt="[fig:jwstcomparison]" rid="figU003Ajwstcomparison">[fig:jwstcomparison]</xref>
+  compares output drizzled PSFs for <italic>JWST</italic>.</p>
+  <fig>
+    <caption><p>Same as
+    <xref alt="[fig:hstcomparison]" rid="figU003Ahstcomparison">[fig:hstcomparison]</xref>
+    for <italic>JWST</italic>/NIRCam imaging in F115W. Note that the
+    ePSF model shown here was generated using a lower detection
+    threshold and a different star selection algorithm due to a paucity
+    of stars in this field.
+    <styled-content id="figU003Ajwstcomparison"></styled-content></p></caption>
+    <graphic mimetype="image" mime-subtype="png" xlink:href="spike_psf_jwstcompare.png" />
+  </fig>
+  <p>In most cases, users will only ever interact with the top-level
+  functions <monospace>spike.psf.hst</monospace>,
+  <monospace>spike.psf.jwst</monospace>, and
+  <monospace>spike.psf.roman</monospace>. However, PSF model creation
+  can be accessed directly via the functions in
+  <monospace>spike.psfgen</monospace>, and this may be of added value to
+  users on its own, including for use with telescopes/instruments not
+  explicitly mentioned here, as <monospace>spike</monospace> smoothes
+  over some of the complication of individual tools as an all-in-one
+  means of accessing model PSFs via simple Python functions.</p>
+</sec>
+<sec id="preparation-for-future-observatories">
+  <title>Preparation for Future Observatories</title>
+  <p>There is a preliminary module included in
+  <monospace>spike</monospace> for recovering resampled Roman PSFs.
+  <monospace>spike.psf.roman</monospace> currently takes as input single
+  detector images, which can be used with <monospace>STPSF</monospace>
+  models via <monospace>spike.psfgen</monospace>. Since Roman is not yet
+  collecting data, <monospace>spike.psf.roman</monospace> is based on
+  the structure of simulated single detector data from e.g., Troxel et
+  al.
+  (<xref alt="2023" rid="ref-Troxel.etal.2023" ref-type="bibr">2023</xref>).
+  When Roman is launched and data become available,
+  <monospace>spike</monospace> will be updated to reflect the most
+  current version of the reduction pipeline and the detailed
+  considerations of the real data.</p>
+</sec>
+<sec id="managing-restrictive-dependencies">
+  <title>Managing Restrictive Dependencies</title>
+  <p>Since drizzled <monospace>spike</monospace> PSFs are intended for
+  use with calibrated and resampled data products from the original
+  pipelines, it is imperative that the processing done on the PSFs is
+  the same as the processing of those data products. Both
+  <monospace>jwst</monospace>
+  (<xref alt="Bushouse et al., 2024" rid="ref-Bushouse.etal.2024" ref-type="bibr">Bushouse
+  et al., 2024</xref>) and <monospace>romancal</monospace>
+  (<xref alt="Roman calibration pipeline developers, 2024" rid="ref-romancal" ref-type="bibr">Roman
+  calibration pipeline developers, 2024</xref>) are complex packages
+  that house the entire <italic>JWST</italic> and Roman pipelines. As
+  such, they have complicated functionality that relies on modules with
+  more stringent installation requirements. Using
+  <monospace>jwst</monospace> and <monospace>romancal</monospace> out of
+  the box places strict limitations on the allowed operating systems. To
+  address this, there are stripped down versions of the necessary
+  “tweak” and resample scripts included with
+  <monospace>spike</monospace> as <monospace>spike.jwstcal</monospace>,
+  <monospace>spike.romancal</monospace>,
+  <monospace>spike.stcal</monospace>, and
+  <monospace>spike.stpipe</monospace>. Each module is only subtly
+  changed from <monospace>jwst</monospace>,
+  <monospace>romancal</monospace>, and their underlying
+  <monospace>STCAL</monospace>
+  (<xref alt="STScI, 2024b" rid="ref-stcal" ref-type="bibr">STScI,
+  2024b</xref>) and <monospace>stpipe</monospace>
+  (<xref alt="STScI, 2024d" rid="ref-stpipe" ref-type="bibr">STScI,
+  2024d</xref>) to avoid unnecessary dependencies that restrict
+  installation.</p>
+</sec>
+<sec id="software-and-packages-used">
+  <title>Software and Packages Used</title>
+  <list list-type="bullet">
+    <list-item>
+      <p><monospace>asdf</monospace>
+      (<xref alt="Graham et al., 2024" rid="ref-graham.etal" ref-type="bibr">Graham
+      et al., 2024</xref>)</p>
+    </list-item>
+    <list-item>
+      <p><monospace>astropy</monospace>
+      (<xref alt="Astropy Collaboration et al., 2013" rid="ref-AstropyCollaboration.2013" ref-type="bibr">Astropy
+      Collaboration et al., 2013</xref>,
+      <xref alt="2018" rid="ref-AstropyCollaboration.2018" ref-type="bibr">2018</xref>,
+      <xref alt="2022" rid="ref-AstropyCollaboration.2022" ref-type="bibr">2022</xref>)</p>
+    </list-item>
+    <list-item>
+      <p><monospace>crds</monospace>
+      (<xref alt="STScI CRDS s/w developers, 2024" rid="ref-crds" ref-type="bibr">STScI
+      CRDS s/w developers, 2024</xref>)</p>
+    </list-item>
+    <list-item>
+      <p><monospace>drizzle</monospace>
+      (<xref alt="Simon, Robitaille, Cara, et al., 2024" rid="ref-Simon.etal.2024" ref-type="bibr">Simon,
+      Robitaille, Cara, et al., 2024</xref>)</p>
+    </list-item>
+    <list-item>
+      <p><monospace>drizzlepac</monospace>
+      (<xref alt="Hoffmann et al., 2021" rid="ref-Hoffmann.etal.2021" ref-type="bibr">Hoffmann
+      et al., 2021</xref>)</p>
+    </list-item>
+    <list-item>
+      <p><monospace>gwcs</monospace>
+      (<xref alt="Dencheva et al., 2024" rid="ref-Dencheva.etal" ref-type="bibr">Dencheva
+      et al., 2024</xref>)</p>
+    </list-item>
+    <list-item>
+      <p><monospace>jsonschema</monospace>
+      (<xref alt="Berman et al., 2024" rid="ref-jsonschema" ref-type="bibr">Berman
+      et al., 2024</xref>)</p>
+    </list-item>
+    <list-item>
+      <p><monospace>jwst</monospace>
+      (<xref alt="Bushouse et al., 2024" rid="ref-Bushouse.etal.2024" ref-type="bibr">Bushouse
+      et al., 2024</xref>)</p>
+    </list-item>
+    <list-item>
+      <p><monospace>matplotlib</monospace>
+      (<xref alt="Hunter, 2007" rid="ref-Hunter.2007" ref-type="bibr">Hunter,
+      2007</xref>)</p>
+    </list-item>
+    <list-item>
+      <p><monospace>numpy</monospace>
+      (<xref alt="Harris et al., 2020" rid="ref-harris2020array" ref-type="bibr">Harris
+      et al., 2020</xref>)</p>
+    </list-item>
+    <list-item>
+      <p><monospace>photutils</monospace>
+      (<xref alt="Bradley et al., 2024" rid="ref-Bradley.etal" ref-type="bibr">Bradley
+      et al., 2024</xref>)</p>
+    </list-item>
+    <list-item>
+      <p><monospace>PSFEx</monospace>
+      (<xref alt="Bertin, 2011" rid="ref-Bertin.2011" ref-type="bibr">Bertin,
+      2011</xref>)</p>
+    </list-item>
+    <list-item>
+      <p><monospace>psutil</monospace>
+      (<xref alt="Rodola, 2024" rid="ref-psutil" ref-type="bibr">Rodola,
+      2024</xref>)</p>
+    </list-item>
+    <list-item>
+      <p><monospace>PyYAML</monospace>
+      (<xref alt="Simonov, 2024" rid="ref-pyyaml" ref-type="bibr">Simonov,
+      2024</xref>)</p>
+    </list-item>
+    <list-item>
+      <p><monospace>roman_datamodels</monospace>
+      (<xref alt="STScI, 2024a" rid="ref-roman_datamodels" ref-type="bibr">STScI,
+      2024a</xref>)</p>
+    </list-item>
+    <list-item>
+      <p><monospace>romancal</monospace>
+      (<xref alt="Roman calibration pipeline developers, 2024" rid="ref-romancal" ref-type="bibr">Roman
+      calibration pipeline developers, 2024</xref>)</p>
+    </list-item>
+    <list-item>
+      <p><monospace>scipy</monospace>
+      (<xref alt="Virtanen et al., 2020" rid="ref-2020SciPy-NMeth" ref-type="bibr">Virtanen
+      et al., 2020</xref>)</p>
+    </list-item>
+    <list-item>
+      <p><monospace>SExtractor</monospace>
+      (<xref alt="Bertin &amp; Arnouts, 1996" rid="ref-Bertin.Arnouts.1996" ref-type="bibr">Bertin
+      &amp; Arnouts, 1996</xref>)</p>
+    </list-item>
+    <list-item>
+      <p><monospace>spherical_geometry</monospace>
+      (<xref alt="Simon, Robitaille, Droettboom, et al., 2024" rid="ref-spherical_geometry" ref-type="bibr">Simon,
+      Robitaille, Droettboom, et al., 2024</xref>)</p>
+    </list-item>
+    <list-item>
+      <p><monospace>STCAL</monospace>
+      (<xref alt="STScI, 2024b" rid="ref-stcal" ref-type="bibr">STScI,
+      2024b</xref>)</p>
+    </list-item>
+    <list-item>
+      <p><monospace>stdatamodels</monospace>
+      (<xref alt="STScI, 2024c" rid="ref-stdatamodels" ref-type="bibr">STScI,
+      2024c</xref>)</p>
+    </list-item>
+    <list-item>
+      <p><monospace>stpipe</monospace>
+      (<xref alt="STScI, 2024d" rid="ref-stpipe" ref-type="bibr">STScI,
+      2024d</xref>)</p>
+    </list-item>
+    <list-item>
+      <p><monospace>TinyTim</monospace>
+      (<xref alt="Krist et al., 2011" rid="ref-Krist.etal.2011" ref-type="bibr">Krist
+      et al., 2011</xref>) – including the option to use the Gillis et
+      al.
+      (<xref alt="2020" rid="ref-Gillis.etal.2020" ref-type="bibr">2020</xref>)
+      parameters</p>
+    </list-item>
+    <list-item>
+      <p><monospace>tweakwcs</monospace>
+      (<xref alt="Cara et al., 2024" rid="ref-cara.etal" ref-type="bibr">Cara
+      et al., 2024</xref>)</p>
+    </list-item>
+    <list-item>
+      <p><monospace>STPSF</monospace>
+      (<xref alt="M. Perrin et al., 2025" rid="ref-Perrin_STPSF" ref-type="bibr">M.
+      Perrin et al., 2025</xref>), formerly
+      <monospace>WebbPSF</monospace>
+      (<xref alt="M. Perrin et al., 2024" rid="ref-Perrin_WebbPSF" ref-type="bibr">M.
+      Perrin et al., 2024</xref>;
+      <xref alt="M. D. Perrin et al., 2012" rid="ref-Perrin.etal.2012" ref-type="bibr">M.
+      D. Perrin et al., 2012</xref>,
+      <xref alt="2014" rid="ref-Perrin.etal.2014" ref-type="bibr">2014</xref>)</p>
+    </list-item>
+  </list>
+</sec>
+<sec id="acknowledgments">
+  <title>Acknowledgments</title>
+  <p>AP is supported by the Quad Fellowship administered by IIE and
+  thanks Hsiao-Wen Chen and Juan Guerra for their comments. AP also
+  thanks the reviewers for their suggestions, which improved the
+  manuscript and codebase. This work makes use of observations made with
+  the NASA/ESA Hubble Space Telescope and the NASA/ESA/CSA James Webb
+  Space Telescope obtained from the Mikulski Archive for Space
+  Telescopes at the Space Telescope Science Institute, which is operated
+  by the Association of Universities for Research in Astronomy, Inc.,
+  under NASA contracts NAS 5–26555 for HST and NAS 5-03127 for JWST.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <title></title>
+  <ref id="ref-DrizzlePac3.3.0">
+    <element-citation publication-type="software">
+      <person-group person-group-type="author">
+        <name><surname>Hack</surname><given-names>Warren J.</given-names></name>
+        <name><surname>Cara</surname><given-names>Mihai</given-names></name>
+        <name><surname>Sosey</surname><given-names>Megan</given-names></name>
+        <name><surname>mdlpstsci</surname></name>
+        <name><surname>Dulude</surname><given-names>Michael</given-names></name>
+        <name><surname>Chris</surname></name>
+        <name><surname>Hunkeler</surname><given-names>Joseph</given-names></name>
+        <name><surname>Dencheva</surname><given-names>Nadia</given-names></name>
+        <name><surname>astropy-buildbot</surname></name>
+        <name><surname>kevinlindsay</surname></name>
+        <name><surname>Sienkiewicz</surname><given-names>Mark</given-names></name>
+        <name><surname>Bray</surname><given-names>E. M.</given-names></name>
+        <name><surname>Simon</surname><given-names>Bernie</given-names></name>
+        <name><surname>Lim</surname><given-names>P. L.</given-names></name>
+        <name><surname>Rendina</surname><given-names>Matt</given-names></name>
+        <name><surname>Hanley</surname><given-names>Christopher</given-names></name>
+        <name><surname>Bradley</surname><given-names>Larry</given-names></name>
+        <name><surname>D’Avella</surname><given-names>Dan</given-names></name>
+        <name><surname>Neuheisel</surname><given-names>Joshua</given-names></name>
+        <name><surname>Rodney</surname><given-names>Steve</given-names></name>
+        <name><surname>system</surname><given-names>STSCI SSB Continuous Integration</given-names></name>
+      </person-group>
+      <article-title>Spacetelescope/drizzlepac: Drizzlepac v3.3.0</article-title>
+      <publisher-name>Zenodo</publisher-name>
+      <year iso-8601-date="2021-09">2021</year><month>09</month>
+      <uri>https://doi.org/10.5281/zenodo.5426649</uri>
+      <pub-id pub-id-type="doi">10.5281/zenodo.5426649</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-Mandelbaum.etal.2023">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Mandelbaum</surname><given-names>Rachel</given-names></name>
+        <name><surname>Jarvis</surname><given-names>Mike</given-names></name>
+        <name><surname>Lupton</surname><given-names>Robert H.</given-names></name>
+        <name><surname>Bosch</surname><given-names>James</given-names></name>
+        <name><surname>Kannawadi</surname><given-names>Arun</given-names></name>
+        <name><surname>Murphy</surname><given-names>Michael D.</given-names></name>
+        <name><surname>Zhang</surname><given-names>Tianqing</given-names></name>
+        <string-name>the LSST Dark Energy Science Collaboration</string-name>
+      </person-group>
+      <article-title>PSFs of coadded images</article-title>
+      <source>Open Journal of Astrophysics</source>
+      <year iso-8601-date="2023-02">2023</year><month>02</month>
+      <volume>6</volume>
+      <uri>https://arxiv.org/abs/2209.09253</uri>
+      <pub-id pub-id-type="doi">10.21105/astro.2209.09253</pub-id>
+      <fpage>arXiv:2209.09253</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Krist.etal.2011">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Krist</surname><given-names>John E.</given-names></name>
+        <name><surname>Hook</surname><given-names>Richard N.</given-names></name>
+        <name><surname>Stoehr</surname><given-names>Felix</given-names></name>
+      </person-group>
+      <article-title>20 years of Hubble Space Telescope optical modeling using Tiny Tim</article-title>
+      <source>Optical modeling and performance predictions v</source>
+      <person-group person-group-type="editor">
+        <name><surname>Kahan</surname><given-names>Mark A.</given-names></name>
+      </person-group>
+      <year iso-8601-date="2011-10">2011</year><month>10</month>
+      <volume>8127</volume>
+      <pub-id pub-id-type="doi">10.1117/12.892762</pub-id>
+      <fpage>81270J</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Perrin.etal.2012">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Perrin</surname><given-names>Marshall D.</given-names></name>
+        <name><surname>Soummer</surname><given-names>Rémi</given-names></name>
+        <name><surname>Elliott</surname><given-names>Erin M.</given-names></name>
+        <name><surname>Lallo</surname><given-names>Matthew D.</given-names></name>
+        <name><surname>Sivaramakrishnan</surname><given-names>Anand</given-names></name>
+      </person-group>
+      <article-title>Simulating point spread functions for the James Webb Space Telescope with WebbPSF</article-title>
+      <source>Space telescopes and instrumentation 2012: Optical, infrared, and millimeter wave</source>
+      <person-group person-group-type="editor">
+        <name><surname>Clampin</surname><given-names>Mark C.</given-names></name>
+        <name><surname>Fazio</surname><given-names>Giovanni G.</given-names></name>
+        <name><surname>MacEwen</surname><given-names>Howard A.</given-names></name>
+        <name><surname>Oschmann</surname><given-names>Jr.</given-names><suffix>Jacobus M.</suffix></name>
+      </person-group>
+      <year iso-8601-date="2012-09">2012</year><month>09</month>
+      <volume>8442</volume>
+      <pub-id pub-id-type="doi">10.1117/12.925230</pub-id>
+      <fpage>84423D</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Perrin.etal.2014">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Perrin</surname><given-names>Marshall D.</given-names></name>
+        <name><surname>Sivaramakrishnan</surname><given-names>Anand</given-names></name>
+        <name><surname>Lajoie</surname><given-names>Charles-Philippe</given-names></name>
+        <name><surname>Elliott</surname><given-names>Erin</given-names></name>
+        <name><surname>Pueyo</surname><given-names>Laurent</given-names></name>
+        <name><surname>Ravindranath</surname><given-names>Swara</given-names></name>
+        <name><surname>Albert</surname><given-names>Loı̈c.</given-names></name>
+      </person-group>
+      <article-title>Updated point spread function simulations for JWST with WebbPSF</article-title>
+      <source>Space telescopes and instrumentation 2014: Optical, infrared, and millimeter wave</source>
+      <person-group person-group-type="editor">
+        <name><surname>Oschmann</surname><given-names>Jr.</given-names><suffix>Jacobus M.</suffix></name>
+        <name><surname>Clampin</surname><given-names>Mark</given-names></name>
+        <name><surname>Fazio</surname><given-names>Giovanni G.</given-names></name>
+        <name><surname>MacEwen</surname><given-names>Howard A.</given-names></name>
+      </person-group>
+      <year iso-8601-date="2014-08">2014</year><month>08</month>
+      <volume>9143</volume>
+      <pub-id pub-id-type="doi">10.1117/12.2056689</pub-id>
+      <fpage>91433X</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Perrin_WebbPSF">
+    <element-citation publication-type="software">
+      <person-group person-group-type="author">
+        <name><surname>Perrin</surname><given-names>Marshall</given-names></name>
+        <name><surname>Melendez</surname><given-names>Marcio</given-names></name>
+        <name><surname>Osborne</surname><given-names>Shannon</given-names></name>
+        <name><surname>Geda</surname><given-names>Robel</given-names></name>
+        <name><surname>Sappington</surname><given-names>Bradley</given-names></name>
+        <name><surname>Lajoie</surname><given-names>Charles-Philippe</given-names></name>
+        <name><surname>Long</surname><given-names>Joseph</given-names></name>
+        <name><surname>Otor</surname><given-names>O. Justin</given-names></name>
+      </person-group>
+      <article-title>WebbPSF</article-title>
+      <year iso-8601-date="2024">2024</year>
+      <uri>https://github.com/spacetelescope/webbpsf</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-Gillis.etal.2020">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Gillis</surname><given-names>Bryan R.</given-names></name>
+        <name><surname>Schrabback</surname><given-names>Tim</given-names></name>
+        <name><surname>Marggraf</surname><given-names>Ole</given-names></name>
+        <name><surname>Mandelbaum</surname><given-names>Rachel</given-names></name>
+        <name><surname>Massey</surname><given-names>Richard</given-names></name>
+        <name><surname>Rhodes</surname><given-names>Jason</given-names></name>
+        <name><surname>Taylor</surname><given-names>Andy</given-names></name>
+      </person-group>
+      <article-title>Validation of PSF models for HST and other space-based observations</article-title>
+      <source>Monthly Notices of the Royal Astronomical Society</source>
+      <year iso-8601-date="2020-08">2020</year><month>08</month>
+      <volume>496</volume>
+      <issue>4</issue>
+      <uri>https://arxiv.org/abs/2006.14703</uri>
+      <pub-id pub-id-type="doi">10.1093/mnras/staa1818</pub-id>
+      <fpage>5017</fpage>
+      <lpage>5038</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Hoffmann.etal.2021">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Hoffmann</surname><given-names>S. L.</given-names></name>
+        <name><surname>Mack</surname><given-names>J.</given-names></name>
+        <name><surname>Avila</surname><given-names>R.</given-names></name>
+        <name><surname>Martlin</surname><given-names>C.</given-names></name>
+        <name><surname>Cohen</surname><given-names>Y.</given-names></name>
+        <name><surname>Bajaj</surname><given-names>V.</given-names></name>
+      </person-group>
+      <article-title>New Drizzlepac Handbook Version 2.0 Released In Hdox: Updated Documentation For HST Image Analysis</article-title>
+      <source>American astronomical society meeting abstracts</source>
+      <year iso-8601-date="2021-06">2021</year><month>06</month>
+      <volume>53</volume>
+      <fpage>216.02</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-AstropyCollaboration.2022">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <string-name>Astropy Collaboration</string-name>
+        <name><surname>Price-Whelan</surname><given-names>Adrian M.</given-names></name>
+        <name><surname>Lim</surname><given-names>Pey Lian</given-names></name>
+        <name><surname>Earl</surname><given-names>Nicholas</given-names></name>
+        <name><surname>Starkman</surname><given-names>Nathaniel</given-names></name>
+        <name><surname>Bradley</surname><given-names>Larry</given-names></name>
+        <name><surname>Shupe</surname><given-names>David L.</given-names></name>
+        <name><surname>Patil</surname><given-names>Aarya A.</given-names></name>
+        <name><surname>Corrales</surname><given-names>Lia</given-names></name>
+        <name><surname>Brasseur</surname><given-names>C. E.</given-names></name>
+        <name><surname>Nöthe</surname><given-names>Maximilian</given-names></name>
+        <name><surname>Donath</surname><given-names>Axel</given-names></name>
+        <name><surname>Tollerud</surname><given-names>Erik</given-names></name>
+        <name><surname>Morris</surname><given-names>Brett M.</given-names></name>
+        <name><surname>Ginsburg</surname><given-names>Adam</given-names></name>
+        <name><surname>Vaher</surname><given-names>Eero</given-names></name>
+        <name><surname>Weaver</surname><given-names>Benjamin A.</given-names></name>
+        <name><surname>Tocknell</surname><given-names>James</given-names></name>
+        <name><surname>Jamieson</surname><given-names>William</given-names></name>
+        <name><surname>van Kerkwijk</surname><given-names>Marten H.</given-names></name>
+        <name><surname>Robitaille</surname><given-names>Thomas P.</given-names></name>
+        <name><surname>Merry</surname><given-names>Bruce</given-names></name>
+        <name><surname>Bachetti</surname><given-names>Matteo</given-names></name>
+        <name><surname>Günther</surname><given-names>H. Moritz</given-names></name>
+        <name><surname>Aldcroft</surname><given-names>Thomas L.</given-names></name>
+        <name><surname>Alvarado-Montes</surname><given-names>Jaime A.</given-names></name>
+        <name><surname>Archibald</surname><given-names>Anne M.</given-names></name>
+        <name><surname>Bódi</surname><given-names>Attila</given-names></name>
+        <name><surname>Bapat</surname><given-names>Shreyas</given-names></name>
+        <name><surname>Barentsen</surname><given-names>Geert</given-names></name>
+        <name><surname>Bazán</surname><given-names>Juanjo</given-names></name>
+        <name><surname>Biswas</surname><given-names>Manish</given-names></name>
+        <name><surname>Boquien</surname><given-names>Médéric</given-names></name>
+        <name><surname>Burke</surname><given-names>D. J.</given-names></name>
+        <name><surname>Cara</surname><given-names>Daria</given-names></name>
+        <name><surname>Cara</surname><given-names>Mihai</given-names></name>
+        <name><surname>Conroy</surname><given-names>Kyle E.</given-names></name>
+        <name><surname>Conseil</surname><given-names>Simon</given-names></name>
+        <name><surname>Craig</surname><given-names>Matthew W.</given-names></name>
+        <name><surname>Cross</surname><given-names>Robert M.</given-names></name>
+        <name><surname>Cruz</surname><given-names>Kelle L.</given-names></name>
+        <name><surname>D’Eugenio</surname><given-names>Francesco</given-names></name>
+        <name><surname>Dencheva</surname><given-names>Nadia</given-names></name>
+        <name><surname>Devillepoix</surname><given-names>Hadrien A. R.</given-names></name>
+        <name><surname>Dietrich</surname><given-names>Jörg P.</given-names></name>
+        <name><surname>Eigenbrot</surname><given-names>Arthur Davis</given-names></name>
+        <name><surname>Erben</surname><given-names>Thomas</given-names></name>
+        <name><surname>Ferreira</surname><given-names>Leonardo</given-names></name>
+        <name><surname>Foreman-Mackey</surname><given-names>Daniel</given-names></name>
+        <name><surname>Fox</surname><given-names>Ryan</given-names></name>
+        <name><surname>Freij</surname><given-names>Nabil</given-names></name>
+        <name><surname>Garg</surname><given-names>Suyog</given-names></name>
+        <name><surname>Geda</surname><given-names>Robel</given-names></name>
+        <name><surname>Glattly</surname><given-names>Lauren</given-names></name>
+        <name><surname>Gondhalekar</surname><given-names>Yash</given-names></name>
+        <name><surname>Gordon</surname><given-names>Karl D.</given-names></name>
+        <name><surname>Grant</surname><given-names>David</given-names></name>
+        <name><surname>Greenfield</surname><given-names>Perry</given-names></name>
+        <name><surname>Groener</surname><given-names>Austen M.</given-names></name>
+        <name><surname>Guest</surname><given-names>Steve</given-names></name>
+        <name><surname>Gurovich</surname><given-names>Sebastian</given-names></name>
+        <name><surname>Handberg</surname><given-names>Rasmus</given-names></name>
+        <name><surname>Hart</surname><given-names>Akeem</given-names></name>
+        <name><surname>Hatfield-Dodds</surname><given-names>Zac</given-names></name>
+        <name><surname>Homeier</surname><given-names>Derek</given-names></name>
+        <name><surname>Hosseinzadeh</surname><given-names>Griffin</given-names></name>
+        <name><surname>Jenness</surname><given-names>Tim</given-names></name>
+        <name><surname>Jones</surname><given-names>Craig K.</given-names></name>
+        <name><surname>Joseph</surname><given-names>Prajwel</given-names></name>
+        <name><surname>Kalmbach</surname><given-names>J. Bryce</given-names></name>
+        <name><surname>Karamehmetoglu</surname><given-names>Emir</given-names></name>
+        <name><surname>Kałuszyński</surname><given-names>Mikołaj</given-names></name>
+        <name><surname>Kelley</surname><given-names>Michael S. P.</given-names></name>
+        <name><surname>Kern</surname><given-names>Nicholas</given-names></name>
+        <name><surname>Kerzendorf</surname><given-names>Wolfgang E.</given-names></name>
+        <name><surname>Koch</surname><given-names>Eric W.</given-names></name>
+        <name><surname>Kulumani</surname><given-names>Shankar</given-names></name>
+        <name><surname>Lee</surname><given-names>Antony</given-names></name>
+        <name><surname>Ly</surname><given-names>Chun</given-names></name>
+        <name><surname>Ma</surname><given-names>Zhiyuan</given-names></name>
+        <name><surname>MacBride</surname><given-names>Conor</given-names></name>
+        <name><surname>Maljaars</surname><given-names>Jakob M.</given-names></name>
+        <name><surname>Muna</surname><given-names>Demitri</given-names></name>
+        <name><surname>Murphy</surname><given-names>N. A.</given-names></name>
+        <name><surname>Norman</surname><given-names>Henrik</given-names></name>
+        <name><surname>O’Steen</surname><given-names>Richard</given-names></name>
+        <name><surname>Oman</surname><given-names>Kyle A.</given-names></name>
+        <name><surname>Pacifici</surname><given-names>Camilla</given-names></name>
+        <name><surname>Pascual</surname><given-names>Sergio</given-names></name>
+        <name><surname>Pascual-Granado</surname><given-names>J.</given-names></name>
+        <name><surname>Patil</surname><given-names>Rohit R.</given-names></name>
+        <name><surname>Perren</surname><given-names>Gabriel I.</given-names></name>
+        <name><surname>Pickering</surname><given-names>Timothy E.</given-names></name>
+        <name><surname>Rastogi</surname><given-names>Tanuj</given-names></name>
+        <name><surname>Roulston</surname><given-names>Benjamin R.</given-names></name>
+        <name><surname>Ryan</surname><given-names>Daniel F.</given-names></name>
+        <name><surname>Rykoff</surname><given-names>Eli S.</given-names></name>
+        <name><surname>Sabater</surname><given-names>Jose</given-names></name>
+        <name><surname>Sakurikar</surname><given-names>Parikshit</given-names></name>
+        <name><surname>Salgado</surname><given-names>Jesús</given-names></name>
+        <name><surname>Sanghi</surname><given-names>Aniket</given-names></name>
+        <name><surname>Saunders</surname><given-names>Nicholas</given-names></name>
+        <name><surname>Savchenko</surname><given-names>Volodymyr</given-names></name>
+        <name><surname>Schwardt</surname><given-names>Ludwig</given-names></name>
+        <name><surname>Seifert-Eckert</surname><given-names>Michael</given-names></name>
+        <name><surname>Shih</surname><given-names>Albert Y.</given-names></name>
+        <name><surname>Jain</surname><given-names>Anany Shrey</given-names></name>
+        <name><surname>Shukla</surname><given-names>Gyanendra</given-names></name>
+        <name><surname>Sick</surname><given-names>Jonathan</given-names></name>
+        <name><surname>Simpson</surname><given-names>Chris</given-names></name>
+        <name><surname>Singanamalla</surname><given-names>Sudheesh</given-names></name>
+        <name><surname>Singer</surname><given-names>Leo P.</given-names></name>
+        <name><surname>Singhal</surname><given-names>Jaladh</given-names></name>
+        <name><surname>Sinha</surname><given-names>Manodeep</given-names></name>
+        <name><surname>Sipőcz</surname><given-names>Brigitta M.</given-names></name>
+        <name><surname>Spitler</surname><given-names>Lee R.</given-names></name>
+        <name><surname>Stansby</surname><given-names>David</given-names></name>
+        <name><surname>Streicher</surname><given-names>Ole</given-names></name>
+        <name><surname>Šumak</surname><given-names>Jani</given-names></name>
+        <name><surname>Swinbank</surname><given-names>John D.</given-names></name>
+        <name><surname>Taranu</surname><given-names>Dan S.</given-names></name>
+        <name><surname>Tewary</surname><given-names>Nikita</given-names></name>
+        <name><surname>Tremblay</surname><given-names>Grant R.</given-names></name>
+        <name><surname>de Val-Borro</surname><given-names>Miguel</given-names></name>
+        <name><surname>Van Kooten</surname><given-names>Samuel J.</given-names></name>
+        <name><surname>Vasović</surname><given-names>Zlatan</given-names></name>
+        <name><surname>Verma</surname><given-names>Shresth</given-names></name>
+        <name><surname>de Miranda Cardoso</surname><given-names>José Vinı́cius</given-names></name>
+        <name><surname>Williams</surname><given-names>Peter K. G.</given-names></name>
+        <name><surname>Wilson</surname><given-names>Tom J.</given-names></name>
+        <name><surname>Winkel</surname><given-names>Benjamin</given-names></name>
+        <name><surname>Wood-Vasey</surname><given-names>W. M.</given-names></name>
+        <name><surname>Xue</surname><given-names>Rui</given-names></name>
+        <name><surname>Yoachim</surname><given-names>Peter</given-names></name>
+        <name><surname>Zhang</surname><given-names>Chen</given-names></name>
+        <name><surname>Zonca</surname><given-names>Andrea</given-names></name>
+        <string-name>Astropy Project Contributors</string-name>
+      </person-group>
+      <article-title>The Astropy Project: Sustaining and Growing a Community-oriented Open-source Project and the Latest Major Release (v5.0) of the Core Package</article-title>
+      <source>The Astrophysical Journal</source>
+      <year iso-8601-date="2022-08">2022</year><month>08</month>
+      <volume>935</volume>
+      <issue>2</issue>
+      <uri>https://arxiv.org/abs/2206.14220</uri>
+      <pub-id pub-id-type="doi">10.3847/1538-4357/ac7c74</pub-id>
+      <fpage>167</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-AstropyCollaboration.2018">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <string-name>Astropy Collaboration</string-name>
+        <name><surname>Price-Whelan</surname><given-names>A. M.</given-names></name>
+        <name><surname>Sipőcz</surname><given-names>B. M.</given-names></name>
+        <name><surname>Günther</surname><given-names>H. M.</given-names></name>
+        <name><surname>Lim</surname><given-names>P. L.</given-names></name>
+        <name><surname>Crawford</surname><given-names>S. M.</given-names></name>
+        <name><surname>Conseil</surname><given-names>S.</given-names></name>
+        <name><surname>Shupe</surname><given-names>D. L.</given-names></name>
+        <name><surname>Craig</surname><given-names>M. W.</given-names></name>
+        <name><surname>Dencheva</surname><given-names>N.</given-names></name>
+        <name><surname>Ginsburg</surname><given-names>A.</given-names></name>
+        <name><surname>VanderPlas</surname><given-names>J. T.</given-names></name>
+        <name><surname>Bradley</surname><given-names>L. D.</given-names></name>
+        <name><surname>Pérez-Suárez</surname><given-names>D.</given-names></name>
+        <name><surname>de Val-Borro</surname><given-names>M.</given-names></name>
+        <name><surname>Aldcroft</surname><given-names>T. L.</given-names></name>
+        <name><surname>Cruz</surname><given-names>K. L.</given-names></name>
+        <name><surname>Robitaille</surname><given-names>T. P.</given-names></name>
+        <name><surname>Tollerud</surname><given-names>E. J.</given-names></name>
+        <name><surname>Ardelean</surname><given-names>C.</given-names></name>
+        <name><surname>Babej</surname><given-names>T.</given-names></name>
+        <name><surname>Bach</surname><given-names>Y. P.</given-names></name>
+        <name><surname>Bachetti</surname><given-names>M.</given-names></name>
+        <name><surname>Bakanov</surname><given-names>A. V.</given-names></name>
+        <name><surname>Bamford</surname><given-names>S. P.</given-names></name>
+        <name><surname>Barentsen</surname><given-names>G.</given-names></name>
+        <name><surname>Barmby</surname><given-names>P.</given-names></name>
+        <name><surname>Baumbach</surname><given-names>A.</given-names></name>
+        <name><surname>Berry</surname><given-names>K. L.</given-names></name>
+        <name><surname>Biscani</surname><given-names>F.</given-names></name>
+        <name><surname>Boquien</surname><given-names>M.</given-names></name>
+        <name><surname>Bostroem</surname><given-names>K. A.</given-names></name>
+        <name><surname>Bouma</surname><given-names>L. G.</given-names></name>
+        <name><surname>Brammer</surname><given-names>G. B.</given-names></name>
+        <name><surname>Bray</surname><given-names>E. M.</given-names></name>
+        <name><surname>Breytenbach</surname><given-names>H.</given-names></name>
+        <name><surname>Buddelmeijer</surname><given-names>H.</given-names></name>
+        <name><surname>Burke</surname><given-names>D. J.</given-names></name>
+        <name><surname>Calderone</surname><given-names>G.</given-names></name>
+        <name><surname>Cano Rodrı́guez</surname><given-names>J. L.</given-names></name>
+        <name><surname>Cara</surname><given-names>M.</given-names></name>
+        <name><surname>Cardoso</surname><given-names>J. V. M.</given-names></name>
+        <name><surname>Cheedella</surname><given-names>S.</given-names></name>
+        <name><surname>Copin</surname><given-names>Y.</given-names></name>
+        <name><surname>Corrales</surname><given-names>L.</given-names></name>
+        <name><surname>Crichton</surname><given-names>D.</given-names></name>
+        <name><surname>D’Avella</surname><given-names>D.</given-names></name>
+        <name><surname>Deil</surname><given-names>C.</given-names></name>
+        <name><surname>Depagne</surname><given-names>É.</given-names></name>
+        <name><surname>Dietrich</surname><given-names>J. P.</given-names></name>
+        <name><surname>Donath</surname><given-names>A.</given-names></name>
+        <name><surname>Droettboom</surname><given-names>M.</given-names></name>
+        <name><surname>Earl</surname><given-names>N.</given-names></name>
+        <name><surname>Erben</surname><given-names>T.</given-names></name>
+        <name><surname>Fabbro</surname><given-names>S.</given-names></name>
+        <name><surname>Ferreira</surname><given-names>L. A.</given-names></name>
+        <name><surname>Finethy</surname><given-names>T.</given-names></name>
+        <name><surname>Fox</surname><given-names>R. T.</given-names></name>
+        <name><surname>Garrison</surname><given-names>L. H.</given-names></name>
+        <name><surname>Gibbons</surname><given-names>S. L. J.</given-names></name>
+        <name><surname>Goldstein</surname><given-names>D. A.</given-names></name>
+        <name><surname>Gommers</surname><given-names>R.</given-names></name>
+        <name><surname>Greco</surname><given-names>J. P.</given-names></name>
+        <name><surname>Greenfield</surname><given-names>P.</given-names></name>
+        <name><surname>Groener</surname><given-names>A. M.</given-names></name>
+        <name><surname>Grollier</surname><given-names>F.</given-names></name>
+        <name><surname>Hagen</surname><given-names>A.</given-names></name>
+        <name><surname>Hirst</surname><given-names>P.</given-names></name>
+        <name><surname>Homeier</surname><given-names>D.</given-names></name>
+        <name><surname>Horton</surname><given-names>A. J.</given-names></name>
+        <name><surname>Hosseinzadeh</surname><given-names>G.</given-names></name>
+        <name><surname>Hu</surname><given-names>L.</given-names></name>
+        <name><surname>Hunkeler</surname><given-names>J. S.</given-names></name>
+        <name><surname>Ivezić</surname><given-names>Ž.</given-names></name>
+        <name><surname>Jain</surname><given-names>A.</given-names></name>
+        <name><surname>Jenness</surname><given-names>T.</given-names></name>
+        <name><surname>Kanarek</surname><given-names>G.</given-names></name>
+        <name><surname>Kendrew</surname><given-names>S.</given-names></name>
+        <name><surname>Kern</surname><given-names>N. S.</given-names></name>
+        <name><surname>Kerzendorf</surname><given-names>W. E.</given-names></name>
+        <name><surname>Khvalko</surname><given-names>A.</given-names></name>
+        <name><surname>King</surname><given-names>J.</given-names></name>
+        <name><surname>Kirkby</surname><given-names>D.</given-names></name>
+        <name><surname>Kulkarni</surname><given-names>A. M.</given-names></name>
+        <name><surname>Kumar</surname><given-names>A.</given-names></name>
+        <name><surname>Lee</surname><given-names>A.</given-names></name>
+        <name><surname>Lenz</surname><given-names>D.</given-names></name>
+        <name><surname>Littlefair</surname><given-names>S. P.</given-names></name>
+        <name><surname>Ma</surname><given-names>Z.</given-names></name>
+        <name><surname>Macleod</surname><given-names>D. M.</given-names></name>
+        <name><surname>Mastropietro</surname><given-names>M.</given-names></name>
+        <name><surname>McCully</surname><given-names>C.</given-names></name>
+        <name><surname>Montagnac</surname><given-names>S.</given-names></name>
+        <name><surname>Morris</surname><given-names>B. M.</given-names></name>
+        <name><surname>Mueller</surname><given-names>M.</given-names></name>
+        <name><surname>Mumford</surname><given-names>S. J.</given-names></name>
+        <name><surname>Muna</surname><given-names>D.</given-names></name>
+        <name><surname>Murphy</surname><given-names>N. A.</given-names></name>
+        <name><surname>Nelson</surname><given-names>S.</given-names></name>
+        <name><surname>Nguyen</surname><given-names>G. H.</given-names></name>
+        <name><surname>Ninan</surname><given-names>J. P.</given-names></name>
+        <name><surname>Nöthe</surname><given-names>M.</given-names></name>
+        <name><surname>Ogaz</surname><given-names>S.</given-names></name>
+        <name><surname>Oh</surname><given-names>S.</given-names></name>
+        <name><surname>Parejko</surname><given-names>J. K.</given-names></name>
+        <name><surname>Parley</surname><given-names>N.</given-names></name>
+        <name><surname>Pascual</surname><given-names>S.</given-names></name>
+        <name><surname>Patil</surname><given-names>R.</given-names></name>
+        <name><surname>Patil</surname><given-names>A. A.</given-names></name>
+        <name><surname>Plunkett</surname><given-names>A. L.</given-names></name>
+        <name><surname>Prochaska</surname><given-names>J. X.</given-names></name>
+        <name><surname>Rastogi</surname><given-names>T.</given-names></name>
+        <name><surname>Reddy Janga</surname><given-names>V.</given-names></name>
+        <name><surname>Sabater</surname><given-names>J.</given-names></name>
+        <name><surname>Sakurikar</surname><given-names>P.</given-names></name>
+        <name><surname>Seifert</surname><given-names>M.</given-names></name>
+        <name><surname>Sherbert</surname><given-names>L. E.</given-names></name>
+        <name><surname>Sherwood-Taylor</surname><given-names>H.</given-names></name>
+        <name><surname>Shih</surname><given-names>A. Y.</given-names></name>
+        <name><surname>Sick</surname><given-names>J.</given-names></name>
+        <name><surname>Silbiger</surname><given-names>M. T.</given-names></name>
+        <name><surname>Singanamalla</surname><given-names>S.</given-names></name>
+        <name><surname>Singer</surname><given-names>L. P.</given-names></name>
+        <name><surname>Sladen</surname><given-names>P. H.</given-names></name>
+        <name><surname>Sooley</surname><given-names>K. A.</given-names></name>
+        <name><surname>Sornarajah</surname><given-names>S.</given-names></name>
+        <name><surname>Streicher</surname><given-names>O.</given-names></name>
+        <name><surname>Teuben</surname><given-names>P.</given-names></name>
+        <name><surname>Thomas</surname><given-names>S. W.</given-names></name>
+        <name><surname>Tremblay</surname><given-names>G. R.</given-names></name>
+        <name><surname>Turner</surname><given-names>J. E. H.</given-names></name>
+        <name><surname>Terrón</surname><given-names>V.</given-names></name>
+        <name><surname>van Kerkwijk</surname><given-names>M. H.</given-names></name>
+        <name><surname>de la Vega</surname><given-names>A.</given-names></name>
+        <name><surname>Watkins</surname><given-names>L. L.</given-names></name>
+        <name><surname>Weaver</surname><given-names>B. A.</given-names></name>
+        <name><surname>Whitmore</surname><given-names>J. B.</given-names></name>
+        <name><surname>Woillez</surname><given-names>J.</given-names></name>
+        <name><surname>Zabalza</surname><given-names>V.</given-names></name>
+        <string-name>Astropy Contributors</string-name>
+      </person-group>
+      <article-title>The Astropy Project: Building an Open-science Project and Status of the v2.0 Core Package</article-title>
+      <source>The Astronomical Journal</source>
+      <year iso-8601-date="2018-09">2018</year><month>09</month>
+      <volume>156</volume>
+      <issue>3</issue>
+      <uri>https://arxiv.org/abs/1801.02634</uri>
+      <pub-id pub-id-type="doi">10.3847/1538-3881/aabc4f</pub-id>
+      <fpage>123</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-AstropyCollaboration.2013">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <string-name>Astropy Collaboration</string-name>
+        <name><surname>Robitaille</surname><given-names>Thomas P.</given-names></name>
+        <name><surname>Tollerud</surname><given-names>Erik J.</given-names></name>
+        <name><surname>Greenfield</surname><given-names>Perry</given-names></name>
+        <name><surname>Droettboom</surname><given-names>Michael</given-names></name>
+        <name><surname>Bray</surname><given-names>Erik</given-names></name>
+        <name><surname>Aldcroft</surname><given-names>Tom</given-names></name>
+        <name><surname>Davis</surname><given-names>Matt</given-names></name>
+        <name><surname>Ginsburg</surname><given-names>Adam</given-names></name>
+        <name><surname>Price-Whelan</surname><given-names>Adrian M.</given-names></name>
+        <name><surname>Kerzendorf</surname><given-names>Wolfgang E.</given-names></name>
+        <name><surname>Conley</surname><given-names>Alexander</given-names></name>
+        <name><surname>Crighton</surname><given-names>Neil</given-names></name>
+        <name><surname>Barbary</surname><given-names>Kyle</given-names></name>
+        <name><surname>Muna</surname><given-names>Demitri</given-names></name>
+        <name><surname>Ferguson</surname><given-names>Henry</given-names></name>
+        <name><surname>Grollier</surname><given-names>Frédéric</given-names></name>
+        <name><surname>Parikh</surname><given-names>Madhura M.</given-names></name>
+        <name><surname>Nair</surname><given-names>Prasanth H.</given-names></name>
+        <name><surname>Unther</surname><given-names>Hans M.</given-names></name>
+        <name><surname>Deil</surname><given-names>Christoph</given-names></name>
+        <name><surname>Woillez</surname><given-names>Julien</given-names></name>
+        <name><surname>Conseil</surname><given-names>Simon</given-names></name>
+        <name><surname>Kramer</surname><given-names>Roban</given-names></name>
+        <name><surname>Turner</surname><given-names>James E. H.</given-names></name>
+        <name><surname>Singer</surname><given-names>Leo</given-names></name>
+        <name><surname>Fox</surname><given-names>Ryan</given-names></name>
+        <name><surname>Weaver</surname><given-names>Benjamin A.</given-names></name>
+        <name><surname>Zabalza</surname><given-names>Victor</given-names></name>
+        <name><surname>Edwards</surname><given-names>Zachary I.</given-names></name>
+        <name><surname>Azalee Bostroem</surname><given-names>K.</given-names></name>
+        <name><surname>Burke</surname><given-names>D. J.</given-names></name>
+        <name><surname>Casey</surname><given-names>Andrew R.</given-names></name>
+        <name><surname>Crawford</surname><given-names>Steven M.</given-names></name>
+        <name><surname>Dencheva</surname><given-names>Nadia</given-names></name>
+        <name><surname>Ely</surname><given-names>Justin</given-names></name>
+        <name><surname>Jenness</surname><given-names>Tim</given-names></name>
+        <name><surname>Labrie</surname><given-names>Kathleen</given-names></name>
+        <name><surname>Lim</surname><given-names>Pey Lian</given-names></name>
+        <name><surname>Pierfederici</surname><given-names>Francesco</given-names></name>
+        <name><surname>Pontzen</surname><given-names>Andrew</given-names></name>
+        <name><surname>Ptak</surname><given-names>Andy</given-names></name>
+        <name><surname>Refsdal</surname><given-names>Brian</given-names></name>
+        <name><surname>Servillat</surname><given-names>Mathieu</given-names></name>
+        <name><surname>Streicher</surname><given-names>Ole</given-names></name>
+      </person-group>
+      <article-title>Astropy: A community Python package for astronomy</article-title>
+      <source>Astronomy and Astrophysics</source>
+      <year iso-8601-date="2013-10">2013</year><month>10</month>
+      <volume>558</volume>
+      <uri>https://arxiv.org/abs/1307.6212</uri>
+      <pub-id pub-id-type="doi">10.1051/0004-6361/201322068</pub-id>
+      <fpage>A33</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Hunter.2007">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Hunter</surname><given-names>J. D.</given-names></name>
+      </person-group>
+      <article-title>Matplotlib: A 2D graphics environment</article-title>
+      <source>Computing in Science &amp; Engineering</source>
+      <publisher-name>IEEE COMPUTER SOC</publisher-name>
+      <year iso-8601-date="2007">2007</year>
+      <volume>9</volume>
+      <issue>3</issue>
+      <pub-id pub-id-type="doi">10.1109/MCSE.2007.55</pub-id>
+      <fpage>90</fpage>
+      <lpage>95</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Bradley.etal">
+    <element-citation publication-type="software">
+      <person-group person-group-type="author">
+        <name><surname>Bradley</surname><given-names>Larry</given-names></name>
+        <name><surname>Sipőcz</surname><given-names>Brigitta</given-names></name>
+        <name><surname>Robitaille</surname><given-names>Thomas</given-names></name>
+        <name><surname>Tollerud</surname><given-names>Erik</given-names></name>
+        <name><surname>Vinícius</surname><given-names>Zé</given-names></name>
+        <name><surname>Deil</surname><given-names>Christoph</given-names></name>
+        <name><surname>Barbary</surname><given-names>Kyle</given-names></name>
+        <name><surname>Wilson</surname><given-names>Tom J</given-names></name>
+        <name><surname>Busko</surname><given-names>Ivo</given-names></name>
+        <name><surname>Donath</surname><given-names>Axel</given-names></name>
+        <name><surname>Günther</surname><given-names>Hans Moritz</given-names></name>
+        <name><surname>Cara</surname><given-names>Mihai</given-names></name>
+        <name><surname>Lim</surname><given-names>P. L.</given-names></name>
+        <name><surname>Meßlinger</surname><given-names>Sebastian</given-names></name>
+        <name><surname>Conseil</surname><given-names>Simon</given-names></name>
+        <name><surname>Burnett</surname><given-names>Zach</given-names></name>
+        <name><surname>Bostroem</surname><given-names>Azalee</given-names></name>
+        <name><surname>Droettboom</surname><given-names>Michael</given-names></name>
+        <name><surname>Bray</surname><given-names>E. M.</given-names></name>
+        <name><surname>Bratholm</surname><given-names>Lars Andersen</given-names></name>
+        <name><surname>Ginsburg</surname><given-names>Adam</given-names></name>
+        <name><surname>Jamieson</surname><given-names>William</given-names></name>
+        <name><surname>Barentsen</surname><given-names>Geert</given-names></name>
+        <name><surname>Craig</surname><given-names>Matt</given-names></name>
+        <name><surname>Morris</surname><given-names>Brett M.</given-names></name>
+        <name><surname>Perrin</surname><given-names>Marshall</given-names></name>
+        <name><surname>Rathi</surname><given-names>Shivangee</given-names></name>
+        <name><surname>Pascual</surname><given-names>Sergio</given-names></name>
+        <name><surname>Georgiev</surname><given-names>Iskren Y.</given-names></name>
+      </person-group>
+      <article-title>Astropy/photutils</article-title>
+      <publisher-name>Zenodo</publisher-name>
+      <year iso-8601-date="2024-10">2024</year><month>10</month>
+      <uri>https://doi.org/10.5281/zenodo.596036</uri>
+      <pub-id pub-id-type="doi">10.5281/zenodo.596036</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-harris2020array">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Harris</surname><given-names>Charles R.</given-names></name>
+        <name><surname>Millman</surname><given-names>K. Jarrod</given-names></name>
+        <name><surname>Walt</surname><given-names>Stéfan J. van der</given-names></name>
+        <name><surname>Gommers</surname><given-names>Ralf</given-names></name>
+        <name><surname>Virtanen</surname><given-names>Pauli</given-names></name>
+        <name><surname>Cournapeau</surname><given-names>David</given-names></name>
+        <name><surname>Wieser</surname><given-names>Eric</given-names></name>
+        <name><surname>Taylor</surname><given-names>Julian</given-names></name>
+        <name><surname>Berg</surname><given-names>Sebastian</given-names></name>
+        <name><surname>Smith</surname><given-names>Nathaniel J.</given-names></name>
+        <name><surname>Kern</surname><given-names>Robert</given-names></name>
+        <name><surname>Picus</surname><given-names>Matti</given-names></name>
+        <name><surname>Hoyer</surname><given-names>Stephan</given-names></name>
+        <name><surname>Kerkwijk</surname><given-names>Marten H. van</given-names></name>
+        <name><surname>Brett</surname><given-names>Matthew</given-names></name>
+        <name><surname>Haldane</surname><given-names>Allan</given-names></name>
+        <name><surname>Río</surname><given-names>Jaime Fernández del</given-names></name>
+        <name><surname>Wiebe</surname><given-names>Mark</given-names></name>
+        <name><surname>Peterson</surname><given-names>Pearu</given-names></name>
+        <name><surname>Gérard-Marchant</surname><given-names>Pierre</given-names></name>
+        <name><surname>Sheppard</surname><given-names>Kevin</given-names></name>
+        <name><surname>Reddy</surname><given-names>Tyler</given-names></name>
+        <name><surname>Weckesser</surname><given-names>Warren</given-names></name>
+        <name><surname>Abbasi</surname><given-names>Hameer</given-names></name>
+        <name><surname>Gohlke</surname><given-names>Christoph</given-names></name>
+        <name><surname>Oliphant</surname><given-names>Travis E.</given-names></name>
+      </person-group>
+      <article-title>Array programming with NumPy</article-title>
+      <source>Nature</source>
+      <publisher-name>Springer Science; Business Media LLC</publisher-name>
+      <year iso-8601-date="2020-09">2020</year><month>09</month>
+      <volume>585</volume>
+      <issue>7825</issue>
+      <uri>https://doi.org/10.1038/s41586-020-2649-2</uri>
+      <pub-id pub-id-type="doi">10.1038/s41586-020-2649-2</pub-id>
+      <fpage>357</fpage>
+      <lpage>362</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Bertin.Arnouts.1996">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Bertin</surname><given-names>E.</given-names></name>
+        <name><surname>Arnouts</surname><given-names>S.</given-names></name>
+      </person-group>
+      <article-title>SExtractor: Software for source extraction.</article-title>
+      <source>Astronomy and Astrophysics, Supplement</source>
+      <year iso-8601-date="1996-06">1996</year><month>06</month>
+      <volume>117</volume>
+      <pub-id pub-id-type="doi">10.1051/aas:1996164</pub-id>
+      <fpage>393</fpage>
+      <lpage>404</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Bertin.2011">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Bertin</surname><given-names>E.</given-names></name>
+      </person-group>
+      <article-title>Automated Morphometry with SExtractor and PSFEx</article-title>
+      <source>Astronomical data analysis software and systems XX</source>
+      <person-group person-group-type="editor">
+        <name><surname>Evans</surname><given-names>I. N.</given-names></name>
+        <name><surname>Accomazzi</surname><given-names>A.</given-names></name>
+        <name><surname>Mink</surname><given-names>D. J.</given-names></name>
+        <name><surname>Rots</surname><given-names>A. H.</given-names></name>
+      </person-group>
+      <year iso-8601-date="2011-07">2011</year><month>07</month>
+      <volume>442</volume>
+      <fpage>435</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Troxel.etal.2023">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Troxel</surname><given-names>M. A.</given-names></name>
+        <name><surname>Lin</surname><given-names>C.</given-names></name>
+        <name><surname>Park</surname><given-names>A.</given-names></name>
+        <name><surname>Hirata</surname><given-names>C.</given-names></name>
+        <name><surname>Mandelbaum</surname><given-names>R.</given-names></name>
+        <name><surname>Jarvis</surname><given-names>M.</given-names></name>
+        <name><surname>Choi</surname><given-names>A.</given-names></name>
+        <name><surname>Givans</surname><given-names>J.</given-names></name>
+        <name><surname>Higgins</surname><given-names>M.</given-names></name>
+        <name><surname>Sanchez</surname><given-names>B.</given-names></name>
+        <name><surname>Yamamoto</surname><given-names>M.</given-names></name>
+        <name><surname>Awan</surname><given-names>H.</given-names></name>
+        <name><surname>Chiang</surname><given-names>J.</given-names></name>
+        <name><surname>Doré</surname><given-names>O.</given-names></name>
+        <name><surname>Walter</surname><given-names>C. W.</given-names></name>
+        <name><surname>Zhang</surname><given-names>T.</given-names></name>
+        <name><surname>Cohen-Tanugi</surname><given-names>J.</given-names></name>
+        <name><surname>Gawiser</surname><given-names>E.</given-names></name>
+        <name><surname>Hearin</surname><given-names>A.</given-names></name>
+        <name><surname>Heitmann</surname><given-names>K.</given-names></name>
+        <name><surname>Ishak</surname><given-names>M.</given-names></name>
+        <name><surname>Kovacs</surname><given-names>E.</given-names></name>
+        <name><surname>Mao</surname><given-names>Y. -Y.</given-names></name>
+        <name><surname>Wood-Vasey</surname><given-names>M.</given-names></name>
+        <name><surname>Becker</surname><given-names>Matt</given-names></name>
+        <name><surname>Meyers</surname><given-names>Josh</given-names></name>
+        <name><surname>Melchior</surname><given-names>Peter</given-names></name>
+        <string-name>LSST Dark Energy Science Collaboration</string-name>
+      </person-group>
+      <article-title>A joint Roman Space Telescope and Rubin Observatory synthetic wide-field imaging survey</article-title>
+      <source>Monthly Notices of the Royal Astronomical Society</source>
+      <year iso-8601-date="2023-06">2023</year><month>06</month>
+      <volume>522</volume>
+      <issue>2</issue>
+      <uri>https://arxiv.org/abs/2209.06829</uri>
+      <pub-id pub-id-type="doi">10.1093/mnras/stad664</pub-id>
+      <fpage>2801</fpage>
+      <lpage>2820</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Anderson.King.2000">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Anderson</surname><given-names>Jay</given-names></name>
+        <name><surname>King</surname><given-names>Ivan R.</given-names></name>
+      </person-group>
+      <article-title>Toward High-Precision Astrometry with WFPC2. I. Deriving an Accurate Point-Spread Function</article-title>
+      <source>Publications of the Astronomical Society of the Pacific</source>
+      <year iso-8601-date="2000-10">2000</year><month>10</month>
+      <volume>112</volume>
+      <issue>776</issue>
+      <uri>https://arxiv.org/abs/astro-ph/0006325</uri>
+      <pub-id pub-id-type="doi">10.1086/316632</pub-id>
+      <fpage>1360</fpage>
+      <lpage>1382</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Anderson.2016">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Anderson</surname><given-names>Jay</given-names></name>
+      </person-group>
+      <article-title>Empirical Models for the WFC3/IR PSF</article-title>
+      <publisher-name>Instrument Science Report WFC3 2016-12, 42 pages</publisher-name>
+      <year iso-8601-date="2016-03">2016</year><month>03</month>
+      <fpage>12</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Fruchter.Hook.2002">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Fruchter</surname><given-names>A. S.</given-names></name>
+        <name><surname>Hook</surname><given-names>R. N.</given-names></name>
+      </person-group>
+      <article-title>Drizzle: A Method for the Linear Reconstruction of Undersampled Images</article-title>
+      <source>Publications of the Astronomical Society of the Pacific</source>
+      <year iso-8601-date="2002-02">2002</year><month>02</month>
+      <volume>114</volume>
+      <issue>792</issue>
+      <uri>https://arxiv.org/abs/astro-ph/9808087</uri>
+      <pub-id pub-id-type="doi">10.1086/338393</pub-id>
+      <fpage>144</fpage>
+      <lpage>152</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Bushouse.etal.2024">
+    <element-citation publication-type="software">
+      <person-group person-group-type="author">
+        <name><surname>Bushouse</surname><given-names>Howard</given-names></name>
+        <name><surname>Eisenhamer</surname><given-names>Jonathan</given-names></name>
+        <name><surname>Dencheva</surname><given-names>Nadia</given-names></name>
+        <name><surname>Davies</surname><given-names>James</given-names></name>
+        <name><surname>Greenfield</surname><given-names>Perry</given-names></name>
+        <name><surname>Morrison</surname><given-names>Jane</given-names></name>
+        <name><surname>Hodge</surname><given-names>Phil</given-names></name>
+        <name><surname>Simon</surname><given-names>Bernie</given-names></name>
+        <name><surname>Grumm</surname><given-names>David</given-names></name>
+        <name><surname>Droettboom</surname><given-names>Michael</given-names></name>
+        <name><surname>Slavich</surname><given-names>Edward</given-names></name>
+        <name><surname>Sosey</surname><given-names>Megan</given-names></name>
+        <name><surname>Pauly</surname><given-names>Tyler</given-names></name>
+        <name><surname>Miller</surname><given-names>Todd</given-names></name>
+        <name><surname>Jedrzejewski</surname><given-names>Robert</given-names></name>
+        <name><surname>Hack</surname><given-names>Warren</given-names></name>
+        <name><surname>Davis</surname><given-names>David</given-names></name>
+        <name><surname>Crawford</surname><given-names>Steven</given-names></name>
+        <name><surname>Law</surname><given-names>David</given-names></name>
+        <name><surname>Gordon</surname><given-names>Karl</given-names></name>
+        <name><surname>Regan</surname><given-names>Michael</given-names></name>
+        <name><surname>Cara</surname><given-names>Mihai</given-names></name>
+        <name><surname>MacDonald</surname><given-names>Ken</given-names></name>
+        <name><surname>Bradley</surname><given-names>Larry</given-names></name>
+        <name><surname>Shanahan</surname><given-names>Clare</given-names></name>
+        <name><surname>Jamieson</surname><given-names>William</given-names></name>
+        <name><surname>Teodoro</surname><given-names>Mairan</given-names></name>
+        <name><surname>Williams</surname><given-names>Thomas</given-names></name>
+        <name><surname>Pena-Guerrero</surname><given-names>Maria</given-names></name>
+        <name><surname>Graham</surname><given-names>Brett</given-names></name>
+        <name><surname>Molter</surname><given-names>Edward</given-names></name>
+        <name><surname>Brandt</surname><given-names>Timothy</given-names></name>
+        <name><surname>Hayes</surname><given-names>Christian</given-names></name>
+        <name><surname>Cooper</surname><given-names>Rachel</given-names></name>
+        <name><surname>Clarke</surname><given-names>Melanie</given-names></name>
+      </person-group>
+      <article-title>JWST Calibration Pipeline</article-title>
+      <year iso-8601-date="2024-09">2024</year><month>09</month>
+      <uri>https://github.com/spacetelescope/jwst</uri>
+      <pub-id pub-id-type="doi">10.5281/zenodo.7038885</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-Simon.etal.2024">
+    <element-citation publication-type="software">
+      <person-group person-group-type="author">
+        <name><surname>Simon</surname><given-names>Bernie</given-names></name>
+        <name><surname>Robitaille</surname><given-names>Thomas</given-names></name>
+        <name><surname>Cara</surname><given-names>Mihai</given-names></name>
+        <name><surname>Burnett</surname><given-names>Zach</given-names></name>
+        <name><surname>Lim</surname><given-names>P. L.</given-names></name>
+        <name><surname>Davies</surname><given-names>James</given-names></name>
+        <name><surname>Droettboom</surname><given-names>Michael</given-names></name>
+        <name><surname>Tollerud</surname><given-names>Erik</given-names></name>
+        <name><surname>Bray</surname><given-names>E. M.</given-names></name>
+        <name><surname>Bradley</surname><given-names>Larry</given-names></name>
+        <name><surname>Craig</surname><given-names>Matt</given-names></name>
+        <name><surname>Deil</surname><given-names>Christoph</given-names></name>
+        <name><surname>Hunkeler</surname><given-names>Joseph</given-names></name>
+        <name><surname>Ginsburg</surname><given-names>Adam</given-names></name>
+        <name><surname>Streicher</surname><given-names>Ole</given-names></name>
+        <name><surname>Barbary</surname><given-names>Kyle</given-names></name>
+        <name><surname>Sipőcz</surname><given-names>Brigitta</given-names></name>
+        <name><surname>Graham</surname><given-names>Brett</given-names></name>
+        <name><surname>MacDonald</surname><given-names>Ken</given-names></name>
+        <name><surname>Noss</surname><given-names>Jamie</given-names></name>
+        <name><surname>Jamieson</surname><given-names>William</given-names></name>
+        <name><surname>Kerzendorf</surname><given-names>Wolfgang</given-names></name>
+        <name><surname>Crawford</surname><given-names>Steve</given-names></name>
+        <name><surname>Geiger</surname><given-names>Zane</given-names></name>
+        <name><surname>Günther</surname><given-names>Hans Moritz</given-names></name>
+      </person-group>
+      <article-title>spacetelescope/drizzle: API redesign to make code I/O agnostic. Bug fixes.</article-title>
+      <publisher-name>Zenodo</publisher-name>
+      <year iso-8601-date="2024-10">2024</year><month>10</month>
+      <uri>https://doi.org/10.5281/zenodo.10672889</uri>
+      <pub-id pub-id-type="doi">10.5281/zenodo.10672889</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-Dencheva.etal">
+    <element-citation publication-type="software">
+      <person-group person-group-type="author">
+        <name><surname>Dencheva</surname><given-names>Nadia</given-names></name>
+        <name><surname>Mumford</surname><given-names>Stuart</given-names></name>
+        <name><surname>Cara</surname><given-names>Mihai</given-names></name>
+        <name><surname>perrygreenfield</surname></name>
+        <name><surname>Bradley</surname><given-names>Larry</given-names></name>
+        <name><surname>Graham</surname><given-names>Brett</given-names></name>
+        <name><surname>Burnett</surname><given-names>Zach</given-names></name>
+        <name><surname>D’Avella</surname><given-names>Dan</given-names></name>
+        <name><surname>Sipőcz</surname><given-names>Brigitta</given-names></name>
+        <name><surname>Lim</surname><given-names>P. L.</given-names></name>
+        <name><surname>Jamieson</surname><given-names>William</given-names></name>
+        <name><surname>Shanahan</surname><given-names>Clare</given-names></name>
+        <name><surname>Davies</surname><given-names>James</given-names></name>
+        <name><surname>Earl</surname><given-names>Nicholas</given-names></name>
+        <name><surname>Simon</surname><given-names>Bernie</given-names></name>
+        <name><surname>Tollerud</surname><given-names>Erik</given-names></name>
+        <name><surname>Slavich</surname><given-names>Edward</given-names></name>
+        <name><surname>Simpson</surname><given-names>Chris</given-names></name>
+        <name><surname>Deil</surname><given-names>Christoph</given-names></name>
+        <name><surname>Streicher</surname><given-names>Ole</given-names></name>
+        <name><surname>Morris</surname><given-names>Brett M.</given-names></name>
+        <name><surname>Stansby</surname><given-names>David</given-names></name>
+        <name><surname>Hunkeler</surname><given-names>Joseph</given-names></name>
+        <name><surname>Droettboom</surname><given-names>Michael</given-names></name>
+        <name><surname>Geiger</surname><given-names>Zane</given-names></name>
+      </person-group>
+      <article-title>Spacetelescope/gwcs: GWCS v 0.21.0</article-title>
+      <publisher-name>Zenodo</publisher-name>
+      <year iso-8601-date="2024-03">2024</year><month>03</month>
+      <uri>https://doi.org/10.5281/zenodo.1041789</uri>
+      <pub-id pub-id-type="doi">10.5281/zenodo.1041789</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-romancal">
+    <element-citation>
+      <person-group person-group-type="author">
+        <string-name>Roman calibration pipeline developers</string-name>
+      </person-group>
+      <article-title>Romancal: Python library to process science observations from the nancy grace roman space telescope</article-title>
+      <source>GitHub repository</source>
+      <publisher-name>GitHub</publisher-name>
+      <year iso-8601-date="2024">2024</year>
+      <uri>https://github.com/spacetelescope/romancal</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-stcal">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>STScI</surname></name>
+      </person-group>
+      <article-title>STCAL: STScI calibration algorithms and tools.</article-title>
+      <source>GitHub repository</source>
+      <publisher-name>GitHub</publisher-name>
+      <year iso-8601-date="2024">2024</year>
+      <uri>https://github.com/spacetelescope/stcal</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-roman_datamodels">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>STScI</surname></name>
+      </person-group>
+      <article-title>Roman_datamodels: Data models supporting calibration of the nancy grace roman space telescope</article-title>
+      <source>GitHub repository</source>
+      <publisher-name>GitHub</publisher-name>
+      <year iso-8601-date="2024">2024</year>
+      <uri>https://github.com/spacetelescope/roman_datamodels</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-spherical_geometry">
+    <element-citation publication-type="software">
+      <person-group person-group-type="author">
+        <name><surname>Simon</surname><given-names>Bernie</given-names></name>
+        <name><surname>Robitaille</surname><given-names>Thomas</given-names></name>
+        <name><surname>Droettboom</surname><given-names>Michael</given-names></name>
+        <name><surname>Lim</surname><given-names>P. L.</given-names></name>
+        <name><surname>Cara</surname><given-names>Mihai</given-names></name>
+        <name><surname>Hunkeler</surname><given-names>Joseph</given-names></name>
+        <name><surname>Tollerud</surname><given-names>Erik</given-names></name>
+        <name><surname>MacDonald</surname><given-names>Ken</given-names></name>
+        <name><surname>Bray</surname><given-names>E. M.</given-names></name>
+        <name><surname>Bradley</surname><given-names>Larry</given-names></name>
+        <name><surname>Rendina</surname><given-names>Matt</given-names></name>
+        <name><surname>Jamieson</surname><given-names>William</given-names></name>
+        <name><surname>Craig</surname><given-names>Matt</given-names></name>
+        <name><surname>Deil</surname><given-names>Christoph</given-names></name>
+        <name><surname>perrygreenfield</surname></name>
+        <name><surname>Sipőcz</surname><given-names>Brigitta</given-names></name>
+        <name><surname>Barbary</surname><given-names>Kyle</given-names></name>
+        <name><surname>Dencheva</surname><given-names>Nadia</given-names></name>
+        <name><surname>Ginsburg</surname><given-names>Adam</given-names></name>
+        <name><surname>Burnett</surname><given-names>Zach</given-names></name>
+        <name><surname>Davies</surname><given-names>James</given-names></name>
+        <name><surname>Singer</surname><given-names>Leo</given-names></name>
+        <name><surname>Kerzendorf</surname><given-names>Wolfgang</given-names></name>
+        <name><surname>Queenin</surname><given-names>Robert</given-names></name>
+        <name><surname>Crawford</surname><given-names>Steve</given-names></name>
+        <name><surname>Mycroft</surname><given-names>Will</given-names></name>
+        <name><surname>Geiger</surname><given-names>Zane</given-names></name>
+        <name><surname>Günther</surname><given-names>Hans Moritz</given-names></name>
+        <name><surname>wohenbushuang</surname></name>
+      </person-group>
+      <article-title>spacetelescope/spherical_geometry: Bug fixes: inner1d, degree arg removed. Build with numpy 2.0</article-title>
+      <publisher-name>Zenodo</publisher-name>
+      <year iso-8601-date="2024-06">2024</year><month>06</month>
+      <uri>https://doi.org/10.5281/zenodo.11636209</uri>
+      <pub-id pub-id-type="doi">10.5281/zenodo.11636209</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-stdatamodels">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>STScI</surname></name>
+      </person-group>
+      <article-title>Stdatamodels: Core support for DataModel classes used in calibration pipelines</article-title>
+      <source>GitHub repository</source>
+      <publisher-name>GitHub</publisher-name>
+      <year iso-8601-date="2024">2024</year>
+      <uri>https://github.com/spacetelescope/stdatamodels</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-psutil">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Rodola</surname><given-names>Giampaolo</given-names></name>
+      </person-group>
+      <article-title>Psutil: Cross-platform lib for process and system monitoring in python</article-title>
+      <source>GitHub repository</source>
+      <publisher-name>GitHub</publisher-name>
+      <year iso-8601-date="2024">2024</year>
+      <uri>https://github.com/giampaolo/psutil</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-stpipe">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>STScI</surname></name>
+      </person-group>
+      <article-title>Stpipe: Framework for calibration pipeline software</article-title>
+      <source>GitHub repository</source>
+      <publisher-name>GitHub</publisher-name>
+      <year iso-8601-date="2024">2024</year>
+      <uri>https://github.com/spacetelescope/stpipe</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-graham.etal">
+    <element-citation publication-type="software">
+      <person-group person-group-type="author">
+        <name><surname>Graham</surname><given-names>Brett</given-names></name>
+        <name><surname>D’Avella</surname><given-names>Dan</given-names></name>
+        <name><surname>Jamieson</surname><given-names>William</given-names></name>
+        <name><surname>Droettboom</surname><given-names>Michael</given-names></name>
+        <name><surname>Slavich</surname><given-names>Edward</given-names></name>
+        <name><surname>Robitaille</surname><given-names>Thomas</given-names></name>
+        <name><surname>Dencheva</surname><given-names>Nadia</given-names></name>
+        <name><surname>Burnett</surname><given-names>Zach</given-names></name>
+        <name><surname>perrygreenfield</surname></name>
+        <name><surname>Simon</surname><given-names>Bernie</given-names></name>
+        <name><surname>MacDonald</surname><given-names>Ken</given-names></name>
+        <name><surname>Bray</surname><given-names>E. M.</given-names></name>
+        <name><surname>Davies</surname><given-names>James</given-names></name>
+        <name><surname>Mumford</surname><given-names>Stuart</given-names></name>
+        <name><surname>Markovtsev</surname><given-names>Vadim</given-names></name>
+        <name><surname>Tollerud</surname><given-names>Erik</given-names></name>
+        <name><surname>Sipőcz</surname><given-names>Brigitta</given-names></name>
+        <name><surname>Bradley</surname><given-names>Larry</given-names></name>
+        <name><surname>Fabry</surname><given-names>Çağtay</given-names></name>
+        <name><surname>Garrison</surname><given-names>Lehman</given-names></name>
+        <name><surname>Greiner</surname><given-names>Ben</given-names></name>
+        <name><surname>Lim</surname><given-names>P. L.</given-names></name>
+        <name><surname>Deil</surname><given-names>Christoph</given-names></name>
+        <name><surname>Craig</surname><given-names>Matt</given-names></name>
+        <name><surname>Barbary</surname><given-names>Kyle</given-names></name>
+        <name><surname>Streicher</surname><given-names>Ole</given-names></name>
+        <name><surname>Ginsburg</surname><given-names>Adam</given-names></name>
+        <name><surname>Kerzendorf</surname><given-names>Wolfgang</given-names></name>
+      </person-group>
+      <article-title>asdf-format/asdf: 4.0.0</article-title>
+      <publisher-name>Zenodo</publisher-name>
+      <year iso-8601-date="2024-11">2024</year><month>11</month>
+      <uri>https://doi.org/10.5281/zenodo.6617556</uri>
+      <pub-id pub-id-type="doi">10.5281/zenodo.6617556</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-cara.etal">
+    <element-citation publication-type="software">
+      <person-group person-group-type="author">
+        <name><surname>Cara</surname><given-names>Mihai</given-names></name>
+        <name><surname>Hunkeler</surname><given-names>Joseph</given-names></name>
+        <name><surname>Burnett</surname><given-names>Zach</given-names></name>
+        <name><surname>Bradley</surname><given-names>Larry</given-names></name>
+        <name><surname>Graham</surname><given-names>Brett</given-names></name>
+        <name><surname>Lim</surname><given-names>P. L.</given-names></name>
+        <name><surname>Dencheva</surname><given-names>Nadia</given-names></name>
+        <name><surname>Schlafly</surname><given-names>Eddie</given-names></name>
+        <name><surname>Rendina</surname><given-names>Matt</given-names></name>
+        <name><surname>Jamieson</surname><given-names>William</given-names></name>
+        <name><surname>Geiger</surname><given-names>Zane</given-names></name>
+      </person-group>
+      <article-title>spacetelescope/tweakwcs: A maintenance release</article-title>
+      <publisher-name>Zenodo</publisher-name>
+      <year iso-8601-date="2024-09">2024</year><month>09</month>
+      <uri>https://doi.org/10.5281/zenodo.4018234</uri>
+      <pub-id pub-id-type="doi">10.5281/zenodo.4018234</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-pyyaml">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Simonov</surname><given-names>Kirill</given-names></name>
+      </person-group>
+      <article-title>PyYAML: YAML parser and emitter for python</article-title>
+      <source>GitHub repository</source>
+      <publisher-name>GitHub</publisher-name>
+      <year iso-8601-date="2024">2024</year>
+      <uri>https://github.com/yaml/pyyaml</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-crds">
+    <element-citation>
+      <person-group person-group-type="author">
+        <string-name>STScI CRDS s/w developers</string-name>
+      </person-group>
+      <article-title>Crds: Calibration reference data system, HST/JWST/roman reference file management</article-title>
+      <source>GitHub repository</source>
+      <publisher-name>GitHub</publisher-name>
+      <year iso-8601-date="2024">2024</year>
+      <uri>https://github.com/spacetelescope/crds</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-jsonschema">
+    <element-citation publication-type="software">
+      <person-group person-group-type="author">
+        <name><surname>Berman</surname><given-names>Julian</given-names></name>
+        <name><surname>Sterling</surname><given-names>Chase</given-names></name>
+        <name><surname>Taprest</surname><given-names>Romain</given-names></name>
+        <name><surname>Nezbeda</surname><given-names>Harald</given-names></name>
+        <name><surname>chen</surname></name>
+        <name><surname>Rosen</surname><given-names>Stephen</given-names></name>
+        <name><surname>DavidKorczynski</surname></name>
+        <name><surname>Opemipo</surname></name>
+        <name><surname>Maynard</surname><given-names>Glenn</given-names></name>
+        <name><surname>Smithers</surname><given-names>Ben</given-names></name>
+        <name><surname>Zugnoni</surname><given-names>Martin</given-names></name>
+        <name><surname>Dunklau</surname><given-names>Colin</given-names></name>
+        <name><surname>Arnold</surname><given-names>Hillel</given-names></name>
+        <name><surname>Nephin</surname><given-names>Daniel</given-names></name>
+        <name><surname>Noord</surname><given-names>Daniël van</given-names></name>
+        <name><surname>Dygalo</surname><given-names>Dmitry</given-names></name>
+        <name><surname>ApamNapat</surname></name>
+        <name><surname>Lennart</surname></name>
+        <name><surname>Anderson</surname><given-names>John</given-names></name>
+        <name><surname>Haarsma</surname><given-names>Bouke</given-names></name>
+        <name><surname>Bayandin</surname><given-names>Alexander</given-names></name>
+        <name><surname>Breton</surname><given-names>Gabriel Le</given-names></name>
+        <name><surname>Schlawack</surname><given-names>Hynek</given-names></name>
+        <name><surname>joepvandijken</surname></name>
+        <name><surname>Aimetti</surname><given-names>Nicolás</given-names></name>
+        <name><surname>apiraino</surname></name>
+        <name><surname>johnthagen</surname></name>
+        <name><surname>Moorman</surname><given-names>Jacob D.</given-names></name>
+      </person-group>
+      <article-title>Python-jsonschema/jsonschema: v4.23.0</article-title>
+      <publisher-name>Zenodo</publisher-name>
+      <year iso-8601-date="2024-07">2024</year><month>07</month>
+      <uri>https://doi.org/10.5281/zenodo.5539941</uri>
+      <pub-id pub-id-type="doi">10.5281/zenodo.5539941</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-2020SciPy-NMeth">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Virtanen</surname><given-names>Pauli</given-names></name>
+        <name><surname>Gommers</surname><given-names>Ralf</given-names></name>
+        <name><surname>Oliphant</surname><given-names>Travis E.</given-names></name>
+        <name><surname>Haberland</surname><given-names>Matt</given-names></name>
+        <name><surname>Reddy</surname><given-names>Tyler</given-names></name>
+        <name><surname>Cournapeau</surname><given-names>David</given-names></name>
+        <name><surname>Burovski</surname><given-names>Evgeni</given-names></name>
+        <name><surname>Peterson</surname><given-names>Pearu</given-names></name>
+        <name><surname>Weckesser</surname><given-names>Warren</given-names></name>
+        <name><surname>Bright</surname><given-names>Jonathan</given-names></name>
+        <name><surname>van der Walt</surname><given-names>Stéfan J.</given-names></name>
+        <name><surname>Brett</surname><given-names>Matthew</given-names></name>
+        <name><surname>Wilson</surname><given-names>Joshua</given-names></name>
+        <name><surname>Millman</surname><given-names>K. Jarrod</given-names></name>
+        <name><surname>Mayorov</surname><given-names>Nikolay</given-names></name>
+        <name><surname>Nelson</surname><given-names>Andrew R. J.</given-names></name>
+        <name><surname>Jones</surname><given-names>Eric</given-names></name>
+        <name><surname>Kern</surname><given-names>Robert</given-names></name>
+        <name><surname>Larson</surname><given-names>Eric</given-names></name>
+        <name><surname>Carey</surname><given-names>C J</given-names></name>
+        <name><surname>Polat</surname><given-names>İlhan</given-names></name>
+        <name><surname>Feng</surname><given-names>Yu</given-names></name>
+        <name><surname>Moore</surname><given-names>Eric W.</given-names></name>
+        <name><surname>VanderPlas</surname><given-names>Jake</given-names></name>
+        <name><surname>Laxalde</surname><given-names>Denis</given-names></name>
+        <name><surname>Perktold</surname><given-names>Josef</given-names></name>
+        <name><surname>Cimrman</surname><given-names>Robert</given-names></name>
+        <name><surname>Henriksen</surname><given-names>Ian</given-names></name>
+        <name><surname>Quintero</surname><given-names>E. A.</given-names></name>
+        <name><surname>Harris</surname><given-names>Charles R.</given-names></name>
+        <name><surname>Archibald</surname><given-names>Anne M.</given-names></name>
+        <name><surname>Ribeiro</surname><given-names>Antônio H.</given-names></name>
+        <name><surname>Pedregosa</surname><given-names>Fabian</given-names></name>
+        <name><surname>van Mulbregt</surname><given-names>Paul</given-names></name>
+        <string-name>SciPy 1.0 Contributors</string-name>
+      </person-group>
+      <article-title>SciPy 1.0: Fundamental Algorithms for Scientific Computing in Python</article-title>
+      <source>Nature Methods</source>
+      <year iso-8601-date="2020">2020</year>
+      <volume>17</volume>
+      <pub-id pub-id-type="doi">10.1038/s41592-019-0686-2</pub-id>
+      <fpage>261</fpage>
+      <lpage>272</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Libralato.etal.2024">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Libralato</surname><given-names>Mattia</given-names></name>
+        <name><surname>Argyriou</surname><given-names>Ioannis</given-names></name>
+        <name><surname>Dicken</surname><given-names>Dan</given-names></name>
+        <name><surname>Garcı́a Marı́n</surname><given-names>Macarena</given-names></name>
+        <name><surname>Guillard</surname><given-names>Pierre</given-names></name>
+        <name><surname>Hines</surname><given-names>Dean C.</given-names></name>
+        <name><surname>Kavanagh</surname><given-names>Patrick J.</given-names></name>
+        <name><surname>Kendrew</surname><given-names>Sarah</given-names></name>
+        <name><surname>Law</surname><given-names>David R.</given-names></name>
+        <name><surname>Noriega-Crespo</surname><given-names>Alberto</given-names></name>
+        <name><surname>Álvarez-Márquez</surname><given-names>Javier</given-names></name>
+      </person-group>
+      <article-title>High-precision Astrometry and Photometry with the JWST/MIRI Imager</article-title>
+      <source>Publications of the Astronomical Society of the Pacific</source>
+      <year iso-8601-date="2024-03">2024</year><month>03</month>
+      <volume>136</volume>
+      <issue>3</issue>
+      <uri>https://arxiv.org/abs/2311.12145</uri>
+      <pub-id pub-id-type="doi">10.1088/1538-3873/ad2551</pub-id>
+      <fpage>034502</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Libralato.etal.2023">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Libralato</surname><given-names>Mattia</given-names></name>
+        <name><surname>Bellini</surname><given-names>Andrea</given-names></name>
+        <name><surname>van der Marel</surname><given-names>Roeland P.</given-names></name>
+        <name><surname>Anderson</surname><given-names>Jay</given-names></name>
+        <name><surname>Sohn</surname><given-names>Sangmo Tony</given-names></name>
+        <name><surname>Watkins</surname><given-names>Laura L.</given-names></name>
+        <name><surname>Alderson</surname><given-names>Lili</given-names></name>
+        <name><surname>Allen</surname><given-names>Natalie</given-names></name>
+        <name><surname>Clampin</surname><given-names>Mark</given-names></name>
+        <name><surname>Glidden</surname><given-names>Ana</given-names></name>
+        <name><surname>Goyal</surname><given-names>Jayesh</given-names></name>
+        <name><surname>Hoch</surname><given-names>Kielan</given-names></name>
+        <name><surname>Huang</surname><given-names>Jingcheng</given-names></name>
+        <name><surname>Kammerer</surname><given-names>Jens</given-names></name>
+        <name><surname>Lewis</surname><given-names>Nikole K.</given-names></name>
+        <name><surname>Lin</surname><given-names>Zifan</given-names></name>
+        <name><surname>Long</surname><given-names>Douglas</given-names></name>
+        <name><surname>Louie</surname><given-names>Dana</given-names></name>
+        <name><surname>MacDonald</surname><given-names>Ryan J.</given-names></name>
+        <name><surname>Mountain</surname><given-names>Matt</given-names></name>
+        <name><surname>Peña-Guerrero</surname><given-names>Maria</given-names></name>
+        <name><surname>Perrin</surname><given-names>Marshall D.</given-names></name>
+        <name><surname>Pueyo</surname><given-names>Laurent</given-names></name>
+        <name><surname>Rebollido</surname><given-names>Isabel</given-names></name>
+        <name><surname>Rickman</surname><given-names>Emily</given-names></name>
+        <name><surname>Seager</surname><given-names>Sara</given-names></name>
+        <name><surname>Stevenson</surname><given-names>Kevin B.</given-names></name>
+        <name><surname>Valenti</surname><given-names>Jeff A.</given-names></name>
+        <name><surname>Valentine</surname><given-names>Daniel</given-names></name>
+        <name><surname>Wakeford</surname><given-names>Hannah R.</given-names></name>
+      </person-group>
+      <article-title>JWST-TST Proper Motions. I. High-precision NIRISS Calibration and Large Magellanic Cloud Kinematics</article-title>
+      <source>The Astrophysical Journal</source>
+      <year iso-8601-date="2023-06">2023</year><month>06</month>
+      <volume>950</volume>
+      <issue>2</issue>
+      <uri>https://arxiv.org/abs/2303.00009</uri>
+      <pub-id pub-id-type="doi">10.3847/1538-4357/acd04f</pub-id>
+      <fpage>101</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Brammer_grizli">
+    <element-citation publication-type="software">
+      <person-group person-group-type="author">
+        <name><surname>Brammer</surname><given-names>Gabriel</given-names></name>
+      </person-group>
+      <article-title>grizli</article-title>
+      <year iso-8601-date="2024">2024</year>
+      <uri>https://github.com/gbrammer/grizli</uri>
+      <pub-id pub-id-type="doi">10.5281/zenodo.1146904</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-Ji.etal.2024">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Ji</surname><given-names>Zhiyuan</given-names></name>
+        <name><surname>Williams</surname><given-names>Christina C.</given-names></name>
+        <name><surname>Tacchella</surname><given-names>Sandro</given-names></name>
+        <name><surname>Suess</surname><given-names>Katherine A.</given-names></name>
+        <name><surname>Baker</surname><given-names>William M.</given-names></name>
+        <name><surname>Alberts</surname><given-names>Stacey</given-names></name>
+        <name><surname>Bunker</surname><given-names>Andrew J.</given-names></name>
+        <name><surname>Johnson</surname><given-names>Benjamin D.</given-names></name>
+        <name><surname>Robertson</surname><given-names>Brant</given-names></name>
+        <name><surname>Sun</surname><given-names>Fengwu</given-names></name>
+        <name><surname>Eisenstein</surname><given-names>Daniel J.</given-names></name>
+        <name><surname>Rieke</surname><given-names>Marcia</given-names></name>
+        <name><surname>Maseda</surname><given-names>Michael V.</given-names></name>
+        <name><surname>Hainline</surname><given-names>Kevin</given-names></name>
+        <name><surname>Hausen</surname><given-names>Ryan</given-names></name>
+        <name><surname>Rieke</surname><given-names>George</given-names></name>
+        <name><surname>Willmer</surname><given-names>Christopher N. A.</given-names></name>
+        <name><surname>Egami</surname><given-names>Eiichi</given-names></name>
+        <name><surname>Shivaei</surname><given-names>Irene</given-names></name>
+        <name><surname>Carniani</surname><given-names>Stefano</given-names></name>
+        <name><surname>Charlot</surname><given-names>Stephane</given-names></name>
+        <name><surname>Chevallard</surname><given-names>Jacopo</given-names></name>
+        <name><surname>Curtis-Lake</surname><given-names>Emma</given-names></name>
+        <name><surname>Looser</surname><given-names>Tobias J.</given-names></name>
+        <name><surname>Maiolino</surname><given-names>Roberto</given-names></name>
+        <name><surname>Willott</surname><given-names>Chris</given-names></name>
+        <name><surname>Chen</surname><given-names>Zuyi</given-names></name>
+        <name><surname>Helton</surname><given-names>Jakob M.</given-names></name>
+        <name><surname>Lyu</surname><given-names>Jianwei</given-names></name>
+        <name><surname>Nelson</surname><given-names>Erica</given-names></name>
+        <name><surname>Bhatawdekar</surname><given-names>Rachana</given-names></name>
+        <name><surname>Boyett</surname><given-names>Kristan</given-names></name>
+        <name><surname>Sandles</surname><given-names>Lester</given-names></name>
+      </person-group>
+      <article-title>JADES + JEMS: A Detailed Look at the Buildup of Central Stellar Cores and Suppression of Star Formation in Galaxies at Redshifts 3 &lt; z &lt; 4.5</article-title>
+      <source>The Astrophysical Journal</source>
+      <year iso-8601-date="2024-10">2024</year><month>10</month>
+      <volume>974</volume>
+      <issue>1</issue>
+      <uri>https://arxiv.org/abs/2305.18518</uri>
+      <pub-id pub-id-type="doi">10.3847/1538-4357/ad6e7f</pub-id>
+      <fpage>135</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Perrin_STPSF">
+    <element-citation publication-type="software">
+      <person-group person-group-type="author">
+        <name><surname>Perrin</surname><given-names>Marshall</given-names></name>
+        <name><surname>Melendez</surname><given-names>Marcio</given-names></name>
+        <name><surname>Osborne</surname><given-names>Shannon</given-names></name>
+        <name><surname>Geda</surname><given-names>Robel</given-names></name>
+        <name><surname>Sappington</surname><given-names>Bradley</given-names></name>
+        <name><surname>Lajoie</surname><given-names>Charles-Philippe</given-names></name>
+        <name><surname>Long</surname><given-names>Joseph</given-names></name>
+        <name><surname>Otor</surname><given-names>O. Justin</given-names></name>
+      </person-group>
+      <article-title>STPSF</article-title>
+      <year iso-8601-date="2025">2025</year>
+      <uri>https://github.com/spacetelescope/stpsf</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-Liaudat.etal.2023">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Liaudat</surname><given-names>Tobías I.</given-names></name>
+        <name><surname>Starck</surname><given-names>Jean-Luc</given-names></name>
+        <name><surname>Kilbinger</surname><given-names>Martin</given-names></name>
+      </person-group>
+      <article-title>Point spread function modelling for astronomical telescopes: A review focused on weak gravitational lensing studies</article-title>
+      <source>Frontiers in Astronomy and Space Sciences</source>
+      <year iso-8601-date="2023">2023</year>
+      <volume>Volume 10 - 2023</volume>
+      <issn>2296-987X</issn>
+      <uri>https://www.frontiersin.org/journals/astronomy-and-space-sciences/articles/10.3389/fspas.2023.1158213</uri>
+      <pub-id pub-id-type="doi">10.3389/fspas.2023.1158213</pub-id>
+    </element-citation>
+  </ref>
+</ref-list>
+<fn-group>
+  <fn id="fn1">
+    <label>1</label><p><ext-link ext-link-type="uri" xlink:href="https://github.com/spacetelescope/hst_notebooks/tree/main/notebooks/WFC3/point_spread_function">https://github.com/spacetelescope/hst_notebooks/tree/main/notebooks/WFC3/point_spread_function</ext-link>;
+    <ext-link ext-link-type="uri" xlink:href="https://github.com/spacetelescope/wfc3_photometry">https://github.com/spacetelescope/wfc3_photometry</ext-link></p>
+  </fn>
+  <fn id="fn2">
+    <label>2</label><p><ext-link ext-link-type="uri" xlink:href="https://www.stsci.edu/~jayander/HST1PASS/LIB/PSFs/STDPSFs/">https://www.stsci.edu/~jayander/HST1PASS/LIB/PSFs/STDPSFs/</ext-link>;
+    <ext-link ext-link-type="uri" xlink:href="https://www.stsci.edu/~jayander/JWST1PASS/LIB/PSFs/STDPSFs/">https://www.stsci.edu/~jayander/JWST1PASS/LIB/PSFs/STDPSFs/</ext-link></p>
+  </fn>
+</fn-group>
+</back>
+</article>
