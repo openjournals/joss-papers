@@ -1,0 +1,838 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">8321</article-id>
+<article-id pub-id-type="doi">10.21105/joss.08321</article-id>
+<title-group>
+<article-title>asyncmd: A python library to orchestrate complex
+molecular dynamics simulation campaigns on high performance computing
+systems</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0002-2159-0391</contrib-id>
+<name>
+<surname>Jung</surname>
+<given-names>Hendrik</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0001-7768-746X</contrib-id>
+<name>
+<surname>Hummer</surname>
+<given-names>Gerhard</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+<xref ref-type="aff" rid="aff-2"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Max Planck Institute of Biophysics, Department of
+Theoretical Biophysics, Frankfurt am Main, Germany</institution>
+</institution-wrap>
+</aff>
+<aff id="aff-2">
+<institution-wrap>
+<institution>Institute of Biophysics, Goethe University Frankfurt,
+Frankfurt am Main, Germany</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2025-04-23">
+<day>23</day>
+<month>4</month>
+<year>2025</year>
+</pub-date>
+<volume>10</volume>
+<issue>112</issue>
+<fpage>8321</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2025</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>python</kwd>
+<kwd>molecular dynamics</kwd>
+<kwd>molecular dynamics simulation</kwd>
+<kwd>enhanced sampling</kwd>
+<kwd>gromacs</kwd>
+<kwd>high performance computing</kwd>
+<kwd>hpc</kwd>
+<kwd>slurm</kwd>
+<kwd>biophysics</kwd>
+<kwd>chemistry</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p>Molecular dynamics (MD) simulations have become an integral tool to
+  study complex molecular rearrangements and molecular phenomena in many
+  fields and of many different molecular compounds. They are especially
+  useful to study the dynamics, interactions, and function of
+  biomolecules such as proteins, DNA, RNA, lipids, and small drug-like
+  molecules. In MD simulations, the time evolution of a molecular system
+  is obtained by solving Newton’s equations of motion in small timesteps
+  starting from a given initial configuration. Due to the inherent
+  sequential nature of MD and the high dimensionality and complexity of
+  the studied (bio)molecular systems, it can be challenging to reach the
+  timescale of the (biological) events under investigation within a
+  single MD trajectory. This challenge can be addressed by running many
+  MD simulations simultaneously on a high performance computing (HPC)
+  system - possibly in an adaptive manner and combined with enhanced
+  sampling techniques - and then making full use of the resulting
+  ensemble of trajectories. It is therefore paramount to enable MD users
+  to efficiently setup and orchestrate a large number of simultaneous
+  simulations with dynamic dependencies and flexible termination
+  conditions. <monospace>asyncmd</monospace> enables users to define
+  complex MD sampling workflows in python from simple building blocks
+  and executes these computations directly via the queuing system of a
+  HPC resource. The submission of smaller computation tasks as single
+  jobs (with differing requirements) to the queuing system ensures
+  optimal usage of the heterogeneous resources of modern HPC systems. In
+  addition, this approach supports dynamically growing and shrinking of
+  the total resources allocated to the computation by design, also
+  depending on the demand of other users of the same HPC system. By
+  providing their common building blocks, <monospace>asyncmd</monospace>
+  also simplifies the development and implementation of advanced
+  trajectory-based enhanced sampling algorithms, including the weighted
+  ensemble method, the string method, or transition path sampling.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p>A challenge faced when performing MD simulations of complex
+  (bio)molecular rearrangements is the disparity of timescales between
+  the integration timestep, which needs to be small (usually on the
+  order of femtoseconds) to ensure accurate integration of Newton’s
+  equations of motion, and the time needed to observe the (biological)
+  process under investigation, which can be on the order of seconds to
+  minutes. Due to the sequential nature inherent to solving Newton’s
+  equations of motion in small timesteps, MD simulations can only be
+  parallelized to a certain degree and much of the parallelization
+  possible relies on dividing the system into regions that are
+  sufficiently far apart to not interact directly with each other. Taken
+  together with the trend that, in the recent past, computing resources
+  have mostly become wider (i.e. more parallel) but not faster (i.e. not
+  increased in clock speed), the result is that the simulated systems
+  have become larger while the simulated time (per trajectory) did not
+  increase by much anymore. A common strategy to accumulate the required
+  simulation time to observe the process under investigation while also
+  making the most efficient use of modern highly parallel HPC resources,
+  is to run many MD simulations of the same (biological) system with
+  different initial conditions simultaneously. This strategy results in
+  a much higher total accumulated simulated time than running one
+  simulation on the same computing resources due to the inherent
+  sequential nature of MD. While, depending on the number of
+  simultaneous MD simulations, it can be tedious but still possible to
+  manually setup a large number of MD simulations, continually
+  monitoring their progress quickly becomes unfeasible. However, in many
+  cases it is much more computationally efficient to, instead of
+  performing MD for a fixed number of integration steps, terminate the
+  simulations (and potentially use the freed resources for another MD
+  simulation) once a certain condition is met or event occurred, e.g.,
+  the transition between two functional states of a biomolecule.
+  Conversely, if the goal is to explore a functional state previously
+  unreached by MD, it can be much more efficient to (re)start a large
+  number of MD simulations from the first configuration that reaches the
+  state in any of a number of simulations started from known states.</p>
+  <p><monospace>asyncmd</monospace> is a python library facilitating
+  flexible, programmatic and parallel setup, control, and analysis of an
+  arbitrary number of MD simulations on HPC resources using the python
+  async/await syntax. The library currently supports the SLURM queuing
+  system
+  (<xref alt="Jette &amp; Wickberg, 2023" rid="ref-slurm" ref-type="bibr">Jette
+  &amp; Wickberg, 2023</xref>) and the GROMACS MD engine
+  (<xref alt="Páll et al., 2020" rid="ref-gromacs2020" ref-type="bibr">Páll
+  et al., 2020</xref>), but can easily be extended to other queuing
+  systems and MD engines. To enable the handling of many MD engines
+  simultaneously, all MD engines return a lightweight
+  <monospace>Trajectory</monospace> object that only contains references
+  to the underlying files and some useful metadata such as the length of
+  the trajectory or the integration timestep used. All trajectory
+  reading and writing operations performed make use of the MDAnalysis
+  library
+  (<xref alt="Gowers et al., 2016" rid="ref-mdanalysis2016" ref-type="bibr">Gowers
+  et al., 2016</xref>;
+  <xref alt="Michaud-Agrawal et al., 2011" rid="ref-mdanalysis2011" ref-type="bibr">Michaud-Agrawal
+  et al., 2011</xref>), which means that <monospace>asyncmd</monospace>
+  can profit from the extensive variety of trajectory formats and MD
+  engines supported in MDAnalysis. Notable features of the
+  <monospace>asyncmd</monospace> library include the propagation of MD
+  until any or all user-supplied conditions are fulfilled on the
+  trajectory, the parallelized application of user defined (python)
+  functions on existing or generated trajectories (including the
+  automatic caching of calculated values), and a dictionary-like
+  interface to the MD parameters. By additionally making it easy to
+  extract any molecular configuration to (re)start an arbitrary number
+  of MD simulations from it, users are enabled to build complex sampling
+  schemes with dynamical dependencies from simple building blocks in
+  python.</p>
+  <p>All computationally costly operations are submitted via the queuing
+  system, i.e., the process running <monospace>asyncmd</monospace> has a
+  low computational footprint and can be run on the login node to
+  control complex and long running simulation setups with dynamic
+  dependencies. Additionally, the submission via the existing queuing
+  system ensures that the available HPC resources are efficiently shared
+  with other users independently of them using
+  <monospace>asyncmd</monospace> or not. For each submittable
+  computation <monospace>asyncmd</monospace> includes a locally executed
+  equivalent using the same calling convention to facilitate quick
+  prototyping and implementation of (new) algorithms using small test
+  systems on local compute resources. By making it easy to move the
+  execution from a workstation to a HPC cluster, the newly implemented
+  algorithms can then be applied directly to larger, computationally
+  more costly molecular systems.</p>
+  <p><monospace>asyncmd</monospace> can therefore be used to manage
+  large scale MD simulation campaigns on HPC resources. In addition,
+  <monospace>asyncmd</monospace> provides an ideal building block to
+  develop and implement trajectory based enhanced sampling methods as,
+  e.g., variants of the string method
+  (<xref alt="E et al., 2002" rid="ref-e2002StringMethod" ref-type="bibr">E
+  et al., 2002</xref>), highly parallelized transition path or
+  transition interface sampling methods
+  (<xref alt="Dellago et al., 2002" rid="ref-dellago2002TransitionPathSampling" ref-type="bibr">Dellago
+  et al., 2002</xref>;
+  <xref alt="van Erp et al., 2003" rid="ref-vanerp2003NovelPathSampling" ref-type="bibr">van
+  Erp et al., 2003</xref>), flux sampling methods
+  (<xref alt="Chandler, 1978" rid="ref-chandler1978" ref-type="bibr">Chandler,
+  1978</xref>;
+  <xref alt="Ruiz-Montero et al., 1997" rid="ref-ruizmontero1997" ref-type="bibr">Ruiz-Montero
+  et al., 1997</xref>), or the weighted ensemble method
+  (<xref alt="G. A. Huber &amp; Kim, 1996" rid="ref-huber1996Weightedensemble" ref-type="bibr">G.
+  A. Huber &amp; Kim, 1996</xref>). Showcasing its potential,
+  <monospace>asyncmd</monospace> was already used to develop and
+  implement the AI for molecular mechanism discovery (aimmd) algorithm
+  (<xref alt="Jung, 2022" rid="ref-aimmd" ref-type="bibr">Jung,
+  2022</xref>;
+  <xref alt="Jung et al., 2023" rid="ref-jung2023" ref-type="bibr">Jung
+  et al., 2023</xref>), which adaptively steers a large number of
+  simultaneous MD simulations using a combination of transition path
+  sampling and machine learning.</p>
+  <p>In addition to its documentation, <monospace>asyncmd</monospace>
+  includes a number of examples in the form of jupyter notebooks. These
+  notebooks illustrate most of the common operations, such as performing
+  MD simulations (possibly until a condition is fulfilled) or how to
+  extract configurations from trajectories to restart MD simulations
+  from it, but also include an example showcasing how to implement the
+  weighted ensemble method.</p>
+  <sec id="state-of-the-field">
+    <title>State of the field</title>
+    <p>A number of other software packages are relevant in the context
+    of submitting MD simulations on HPC resources or to control them
+    from python, which will be discussed in the following.</p>
+    <p>Notably, it is possible to control and define MD simulation
+    workflows for GROMACS in python by using its gmxapi python interface
+    (<xref alt="C. A. K. Irrgang M. Eric AND Davis, 2022" rid="ref-irrgang2022gmxapi" ref-type="bibr">C.
+    A. K. Irrgang M. Eric AND Davis, 2022</xref>;
+    <xref alt="M. E. Irrgang et al., 2018" rid="ref-irrgang2018gmxapi" ref-type="bibr">M.
+    E. Irrgang et al., 2018</xref>). While gmxapi allows for fine
+    grained control of the MD simulation (including, e.g., custom
+    stopping conditions and user plugin code within the force
+    calculation), it is only possible to interact with MD simulations
+    running within the same job allocation or on the same local
+    machine.</p>
+    <p>The definition and submission of a general (non MD-specific)
+    computational workflow spanning over multiple job allocations on HPC
+    resources from python is possible by using AiiDA
+    (<xref alt="S. P. Huber et al., 2020" rid="ref-huber2020aiida" ref-type="bibr">S.
+    P. Huber et al., 2020</xref>;
+    <xref alt="Uhrin et al., 2021" rid="ref-uhrin2021aiida" ref-type="bibr">Uhrin
+    et al., 2021</xref>) or by using the combination of row
+    (<xref alt="Anderson et al., 2024" rid="ref-row" ref-type="bibr">Anderson
+    et al., 2024</xref>) and signac
+    (<xref alt="Adorf et al., 2018" rid="ref-adorf2018signac" ref-type="bibr">Adorf
+    et al., 2018</xref>). Both, AiiDa and signac/row, have an emphasis
+    on automatically storing data provenance, while
+    <monospace>asyncmd</monospace> makes no attempt to store any
+    input/output relations and it is the users responsibility (and
+    freedom) to choose an adequate solution for their use-case to track
+    data provenance. AiiDA currently supports a number of different
+    queuing systems, but it is not possible to request accelerator
+    resources such as GPUs. row currently only supports the SLURM
+    queuing system, but offers a finer control over the job resources
+    including the requested memory and number of GPUs.
+    <monospace>asyncmd</monospace> currently also only supports the
+    SLURM queuing system, but offers support for any option of the SLURM
+    “sbatch” command to control the requested resources for and
+    execution of the jobs. MD simulations can be performed with AiiDA by
+    using the aiida-gromacs plugin
+    (<xref alt="Gebbie-Rayet &amp; Kalayan, 2022" rid="ref-aiida-gromacs" ref-type="bibr">Gebbie-Rayet
+    &amp; Kalayan, 2022</xref>) and martignac
+    (<xref alt="Bereau et al., 2024" rid="ref-bereau2024martignac" ref-type="bibr">Bereau
+    et al., 2024</xref>) defines a number of coarse-grained Martini
+    simulation workflows with signac. Another notable package enabling
+    high-throughput MD simulations in the context of materials science
+    is atomate2
+    (<xref alt="Ganose et al., 2025" rid="ref-atomate2" ref-type="bibr">Ganose
+    et al., 2025</xref>), which is also capable of submitting the
+    computations to remote (HPC) resources. However, to the best
+    knowledge of the authors, no other package besides
+    <monospace>asyncmd</monospace> exists that offers the submission and
+    control of many MD simulation via a queuing system, while also
+    focusing on versatile and dynamic stopping conditions for the
+    simulations to provide simple building blocks for enhanced sampling
+    algorithms.</p>
+    <p>Finally, what sets <monospace>asyncmd</monospace> apart from
+    full-fledged implementations of path sampling and other trajectory
+    based sampling methods, such as, e.g., openpathsampling
+    (<xref alt="Swenson et al., 2019a" rid="ref-ops1" ref-type="bibr">Swenson
+    et al., 2019a</xref>,
+    <xref alt="2019b" rid="ref-ops2" ref-type="bibr">2019b</xref>), is
+    that it does not implement any specific algorithms to drive the
+    sampling, but instead strives to only provide the common building
+    blocks shared between many trajectory based enhanced sampling
+    methods.</p>
+  </sec>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>The authors thank all users of <monospace>asyncmd</monospace> for
+  contributing feedback and suggesting new features, especially Matea
+  Turalija and Vedran Miletic, for feedback on and contributions to the
+  code. H.J. and G.H. thank the Max Planck Society for financial support
+  and the Max Planck Computing and Data Facility (MPCDF) for computing
+  support.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <title></title>
+  <ref id="ref-slurm">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Jette</surname><given-names>Morris A.</given-names></name>
+        <name><surname>Wickberg</surname><given-names>Tim</given-names></name>
+      </person-group>
+      <article-title>Architecture of the slurm workload manager</article-title>
+      <source>Job scheduling strategies for parallel processing</source>
+      <person-group person-group-type="editor">
+        <name><surname>Klusáček</surname><given-names>Dalibor</given-names></name>
+        <name><surname>Corbalán</surname><given-names>Julita</given-names></name>
+        <name><surname>Rodrigo</surname><given-names>Gonzalo P.</given-names></name>
+      </person-group>
+      <publisher-name>Springer Nature Switzerland</publisher-name>
+      <publisher-loc>Cham</publisher-loc>
+      <year iso-8601-date="2023">2023</year>
+      <isbn>978-3-031-43943-8</isbn>
+      <pub-id pub-id-type="doi">10.1007/978-3-031-43943-8_1</pub-id>
+      <fpage>3</fpage>
+      <lpage>23</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-gromacs2020">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Páll</surname><given-names>Szilárd</given-names></name>
+        <name><surname>Zhmurov</surname><given-names>Artem</given-names></name>
+        <name><surname>Bauer</surname><given-names>Paul</given-names></name>
+        <name><surname>Abraham</surname><given-names>Mark</given-names></name>
+        <name><surname>Lundborg</surname><given-names>Magnus</given-names></name>
+        <name><surname>Gray</surname><given-names>Alan</given-names></name>
+        <name><surname>Hess</surname><given-names>Berk</given-names></name>
+        <name><surname>Lindahl</surname><given-names>Erik</given-names></name>
+      </person-group>
+      <article-title>Heterogeneous parallelization and acceleration of molecular dynamics simulations in GROMACS</article-title>
+      <source>The Journal of Chemical Physics</source>
+      <year iso-8601-date="2020-10">2020</year><month>10</month>
+      <volume>153</volume>
+      <issue>13</issue>
+      <issn>0021-9606</issn>
+      <uri>https://doi.org/10.1063/5.0018516</uri>
+      <pub-id pub-id-type="doi">10.1063/5.0018516</pub-id>
+      <fpage>134110</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-mdanalysis2011">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Michaud-Agrawal</surname><given-names>Naveen</given-names></name>
+        <name><surname>Denning</surname><given-names>Elizabeth J.</given-names></name>
+        <name><surname>Woolf</surname><given-names>Thomas B.</given-names></name>
+        <name><surname>Beckstein</surname><given-names>Oliver</given-names></name>
+      </person-group>
+      <article-title>MDAnalysis: A toolkit for the analysis of molecular dynamics simulations</article-title>
+      <source>Journal of Computational Chemistry</source>
+      <year iso-8601-date="2011">2011</year>
+      <volume>32</volume>
+      <issue>10</issue>
+      <uri>https://onlinelibrary.wiley.com/doi/abs/10.1002/jcc.21787</uri>
+      <pub-id pub-id-type="doi">10.1002/jcc.21787</pub-id>
+      <fpage>2319</fpage>
+      <lpage>2327</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-mdanalysis2016">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Gowers</surname></name>
+        <name><surname>Linke</surname></name>
+        <name><surname>Barnoud</surname></name>
+        <name><surname>Reddy</surname></name>
+        <name><surname>Melo</surname></name>
+        <name><surname>Seyler</surname></name>
+        <name><surname>Domański</surname></name>
+        <name><surname>Dotson</surname></name>
+        <name><surname>Buchoux</surname></name>
+        <name><surname>Kenney</surname></name>
+        <name><surname>Beckstein</surname></name>
+      </person-group>
+      <article-title>MDAnalysis: A Python Package for the Rapid Analysis of Molecular Dynamics Simulations</article-title>
+      <source>Proceedings of the 15th Python in Science Conference</source>
+      <person-group person-group-type="editor">
+        <name><surname>Benthall</surname></name>
+        <name><surname>Rostrup</surname></name>
+      </person-group>
+      <year iso-8601-date="2016">2016</year>
+      <pub-id pub-id-type="doi">10.25080/Majora-629e541a-00e</pub-id>
+      <fpage>98 </fpage>
+      <lpage> 105</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-e2002StringMethod">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>E</surname><given-names>Weinan</given-names></name>
+        <name><surname>Ren</surname><given-names>Weiqing</given-names></name>
+        <name><surname>Vanden-Eijnden</surname><given-names>Eric</given-names></name>
+      </person-group>
+      <article-title>String method for the study of rare events</article-title>
+      <source>Physical Review B</source>
+      <publisher-name>American Physical Society</publisher-name>
+      <year iso-8601-date="2002-08">2002</year><month>08</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2023-06-27">2023</year><month>06</month><day>27</day></date-in-citation>
+      <volume>66</volume>
+      <issue>5</issue>
+      <pub-id pub-id-type="doi">10.1103/PhysRevB.66.052301</pub-id>
+      <fpage>052301</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-dellago2002TransitionPathSampling">
+    <element-citation publication-type="chapter">
+      <person-group person-group-type="author">
+        <name><surname>Dellago</surname><given-names>Christoph</given-names></name>
+        <name><surname>Bolhuis</surname><given-names>Peter G.</given-names></name>
+        <name><surname>Geissler</surname><given-names>Phillip L.</given-names></name>
+      </person-group>
+      <article-title>Transition Path Sampling</article-title>
+      <source>Advances in Chemical Physics</source>
+      <publisher-name>John Wiley &amp; Sons, Ltd</publisher-name>
+      <year iso-8601-date="2002">2002</year>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2021-03-15">2021</year><month>03</month><day>15</day></date-in-citation>
+      <volume>123</volume>
+      <isbn>978-0-471-23150-9</isbn>
+      <pub-id pub-id-type="doi">10.1002/0471231509.ch1</pub-id>
+      <fpage>1</fpage>
+      <lpage>78</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-vanerp2003NovelPathSampling">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>van Erp</surname><given-names>Titus S.</given-names></name>
+        <name><surname>Moroni</surname><given-names>Daniele</given-names></name>
+        <name><surname>Bolhuis</surname><given-names>Peter G.</given-names></name>
+      </person-group>
+      <article-title>A novel path sampling method for the calculation of rate constants</article-title>
+      <source>The Journal of Chemical Physics</source>
+      <publisher-name>American Institute of Physics</publisher-name>
+      <year iso-8601-date="2003-04">2003</year><month>04</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2020-04-11">2020</year><month>04</month><day>11</day></date-in-citation>
+      <volume>118</volume>
+      <issue>17</issue>
+      <issn>0021-9606</issn>
+      <pub-id pub-id-type="doi">10.1063/1.1562614</pub-id>
+      <fpage>7762</fpage>
+      <lpage>7774</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-chandler1978">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Chandler</surname><given-names>David</given-names></name>
+      </person-group>
+      <article-title>Statistical mechanics of isomerization dynamics in liquids and the transition state approximation</article-title>
+      <source>The Journal of Chemical Physics</source>
+      <year iso-8601-date="1978-03">1978</year><month>03</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2023-06-27">2023</year><month>06</month><day>27</day></date-in-citation>
+      <volume>68</volume>
+      <issue>6</issue>
+      <issn>0021-9606</issn>
+      <pub-id pub-id-type="doi">10.1063/1.436049</pub-id>
+      <fpage>2959</fpage>
+      <lpage>2970</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-ruizmontero1997">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Ruiz-Montero</surname><given-names>M. J.</given-names></name>
+        <name><surname>Frenkel</surname><given-names>Daan</given-names></name>
+        <name><surname>Brey</surname><given-names>J. J.</given-names></name>
+      </person-group>
+      <article-title>Efficient schemes to compute diffusive barrier crossing rates</article-title>
+      <source>Molecular Physics</source>
+      <publisher-name>Taylor &amp; Francis</publisher-name>
+      <year iso-8601-date="1997-04">1997</year><month>04</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2023-08-13">2023</year><month>08</month><day>13</day></date-in-citation>
+      <volume>90</volume>
+      <issue>6</issue>
+      <issn>0026-8976</issn>
+      <pub-id pub-id-type="doi">10.1080/002689797171922</pub-id>
+      <fpage>925</fpage>
+      <lpage>942</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-huber1996Weightedensemble">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Huber</surname><given-names>G. A.</given-names></name>
+        <name><surname>Kim</surname><given-names>S.</given-names></name>
+      </person-group>
+      <article-title>Weighted-ensemble Brownian dynamics simulations for protein association reactions</article-title>
+      <source>Biophysical Journal</source>
+      <publisher-name>Elsevier</publisher-name>
+      <year iso-8601-date="1996-01">1996</year><month>01</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2023-03-12">2023</year><month>03</month><day>12</day></date-in-citation>
+      <volume>70</volume>
+      <issue>1</issue>
+      <issn>0006-3495</issn>
+      <pub-id pub-id-type="doi">10.1016/S0006-3495(96)79552-8</pub-id>
+      <pub-id pub-id-type="pmid">8770190</pub-id>
+      <fpage>97</fpage>
+      <lpage>110</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-jung2023">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Jung</surname><given-names>Hendrik</given-names></name>
+        <name><surname>Covino</surname><given-names>Roberto</given-names></name>
+        <name><surname>Arjun</surname><given-names>A.</given-names></name>
+        <name><surname>Leitold</surname><given-names>Christian</given-names></name>
+        <name><surname>Dellago</surname><given-names>Christoph</given-names></name>
+        <name><surname>Bolhuis</surname><given-names>Peter G.</given-names></name>
+        <name><surname>Hummer</surname><given-names>Gerhard</given-names></name>
+      </person-group>
+      <article-title>Machine-guided path sampling to discover mechanisms of molecular self-organization</article-title>
+      <source>Nature Computational Science</source>
+      <publisher-name>Nature Publishing Group</publisher-name>
+      <year iso-8601-date="2023-04">2023</year><month>04</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2023-04-26">2023</year><month>04</month><day>26</day></date-in-citation>
+      <volume>3</volume>
+      <issue>4</issue>
+      <issn>2662-8457</issn>
+      <pub-id pub-id-type="doi">10.1038/s43588-023-00428-z</pub-id>
+      <fpage>334</fpage>
+      <lpage>345</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-aimmd">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Jung</surname><given-names>Hendrik</given-names></name>
+      </person-group>
+      <article-title>Aimmd: AI for molecular mechanism discovery</article-title>
+      <source>GitHub repository</source>
+      <publisher-name>GitHub</publisher-name>
+      <year iso-8601-date="2022">2022</year>
+      <uri>https://github.com/bio-phys/aimmd</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-ops1">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Swenson</surname><given-names>David W. H.</given-names></name>
+        <name><surname>Prinz</surname><given-names>Jan-Hendrik</given-names></name>
+        <name><surname>Noe</surname><given-names>Frank</given-names></name>
+        <name><surname>Chodera</surname><given-names>John D.</given-names></name>
+        <name><surname>Bolhuis</surname><given-names>Peter G.</given-names></name>
+      </person-group>
+      <article-title>OpenPathSampling: A Python framework for path sampling simulations. 1. Basics</article-title>
+      <source>Journal of Chemical Theory and Computation</source>
+      <year iso-8601-date="2019">2019</year>
+      <volume>15</volume>
+      <issue>2</issue>
+      <uri>https://doi.org/10.1021/acs.jctc.8b00626</uri>
+      <pub-id pub-id-type="doi">10.1021/acs.jctc.8b00626</pub-id>
+      <fpage>813</fpage>
+      <lpage>836</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-ops2">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Swenson</surname><given-names>David W. H.</given-names></name>
+        <name><surname>Prinz</surname><given-names>Jan-Hendrik</given-names></name>
+        <name><surname>Noe</surname><given-names>Frank</given-names></name>
+        <name><surname>Chodera</surname><given-names>John D.</given-names></name>
+        <name><surname>Bolhuis</surname><given-names>Peter G.</given-names></name>
+      </person-group>
+      <article-title>OpenPathSampling: A Python framework for path sampling simulations. 2. Building and customizing path ensembles and sample schemes</article-title>
+      <source>Journal of Chemical Theory and Computation</source>
+      <year iso-8601-date="2019">2019</year>
+      <volume>15</volume>
+      <issue>2</issue>
+      <uri>https://doi.org/10.1021/acs.jctc.8b00627</uri>
+      <pub-id pub-id-type="doi">10.1021/acs.jctc.8b00627</pub-id>
+      <fpage>837</fpage>
+      <lpage>856</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-irrgang2018gmxapi">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Irrgang</surname><given-names>M Eric</given-names></name>
+        <name><surname>Hays</surname><given-names>Jennifer M</given-names></name>
+        <name><surname>Kasson</surname><given-names>Peter M</given-names></name>
+      </person-group>
+      <article-title>Gmxapi: A high-level interface for advanced control and extension of molecular dynamics simulations</article-title>
+      <source>Bioinformatics</source>
+      <year iso-8601-date="2018-06">2018</year><month>06</month>
+      <volume>34</volume>
+      <issue>22</issue>
+      <issn>1367-4803</issn>
+      <uri>https://doi.org/10.1093/bioinformatics/bty484</uri>
+      <pub-id pub-id-type="doi">10.1093/bioinformatics/bty484</pub-id>
+      <fpage>3945</fpage>
+      <lpage>3947</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-irrgang2022gmxapi">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Irrgang</surname><given-names>Caroline AND Kasson</given-names><suffix>M. Eric AND Davis</suffix></name>
+      </person-group>
+      <article-title>Gmxapi: A GROMACS-native python interface for molecular dynamics with ensemble and plugin support</article-title>
+      <source>PLOS Computational Biology</source>
+      <publisher-name>Public Library of Science</publisher-name>
+      <year iso-8601-date="2022-02">2022</year><month>02</month>
+      <volume>18</volume>
+      <issue>2</issue>
+      <uri>https://doi.org/10.1371/journal.pcbi.1009835</uri>
+      <pub-id pub-id-type="doi">10.1371/journal.pcbi.1009835</pub-id>
+      <fpage>1</fpage>
+      <lpage>12</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-huber2020aiida">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Huber</surname><given-names>Sebastiaan P.</given-names></name>
+        <name><surname>Zoupanos</surname><given-names>Spyros</given-names></name>
+        <name><surname>Uhrin</surname><given-names>Martin</given-names></name>
+        <name><surname>Talirz</surname><given-names>Leopold</given-names></name>
+        <name><surname>Kahle</surname><given-names>Leonid</given-names></name>
+        <name><surname>Häuselmann</surname><given-names>Rico</given-names></name>
+        <name><surname>Gresch</surname><given-names>Dominik</given-names></name>
+        <name><surname>Müller</surname><given-names>Tiziano</given-names></name>
+        <name><surname>Yakutovich</surname><given-names>Aliaksandr V.</given-names></name>
+        <name><surname>Andersen</surname><given-names>Casper W.</given-names></name>
+        <name><surname>Ramirez</surname><given-names>Francisco F.</given-names></name>
+        <name><surname>Adorf</surname><given-names>Carl S.</given-names></name>
+        <name><surname>Gargiulo</surname><given-names>Fernando</given-names></name>
+        <name><surname>Kumbhar</surname><given-names>Snehal</given-names></name>
+        <name><surname>Passaro</surname><given-names>Elsa</given-names></name>
+        <name><surname>Johnston</surname><given-names>Conrad</given-names></name>
+        <name><surname>Merkys</surname><given-names>Andrius</given-names></name>
+        <name><surname>Cepellotti</surname><given-names>Andrea</given-names></name>
+        <name><surname>Mounet</surname><given-names>Nicolas</given-names></name>
+        <name><surname>Marzari</surname><given-names>Nicola</given-names></name>
+        <name><surname>Kozinsky</surname><given-names>Boris</given-names></name>
+        <name><surname>Pizzi</surname><given-names>Giovanni</given-names></name>
+      </person-group>
+      <article-title>AiiDA 1.0, a scalable computational infrastructure for automated reproducible workflows and data provenance</article-title>
+      <source>Scientific Data</source>
+      <publisher-name>Nature Publishing Group</publisher-name>
+      <year iso-8601-date="2020-09">2020</year><month>09</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2025-07-09">2025</year><month>07</month><day>09</day></date-in-citation>
+      <volume>7</volume>
+      <issue>1</issue>
+      <issn>2052-4463</issn>
+      <pub-id pub-id-type="doi">10.1038/s41597-020-00638-4</pub-id>
+      <fpage>300</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-uhrin2021aiida">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Uhrin</surname><given-names>Martin</given-names></name>
+        <name><surname>Huber</surname><given-names>Sebastiaan P.</given-names></name>
+        <name><surname>Yu</surname><given-names>Jusong</given-names></name>
+        <name><surname>Marzari</surname><given-names>Nicola</given-names></name>
+        <name><surname>Pizzi</surname><given-names>Giovanni</given-names></name>
+      </person-group>
+      <article-title>Workflows in AiiDA: Engineering a high-throughput, event-based engine for robust and modular computational workflows</article-title>
+      <source>Computational Materials Science</source>
+      <year iso-8601-date="2021">2021</year>
+      <volume>187</volume>
+      <issn>0927-0256</issn>
+      <uri>https://www.sciencedirect.com/science/article/pii/S0927025620305772</uri>
+      <pub-id pub-id-type="doi">10.1016/j.commatsci.2020.110086</pub-id>
+      <fpage>110086</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-adorf2018signac">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Adorf</surname><given-names>Carl S.</given-names></name>
+        <name><surname>Dodd</surname><given-names>Paul M.</given-names></name>
+        <name><surname>Ramasubramani</surname><given-names>Vyas</given-names></name>
+        <name><surname>Glotzer</surname><given-names>Sharon C.</given-names></name>
+      </person-group>
+      <article-title>Simple data and workflow management with the signac framework</article-title>
+      <source>Computational Materials Science</source>
+      <year iso-8601-date="2018">2018</year>
+      <volume>146</volume>
+      <issue>C</issue>
+      <pub-id pub-id-type="doi">10.1016/j.commatsci.2018.01.035</pub-id>
+      <fpage>220</fpage>
+      <lpage>229</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-row">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Anderson</surname><given-names>Joshua A.</given-names></name>
+        <name><surname>Bradley</surname><given-names>Jen</given-names></name>
+        <name><surname>Burkhart</surname><given-names>Joseph</given-names></name>
+        <name><surname>Jensen</surname><given-names>Kate</given-names></name>
+        <name><surname>Moore</surname><given-names>Tim</given-names></name>
+        <name><surname>Kerr</surname><given-names>Corwin</given-names></name>
+        <name><surname>Teague</surname><given-names>Trevor</given-names></name>
+      </person-group>
+      <article-title>Row</article-title>
+      <source>GitHub repository</source>
+      <publisher-name>GitHub</publisher-name>
+      <year iso-8601-date="2024">2024</year>
+      <uri>https://github.com/glotzerlab/row</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-bereau2024martignac">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Bereau</surname><given-names>Tristan</given-names></name>
+        <name><surname>Walter</surname><given-names>Luis J.</given-names></name>
+        <name><surname>Rudzinski</surname><given-names>Joseph F.</given-names></name>
+      </person-group>
+      <article-title>Martignac: Computational workflows for reproducible, traceable, and composable coarse-grained martini simulations</article-title>
+      <source>Journal of Chemical Information and Modeling</source>
+      <year iso-8601-date="2024">2024</year>
+      <volume>64</volume>
+      <issue>24</issue>
+      <pub-id pub-id-type="doi">10.1021/acs.jcim.4c01754</pub-id>
+      <fpage>9413</fpage>
+      <lpage>9423</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-aiida-gromacs">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Gebbie-Rayet</surname><given-names>James</given-names></name>
+        <name><surname>Kalayan</surname><given-names>Jas</given-names></name>
+      </person-group>
+      <article-title>Aiida-gromacs</article-title>
+      <source>GitHub repository</source>
+      <publisher-name>GitHub</publisher-name>
+      <year iso-8601-date="2022">2022</year>
+      <uri>https://github.com/PSDI-UK/aiida-gromacs</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-atomate2">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Ganose</surname><given-names>Alex M.</given-names></name>
+        <name><surname>Sahasrabuddhe</surname><given-names>Hrushikesh</given-names></name>
+        <name><surname>Asta</surname><given-names>Mark</given-names></name>
+        <name><surname>Beck</surname><given-names>Kevin</given-names></name>
+        <name><surname>Biswas</surname><given-names>Tathagata</given-names></name>
+        <name><surname>Bonkowski</surname><given-names>Alexander</given-names></name>
+        <name><surname>Bustamante</surname><given-names>Joana</given-names></name>
+        <name><surname>Chen</surname><given-names>Xin</given-names></name>
+        <name><surname>Chiang</surname><given-names>Yuan</given-names></name>
+        <name><surname>Chrzan</surname><given-names>Daryl C.</given-names></name>
+        <name><surname>Clary</surname><given-names>Jacob</given-names></name>
+        <name><surname>Cohen</surname><given-names>Orion A.</given-names></name>
+        <name><surname>Ertural</surname><given-names>Christina</given-names></name>
+        <name><surname>Gallant</surname><given-names>Max C.</given-names></name>
+        <name><surname>George</surname><given-names>Janine</given-names></name>
+        <name><surname>Gerits</surname><given-names>Sophie</given-names></name>
+        <name><surname>Goodall</surname><given-names>Rhys E. A.</given-names></name>
+        <name><surname>Guha</surname><given-names>Rishabh D.</given-names></name>
+        <name><surname>Hautier</surname><given-names>Geoffroy</given-names></name>
+        <name><surname>Horton</surname><given-names>Matthew</given-names></name>
+        <name><surname>Inizan</surname><given-names>T. J.</given-names></name>
+        <name><surname>Kaplan</surname><given-names>Aaron D.</given-names></name>
+        <name><surname>Kingsbury</surname><given-names>Ryan S.</given-names></name>
+        <name><surname>Kuner</surname><given-names>Matthew C.</given-names></name>
+        <name><surname>Li</surname><given-names>Bryant</given-names></name>
+        <name><surname>Linn</surname><given-names>Xavier</given-names></name>
+        <name><surname>McDermott</surname><given-names>Matthew J.</given-names></name>
+        <name><surname>Mohanakrishnan</surname><given-names>Rohith Srinivaas</given-names></name>
+        <name><surname>Naik</surname><given-names>Aakash N.</given-names></name>
+        <name><surname>Neaton</surname><given-names>Jeffrey B.</given-names></name>
+        <name><surname>Parmar</surname><given-names>Shehan M.</given-names></name>
+        <name><surname>Persson</surname><given-names>Kristin A.</given-names></name>
+        <name><surname>Petretto</surname><given-names>Guido</given-names></name>
+        <name><surname>Purcell</surname><given-names>Thomas A. R.</given-names></name>
+        <name><surname>Ricci</surname><given-names>Francesco</given-names></name>
+        <name><surname>Rich</surname><given-names>Benjamin</given-names></name>
+        <name><surname>Riebesell</surname><given-names>Janosh</given-names></name>
+        <name><surname>Rignanese</surname><given-names>Gian-Marco</given-names></name>
+        <name><surname>Rosen</surname><given-names>Andrew S.</given-names></name>
+        <name><surname>Scheffler</surname><given-names>Matthias</given-names></name>
+        <name><surname>Schmidt</surname><given-names>Jonathan</given-names></name>
+        <name><surname>Shen</surname><given-names>Jimmy-Xuan</given-names></name>
+        <name><surname>Sobolev</surname><given-names>Andrei</given-names></name>
+        <name><surname>Sundararaman</surname><given-names>Ravishankar</given-names></name>
+        <name><surname>Tezak</surname><given-names>Cooper</given-names></name>
+        <name><surname>Trinquet</surname><given-names>Victor</given-names></name>
+        <name><surname>Varley</surname><given-names>Joel B.</given-names></name>
+        <name><surname>Vigil-Fowler</surname><given-names>Derek</given-names></name>
+        <name><surname>Wang</surname><given-names>Duo</given-names></name>
+        <name><surname>Waroquiers</surname><given-names>David</given-names></name>
+        <name><surname>Wen</surname><given-names>Mingjian</given-names></name>
+        <name><surname>Yang</surname><given-names>Han</given-names></name>
+        <name><surname>Zheng</surname><given-names>Hui</given-names></name>
+        <name><surname>Zheng</surname><given-names>Jiongzhi</given-names></name>
+        <name><surname>Zhu</surname><given-names>Zhuoying</given-names></name>
+        <name><surname>Jain</surname><given-names>Anubhav</given-names></name>
+      </person-group>
+      <article-title>Atomate2: Modular workflows for materials science</article-title>
+      <source>Digital Discovery</source>
+      <year iso-8601-date="2025">2025</year>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2025-07-01">2025</year><month>07</month><day>01</day></date-in-citation>
+      <uri>https://pubs.rsc.org/en/content/articlelanding/2025/dd/d5dd00019j</uri>
+      <pub-id pub-id-type="doi">10.1039/D5DD00019J</pub-id>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
