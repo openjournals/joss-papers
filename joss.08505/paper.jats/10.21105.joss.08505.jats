@@ -1,0 +1,639 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">8505</article-id>
+<article-id pub-id-type="doi">10.21105/joss.08505</article-id>
+<title-group>
+<article-title>smolyax: a high-performance implementation of the Smolyak
+interpolation operator in JAX</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author" corresp="yes">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0003-3450-9166</contrib-id>
+<name>
+<surname>Westermann</surname>
+<given-names>Josephine</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+<xref ref-type="corresp" rid="cor-1"><sup>*</sup></xref>
+</contrib>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0009-0002-2257-5780</contrib-id>
+<name>
+<surname>Chen</surname>
+<given-names>Joshua</given-names>
+</name>
+<xref ref-type="aff" rid="aff-2"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Heidelberg University, Germany</institution>
+<institution-id institution-id-type="ROR">038t36y30</institution-id>
+</institution-wrap>
+</aff>
+<aff id="aff-2">
+<institution-wrap>
+<institution>Colorado State University, USA</institution>
+<institution-id institution-id-type="ROR">03k1gpj17</institution-id>
+</institution-wrap>
+</aff>
+</contrib-group>
+<author-notes>
+<corresp id="cor-1">* E-mail: <email></email></corresp>
+</author-notes>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2025-02-28">
+<day>28</day>
+<month>2</month>
+<year>2025</year>
+</pub-date>
+<volume>10</volume>
+<issue>112</issue>
+<fpage>8505</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2025</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>Polynomial Interpolation</kwd>
+<kwd>Smolyak Operator</kwd>
+<kwd>Sparse Grids</kwd>
+<kwd>Polynomial Chaos</kwd>
+<kwd>JAX</kwd>
+<kwd>Numba</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p>The <monospace>smolyax</monospace> library provides interpolation
+  capabilities for arbitrary multivariate and vector-valued functions
+  <inline-formula><tex-math><![CDATA[f : \mathbb{R}^{d_{\rm in}} \to \mathbb{R}^{d_{\rm out}}]]></tex-math></inline-formula>
+  for any
+  <inline-formula><tex-math><![CDATA[d_{\rm in}, d_{\rm out} \in \mathbb{N}]]></tex-math></inline-formula>.
+  It implements the Smolyak interpolation operator, which is known to
+  overcome the curse-of-dimensionality plaguing naive multivariate
+  interpolation
+  (<xref alt="Barthelmann et al., 2000" rid="ref-barthelmannU003A2000" ref-type="bibr">Barthelmann
+  et al., 2000</xref>) and uses the barycentric interpolation formula
+  (<xref alt="Berrut &amp; Trefethen, 2004" rid="ref-berrutU003A2004" ref-type="bibr">Berrut
+  &amp; Trefethen, 2004</xref>) for numerical stability. The
+  implementation is based on JAX
+  (<xref alt="Bradbury et al., 2018" rid="ref-jaxU003A2018" ref-type="bibr">Bradbury
+  et al., 2018</xref>), a free and open-source Python library for
+  high-performance computing that integrates with the Python and NumPy
+  numerical computing ecosystem. Thanks to JAX’s device management,
+  <monospace>smolyax</monospace> runs natively on both CPU and GPU.
+  While implementing Smolyak interpolation in JAX is challenging due to
+  the highly irregular data structures involved,
+  <monospace>smolyax</monospace> overcomes this by employing a tailored
+  batching and padding strategy that enables efficient
+  vectorization.</p>
+  <p><monospace>smolyax</monospace> supports interpolation on bounded or
+  unbounded domains via Leja
+  (<xref alt="M. A. Chkifa, 2013" rid="ref-chkifaU003A2013" ref-type="bibr">M.
+  A. Chkifa, 2013</xref>) or Gauss-Hermite
+  (<xref alt="Abramowitz &amp; Stegun, 1964" rid="ref-abramowitzU003A1964" ref-type="bibr">Abramowitz
+  &amp; Stegun, 1964</xref>) node sequences, respectively. It provides
+  efficient Numba-accelerated routines to generate isotropic or
+  anisotropic total degree multi-index sets
+  (<xref alt="Adcock et al., 2022, sec. 2.3.2" rid="ref-adcockU003A2022" ref-type="bibr">Adcock
+  et al., 2022, sec. 2.3.2</xref>), which are the key ingredient to
+  generate the high-dimensional sparse grids
+  (<xref alt="Bungartz &amp; Griebel, 2004" rid="ref-bungartzU003A2004" ref-type="bibr">Bungartz
+  &amp; Griebel, 2004</xref>) of interpolation nodes required by the
+  Smolyak interpolation operator. Additional types of node sequences or
+  multi-index sets can be incorporated easily by implementing a
+  minimalistic interface. The <monospace>smolyax</monospace> interpolant
+  provides further functionality to evaluate its gradient as well as
+  compute its integral.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of Need</title>
+  <p>Polynomial expansion is a well-studied and powerful tool in applied
+  mathematics, with important applications in surrogate modeling,
+  uncertainty quantification and inverse problems, see e.g., Adcock et
+  al.
+  (<xref alt="2022" rid="ref-adcockU003A2022" ref-type="bibr">2022</xref>),
+  Dũng et al.
+  (<xref alt="2023" rid="ref-dungU003A2023" ref-type="bibr">2023</xref>),
+  Zech
+  (<xref alt="2018" rid="ref-zechU003A2018" ref-type="bibr">2018</xref>),
+  A. Chkifa et al.
+  (<xref alt="2015" rid="ref-chkifaU003A2015" ref-type="bibr">2015</xref>),
+  Herrmann et al.
+  (<xref alt="2024" rid="ref-herrmannU003A2024" ref-type="bibr">2024</xref>),
+  Westermann et al.
+  (<xref alt="2025" rid="ref-westermannU003A2025" ref-type="bibr">2025</xref>),
+  and references therein. Smolyak interpolation offers a practical way
+  to construct polynomial approximations with known error bounds for a
+  wide range of function classes, see e.g., Barthelmann et al.
+  (<xref alt="2000" rid="ref-barthelmannU003A2000" ref-type="bibr">2000</xref>),
+  A. Chkifa et al.
+  (<xref alt="2015" rid="ref-chkifaU003A2015" ref-type="bibr">2015</xref>),
+  and Adcock et al.
+  (<xref alt="2022" rid="ref-adcockU003A2022" ref-type="bibr">2022</xref>).</p>
+  <p>Several libraries provide CPU-based high-dimensional interpolation
+  functionality, for example <monospace>Chaospy</monospace>
+  (<xref alt="Feinberg &amp; Langtangen, 2015" rid="ref-feinbergU003A2015" ref-type="bibr">Feinberg
+  &amp; Langtangen, 2015</xref>), <monospace>UQLab</monospace>
+  (<xref alt="Marelli &amp; Sudret, 2014" rid="ref-marelliU003A2014" ref-type="bibr">Marelli
+  &amp; Sudret, 2014</xref>),
+  <monospace>The Sparse Grid Matlab Kit</monospace>
+  (<xref alt="Piazzola &amp; Tamellini, 2024" rid="ref-piazzolaU003A2024" ref-type="bibr">Piazzola
+  &amp; Tamellini, 2024</xref>), <monospace>PyApprox</monospace>
+  (<xref alt="Jakeman, 2023" rid="ref-jakemanU003A2023" ref-type="bibr">Jakeman,
+  2023</xref>), <monospace>MUQ</monospace>
+  (<xref alt="Parno et al., 2021" rid="ref-parnoU003A2021" ref-type="bibr">Parno
+  et al., 2021</xref>), and <monospace>UncertainSCI</monospace>
+  (<xref alt="Tate et al., 2023" rid="ref-tateU003A2023" ref-type="bibr">Tate
+  et al., 2023</xref>). The GPU support that is necessary in practice to
+  go from moderate to high dimensions is offered so far only by
+  <monospace>Tasmanian</monospace>
+  (<xref alt="Stoyanov, 2015" rid="ref-tasmanian" ref-type="bibr">Stoyanov,
+  2015</xref>). Benchmark experiments suggest that while asymptotic
+  runtime of the Smolyak interpolator in
+  <monospace>Tasmanian</monospace> scale better as the output dimension
+  <inline-formula><tex-math><![CDATA[d_{\rm out}]]></tex-math></inline-formula>
+  increases, <monospace>smolyax</monospace> offers competitive
+  asymptotic runtimes for increasing
+  <inline-formula><tex-math><![CDATA[d_{\rm in}]]></tex-math></inline-formula>
+  and input data set size.</p>
+</sec>
+<sec id="a-vectorizable-implementation-of-the-smolyak-operator">
+  <title>A vectorizable implementation of the Smolyak operator</title>
+  <p>Recall that given a domain <inline-formula><alternatives>
+  <tex-math><![CDATA[D \subset \mathbb{R}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>D</mml:mi><mml:mo>⊂</mml:mo><mml:mi>ℝ</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>
+  and set of <inline-formula><alternatives>
+  <tex-math><![CDATA[\nu + 1 \in {\mathbb N}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>ν</mml:mi><mml:mo>+</mml:mo><mml:mn>1</mml:mn><mml:mo>∈</mml:mo><mml:mi>ℕ</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>
+  pairwise distinct interpolation points <inline-formula><alternatives>
+  <tex-math><![CDATA[(\xi^\nu_i)_{i=0}^\nu \subset D]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msubsup><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msubsup><mml:mi>ξ</mml:mi><mml:mi>i</mml:mi><mml:mi>ν</mml:mi></mml:msubsup><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mrow><mml:mi>i</mml:mi><mml:mo>=</mml:mo><mml:mn>0</mml:mn></mml:mrow><mml:mi>ν</mml:mi></mml:msubsup><mml:mo>⊂</mml:mo><mml:mi>D</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>,
+  the univariate polynomial interpolation operator
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[I^\nu]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msup><mml:mi>I</mml:mi><mml:mi>ν</mml:mi></mml:msup></mml:math></alternatives></inline-formula>
+  maps a function <inline-formula><alternatives>
+  <tex-math><![CDATA[f : D \to \mathbb{R}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>f</mml:mi><mml:mo>:</mml:mo><mml:mi>D</mml:mi><mml:mo>→</mml:mo><mml:mi>ℝ</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>
+  onto the unique polynomial
+  <inline-formula><tex-math><![CDATA[I^\nu [f] \in {\mathbb P}_\nu := {\rm span} \{x^i\,:\,i=0,\dots,\nu\}]]></tex-math></inline-formula>
+  of maximal degree <inline-formula><alternatives>
+  <tex-math><![CDATA[\nu]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>ν</mml:mi></mml:math></alternatives></inline-formula>
+  such that <inline-formula><alternatives>
+  <tex-math><![CDATA[f(\xi^\nu_i) = I^\nu [f](\xi^\nu_i)]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>f</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msubsup><mml:mi>ξ</mml:mi><mml:mi>i</mml:mi><mml:mi>ν</mml:mi></mml:msubsup><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>=</mml:mo><mml:msup><mml:mi>I</mml:mi><mml:mi>ν</mml:mi></mml:msup><mml:mrow><mml:mo stretchy="true" form="prefix">[</mml:mo><mml:mi>f</mml:mi><mml:mo stretchy="true" form="postfix">]</mml:mo></mml:mrow><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msubsup><mml:mi>ξ</mml:mi><mml:mi>i</mml:mi><mml:mi>ν</mml:mi></mml:msubsup><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>
+  for all <inline-formula><alternatives>
+  <tex-math><![CDATA[i\in\{0,1,\dots,\nu\}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>i</mml:mi><mml:mo>∈</mml:mo><mml:mo stretchy="false" form="prefix">{</mml:mo><mml:mn>0</mml:mn><mml:mo>,</mml:mo><mml:mn>1</mml:mn><mml:mo>,</mml:mo><mml:mi>…</mml:mi><mml:mo>,</mml:mo><mml:mi>ν</mml:mi><mml:mo stretchy="false" form="postfix">}</mml:mo></mml:mrow></mml:math></alternatives></inline-formula>.</p>
+  <p>Tensorized interpolation generalizes univariate interpolation to
+  multivariate functions defined on a tensor-product domain
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[D = \otimes_{j=1}^d D_1]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>D</mml:mi><mml:mo>=</mml:mo><mml:msubsup><mml:mo>⊗</mml:mo><mml:mrow><mml:mi>j</mml:mi><mml:mo>=</mml:mo><mml:mn>1</mml:mn></mml:mrow><mml:mi>d</mml:mi></mml:msubsup><mml:msub><mml:mi>D</mml:mi><mml:mn>1</mml:mn></mml:msub></mml:mrow></mml:math></alternatives></inline-formula>
+  with <inline-formula><alternatives>
+  <tex-math><![CDATA[D_1 \subset \mathbb{R}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>D</mml:mi><mml:mn>1</mml:mn></mml:msub><mml:mo>⊂</mml:mo><mml:mi>ℝ</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>
+  and <inline-formula><alternatives>
+  <tex-math><![CDATA[d \in {\mathbb N}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>d</mml:mi><mml:mo>∈</mml:mo><mml:mi>ℕ</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>
+  by defining <inline-formula><alternatives>
+  <tex-math><![CDATA[I^{\pmb{\nu}}:= \otimes_{j=1}^d I^{\nu_j}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msup><mml:mi>I</mml:mi><mml:mi>𝛎</mml:mi></mml:msup><mml:mo>:=</mml:mo><mml:msubsup><mml:mo>⊗</mml:mo><mml:mrow><mml:mi>j</mml:mi><mml:mo>=</mml:mo><mml:mn>1</mml:mn></mml:mrow><mml:mi>d</mml:mi></mml:msubsup><mml:msup><mml:mi>I</mml:mi><mml:msub><mml:mi>ν</mml:mi><mml:mi>j</mml:mi></mml:msub></mml:msup></mml:mrow></mml:math></alternatives></inline-formula>,
+  where <inline-formula><alternatives>
+  <tex-math><![CDATA[{\pmb{\nu}}\in {\mathbb N}_0^d]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>𝛎</mml:mi><mml:mo>∈</mml:mo><mml:msubsup><mml:mi>ℕ</mml:mi><mml:mn>0</mml:mn><mml:mi>d</mml:mi></mml:msubsup></mml:mrow></mml:math></alternatives></inline-formula>
+  is a multi-index characterizing the maximal polynomial degree in each
+  dimension. Since
+  <inline-formula><tex-math><![CDATA[I^{\pmb{\nu}}[f] \in {\mathbb P}_{\pmb{\nu}}:= {\rm span} \{{\pmb{x}}^{\pmb{\mu}}\,:\,{\pmb{\mu}}\leq {\pmb{\nu}}\}]]></tex-math></inline-formula>,
+  this approach suffers from the curse of dimensionality as
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[d]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>d</mml:mi></mml:math></alternatives></inline-formula>
+  increases.</p>
+  <p>Smolyak interpolation
+  (<xref alt="Barthelmann et al., 2000" rid="ref-barthelmannU003A2000" ref-type="bibr">Barthelmann
+  et al., 2000</xref>;
+  <xref alt="Smolyak, 1963" rid="ref-smolyakU003A1963" ref-type="bibr">Smolyak,
+  1963</xref>) overcomes this issue by introducing polynomial ansatz
+  spaces
+  <inline-formula><tex-math><![CDATA[{\mathbb P}_\Lambda := {\rm span} \{{\pmb{x}}^{\pmb{\mu}}\,:\,{\pmb{\mu}}\in \Lambda\}]]></tex-math></inline-formula>
+  parametrized by downward closed multi-index sets
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[\Lambda \subset {\mathbb N}_0^d]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>Λ</mml:mi><mml:mo>⊂</mml:mo><mml:msubsup><mml:mi>ℕ</mml:mi><mml:mn>0</mml:mn><mml:mi>d</mml:mi></mml:msubsup></mml:mrow></mml:math></alternatives></inline-formula>.
+  The resulting interpolation operator is a linear combination of
+  tensorized interpolation operators:
+  <named-content id="eqU003Aip_smolyak" content-type="equation"><disp-formula><alternatives>
+  <tex-math><![CDATA[
+      I^\Lambda := \sum \limits_{{\pmb{\nu}}\in \Lambda} \zeta_{\Lambda, {\pmb{\nu}}} I^{\pmb{\nu}}, \qquad \zeta_{\Lambda, {\pmb{\nu}}} := \sum \limits_{{\pmb{e}}\in \{0,1\}^d : {\pmb{\nu}}+{\pmb{e}}\in \Lambda} (-1)^{|{\pmb{e}}|}.]]></tex-math>
+  <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msup><mml:mi>I</mml:mi><mml:mi>Λ</mml:mi></mml:msup><mml:mo>:=</mml:mo><mml:munder><mml:mo>∑</mml:mo><mml:mrow><mml:mi>𝛎</mml:mi><mml:mo>∈</mml:mo><mml:mi>Λ</mml:mi></mml:mrow></mml:munder><mml:msub><mml:mi>ζ</mml:mi><mml:mrow><mml:mi>Λ</mml:mi><mml:mo>,</mml:mo><mml:mi>𝛎</mml:mi></mml:mrow></mml:msub><mml:msup><mml:mi>I</mml:mi><mml:mi>𝛎</mml:mi></mml:msup><mml:mo>,</mml:mo><mml:mspace width="2.0em"></mml:mspace><mml:msub><mml:mi>ζ</mml:mi><mml:mrow><mml:mi>Λ</mml:mi><mml:mo>,</mml:mo><mml:mi>𝛎</mml:mi></mml:mrow></mml:msub><mml:mo>:=</mml:mo><mml:munder><mml:mo>∑</mml:mo><mml:mrow><mml:mi>𝐞</mml:mi><mml:mo>∈</mml:mo><mml:mo stretchy="false" form="prefix">{</mml:mo><mml:mn>0</mml:mn><mml:mo>,</mml:mo><mml:mn>1</mml:mn><mml:msup><mml:mo stretchy="false" form="postfix">}</mml:mo><mml:mi>d</mml:mi></mml:msup><mml:mo>:</mml:mo><mml:mi>𝛎</mml:mi><mml:mo>+</mml:mo><mml:mi>𝐞</mml:mi><mml:mo>∈</mml:mo><mml:mi>Λ</mml:mi></mml:mrow></mml:munder><mml:msup><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>−</mml:mi><mml:mn>1</mml:mn><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mrow><mml:mo stretchy="true" form="prefix">|</mml:mo><mml:mi>𝐞</mml:mi><mml:mo stretchy="true" form="postfix">|</mml:mo></mml:mrow></mml:msup><mml:mi>.</mml:mi></mml:mrow></mml:math></alternatives></disp-formula></named-content></p>
+  <p>Implementing this operator in a vectorized form suitable for
+  high-performance computing is nontrivial, as vectorization requires
+  inputs to conform to a uniform structure. However, each tensorized
+  interpolant in the equation above involves reducing a higher-order
+  tensor of unique shape <inline-formula><alternatives>
+  <tex-math><![CDATA[{\pmb{\nu}}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>𝛎</mml:mi></mml:math></alternatives></inline-formula>
+  via multiplication with one vector per dimension. A naive strategy
+  would be to zero-pad all tensors in this equation to the smallest
+  common shape <inline-formula><alternatives>
+  <tex-math><![CDATA[(\max_{{\pmb{\nu}}\in \Lambda}(\nu_j))_{j=1}^d]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msubsup><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mo>max</mml:mo><mml:mrow><mml:mi>𝛎</mml:mi><mml:mo>∈</mml:mo><mml:mi>Λ</mml:mi></mml:mrow></mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>ν</mml:mi><mml:mi>j</mml:mi></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mrow><mml:mi>j</mml:mi><mml:mo>=</mml:mo><mml:mn>1</mml:mn></mml:mrow><mml:mi>d</mml:mi></mml:msubsup></mml:math></alternatives></inline-formula>.
+  This, however, reintroduces the curse of dimensionality, as memory
+  requirements grow exponentially with <inline-formula><alternatives>
+  <tex-math><![CDATA[d]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>d</mml:mi></mml:math></alternatives></inline-formula>.</p>
+  <p><monospace>smolyax</monospace> strikes a balance between handling
+  small, uniquely shaped tensors and large, identically shaped ones. The
+  key idea is to group tensors by their number of active dimensions and
+  prepare them for vectorized processing within each group. In
+  particular, this involves</p>
+  <list list-type="bullet">
+    <list-item>
+      <p>Dropping indices (&quot;<italic>squeezing</italic>&quot;) of
+      non-active dimensions, i.e., <inline-formula><alternatives>
+      <tex-math><![CDATA[j]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>j</mml:mi></mml:math></alternatives></inline-formula>
+      with <inline-formula><alternatives>
+      <tex-math><![CDATA[\nu_j = 0]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>ν</mml:mi><mml:mi>j</mml:mi></mml:msub><mml:mo>=</mml:mo><mml:mn>0</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>;</p>
+    </list-item>
+    <list-item>
+      <p>Permuting the remaining active dimensions in descending order;
+      and</p>
+    </list-item>
+    <list-item>
+      <p>Zero-padding all tensors with the same number of active
+      dimensions to the smallest common shape.</p>
+    </list-item>
+  </list>
+  <p>This reorganizes the tensors into a few large, structured blocks
+  enabling fast vectorized processing. Asymptotically, in both dimension
+  and size of the polynomial space, the method requires only a
+  logarithmic-factor increase in overall memory compared with the raw
+  tensors.</p>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>We thank Thomas O’Leary-Roseberry and Jakob Zech for insightful
+  discussions in the early stages of this project.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <title></title>
+  <ref id="ref-abramowitzU003A1964">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Abramowitz</surname><given-names>Milton</given-names></name>
+        <name><surname>Stegun</surname><given-names>Irene A.</given-names></name>
+      </person-group>
+      <source>Handbook of mathematical functions with formulas, graphs, and mathematical tables</source>
+      <publisher-name>U. S. Government Printing Office, Washington, DC</publisher-name>
+      <year iso-8601-date="1964">1964</year>
+      <volume>No. 55</volume>
+      <fpage>xiv+1046</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-smolyakU003A1963">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Smolyak</surname><given-names>Sergei Abramovich</given-names></name>
+      </person-group>
+      <article-title>Quadrature and interpolation formulas for tensor products of certain classes of functions</article-title>
+      <source>Doklady akademii nauk</source>
+      <publisher-name>Russian Academy of Sciences</publisher-name>
+      <year iso-8601-date="1963">1963</year>
+      <volume>148</volume>
+      <fpage>1042</fpage>
+      <lpage>1045</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-barthelmannU003A2000">
+    <element-citation publication-type="chapter">
+      <person-group person-group-type="author">
+        <name><surname>Barthelmann</surname><given-names>Volker</given-names></name>
+        <name><surname>Novak</surname><given-names>Erich</given-names></name>
+        <name><surname>Ritter</surname><given-names>Klaus</given-names></name>
+      </person-group>
+      <article-title>High dimensional polynomial interpolation on sparse grids</article-title>
+      <source>Adv. Comput. Math.</source>
+      <year iso-8601-date="2000">2000</year>
+      <volume>12</volume>
+      <issn>1019-7168</issn>
+      <uri>https://doi.org/10.1023/A:1018977404843</uri>
+      <pub-id pub-id-type="doi">10.1023/A:1018977404843</pub-id>
+      <fpage>273</fpage>
+      <lpage>288</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-bungartzU003A2004">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Bungartz</surname><given-names>Hans-Joachim</given-names></name>
+        <name><surname>Griebel</surname><given-names>Michael</given-names></name>
+      </person-group>
+      <article-title>Sparse grids</article-title>
+      <source>Acta Numer.</source>
+      <year iso-8601-date="2004">2004</year>
+      <volume>13</volume>
+      <issn>0962-4929</issn>
+      <uri>https://doi.org/10.1017/S0962492904000182</uri>
+      <pub-id pub-id-type="doi">10.1017/S0962492904000182</pub-id>
+      <fpage>147</fpage>
+      <lpage>269</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-berrutU003A2004">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Berrut</surname><given-names>Jean-Paul</given-names></name>
+        <name><surname>Trefethen</surname><given-names>Lloyd N.</given-names></name>
+      </person-group>
+      <article-title>Barycentric Lagrange interpolation</article-title>
+      <source>SIAM Rev.</source>
+      <year iso-8601-date="2004">2004</year>
+      <volume>46</volume>
+      <issue>3</issue>
+      <issn>0036-1445</issn>
+      <uri>https://doi.org/10.1137/S0036144502417715</uri>
+      <pub-id pub-id-type="doi">10.1137/S0036144502417715</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-chkifaU003A2013">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Chkifa</surname><given-names>Moulay Abdellah</given-names></name>
+      </person-group>
+      <article-title>On the Lebesgue constant of Leja sequences for the complex unit disk and of their real projection</article-title>
+      <source>J. Approx. Theory</source>
+      <year iso-8601-date="2013">2013</year>
+      <volume>166</volume>
+      <issn>0021-9045</issn>
+      <uri>https://doi.org/10.1016/j.jat.2012.11.005</uri>
+      <pub-id pub-id-type="doi">10.1016/j.jat.2012.11.005</pub-id>
+      <fpage>176</fpage>
+      <lpage>200</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-marelliU003A2014">
+    <element-citation publication-type="chapter">
+      <person-group person-group-type="author">
+        <name><surname>Marelli</surname><given-names>Stefano</given-names></name>
+        <name><surname>Sudret</surname><given-names>Bruno</given-names></name>
+      </person-group>
+      <article-title>UQLab: A framework for uncertainty quantification in matlab</article-title>
+      <source>Vulnerability, uncertainty, and risk: Quantification, mitigation, and management</source>
+      <year iso-8601-date="2014">2014</year>
+      <pub-id pub-id-type="doi">10.1061/9780784413609.257</pub-id>
+      <fpage>2554</fpage>
+      <lpage>2563</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-chkifaU003A2015">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Chkifa</surname><given-names>Abdellah</given-names></name>
+        <name><surname>Cohen</surname><given-names>Albert</given-names></name>
+        <name><surname>Schwab</surname><given-names>Christoph</given-names></name>
+      </person-group>
+      <article-title>Breaking the curse of dimensionality in sparse polynomial approximation of parametric PDEs</article-title>
+      <source>J. Math. Pures Appl. (9)</source>
+      <year iso-8601-date="2015">2015</year>
+      <volume>103</volume>
+      <issue>2</issue>
+      <issn>0021-7824</issn>
+      <uri>https://doi.org/10.1016/j.matpur.2014.04.009</uri>
+      <pub-id pub-id-type="doi">10.1016/j.matpur.2014.04.009</pub-id>
+      <fpage>400</fpage>
+      <lpage>428</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-feinbergU003A2015">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Feinberg</surname><given-names>Jonathan</given-names></name>
+        <name><surname>Langtangen</surname><given-names>Hans Petter</given-names></name>
+      </person-group>
+      <article-title>Chaospy: An open source tool for designing methods of uncertainty quantification</article-title>
+      <source>Journal of Computational Science</source>
+      <year iso-8601-date="2015">2015</year>
+      <volume>11</volume>
+      <uri>https://doi.org/10.1016/j.jocs.2015.08.008</uri>
+      <pub-id pub-id-type="doi">10.1016/j.jocs.2015.08.008</pub-id>
+      <fpage>46</fpage>
+      <lpage>57</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-tasmanian">
+    <element-citation publication-type="report">
+      <person-group person-group-type="author">
+        <name><surname>Stoyanov</surname><given-names>M</given-names></name>
+      </person-group>
+      <article-title>User manual: TASMANIAN sparse grids</article-title>
+      <publisher-name>Oak Ridge National Laboratory</publisher-name>
+      <publisher-loc>One Bethel Valley Road, Oak Ridge, TN</publisher-loc>
+      <year iso-8601-date="2015">2015</year>
+    </element-citation>
+  </ref>
+  <ref id="ref-jaxU003A2018">
+    <element-citation publication-type="software">
+      <person-group person-group-type="author">
+        <name><surname>Bradbury</surname><given-names>James</given-names></name>
+        <name><surname>Frostig</surname><given-names>Roy</given-names></name>
+        <name><surname>Hawkins</surname><given-names>Peter</given-names></name>
+        <name><surname>Johnson</surname><given-names>Matthew James</given-names></name>
+        <name><surname>Leary</surname><given-names>Chris</given-names></name>
+        <name><surname>Maclaurin</surname><given-names>Dougal</given-names></name>
+        <name><surname>Necula</surname><given-names>George</given-names></name>
+        <name><surname>Paszke</surname><given-names>Adam</given-names></name>
+        <name><surname>VanderPlas</surname><given-names>Jake</given-names></name>
+        <name><surname>Wanderman-Milne</surname><given-names>Skye</given-names></name>
+        <name><surname>Zhang</surname><given-names>Qiao</given-names></name>
+      </person-group>
+      <article-title>JAX: Composable transformations of Python+NumPy programs</article-title>
+      <year iso-8601-date="2018">2018</year>
+      <uri>http://github.com/jax-ml/jax</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-zechU003A2018">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Zech</surname><given-names>Jakob</given-names></name>
+      </person-group>
+      <article-title>Sparse-Grid Approximation of High-Dimensional Parametric PDEs</article-title>
+      <year iso-8601-date="2018">2018</year>
+      <uri>http://dx.doi.org/10.3929/ethz-b-000340651</uri>
+      <pub-id pub-id-type="doi">10.3929/ethz-b-000340651</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-parnoU003A2021">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Parno</surname><given-names>Matthew</given-names></name>
+        <name><surname>Davis</surname><given-names>Andrew</given-names></name>
+        <name><surname>Seelinger</surname><given-names>Linus</given-names></name>
+      </person-group>
+      <article-title>MUQ: The MIT uncertainty quantification library</article-title>
+      <source>Journal of Open Source Software</source>
+      <publisher-name>The Open Journal</publisher-name>
+      <year iso-8601-date="2021">2021</year>
+      <volume>6</volume>
+      <issue>68</issue>
+      <uri>https://doi.org/10.21105/joss.03076</uri>
+      <pub-id pub-id-type="doi">10.21105/joss.03076</pub-id>
+      <fpage>3076</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-adcockU003A2022">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Adcock</surname><given-names>Ben</given-names></name>
+        <name><surname>Brugiapaglia</surname><given-names>Simone</given-names></name>
+        <name><surname>Webster</surname><given-names>Clayton G.</given-names></name>
+      </person-group>
+      <source>Sparse polynomial approximation of high-dimensional functions</source>
+      <publisher-name>Society for Industrial; Applied Mathematics (SIAM), Philadelphia, PA</publisher-name>
+      <year iso-8601-date="2022">2022</year>
+      <volume>25</volume>
+      <isbn>978-1-611976-87-8</isbn>
+      <uri>https://doi.org/10.1137/1.9781611976885</uri>
+      <pub-id pub-id-type="doi">10.1137/1.9781611976885</pub-id>
+      <fpage>xvii+292</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-dungU003A2023">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Dũng</surname><given-names>Dinh</given-names></name>
+        <name><surname>Nguyen</surname><given-names>Van Kien</given-names></name>
+        <name><surname>Schwab</surname><given-names>Christoph</given-names></name>
+        <name><surname>Zech</surname><given-names>Jakob</given-names></name>
+      </person-group>
+      <source>Analyticity and sparsity in uncertainty quantification for PDEs with Gaussian random field inputs</source>
+      <publisher-name>Springer, Cham</publisher-name>
+      <year iso-8601-date="2023">2023</year>
+      <volume>2334</volume>
+      <isbn>978-3-031-38384-7</isbn>
+      <uri>https://doi.org/10.1007/978-3-031-38384-7</uri>
+      <pub-id pub-id-type="doi">10.1007/978-3-031-38384-7</pub-id>
+      <fpage>xv+205</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-jakemanU003A2023">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Jakeman</surname><given-names>J. D.</given-names></name>
+      </person-group>
+      <article-title>PyApprox: A software package for sensitivity analysis, bayesian inference, optimal experimental design, and multi-fidelity uncertainty quantification and surrogate modeling</article-title>
+      <source>Environmental Modelling &amp; Software</source>
+      <year iso-8601-date="2023">2023</year>
+      <volume>170</volume>
+      <uri>https://doi.org/10.1016/j.envsoft.2023.105825</uri>
+      <fpage>105825</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-tateU003A2023">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Tate</surname><given-names>Jess</given-names></name>
+        <name><surname>Liu</surname><given-names>Zexin</given-names></name>
+        <name><surname>Bergquist</surname><given-names>Jake A</given-names></name>
+        <name><surname>Rampersad</surname><given-names>Sumientra</given-names></name>
+        <name><surname>White</surname><given-names>Dan</given-names></name>
+        <name><surname>Charlebois</surname><given-names>Chantel</given-names></name>
+        <name><surname>Rupp</surname><given-names>Lindsay</given-names></name>
+        <name><surname>Brooks</surname><given-names>Dana H</given-names></name>
+        <name><surname>MacLeod</surname><given-names>Rob S</given-names></name>
+        <name><surname>Narayan</surname><given-names>Akil</given-names></name>
+      </person-group>
+      <article-title>UncertainSCI: A Python package for noninvasive parametric uncertainty quantification of simulation pipelines</article-title>
+      <source>Journal of Open Source Software</source>
+      <year iso-8601-date="2023">2023</year>
+      <volume>8</volume>
+      <issue>90</issue>
+      <pub-id pub-id-type="doi">10.21105/joss.04249</pub-id>
+      <fpage>4249</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-herrmannU003A2024">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Herrmann</surname><given-names>Lukas</given-names></name>
+        <name><surname>Schwab</surname><given-names>Christoph</given-names></name>
+        <name><surname>Zech</surname><given-names>Jakob</given-names></name>
+      </person-group>
+      <article-title>Neural and spectral operator surrogates: Unified construction and expression rate bounds</article-title>
+      <source>Adv. Comput. Math.</source>
+      <year iso-8601-date="2024">2024</year>
+      <volume>50</volume>
+      <issue>4</issue>
+      <issn>1019-7168</issn>
+      <uri>https://doi.org/10.1007/s10444-024-10171-2</uri>
+      <pub-id pub-id-type="doi">10.1007/s10444-024-10171-2</pub-id>
+      <fpage>Paper No. 72, 43</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-piazzolaU003A2024">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Piazzola</surname><given-names>C.</given-names></name>
+        <name><surname>Tamellini</surname><given-names>L.</given-names></name>
+      </person-group>
+      <article-title>Algorithm 1040: The Sparse Grids Matlab Kit - a Matlab implementation of sparse grids for high-dimensional function approximation and uncertainty quantification</article-title>
+      <source>ACM Transactions on Mathematical Software</source>
+      <year iso-8601-date="2024">2024</year>
+      <volume>50</volume>
+      <issue>1</issue>
+      <pub-id pub-id-type="doi">10.1145/3630023</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-westermannU003A2025">
+    <element-citation publication-type="manuscript">
+      <person-group person-group-type="author">
+        <name><surname>Westermann</surname><given-names>Josephine</given-names></name>
+        <name><surname>Huber</surname><given-names>Benno</given-names></name>
+        <name><surname>O’Leary-Roseberry</surname><given-names>Thomas</given-names></name>
+        <name><surname>Zech</surname><given-names>Jakob</given-names></name>
+      </person-group>
+      <article-title>Performance of neural and polynomial operator surrogates</article-title>
+      <publisher-name>Manuscript in preparation</publisher-name>
+      <year iso-8601-date="2025">2025</year>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
