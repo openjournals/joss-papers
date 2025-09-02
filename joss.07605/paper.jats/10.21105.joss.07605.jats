@@ -1,0 +1,887 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">7605</article-id>
+<article-id pub-id-type="doi">10.21105/joss.07605</article-id>
+<title-group>
+<article-title>CNearest: A C++ toolkit to use the nearest-neighbour
+method of regularised stokeslets algorithm to solve viscous flow
+problems</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author" equal-contrib="yes">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0009-0009-7140-4129</contrib-id>
+<name>
+<surname>Butcher</surname>
+<given-names>Neil A.</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<contrib contrib-type="author" equal-contrib="yes">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0002-2344-737X</contrib-id>
+<name>
+<surname>Tyrrell</surname>
+<given-names>James</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<contrib contrib-type="author" equal-contrib="yes">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0002-3427-0936</contrib-id>
+<name>
+<surname>Smith</surname>
+<given-names>David</given-names>
+</name>
+<xref ref-type="aff" rid="aff-2"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Advanced Research Computing, University of Birmingham,
+Edgbaston, Birmingham, UK</institution>
+</institution-wrap>
+</aff>
+<aff id="aff-2">
+<institution-wrap>
+<institution>School of Mathematics and Centre for Systems Modelling and
+Quantitative Biomedicine, University of Birmingham, Edgbaston,
+Birmingham, UK</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2024-09-18">
+<day>18</day>
+<month>9</month>
+<year>2024</year>
+</pub-date>
+<volume>10</volume>
+<issue>113</issue>
+<fpage>7605</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2025</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>C++</kwd>
+<kwd>fluid dynamics</kwd>
+<kwd>regularised stokeslets</kwd>
+<kwd>stokes flow</kwd>
+<kwd>discretisation</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p>This package implements a method for solving problems in very
+  viscous fluid dynamics, in the limit where inertia is negligible
+  relative to viscosity. This system is particularly relevant in
+  microscale biological systems and colloids; one specific application
+  is the calculation of the diffusion tensor of a specified structure.
+  The underlying algorithm is the nearest-neighbour implementation
+  (<xref alt="Smith, 2018b" rid="ref-smith2018" ref-type="bibr">Smith,
+  2018b</xref>) of the method of regularised stokeslets
+  (<xref alt="Cortez, 2001" rid="ref-cortez2001" ref-type="bibr">Cortez,
+  2001</xref>;
+  <xref alt="Cortez et al., 2005" rid="ref-cortez2005" ref-type="bibr">Cortez
+  et al., 2005</xref>); this approach enables efficient and accurate
+  calculations requiring only surface point discretisations rather than
+  surface or volumetric meshes and avoids singular integrals. It is a
+  feature-complete reimplementation and further development of the key
+  test cases in Smith
+  (<xref alt="2018b" rid="ref-smith2018" ref-type="bibr">2018b</xref>).
+  The package also serves as an extensible library that can be utilised
+  with the user’s own surface discretisation to calculate the force and
+  moment on any given three dimensional body undergoing rigid body
+  motion, and provides a building block to model flexible swimming
+  bodies.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p>Microscale biological flow problems typically involve
+  complex-shaped bodies undergoing large deformations, which renders
+  analytical calculations or methods based on volumetric meshing (finite
+  element, finite difference) challenging to implement. However, in the
+  case where the fluid has Newtonian or approximately Newtonian
+  properties, following non-dimensionalisation the flow can be modelled
+  through the linear Stokes flow equations, <disp-formula><alternatives>
+  <tex-math><![CDATA[
+  {-} \pmb{\nabla} p + \nabla^2{\pmb{u}} = 0, \quad \pmb{\nabla} \cdot \pmb{u} = 0, \quad (1)
+  ]]></tex-math>
+  <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>−</mml:mi><mml:mi>𝛁</mml:mi><mml:mi>p</mml:mi><mml:mo>+</mml:mo><mml:msup><mml:mi>∇</mml:mi><mml:mn>2</mml:mn></mml:msup><mml:mi>𝐮</mml:mi><mml:mo>=</mml:mo><mml:mn>0</mml:mn><mml:mo>,</mml:mo><mml:mspace width="1.0em"></mml:mspace><mml:mi>𝛁</mml:mi><mml:mo>⋅</mml:mo><mml:mi>𝐮</mml:mi><mml:mo>=</mml:mo><mml:mn>0</mml:mn><mml:mo>,</mml:mo><mml:mspace width="1.0em"></mml:mspace><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mn>1</mml:mn><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></disp-formula>
+  where <inline-formula><alternatives>
+  <tex-math><![CDATA[p(\pmb{x})]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>p</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>𝐱</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>
+  and <inline-formula><alternatives>
+  <tex-math><![CDATA[\pmb{u}(\pmb{x})]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>𝐮</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>𝐱</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>
+  are respectively pressure and velocity at the point
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[\pmb{x}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>𝐱</mml:mi></mml:math></alternatives></inline-formula>.</p>
+  <p>One of the basic problems of Stokes flow is the calculation of the
+  force and moment on a body immersed in a fluid and subject to no-slip,
+  no-penetration boundary conditions, due to specified rigid body
+  motion. Mathematically, for a body with surface
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[B]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>B</mml:mi></mml:math></alternatives></inline-formula>
+  subject to translational velocity <inline-formula><alternatives>
+  <tex-math><![CDATA[\pmb{U}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>𝐔</mml:mi></mml:math></alternatives></inline-formula>
+  and angular velocity <inline-formula><alternatives>
+  <tex-math><![CDATA[\pmb{\Omega}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>𝛀</mml:mi></mml:math></alternatives></inline-formula>
+  about the origin, the problem is to solve equation (1) subject to the
+  boundary condition, <disp-formula><alternatives>
+  <tex-math><![CDATA[
+  \pmb{u}(\pmb{x}) = \pmb{U} + \pmb{\Omega}\times\pmb{x}, \quad \mathrm{for}\, \mathrm{all} \quad \pmb{x}\in B, \quad (2)
+  ]]></tex-math>
+  <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>𝐮</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>𝐱</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>=</mml:mo><mml:mi>𝐔</mml:mi><mml:mo>+</mml:mo><mml:mi>𝛀</mml:mi><mml:mo>×</mml:mo><mml:mi>𝐱</mml:mi><mml:mo>,</mml:mo><mml:mspace width="1.0em"></mml:mspace><mml:mrow><mml:mi mathvariant="normal">f</mml:mi><mml:mi mathvariant="normal">o</mml:mi><mml:mi mathvariant="normal">r</mml:mi></mml:mrow><mml:mspace width="0.167em"></mml:mspace><mml:mrow><mml:mi mathvariant="normal">a</mml:mi><mml:mi mathvariant="normal">l</mml:mi><mml:mi mathvariant="normal">l</mml:mi></mml:mrow><mml:mspace width="1.0em"></mml:mspace><mml:mi>𝐱</mml:mi><mml:mo>∈</mml:mo><mml:mi>B</mml:mi><mml:mo>,</mml:mo><mml:mspace width="1.0em"></mml:mspace><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mn>2</mml:mn><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></disp-formula>
+  and thereby calculate the force and moment
+  <disp-formula><alternatives>
+  <tex-math><![CDATA[
+  \pmb{F}=\iint_B \pmb{\sigma} \cdot \pmb{n} \, dS(\pmb{x}), \quad \pmb{M}=\iint_B\pmb{x}\times\pmb{\sigma}\cdot\pmb{n} \, dS(\pmb{x}), \quad (3)
+  ]]></tex-math>
+  <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>𝐅</mml:mi><mml:mo>=</mml:mo><mml:msub><mml:mo>∬</mml:mo><mml:mi>B</mml:mi></mml:msub><mml:mi>𝛔</mml:mi><mml:mo>⋅</mml:mo><mml:mi>𝐧</mml:mi><mml:mspace width="0.167em"></mml:mspace><mml:mi>d</mml:mi><mml:mi>S</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>𝐱</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>,</mml:mo><mml:mspace width="1.0em"></mml:mspace><mml:mi>𝐌</mml:mi><mml:mo>=</mml:mo><mml:msub><mml:mo>∬</mml:mo><mml:mi>B</mml:mi></mml:msub><mml:mi>𝐱</mml:mi><mml:mo>×</mml:mo><mml:mi>𝛔</mml:mi><mml:mo>⋅</mml:mo><mml:mi>𝐧</mml:mi><mml:mspace width="0.167em"></mml:mspace><mml:mi>d</mml:mi><mml:mi>S</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>𝐱</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>,</mml:mo><mml:mspace width="1.0em"></mml:mspace><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mn>3</mml:mn><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></disp-formula>
+  where the stress tensor is given in terms of the pressure and velocity
+  by, <disp-formula><alternatives>
+  <tex-math><![CDATA[
+  \pmb{\sigma} = -p\pmb{I}+\pmb{\nabla}\pmb{u}+(\pmb{\nabla}\pmb{u})^T. (4)
+  ]]></tex-math>
+  <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>𝛔</mml:mi><mml:mo>=</mml:mo><mml:mi>−</mml:mi><mml:mi>p</mml:mi><mml:mi>𝐈</mml:mi><mml:mo>+</mml:mo><mml:mi>𝛁</mml:mi><mml:mi>𝐮</mml:mi><mml:mo>+</mml:mo><mml:msup><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>𝛁</mml:mi><mml:mi>𝐮</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mi>T</mml:mi></mml:msup><mml:mi>.</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mn>4</mml:mn><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></disp-formula>
+  The system (1–4) forms the basis for more complex problems in which
+  the body motion is not prescribed, or the surface motion is non-rigid.
+  Moreover due to the linearity and instantaneity of the equations, the
+  solution for translational velocity <inline-formula><alternatives>
+  <tex-math><![CDATA[\pmb{U}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>𝐔</mml:mi></mml:math></alternatives></inline-formula>
+  and angular velocity <inline-formula><alternatives>
+  <tex-math><![CDATA[\pmb{\Omega}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>𝛀</mml:mi></mml:math></alternatives></inline-formula>
+  can be determined from a linear combination of the ‘basic’ modes
+  corresponding to unit velocity along each Cartesian axis and unit
+  angular velocity about each Cartesian axis; the basic functionality of
+  CNearest is to perform these calculations. The
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[6\times 6]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mn>6</mml:mn><mml:mo>×</mml:mo><mml:mn>6</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>
+  matrix of force and moment coefficients corresponding to each basic
+  rigid body mode is referred to as the <italic>grand resistance
+  matrix</italic>
+  (<xref alt="Pozrikidis, 2002" rid="ref-pozrikidis2002" ref-type="bibr">Pozrikidis,
+  2002</xref>) or <italic>frictional tensor</italic>
+  (<xref alt="Wegener, 1981" rid="ref-wegener1981" ref-type="bibr">Wegener,
+  1981</xref>). The matrix inverse can be used to calculate the
+  diffusion tensor quantifying the translational and rotational Brownian
+  motion of the body
+  (<xref alt="Wegener, 1981" rid="ref-wegener1981" ref-type="bibr">Wegener,
+  1981</xref>).</p>
+  <p>Linearity means that (1-4) can be solved through techniques such as
+  the boundary element method, which results in a linear algebra problem
+  of the form, <disp-formula><tex-math><![CDATA[
+  \left[{\sf A}\right] {\sf f} = {\sf u},
+  ]]></tex-math></disp-formula> where
+  <inline-formula><tex-math><![CDATA[\left[{\sf A}\right]]]></tex-math></inline-formula>
+  is a <inline-formula><alternatives>
+  <tex-math><![CDATA[3N\times 3N]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mn>3</mml:mn><mml:mi>N</mml:mi><mml:mo>×</mml:mo><mml:mn>3</mml:mn><mml:mi>N</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>
+  matrix formed by evaluating or integrating fundamental solutions of
+  (1),
+  <inline-formula><tex-math><![CDATA[{\sf f}]]></tex-math></inline-formula>
+  is a <inline-formula><alternatives>
+  <tex-math><![CDATA[3N]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mn>3</mml:mn><mml:mi>N</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>-vector
+  of unknown traction or force values at each degree of freedom, and
+  <inline-formula><tex-math><![CDATA[{\sf u}]]></tex-math></inline-formula>
+  is a <inline-formula><alternatives>
+  <tex-math><![CDATA[3N]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mn>3</mml:mn><mml:mi>N</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>-vector
+  of velocities at each point of the discretisation. For more details,
+  see for example Pozrikidis
+  (<xref alt="1992" rid="ref-pozrikidis1992" ref-type="bibr">1992</xref>,
+  <xref alt="2002" rid="ref-pozrikidis2002" ref-type="bibr">2002</xref>).
+  However these techniques involve singular solutions which present
+  challenges for implementation. Moreover, despite its high numerical
+  efficiency, the boundary element method requires the user to supply a
+  true surface mesh with connectivity table and local basis system. The
+  method of regularised stokeslets
+  (<xref alt="Cortez, 2001" rid="ref-cortez2001" ref-type="bibr">Cortez,
+  2001</xref>;
+  <xref alt="Cortez et al., 2005" rid="ref-cortez2005" ref-type="bibr">Cortez
+  et al., 2005</xref>) has achieved significant success in biological
+  fluid dynamics (see for example the Special Issue edited by Cortez and
+  Olson
+  (<xref alt="Cortez &amp; Olson, 2021" rid="ref-cortez2021" ref-type="bibr">Cortez
+  &amp; Olson, 2021</xref>)) by removing both the mathematically
+  singular behaviour, and avoiding the need to construct a true mesh
+  (see also Smith
+  (<xref alt="2009" rid="ref-smith2009" ref-type="bibr">2009</xref>)).
+  This package implements an extension of the method of regularised
+  stokeslets which utilises separate discretisations for the surface
+  traction and quadrature. The method, previously implemented in Matlab
+  (<xref alt="Smith, 2018a" rid="ref-neareststokeslets2018" ref-type="bibr">Smith,
+  2018a</xref>) is based on nearest-neighbour interpolation, and it
+  removes the dependence of the linear system size on the quadrature
+  error, greatly improving accuracy and efficiency. The method
+  distinguishes the size of the force discretisation
+  (<inline-formula><alternatives>
+  <tex-math><![CDATA[N]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>N</mml:mi></mml:math></alternatives></inline-formula>)
+  from the larger sized quadrature discretisation
+  (<inline-formula><alternatives>
+  <tex-math><![CDATA[Q]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>Q</mml:mi></mml:math></alternatives></inline-formula>).
+  For more details, including application to swimming problems and error
+  analysis, see references
+  (<xref alt="Gallagher et al., 2019" rid="ref-gallagher2019" ref-type="bibr">Gallagher
+  et al., 2019</xref>;
+  <xref alt="Gallagher &amp; Smith, 2018" rid="ref-gallagher2018" ref-type="bibr">Gallagher
+  &amp; Smith, 2018</xref>).</p>
+  <p>Despite its proven effectiveness, a barrier to wider adoption of
+  the nearest neighbour discretisation is that the existing
+  implementation underpinning most of the references above is an
+  undocumented research code implemented in Matlab. That implementation
+  primarily uses built-in linear algebra operations throughout the
+  workflow, from stokeslet evaluation through matrix assembly, and
+  avoids the use of for loops. While this approach has some advantages -
+  notably brief code and very simple exploitation of parallelism
+  (<xref alt="Gallagher &amp; Smith, 2020" rid="ref-gallagher2020" ref-type="bibr">Gallagher
+  &amp; Smith, 2020</xref>), it tends to result in the storage of large
+  stokeslet matrices, which can be highly inefficient as the quadrature
+  discretisation is refined. CNearest addresses these limitations.</p>
+  <p>In the wider setting of software packages and code for Stokes flow,
+  we note several existing packages with related but distinct aims,
+  which the present package is intended to complement.
+  <italic>pyStokes</italic>
+  (<xref alt="Singh &amp; Adhikari, 2020" rid="ref-Singh2020" ref-type="bibr">Singh
+  &amp; Adhikari, 2020</xref>) implements an efficient method for
+  solving coupled Stokes and Laplace problems associated with phoretic
+  swimmers, utilising a spectral approximation to the flow field around
+  potentially large numbers of spherical particles. It is therefore
+  particularly suited to problems involving many bodies, but is less
+  focused on detailed resolution of swimmer morphology. Along similar
+  lines, “Stokesian dynamics in Python”
+  (<xref alt="Townsend, 2024" rid="ref-townsend2024" ref-type="bibr">Townsend,
+  2024</xref>) addresses the need for efficient approximation of long
+  range interactions of many particles; an older package implementing a
+  similar method is <italic>StokeD</italic>
+  (<xref alt="Parker, 2016" rid="ref-parker2016" ref-type="bibr">Parker,
+  2016</xref>), also coded in Python. Implementations of the method of
+  regularised stokeslets include an undocumented parallelized code
+  repository of the classical method
+  (<xref alt="Copos, 2020" rid="ref-copos2020" ref-type="bibr">Copos,
+  2020</xref>), and a more recent package which enables the use of
+  analytic surface integrals
+  (<xref alt="Ferranti, 2024" rid="ref-ferranti2024package" ref-type="bibr">Ferranti,
+  2024</xref>;
+  <xref alt="Ferranti &amp; Cortez, 2024" rid="ref-ferranti2024" ref-type="bibr">Ferranti
+  &amp; Cortez, 2024</xref>). The latter method greatly improves the
+  accuracy and efficiency of the method of regularised stokeslets,
+  however it does require the generation of a true surface mesh rather
+  than a point cloud discretisation. Taken together, we believe that the
+  present package addresses a gap for an extensible, accessible and
+  efficient methodology for Stokes flow problems, particularly those
+  involving complex geometries.</p>
+  <p>To enable efficient and scalable use of computing resources, the
+  package is implemented in C++, with the widely-used
+  <italic>eigen</italic> package handling linear algebra operations
+  (<xref alt="Guennebaud et al., 2010" rid="ref-eigenweb" ref-type="bibr">Guennebaud
+  et al., 2010</xref>). The package also provides three specific
+  algorithmic developments, which arose through the process of
+  re-implementing the method in C++:</p>
+  <list list-type="order">
+    <list-item>
+      <p>Tiebreaking: ensuring reproducibility of results when the
+      nearest-neighbour mapping is non-unique.</p>
+    </list-item>
+    <list-item>
+      <p>Stokeslet accumulation: building the left hand side
+      <inline-formula><alternatives>
+      <tex-math><![CDATA[3N\times 3N]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mn>3</mml:mn><mml:mi>N</mml:mi><mml:mo>×</mml:mo><mml:mn>3</mml:mn><mml:mi>N</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>
+      matrix by adding stokeslets one at a time, rather than forming the
+      larger <inline-formula><alternatives>
+      <tex-math><![CDATA[3Q\times 3N]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mn>3</mml:mn><mml:mi>Q</mml:mi><mml:mo>×</mml:mo><mml:mn>3</mml:mn><mml:mi>N</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>
+      stokeslet matrix and multiplying by a sparse projection
+      matrix.</p>
+    </list-item>
+    <list-item>
+      <p>Rescaling by local stokeslet count: the degrees of freedom of
+      the system are thereby the physical force associated with each
+      discretisation point, thereby ensuring that the matrix and
+      solution vector are convergent as the quadrature discretisation is
+      refined.</p>
+    </list-item>
+  </list>
+</sec>
+<sec id="usage">
+  <title>Usage</title>
+  <p>The workflow is that the user will first define the problem in
+  terms of physical bodies such as spheres or spheroids (implementation
+  of other shapes and flexible motions is an area for future
+  development) from which the force and quadrature discretisations are
+  created, then finally defining the boundary conditions. For the rigid
+  body resistance problem (1-4) with no-slip, no-penetration boundary
+  conditions, the boundary velocity can be calculated from supplied
+  values of the translational and rotational velocity of the body, from
+  which the surface velocity components at each point are
+  calculated.</p>
+  <p>The library then constructs a linear algebra problem by detecting
+  nearest neighbours, managing degrees of freedom, assembling matrices
+  from the regularised stokeslets, and assembling vectors from the
+  boundary conditions. A linear solver (either the default solver based
+  on LU-decomposition with pivoting or an alternative chosen by the
+  user) is invoked to find the unknown force distribution over the
+  nodes. Finally the same tools which constructed the full size vectors
+  are used to decompose them back to the total physical force and moment
+  on the body.</p>
+</sec>
+<sec id="validation">
+  <title>Validation</title>
+  <p>The results of the code have been compared with the results of the
+  (established) Matlab codebase. This comparison goes to make one of our
+  suites of unit tests. This code is also capable of reproducing the
+  results tables published in Smith
+  (<xref alt="2018b" rid="ref-smith2018" ref-type="bibr">2018b</xref>)
+  for the force and moment on a translating and rotating sphere and
+  prolate spheroid. This comparison is presented as examples 1 and 2
+  respectively (see <italic>examples/example-1-sphere</italic> and
+  <italic>examples/example-2-prolate-spheroid</italic>).</p>
+</sec>
+<sec id="summary-and-areas-for-future-development">
+  <title>Summary and areas for future development</title>
+  <p>Potential areas for future development include solution of model
+  cells with flexible flagella, swimming problems (mobility due to a
+  prescribed swimming stroke;
+  (<xref alt="Gallagher &amp; Smith, 2018" rid="ref-gallagher2018" ref-type="bibr">Gallagher
+  &amp; Smith, 2018</xref>)), multiple bodies and parallelisation
+  (<xref alt="Gallagher &amp; Smith, 2020" rid="ref-gallagher2020" ref-type="bibr">Gallagher
+  &amp; Smith, 2020</xref>), boundary image systems
+  (<xref alt="Ainley et al., 2008" rid="ref-ainley2008" ref-type="bibr">Ainley
+  et al., 2008</xref>;
+  <xref alt="Cortez &amp; Varela, 2015" rid="ref-cortez2015" ref-type="bibr">Cortez
+  &amp; Varela, 2015</xref>), stokeslet lines
+  (<xref alt="Cortez, 2018" rid="ref-cortez2018" ref-type="bibr">Cortez,
+  2018</xref>;
+  <xref alt="Smith, 2009" rid="ref-smith2009" ref-type="bibr">Smith,
+  2009</xref>), stokeslets with improved far field behaviour
+  (<xref alt="Zhao et al., 2019" rid="ref-zhao2019" ref-type="bibr">Zhao
+  et al., 2019</xref>), integration with elastohydrodynamics
+  (<xref alt="Hall-McNair et al., 2019" rid="ref-hall2019" ref-type="bibr">Hall-McNair
+  et al., 2019</xref>), stokeslet rings
+  (<xref alt="Tyrrell et al., 2019" rid="ref-tyrrell2019" ref-type="bibr">Tyrrell
+  et al., 2019</xref>), Richardson extrapolation
+  (<xref alt="Gallagher &amp; Smith, 2021" rid="ref-gallagher2021" ref-type="bibr">Gallagher
+  &amp; Smith, 2021</xref>), implementation of the double layer
+  potential, which is highly important for problems involving surface
+  slip
+  (<xref alt="Smith et al., 2021" rid="ref-smith2021" ref-type="bibr">Smith
+  et al., 2021</xref>), modelling self-motile phoretic colloids
+  (<xref alt="Montenegro-Johnson et al., 2015" rid="ref-montenegro2015" ref-type="bibr">Montenegro-Johnson
+  et al., 2015</xref>) and fast multipole acceleration for very large
+  problems
+  (<xref alt="Rostami &amp; Olson, 2016" rid="ref-rostami2016" ref-type="bibr">Rostami
+  &amp; Olson, 2016</xref>).</p>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>This work was partially supported by the Engineering and Physical
+  Sciences Research Council (EP/N021096/1).</p>
+  <p>We acknowledge Meurig Gallagher (Centre for Systems Modelling and
+  Quantitative Biomedicine, University of Birmingham) for his continuing
+  work on developing the nearest-neighbour method and associated Matlab
+  implementations since 2018. We also acknowledge Research Software
+  Engineer Simon Hartley (Advanced Research Computing, University of
+  Birmingham), whose earlier engagement with this problem uncovered the
+  risk of force points which were tied in for nearest neighbour.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <title></title>
+  <ref id="ref-ainley2008">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Ainley</surname><given-names>J.</given-names></name>
+        <name><surname>Durkin</surname><given-names>S.</given-names></name>
+        <name><surname>Embid</surname><given-names>R.</given-names></name>
+        <name><surname>Boindala</surname><given-names>P.</given-names></name>
+        <name><surname>Cortez</surname><given-names>R.</given-names></name>
+      </person-group>
+      <article-title>The method of images for regularized Stokeslets</article-title>
+      <source>J. Comput. Phys.</source>
+      <publisher-name>Elsevier</publisher-name>
+      <year iso-8601-date="2008">2008</year>
+      <volume>227</volume>
+      <issue>9</issue>
+      <uri>https://doi.org/10.1016/j.jcp.2008.01.032</uri>
+      <pub-id pub-id-type="doi">10.1016/j.jcp.2008.01.032</pub-id>
+      <fpage>4600</fpage>
+      <lpage>4616</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-copos2020">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Copos</surname><given-names>C. A.</given-names></name>
+      </person-group>
+      <article-title>Parallelized CUDA method of regularized stokeslets</article-title>
+      <year iso-8601-date="2020">2020</year>
+      <uri>https://github.com/calinacopos/Parallelized-CUDA-Method-of-Regularized-Stokeslets</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-cortez2001">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Cortez</surname><given-names>R.</given-names></name>
+      </person-group>
+      <article-title>The method of regularized Stokeslets</article-title>
+      <source>SIAM J. Sci. Comput.</source>
+      <publisher-name>SIAM</publisher-name>
+      <year iso-8601-date="2001">2001</year>
+      <volume>23</volume>
+      <issue>4</issue>
+      <uri>https://doi.org/10.1137/S106482750038146X</uri>
+      <pub-id pub-id-type="doi">10.1137/S106482750038146X</pub-id>
+      <fpage>1204</fpage>
+      <lpage>1225</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-cortez2005">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Cortez</surname><given-names>R.</given-names></name>
+        <name><surname>Fauci</surname><given-names>L.</given-names></name>
+        <name><surname>Medovikov</surname><given-names>A.</given-names></name>
+      </person-group>
+      <article-title>The method of regularized Stokeslets in three dimensions: Analysis, validation, and application to helical swimming</article-title>
+      <source>Phys. Fluids</source>
+      <publisher-name>AIP Publishing</publisher-name>
+      <year iso-8601-date="2005">2005</year>
+      <volume>17</volume>
+      <issue>3</issue>
+      <uri>https://doi.org/10.1063/1.1830486</uri>
+      <pub-id pub-id-type="doi">10.1063/1.1830486</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-cortez2015">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Cortez</surname><given-names>R.</given-names></name>
+        <name><surname>Varela</surname><given-names>D.</given-names></name>
+      </person-group>
+      <article-title>A general system of images for regularized Stokeslets and other elements near a plane wall</article-title>
+      <source>J. Comput. Phys.</source>
+      <publisher-name>Elsevier</publisher-name>
+      <year iso-8601-date="2015">2015</year>
+      <volume>285</volume>
+      <uri>https://doi.org/10.1016/j.jcp.2015.01.019</uri>
+      <pub-id pub-id-type="doi">10.1016/j.jcp.2015.01.019</pub-id>
+      <fpage>41</fpage>
+      <lpage>54</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-cortez2018">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Cortez</surname><given-names>R.</given-names></name>
+      </person-group>
+      <article-title>Regularized stokeslet segments</article-title>
+      <source>J. Comput. Phys.</source>
+      <publisher-name>Elsevier</publisher-name>
+      <year iso-8601-date="2018">2018</year>
+      <volume>375</volume>
+      <uri>https://doi.org/10.1016/j.jcp.2018.08.055</uri>
+      <pub-id pub-id-type="doi">10.1016/j.jcp.2018.08.055</pub-id>
+      <fpage>783</fpage>
+      <lpage>796</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-cortez2021">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Cortez</surname><given-names>R.</given-names></name>
+        <name><surname>Olson</surname><given-names>S.</given-names></name>
+      </person-group>
+      <article-title>20 years of regularized Stokeslets: Applications, computation and theory</article-title>
+      <year iso-8601-date="2021">2021</year>
+      <uri>https://www.mdpi.com/journal/fluids/special_issues/regularized_stokeslets</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-eigenweb">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Guennebaud</surname><given-names>G.</given-names></name>
+        <name><surname>Jacob</surname><given-names>B.</given-names></name>
+        <name><surname>others</surname></name>
+      </person-group>
+      <article-title>Eigen v3</article-title>
+      <year iso-8601-date="2010">2010</year>
+      <uri>http://eigen.tuxfamily.org</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-ferranti2024package">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Ferranti</surname><given-names>D.</given-names></name>
+      </person-group>
+      <article-title>Regularized stokeslet surfaces</article-title>
+      <year iso-8601-date="2024">2024</year>
+      <uri>https://github.com/djferranti/RegularizedStokesletSurfaces</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-ferranti2024">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Ferranti</surname><given-names>D.</given-names></name>
+        <name><surname>Cortez</surname><given-names>R.</given-names></name>
+      </person-group>
+      <article-title>Regularized stokeslet surfaces</article-title>
+      <source>J. Comput. Phys</source>
+      <year iso-8601-date="2024">2024</year>
+      <volume>508</volume>
+      <uri>https://www.sciencedirect.com/science/article/pii/S0021999124002535</uri>
+      <pub-id pub-id-type="doi">10.1016/j.jcp.2024.113004</pub-id>
+      <fpage>113004</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-gallagher2018">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Gallagher</surname><given-names>M. T.</given-names></name>
+        <name><surname>Smith</surname><given-names>D. J.</given-names></name>
+      </person-group>
+      <article-title>Meshfree and efficient modeling of swimming cells</article-title>
+      <source>Phys. Rev. Fluids</source>
+      <publisher-name>APS</publisher-name>
+      <year iso-8601-date="2018">2018</year>
+      <volume>3</volume>
+      <issue>5</issue>
+      <uri>https://doi.org/10.1103/PhysRevFluids.3.053101</uri>
+      <pub-id pub-id-type="doi">10.1103/PhysRevFluids.3.053101</pub-id>
+      <fpage>053101</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-gallagher2019">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Gallagher</surname><given-names>M. T.</given-names></name>
+        <name><surname>Choudhuri</surname><given-names>D.</given-names></name>
+        <name><surname>Smith</surname><given-names>D. J.</given-names></name>
+      </person-group>
+      <article-title>Sharp quadrature error bounds for the nearest-neighbor discretization of the regularized stokeslet boundary integral equation</article-title>
+      <source>SIAM J. Sci. Comput.</source>
+      <publisher-name>SIAM</publisher-name>
+      <year iso-8601-date="2019">2019</year>
+      <volume>41</volume>
+      <issue>1</issue>
+      <uri>https://doi.org/10.1137/18M1191816</uri>
+      <pub-id pub-id-type="doi">10.1137/18M1191816</pub-id>
+      <fpage>B139</fpage>
+      <lpage>B152</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-gallagher2020">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Gallagher</surname><given-names>M. T.</given-names></name>
+        <name><surname>Smith</surname><given-names>D. J.</given-names></name>
+      </person-group>
+      <article-title>Passively parallel regularized stokeslets</article-title>
+      <source>Phil. Trans. R. Soc. A</source>
+      <publisher-name>The Royal Society Publishing</publisher-name>
+      <year iso-8601-date="2020">2020</year>
+      <volume>378</volume>
+      <issue>2179</issue>
+      <uri>https://doi.org/10.1098/rsta.2019.0528</uri>
+      <pub-id pub-id-type="doi">10.1098/rsta.2019.0528</pub-id>
+      <fpage>20190528</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-gallagher2021">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Gallagher</surname><given-names>M. T.</given-names></name>
+        <name><surname>Smith</surname><given-names>D. J.</given-names></name>
+      </person-group>
+      <article-title>The art of coarse Stokes: Richardson extrapolation improves the accuracy and efficiency of the method of regularized stokeslets</article-title>
+      <source>R. Soc. Open Sci.</source>
+      <publisher-name>The Royal Society</publisher-name>
+      <year iso-8601-date="2021">2021</year>
+      <volume>8</volume>
+      <issue>5</issue>
+      <uri>https://doi.org/10.1098/rsos.210108</uri>
+      <pub-id pub-id-type="doi">10.1098/rsos.210108</pub-id>
+      <fpage>210108</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-hall2019">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Hall-McNair</surname><given-names>A. L.</given-names></name>
+        <name><surname>Montenegro-Johnson</surname><given-names>T. D.</given-names></name>
+        <name><surname>Gadêlha</surname><given-names>H.</given-names></name>
+        <name><surname>Smith</surname><given-names>D. J.</given-names></name>
+        <name><surname>Gallagher</surname><given-names>M. T.</given-names></name>
+      </person-group>
+      <article-title>Efficient implementation of elastohydrodynamics via integral operators</article-title>
+      <source>Phys. Rev. Fluids</source>
+      <publisher-name>APS</publisher-name>
+      <year iso-8601-date="2019">2019</year>
+      <volume>4</volume>
+      <issue>11</issue>
+      <uri>https://doi.org/10.1103/PhysRevFluids.4.113101</uri>
+      <pub-id pub-id-type="doi">10.1103/PhysRevFluids.4.113101</pub-id>
+      <fpage>113101</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-montenegro2015">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Montenegro-Johnson</surname><given-names>T. D.</given-names></name>
+        <name><surname>Michelin</surname><given-names>S.</given-names></name>
+        <name><surname>Lauga</surname><given-names>E.</given-names></name>
+      </person-group>
+      <article-title>A regularised singularity approach to phoretic problems</article-title>
+      <source>Eur. Phys. J. E</source>
+      <publisher-name>Springer</publisher-name>
+      <year iso-8601-date="2015">2015</year>
+      <volume>38</volume>
+      <uri>https://doi.org/10.1140/epje/i2015-15139-7</uri>
+      <pub-id pub-id-type="doi">10.1140/epje/i2015-15139-7</pub-id>
+      <fpage>1</fpage>
+      <lpage>7</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-neareststokeslets2018">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Smith</surname><given-names>D. J.</given-names></name>
+      </person-group>
+      <article-title>Matlab/GNU octave code for the nearest neighbour regularised stokeslets method for stokes flow</article-title>
+      <year iso-8601-date="2018">2018</year>
+      <uri>https://github.com/djsmithbham/NearestStokeslets</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-parker2016">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Parker</surname><given-names>J.</given-names></name>
+      </person-group>
+      <article-title>StokeD</article-title>
+      <year iso-8601-date="2016">2016</year>
+      <uri>https://github.com/johnaparker/stoked</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-pozrikidis1992">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Pozrikidis</surname><given-names>C.</given-names></name>
+      </person-group>
+      <source>Boundary integral and singularity methods for linearized viscous flow</source>
+      <publisher-name>Cambridge University</publisher-name>
+      <year iso-8601-date="1992">1992</year>
+      <pub-id pub-id-type="doi">10.1017/CBO9780511624124</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-pozrikidis2002">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Pozrikidis</surname><given-names>C.</given-names></name>
+      </person-group>
+      <source>A practical guide to boundary element methods with the software library BEMLIB</source>
+      <publisher-name>CRC</publisher-name>
+      <year iso-8601-date="2002">2002</year>
+      <pub-id pub-id-type="doi">10.1017/S0022112004008201</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-Singh2020">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Singh</surname><given-names>Rajesh</given-names></name>
+        <name><surname>Adhikari</surname><given-names>Ronojoy</given-names></name>
+      </person-group>
+      <article-title>PyStokes: Phoresis and stokesian hydrodynamics in python</article-title>
+      <source>Journal of Open Source Software</source>
+      <publisher-name>The Open Journal</publisher-name>
+      <year iso-8601-date="2020">2020</year>
+      <volume>5</volume>
+      <issue>50</issue>
+      <uri>https://doi.org/10.21105/joss.02318</uri>
+      <pub-id pub-id-type="doi">10.21105/joss.02318</pub-id>
+      <fpage>2318</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-rostami2016">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Rostami</surname><given-names>M. W.</given-names></name>
+        <name><surname>Olson</surname><given-names>S. D.</given-names></name>
+      </person-group>
+      <article-title>Kernel-independent fast multipole method within the framework of regularized stokeslets</article-title>
+      <source>J. Fluids Struct.</source>
+      <publisher-name>Elsevier</publisher-name>
+      <year iso-8601-date="2016">2016</year>
+      <volume>67</volume>
+      <uri>https://doi.org/10.1016/j.jfluidstructs.2016.07.006</uri>
+      <pub-id pub-id-type="doi">10.1016/j.jfluidstructs.2016.07.006</pub-id>
+      <fpage>60</fpage>
+      <lpage>84</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-smith2009">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Smith</surname><given-names>D. J.</given-names></name>
+      </person-group>
+      <article-title>A boundary element regularized Stokeslet method applied to cilia-and flagella-driven flow</article-title>
+      <source>Proc. R. Soc. Lond. A</source>
+      <publisher-name>The Royal Society Publishing</publisher-name>
+      <year iso-8601-date="2009">2009</year>
+      <volume>465</volume>
+      <issue>2112</issue>
+      <uri>https://doi.org/10.1098/rspa.2009.0295</uri>
+      <pub-id pub-id-type="doi">10.1098/rspa.2009.0295</pub-id>
+      <fpage>3605</fpage>
+      <lpage>3626</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-smith2018">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Smith</surname><given-names>D. J.</given-names></name>
+      </person-group>
+      <article-title>A nearest-neighbour discretisation of the regularized stokeslet boundary integral equation</article-title>
+      <source>J. Comput. Phys.</source>
+      <publisher-name>Elsevier BV</publisher-name>
+      <year iso-8601-date="2018-04">2018</year><month>04</month>
+      <volume>358</volume>
+      <issn>0021-9991</issn>
+      <uri>http://dx.doi.org/10.1016/j.jcp.2017.12.008</uri>
+      <pub-id pub-id-type="doi">10.1016/j.jcp.2017.12.008</pub-id>
+      <fpage>88</fpage>
+      <lpage>102</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-smith2021">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Smith</surname><given-names>D. J.</given-names></name>
+        <name><surname>Gallagher</surname><given-names>M. T.</given-names></name>
+        <name><surname>Schuech</surname><given-names>R.</given-names></name>
+        <name><surname>Montenegro-Johnson</surname><given-names>T. D.</given-names></name>
+      </person-group>
+      <article-title>The role of the double-layer potential in regularised stokeslet models of self-propulsion</article-title>
+      <source>Fluids</source>
+      <publisher-name>MDPI</publisher-name>
+      <year iso-8601-date="2021">2021</year>
+      <volume>6</volume>
+      <issue>11</issue>
+      <uri>https://doi.org/10.3390/fluids6110411</uri>
+      <pub-id pub-id-type="doi">10.3390/fluids6110411</pub-id>
+      <fpage>411</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-townsend2024">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Townsend</surname><given-names>A. K.</given-names></name>
+      </person-group>
+      <article-title>Stokesian Dynamics in Python</article-title>
+      <source>Journal of Open Source Software</source>
+      <publisher-name>The Open Journal</publisher-name>
+      <year iso-8601-date="2024">2024</year>
+      <volume>9</volume>
+      <issue>94</issue>
+      <uri>https://doi.org/10.21105/joss.06011</uri>
+      <pub-id pub-id-type="doi">10.21105/joss.06011</pub-id>
+      <fpage>6011</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-tyrrell2019">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Tyrrell</surname><given-names>J.</given-names></name>
+        <name><surname>Smith</surname><given-names>D. J.</given-names></name>
+        <name><surname>Dyson</surname><given-names>R. J.</given-names></name>
+      </person-group>
+      <article-title>Regularized stokeslet rings: An efficient method for axisymmetric Stokes flow with application to the growing pollen tube</article-title>
+      <source>Phys. Rev. Fluids</source>
+      <publisher-name>APS</publisher-name>
+      <year iso-8601-date="2019">2019</year>
+      <volume>4</volume>
+      <issue>6</issue>
+      <uri>https://doi.org/10.1103/PhysRevFluids.4.063102</uri>
+      <pub-id pub-id-type="doi">10.1103/PhysRevFluids.4.063102</pub-id>
+      <fpage>063102</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-wegener1981">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Wegener</surname><given-names>W. A.</given-names></name>
+      </person-group>
+      <article-title>Diffusion coefficients for rigid macromolecules with irregular shapes that allow rotational-translational coupling</article-title>
+      <source>Biopolymers</source>
+      <year iso-8601-date="1981">1981</year>
+      <volume>20</volume>
+      <issue>2</issue>
+      <uri>https://doi.org/10.1002/bip.1981.360200205</uri>
+      <pub-id pub-id-type="doi">10.1002/bip.1981.360200205</pub-id>
+      <fpage>303</fpage>
+      <lpage>326</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-zhao2019">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Zhao</surname><given-names>B.</given-names></name>
+        <name><surname>Lauga</surname><given-names>E.</given-names></name>
+        <name><surname>Koens</surname><given-names>L.</given-names></name>
+      </person-group>
+      <article-title>Method of regularized stokeslets: Flow analysis and improvement of convergence</article-title>
+      <source>Phys. Rev. Fluids</source>
+      <publisher-name>APS</publisher-name>
+      <year iso-8601-date="2019">2019</year>
+      <volume>4</volume>
+      <issue>8</issue>
+      <uri>https://doi.org/10.1103/PhysRevFluids.4.084104</uri>
+      <pub-id pub-id-type="doi">10.1103/PhysRevFluids.4.084104</pub-id>
+      <fpage>084104</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
