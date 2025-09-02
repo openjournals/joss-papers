@@ -1,0 +1,608 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">6644</article-id>
+<article-id pub-id-type="doi">10.21105/joss.06644</article-id>
+<title-group>
+<article-title>PyPEEC: A 3D Quasi-Magnetostatic Solver using an
+FFT-Accelerated PEEC Method with Voxelization</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author" corresp="yes">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0003-0738-5823</contrib-id>
+<name>
+<surname>Guillod</surname>
+<given-names>Thomas</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+<xref ref-type="corresp" rid="cor-1"><sup>*</sup></xref>
+</contrib>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0001-7492-9005</contrib-id>
+<name>
+<surname>Sullivan</surname>
+<given-names>Charles R.</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Dartmouth College, NH, USA</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<author-notes>
+<corresp id="cor-1">* E-mail: <email></email></corresp>
+</author-notes>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2023-12-20">
+<day>20</day>
+<month>12</month>
+<year>2023</year>
+</pub-date>
+<volume>10</volume>
+<issue>113</issue>
+<fpage>6644</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2025</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>fft acceleration</kwd>
+<kwd>quasi magnetostatic</kwd>
+<kwd>power electronics</kwd>
+<kwd>peec</kwd>
+<kwd>voxel</kwd>
+<kwd>maxwell</kwd>
+<kwd>python</kwd>
+<kwd>magnetics</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p>The partial element equivalent circuit method (PEEC) is a
+  particularly interesting integral-equation method for electromagnetic
+  problems as it can be easily combined with circuit simulations and
+  does not require a discretization of the free space. This paper
+  introduces PyPEEC, an open-source Python solver targeting 3D
+  quasi-magnetostatic problems such as inductors, transformers, chokes,
+  IPT coils, or busbars. The geometry is described with voxels and the
+  solver uses an FFT-accelerated variant of the PEEC method. The FFT
+  acceleration drastically reduces the computational cost and the memory
+  footprint.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of Need</title>
+  <p>Quasi-magnetostatic field simulations are widely used for the
+  design and optimization of electrical components (e.g., power
+  electronics, packaging, IC design). Among the existing numerical
+  methods (e.g., FEM, FDTD, PEEC, BEM), the PEEC method features several
+  advantages
+  (<xref alt="Jithesh &amp; Pande, 2003" rid="ref-method_review" ref-type="bibr">Jithesh
+  &amp; Pande, 2003</xref>;
+  <xref alt="A. Ruehli et al., 2017" rid="ref-peec_book" ref-type="bibr">A.
+  Ruehli et al., 2017</xref>;
+  <xref alt="A. E. Ruehli, 1974" rid="ref-ruehli" ref-type="bibr">A. E.
+  Ruehli, 1974</xref>;
+  <xref alt="Torchio, 2019" rid="ref-volume_peec" ref-type="bibr">Torchio,
+  2019</xref>):</p>
+  <list list-type="bullet">
+    <list-item>
+      <p>Only the active materials are discretized (no need to mesh the
+      vacuum/air).</p>
+    </list-item>
+    <list-item>
+      <p>Intuitive understanding of the equation discretization
+      process.</p>
+    </list-item>
+    <list-item>
+      <p>Straightforward connection of external circuit elements.</p>
+    </list-item>
+  </list>
+  <p>The fundamental drawback of the classical PEEC method is that the
+  matrix describing the equation system is not sparse. This means that
+  the computational cost and the memory requirement become problematic
+  for large problems.</p>
+  <p>This problem can be mitigated if the geometry is represented with
+  voxels
+  (<xref alt="Torchio, Lucchini, et al., 2022" rid="ref-fft_peec" ref-type="bibr">Torchio,
+  Lucchini, et al., 2022</xref>;
+  <xref alt="A. C. Yucel et al., 2018" rid="ref-yucel" ref-type="bibr">A.
+  C. Yucel et al., 2018</xref>). The first advantage of such geometries
+  is that the Green’s functions (i.e., the inductance and potential
+  matrices) have analytical solutions, avoiding computationally
+  intensive numerical integrals
+  (<xref alt="Hoer &amp; Love, 1965" rid="ref-hoer_exact" ref-type="bibr">Hoer
+  &amp; Love, 1965</xref>;
+  <xref alt="Piatek &amp; Baron, 2012" rid="ref-piatek_exact" ref-type="bibr">Piatek
+  &amp; Baron, 2012</xref>). The second advantage is that, due to the
+  regular voxel discretization, many coefficients of the inductance and
+  potential matrices are redundant. The dense matrices are
+  block-Toeplitz Toeplitz-block matrices and feature the following key
+  properties
+  (<xref alt="Lee, 1986" rid="ref-fft_multi_theory" ref-type="bibr">Lee,
+  1986</xref>;
+  <xref alt="Polimeridis et al., 2014" rid="ref-fft_multi_solver" ref-type="bibr">Polimeridis
+  et al., 2014</xref>):</p>
+  <list list-type="bullet">
+    <list-item>
+      <p>The block-Toeplitz Toeplitz-block matrices can be embedded into
+      circulant tensors, reducing the memory requirements from
+      <inline-formula><alternatives>
+      <tex-math><![CDATA[O(n^2)]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>O</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msup><mml:mi>n</mml:mi><mml:mn>2</mml:mn></mml:msup><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>
+      to <inline-formula><alternatives>
+      <tex-math><![CDATA[O(n)]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>O</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>n</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>.</p>
+    </list-item>
+    <list-item>
+      <p>The matrix-vector multiplications can be done with Fourier
+      transforms. With an FFT algorithm, the computational complexity of
+      matrix-vector multiplications is reduced from
+      <inline-formula><alternatives>
+      <tex-math><![CDATA[O(n^2)]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>O</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msup><mml:mi>n</mml:mi><mml:mn>2</mml:mn></mml:msup><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>
+      to <inline-formula><alternatives>
+      <tex-math><![CDATA[O(n \log(n))]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>O</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>n</mml:mi><mml:mo>log</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>n</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>.</p>
+    </list-item>
+  </list>
+  <p>Different variants of the FFT-accelerated PEEC method have been
+  shown to be extremely fast for a large variety of electromagnetic
+  problems, such as high-frequency transformers
+  (<xref alt="Torchio, Lucchini, et al., 2022" rid="ref-fft_peec" ref-type="bibr">Torchio,
+  Lucchini, et al., 2022</xref>), power inductors
+  (<xref alt="Marconato &amp; Lucchini, 2021" rid="ref-marconato" ref-type="bibr">Marconato
+  &amp; Lucchini, 2021</xref>), human body field exposure
+  (<xref alt="Torchio, Arduino, et al., 2022" rid="ref-human_peec" ref-type="bibr">Torchio,
+  Arduino, et al., 2022</xref>), nuclear fusion devices
+  (<xref alt="Bettini et al., 2020" rid="ref-bettini" ref-type="bibr">Bettini
+  et al., 2020</xref>), and PCB layouts
+  (<xref alt="Romano et al., 2023" rid="ref-grossner" ref-type="bibr">Romano
+  et al., 2023</xref>).</p>
+  <p>An open-source implementation (“FFT-PEEC”) of the FFT-accelerated
+  PEEC method already exists
+  (<xref alt="Torchio &amp; Lucchini, 2020" rid="ref-peec_code" ref-type="bibr">Torchio
+  &amp; Lucchini, 2020</xref>,
+  <xref alt="2021" rid="ref-nlie_code" ref-type="bibr">2021</xref>).
+  However, this code can only handle magnetic materials for static
+  simulations (and not in the frequency domain). Moreover, depending on
+  the considered quasi-static problem (e.g., geometries with multiple
+  conductors), the source code requires some adaptations. The
+  open-source tools “VoxHenry” and “MARIE” are also using
+  FFT-accelerated methods, but are specialized for full-wave solutions
+  without magnetic materials
+  (<xref alt="Villena et al., 2015" rid="ref-marie_code" ref-type="bibr">Villena
+  et al., 2015</xref>;
+  <xref alt="A. Yucel, 2018" rid="ref-vox_code" ref-type="bibr">A.
+  Yucel, 2018</xref>). Finally, it should be noted that all the
+  aforementioned implementations depend on proprietary programming
+  languages and libraries.</p>
+  <p>PyPEEC, the tool introduced in this paper, addresses these needs by
+  providing a 3D quasi-magnetostatic implementation of the
+  FFT-accelerated PEEC method
+  (<xref alt="Torchio, Lucchini, et al., 2022" rid="ref-fft_peec" ref-type="bibr">Torchio,
+  Lucchini, et al., 2022</xref>). PyPEEC is a fully open-source (MPL 2.0
+  licence and implemented in Python) and offers a general-purpose solver
+  by allowing the description of arbitrary problems without having to
+  modify the source code.</p>
+</sec>
+<sec id="capabilities-and-workflow">
+  <title>Capabilities and Workflow</title>
+  <p>In this paper, the release 5.7 of PyPEEC is considered. PyPEEC
+  solves 3D magnetostatic and quasi-magnetostatic problems with voxel
+  geometries. An arbitrary number of conductive domains, magnetic
+  domains (ideal and/or lossy), and sources (voltage and/or current) can
+  be used. The current density, flux density, electric potential,
+  magnetic potential, and loss density are computed. The free space
+  magnetic field (near-field) can also be computed on a point cloud.
+  Additionally, the voltage, current, complex power, and impedance of
+  the different terminals are extracted.</p>
+  <fig id="figU003Aworkflow">
+    <caption><p>PyPEEC workflow consisting of the
+    <italic>mesher</italic>, <italic>solver</italic>,
+    <italic>viewer</italic>, and <italic>plotter</italic></p></caption>
+    <graphic mimetype="application" mime-subtype="pdf" xlink:href="workflow.pdf" />
+  </fig>
+  <p>PyPEEC is implemented in pure Python using NumPy, SciPy, Joblib,
+  Rasterio, Shapely, Pillow, Matplotlib, and PyVista. The solver is able
+  to leverage multi-core CPUs and GPUs. Optional HPC libraries are
+  available for accelerating the sparse preconditioner factorization
+  (MKL/PARDISO and PyAMG) and the FFT operations (FFTW, MKL/FFT, and
+  CuPy/CUDA). PyPEEC can be used through an API, a command-line tool, or
+  Jupyter notebooks. The package is available through the Python package
+  index (PyPi) and the community-driven Conda package index
+  (conda-forge). A Docker image with JupyterLab is also maintained.</p>
+  <p><xref alt="[fig:workflow]" rid="figU003Aworkflow">[fig:workflow]</xref>
+  depicts the PyPEEC workflow. First, the <italic>mesher</italic> builds
+  the geometry (from vector shapes, STL files, PNG files, or GERBER
+  files), performs the voxelization, and checks the validity of the
+  discretization. Afterward, the <italic>solver</italic> creates the
+  FFT-multiplication operators, assembles the equation systems, extracts
+  sparse preconditioners, solves the problem, and post-processes the
+  solution. The <italic>viewer</italic> and the <italic>plotter</italic>
+  are used to visualize the results. Alternatively, ParaView can be used
+  to analyze and visualize the solutions.</p>
+</sec>
+<sec id="solver-performance">
+  <title>Solver Performance</title>
+  <p>To demonstrate the performance of the solver, a planar air-core
+  spiral inductor is considered
+  (<xref alt="Guillod &amp; Sullivan, 2025" rid="ref-shape_optim" ref-type="bibr">Guillod
+  &amp; Sullivan, 2025</xref>). The inductor has a footprint of
+  4 mm<sup>2</sup> and is operated in the 40.68 MHz ISM band.
+  <xref alt="[fig:performance]" rid="figU003Aperformance">[fig:performance]</xref>
+  shows the ratio between the AC and DC current densities, the relative
+  error on the extracted impedance, and the computational cost. The
+  number of degrees of freedom represents the number of unknowns for the
+  PEEC problem (dense equation system). The computational cost is
+  evaluated with an AMD EPYC 7543 CPU (without GPUs).</p>
+  <fig id="figU003Aperformance">
+    <caption><p>(a) Ratio between the AC and DC current densities.
+    (b) Relative error on the extracted equivalent resistance and the
+    inductance. (c) Wall clock time duration for the complete
+    workflow.</p></caption>
+    <graphic mimetype="application" mime-subtype="pdf" xlink:href="performance.pdf" />
+  </fig>
+  <p>As the skin depth is smaller than the dimension of the conductor,
+  the eddy currents are non-negligible. This implies that, with a coarse
+  discretization, the resistance value is less accurate than the
+  inductance value. With a tolerance of 4%, the quasi-static problem is
+  solved in 4 seconds. The FFT acceleration allows dense PEEC problems
+  with 10<sup>7</sup> degrees of freedom to be solved in 80 seconds.</p>
+  <p>The performances of PyPEEC are impacted by the following factors.
+  For problems dominated by eddy currents and/or containing magnetic
+  materials, the majority of the computational effort (typically over
+  70%) is linked to the FFT-accelerated multiplications. In such cases,
+  the performances are directly driven by the FFT solver and benefit
+  from the available parallel and GPU algorithms. Finally, it should be
+  noted that PyPEEC is using a regular voxel structure to represent the
+  geometry. This implies that large geometries with small features
+  cannot be meshed efficiently.</p>
+</sec>
+<sec id="acknowledgments">
+  <title>Acknowledgments</title>
+  <p>This work was supported by the Power Management Integration Center
+  (NSF IUCRC) at Dartmouth College under Grant No. PMIC-062. The authors
+  would like to thank Yue (Will) Wu for discovering and reporting
+  several bugs.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <title></title>
+  <ref id="ref-peec_book">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Ruehli</surname><given-names>A.</given-names></name>
+        <name><surname>Antonini</surname><given-names>G.</given-names></name>
+        <name><surname>Jiang</surname><given-names>L.</given-names></name>
+      </person-group>
+      <source>Circuit Oriented Electromagnetic Modeling Using the PEEC Techniques</source>
+      <publisher-name>Wiley</publisher-name>
+      <year iso-8601-date="2017">2017</year>
+      <isbn>9781118436646</isbn>
+      <uri>https://doi.org/10.1002/9781119078388</uri>
+      <pub-id pub-id-type="doi">10.1002/9781119078388</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-hoer_exact">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Hoer</surname><given-names>C.</given-names></name>
+        <name><surname>Love</surname><given-names>Y.</given-names></name>
+      </person-group>
+      <article-title>Exact Inductance Equations for Rectangular Conductors with Applications to more Complicated Geometries</article-title>
+      <source>Journal of Research of the National Bureau of Standards</source>
+      <year iso-8601-date="1965">1965</year>
+      <volume>69</volume>
+      <issue>2</issue>
+      <uri>https://doi.org/10.6028/jres.069c.016</uri>
+      <pub-id pub-id-type="doi">10.6028/jres.069c.016</pub-id>
+      <fpage>127</fpage>
+      <lpage>137</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-piatek_exact">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Piatek</surname><given-names>Z.</given-names></name>
+        <name><surname>Baron</surname><given-names>B.</given-names></name>
+      </person-group>
+      <article-title>Exact Closed Form Formula for Self Inductance of Conductor of Rectangular Cross Section</article-title>
+      <source>Progress In Electromagnetics Research</source>
+      <year iso-8601-date="2012">2012</year>
+      <volume>26</volume>
+      <uri>http://doi.org/10.2528/PIERM12080314</uri>
+      <pub-id pub-id-type="doi">10.2528/PIERM12080314</pub-id>
+      <fpage>225</fpage>
+      <lpage>236</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-fft_peec">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Torchio</surname><given-names>R.</given-names></name>
+        <name><surname>Lucchini</surname><given-names>F.</given-names></name>
+        <name><surname>Schanen</surname><given-names>J. L.</given-names></name>
+        <name><surname>Chadebec</surname><given-names>O.</given-names></name>
+        <name><surname>Meunier</surname><given-names>G.</given-names></name>
+      </person-group>
+      <article-title>FFT-PEEC: A Fast Tool From CAD to Power Electronics Simulations</article-title>
+      <source>IEEE Transactions on Power Electronics</source>
+      <year iso-8601-date="2022">2022</year>
+      <volume>37</volume>
+      <issue>1</issue>
+      <uri>https://doi.org/10.1109/TPEL.2021.3092431</uri>
+      <pub-id pub-id-type="doi">10.1109/TPEL.2021.3092431</pub-id>
+      <fpage>700</fpage>
+      <lpage>713</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-fft_multi_solver">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Polimeridis</surname><given-names>A. G.</given-names></name>
+        <name><surname>Villena</surname><given-names>J. F.</given-names></name>
+        <name><surname>Daniel</surname><given-names>L.</given-names></name>
+        <name><surname>White</surname><given-names>J. K.</given-names></name>
+      </person-group>
+      <article-title>Stable FFT-JVIE Solvers for Fast Analysis of Highly Inhomogeneous Dielectric Objects</article-title>
+      <source>Journal of Computational Physics</source>
+      <year iso-8601-date="2014">2014</year>
+      <volume>269</volume>
+      <uri>https://doi.org/10.1016/j.jcp.2014.03.026</uri>
+      <pub-id pub-id-type="doi">10.1016/j.jcp.2014.03.026</pub-id>
+      <fpage>280</fpage>
+      <lpage>296</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-fft_multi_theory">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Lee</surname><given-names>D.</given-names></name>
+      </person-group>
+      <article-title>Fast Multiplication of a Recursive Block Toeplitz Matrix by a Vector and its Application</article-title>
+      <source>Journal of Complexity</source>
+      <year iso-8601-date="1986">1986</year>
+      <volume>2</volume>
+      <issue>4</issue>
+      <uri>https://doi.org/10.1016/0885-064X(86)90007-5</uri>
+      <pub-id pub-id-type="doi">10.1016/0885-064X(86)90007-5</pub-id>
+      <fpage>295</fpage>
+      <lpage>305</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-grossner">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Romano</surname><given-names>D.</given-names></name>
+        <name><surname>Kovacevic-Badstuebner</surname><given-names>I.</given-names></name>
+        <name><surname>Antonini</surname><given-names>G.</given-names></name>
+        <name><surname>Grossner</surname><given-names>U.</given-names></name>
+      </person-group>
+      <article-title>Efficient PEEC Iterative Solver for Power Electronic Applications</article-title>
+      <source>IEEE Transactions on Electromagnetic Compatibility</source>
+      <year iso-8601-date="2023">2023</year>
+      <volume>65</volume>
+      <issue>2</issue>
+      <uri>https://doi.org/10.1109/TEMC.2023.3238394</uri>
+      <pub-id pub-id-type="doi">10.1109/TEMC.2023.3238394</pub-id>
+      <fpage>546</fpage>
+      <lpage>554</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-ruehli">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Ruehli</surname><given-names>A. E.</given-names></name>
+      </person-group>
+      <article-title>Equivalent Circuit Models for Three-Dimensional Multiconductor Systems</article-title>
+      <source>IEEE Transactions on Microwave Theory and Techniques</source>
+      <year iso-8601-date="1974">1974</year>
+      <volume>22</volume>
+      <issue>3</issue>
+      <uri>https://doi.org/10.1109/TMTT.1974.1128204</uri>
+      <pub-id pub-id-type="doi">10.1109/TMTT.1974.1128204</pub-id>
+      <fpage>216</fpage>
+      <lpage>221</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-volume_peec">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Torchio</surname><given-names>R.</given-names></name>
+      </person-group>
+      <article-title>A Volume PEEC Formulation Based on the Cell Method for Electromagnetic Problems From Low to High Frequency</article-title>
+      <source>IEEE Transactions on Antennas and Propagation</source>
+      <year iso-8601-date="2019">2019</year>
+      <volume>67</volume>
+      <issue>12</issue>
+      <uri>https://doi.org/10.1109/TAP.2019.2927789</uri>
+      <pub-id pub-id-type="doi">10.1109/TAP.2019.2927789</pub-id>
+      <fpage>7452</fpage>
+      <lpage>7465</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-yucel">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Yucel</surname><given-names>A. C.</given-names></name>
+        <name><surname>Georgakis</surname><given-names>I. P.</given-names></name>
+        <name><surname>Polimeridis</surname><given-names>A. G.</given-names></name>
+        <name><surname>Bagci</surname><given-names>H.</given-names></name>
+        <name><surname>White</surname><given-names>J. K.</given-names></name>
+      </person-group>
+      <article-title>VoxHenry: FFT-Accelerated Inductance Extraction for Voxelized Geometries</article-title>
+      <source>IEEE Transactions on Microwave Theory and Techniques</source>
+      <year iso-8601-date="2018">2018</year>
+      <volume>66</volume>
+      <issue>4</issue>
+      <uri>https://doi.org/10.1109/TMTT.2017.2785842</uri>
+      <pub-id pub-id-type="doi">10.1109/TMTT.2017.2785842</pub-id>
+      <fpage>1723</fpage>
+      <lpage>1735</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-bettini">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Bettini</surname><given-names>P.</given-names></name>
+        <name><surname>Torchio</surname><given-names>R.</given-names></name>
+        <name><surname>Lucchini</surname><given-names>F.</given-names></name>
+        <name><surname>Voltolina</surname><given-names>D.</given-names></name>
+        <name><surname>Alotto</surname><given-names>P.</given-names></name>
+      </person-group>
+      <article-title>Fast Fourier Transform-Volume Integral: a Smart Approach for the Electromagnetic Design of Complex Systems in Large Fusion Devices</article-title>
+      <source>Plasma Physics and Controlled Fusion</source>
+      <year iso-8601-date="2020">2020</year>
+      <volume>63</volume>
+      <issue>2</issue>
+      <uri>https://doi.org/10.1088/1361-6587/abce8f</uri>
+      <pub-id pub-id-type="doi">10.1088/1361-6587/abce8f</pub-id>
+      <fpage>025010</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-human_peec">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Torchio</surname><given-names>R.</given-names></name>
+        <name><surname>Arduino</surname><given-names>A.</given-names></name>
+        <name><surname>Zilberti</surname><given-names>L.</given-names></name>
+        <name><surname>Bottausci</surname><given-names>O.</given-names></name>
+      </person-group>
+      <article-title>A Fast Tool for the Parametric Analysis of Human Body Exposed to LF Electromagnetic Fields in Biomedical Applications</article-title>
+      <source>Computer Methods and Programs in Biomedicine</source>
+      <year iso-8601-date="2022">2022</year>
+      <volume>214</volume>
+      <uri>https://doi.org/10.1016/j.cmpb.2021.106543</uri>
+      <pub-id pub-id-type="doi">10.1016/j.cmpb.2021.106543</pub-id>
+      <fpage>106543</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-marconato">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Marconato</surname><given-names>N.</given-names></name>
+        <name><surname>Lucchini</surname><given-names>F.</given-names></name>
+      </person-group>
+      <article-title>Application of FFT-PEEC Method for Nonlinear Inductance Extraction</article-title>
+      <source>Proc. Of the int. Conf. On electrical, computer, communications and mechatronics engineering (ICECCME)</source>
+      <year iso-8601-date="2021">2021</year>
+      <uri>https://doi.org/10.1109/ICECCME52200.2021.9590864</uri>
+      <pub-id pub-id-type="doi">10.1109/ICECCME52200.2021.9590864</pub-id>
+      <fpage>1</fpage>
+      <lpage>6</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-method_review">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Jithesh</surname><given-names>V.</given-names></name>
+        <name><surname>Pande</surname><given-names>D. C.</given-names></name>
+      </person-group>
+      <article-title>A Review on Computational EMI Modelling Techniques</article-title>
+      <source>Proc. Of the int. Conf. On electromagnetic interference and compatibility (INCEMIC)</source>
+      <year iso-8601-date="2003">2003</year>
+      <volume></volume>
+      <uri>https://doi.org/10.1109/ICEMIC.2003.1287800</uri>
+      <pub-id pub-id-type="doi">10.1109/ICEMIC.2003.1287800</pub-id>
+      <fpage>159</fpage>
+      <lpage>166</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-shape_optim">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Guillod</surname><given-names>T.</given-names></name>
+        <name><surname>Sullivan</surname><given-names>C. R.</given-names></name>
+      </person-group>
+      <article-title>Free-Shape Optimization of VHF Air-Core Inductors using a Constraint-Aware Genetic Algorithm</article-title>
+      <source>Proc. Of the applied power electronics conf. And expo. (APEC)</source>
+      <year iso-8601-date="2025">2025</year>
+      <uri>https://doi.org/10.1109/APEC48143.2025.10977326</uri>
+      <pub-id pub-id-type="doi">10.1109/APEC48143.2025.10977326</pub-id>
+      <fpage>1</fpage>
+      <lpage>8</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-peec_code">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Torchio</surname><given-names>R.</given-names></name>
+        <name><surname>Lucchini</surname><given-names>L.</given-names></name>
+      </person-group>
+      <article-title>FFT-PEEC</article-title>
+      <source>GitHub repository</source>
+      <publisher-name>GitHub</publisher-name>
+      <year iso-8601-date="2020">2020</year>
+      <uri>https://github.com/UniPD-DII-ETCOMP/FFT-PEEC</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-nlie_code">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Torchio</surname><given-names>R.</given-names></name>
+        <name><surname>Lucchini</surname><given-names>L.</given-names></name>
+      </person-group>
+      <article-title>FFT-NLIE</article-title>
+      <source>GitHub repository</source>
+      <publisher-name>GitHub</publisher-name>
+      <year iso-8601-date="2021">2021</year>
+      <uri>https://github.com/UniPD-DII-ETCOMP/FFT-NLIE</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-vox_code">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Yucel</surname><given-names>A.</given-names></name>
+      </person-group>
+      <article-title>VoxHenry</article-title>
+      <source>GitHub repository</source>
+      <publisher-name>GitHub</publisher-name>
+      <year iso-8601-date="2018">2018</year>
+      <uri>https://github.com/acyucel/VoxHenry</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-marie_code">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Villena</surname><given-names>J. F.</given-names></name>
+        <name><surname>Polimeridis</surname><given-names>A.</given-names></name>
+        <name><surname>Serralles</surname><given-names>J.</given-names></name>
+      </person-group>
+      <article-title>MARIE</article-title>
+      <source>GitHub repository</source>
+      <publisher-name>GitHub</publisher-name>
+      <year iso-8601-date="2015">2015</year>
+      <uri>https://github.com/thanospol/MARIE</uri>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
