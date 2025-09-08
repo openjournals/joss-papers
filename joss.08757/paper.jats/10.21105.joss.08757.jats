@@ -1,0 +1,360 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">8757</article-id>
+<article-id pub-id-type="doi">10.21105/joss.08757</article-id>
+<title-group>
+<article-title>deflake.rs: Detect Flaky Tests in Rust Projects using
+Execution Data</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0009-0002-4658-8041</contrib-id>
+<name>
+<surname>Magill</surname>
+<given-names>Benjamin</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0001-9137-7433</contrib-id>
+<name>
+<surname>McMinn</surname>
+<given-names>Phil</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>University of Sheffield, United Kingdom</institution>
+<institution-id institution-id-type="ROR">05krs5044</institution-id>
+</institution-wrap>
+</aff>
+</contrib-group>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2025-07-17">
+<day>17</day>
+<month>7</month>
+<year>2025</year>
+</pub-date>
+<volume>10</volume>
+<issue>113</issue>
+<fpage>8757</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2025</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>Rust</kwd>
+<kwd>software testing</kwd>
+<kwd>flaky tests</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p>In automated software testing, flaky tests are test-cases which
+  fail non-deterministically, without any modifications to the code
+  under test
+  (<xref alt="Parry et al., 2021" rid="ref-Parry2021" ref-type="bibr">Parry
+  et al., 2021</xref>). They can occur in any programming language, and
+  pose a painful issue for developers due to their randomness and
+  uncontrollability.</p>
+  <p>To deal with flaky tests, many tools have been created to detect
+  them so that developers can fix, ignore or remove them. Such tools may
+  detect flaky tests by simply running test-cases multiple times and
+  checking for diverging results, or use more advanced methods which
+  take into account static (data collectable without running any tests)
+  and/or execution data (data collected by running the test suite) to
+  determine or predict if a test is flaky without multiple runs. </p>
+  <p><monospace>deflake.rs</monospace> is a tool for detecting flaky
+  tests in Rust projects without re-running failed tests, and due to
+  this provides an efficient method for quickly detecting flaky tests
+  that can assist developers and save them time. It uses per-test code
+  coverage and the changes to the source code since the last good
+  version to determine if the code run by a failing test includes
+  anything that was modified, and if not it will report the test as
+  flaky. This method was originally proposed by DeFlaker
+  (<xref alt="Bell et al., 2018" rid="ref-deflaker" ref-type="bibr">Bell
+  et al., 2018</xref>), a tool for Java programs which showed it could
+  accurately detect flaky tests with high accuracy across a diverse
+  range of projects. <monospace>deflake.rs</monospace> builds upon this
+  work by showing that it can be adapted to other languages, while also
+  showing how the necessary execution data can be collected in Rust for
+  this and any detection methods. The tool is also easy to use within
+  any Rust project as it requires no modifications to the codebase to
+  work, making it simple for developers to adopt.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p>While some languages have been the focus of lots of research on
+  flaky test detection
+  (<xref alt="Tahir et al., 2023" rid="ref-rasheed_test_2022" ref-type="bibr">Tahir
+  et al., 2023</xref>) (e.g. Java
+  (<xref alt="Bell et al., 2018" rid="ref-deflaker" ref-type="bibr">Bell
+  et al., 2018</xref>;
+  <xref alt="Lam et al., 2019" rid="ref-idflakies" ref-type="bibr">Lam
+  et al., 2019</xref>) and Python
+  (<xref alt="Cordeiro et al., 2021" rid="ref-shaker" ref-type="bibr">Cordeiro
+  et al., 2021</xref>;
+  <xref alt="Parry et al., 2020" rid="ref-fitter" ref-type="bibr">Parry
+  et al., 2020</xref>)), others such as the Rust programming language
+  have not.</p>
+  <p>The most advanced tool for detecting flaky tests in Rust is Nextest
+  (<xref alt="Rain &amp; others, 2025" rid="ref-nextest" ref-type="bibr">Rain
+  &amp; others, 2025</xref>), which is an alternative test runner that
+  supports rerunning failed tests multiple times to detect flaky tests.
+  The default test runner “<monospace>cargo test</monospace>”, which is
+  used my most Rust developers, does not include any functionality for
+  handling or detecting flaky tests. Compared to the state of the art,
+  this is very far behind what has been shown to be possible and is
+  widely available in other languages, and the limited diversity of
+  detection tools available means developers can’t use the best tool for
+  their specific needs. Reruns can also be very time consuming, making
+  them very undesirable in some circumstances.</p>
+  <p><monospace>deflake.rs</monospace> therefore bridges this gap by
+  developing the first flaky test detection method for Rust that does
+  not rely on rerunning tests, showing that Rust can support advanced
+  methods of flaky test detection.</p>
+</sec>
+<sec id="technical-details">
+  <title>Technical details</title>
+  <p>In order to collect the data used for classification,
+  <monospace>deflake.rs</monospace> uses
+  “<monospace>cargo test</monospace>” internally to build and collect
+  all of the test-cases, but executes each individually to retrieve the
+  necessary per-test coverage, which is not possible otherwise. This is
+  because the code coverage for a program is only available program upon
+  exit, and as “<monospace>cargo test</monospace>” executes all tests in
+  each file at once it would be impossible to separate the coverage for
+  each test after it exits, or collect it after each test finishes while
+  the program is still running. By using
+  “<monospace>cargo test</monospace>” under the hood for compiling
+  tests, all projects that work with it will also work with
+  <monospace>deflake.rs</monospace>, lowering the barrier to entry and
+  making it very accessible for developers to use.</p>
+  <p>To determine the code affected by modifications,
+  “<monospace>git diff</monospace>” is used to collect a list of all
+  files which have been modified, and their changes since the previous
+  or specified commit. For each modified file, the Abstract Syntax Tree
+  (tree structure representing the source code) is generated for both
+  the new and old version, and these are compared to find how the
+  structure of both versions varies. This does not compare the changes
+  to statements in functions, only the functions, modules and other
+  structures that can include executable statements, as shown in Figure
+  1.</p>
+  <preformat>mod module {
+  fn function_a(a: bool) -&gt; bool {
+    ...
+  }
+
+  struct A;
+  impl A {
+    fn function_c(a: u32) {
+      ...
+    }
+  }
+}
+
+fn function_c(
+  a: u32, 
+  b: u32
+) {
+  ...
+}</preformat>
+  <fig>
+    <caption><p>An example tree structure and its associated
+    code</p></caption>
+    <graphic mimetype="image" mime-subtype="png" xlink:href="./graphviz.png" />
+  </fig>
+  <p>By comparing the change of structure, the functions which have been
+  added or moved can be found and tracked for their overall execution
+  instead of the statements within them. For all other changes, the
+  statements modified are determined from the diff and used to directly
+  determine if any modified code was executed per test. By combining the
+  use of both AST’s and “<monospace>git diff</monospace>”,
+  <monospace>deflake.rs</monospace> is able to more effectively
+  determine how each file has changed, and simplify tracking if these
+  were executed.</p>
+  <p>To classify a test as flaky the program will simply check if any
+  line or function that was modified was executed, and if not then it is
+  predicted to be flaky.</p>
+</sec>
+<sec id="limitations">
+  <title>Limitations</title>
+  <p>While the described approach will work for detecting flaky tests
+  under most changes to a project, there are some limitations. For one,
+  any test that was modified and fails will be classified as non-flaky
+  no matter what. The tool also requires that the commit being compared
+  against is one where all of the test cases succeed or are flaky. If
+  not, the failures from the previous commit will be classified as flaky
+  (if they are not modified). Lastly, the tool can only track changes to
+  Rust files, so any changes to other files which have impacted a tests
+  result will not be detected and the test case will be marked as
+  flaky.</p>
+  <p>While it can’t be perfectly accurate due to these limitations, as
+  it does not use rerunning tests to detect flakiness it can greatly
+  speed up the process of detecting most flaky tests, especially for
+  larger and slower test suites.</p>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>We would like to thank Owain Parry and Zalán Lévai for their
+  contributions to the direction of the project. Phil McMinn is funded,
+  in part, by EPSRC grant “Test FLARE”, EP/X024539/1.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <title></title>
+  <ref id="ref-deflaker">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Bell</surname><given-names>Jonathan</given-names></name>
+        <name><surname>Legunsen</surname><given-names>Owolabi</given-names></name>
+        <name><surname>Hilton</surname><given-names>Michael</given-names></name>
+        <name><surname>Eloussi</surname><given-names>Lamyaa</given-names></name>
+        <name><surname>Yung</surname><given-names>Tifany</given-names></name>
+        <name><surname>Marinov</surname><given-names>Darko</given-names></name>
+      </person-group>
+      <article-title>DeFlaker: Automatically detecting flaky tests</article-title>
+      <source>Proceedings of the 40th international conference on software engineering</source>
+      <publisher-name>Association for Computing Machinery</publisher-name>
+      <publisher-loc>New York, NY, USA</publisher-loc>
+      <year iso-8601-date="2018">2018</year>
+      <isbn>9781450356381</isbn>
+      <uri>https://doi.org/10.1145/3180155.3180164</uri>
+      <pub-id pub-id-type="doi">10.1145/3180155.3180164</pub-id>
+      <fpage>433</fpage>
+      <lpage>444</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-rasheed_test_2022">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Tahir</surname><given-names>Amjed</given-names></name>
+        <name><surname>Rasheed</surname><given-names>Shawn</given-names></name>
+        <name><surname>Dietrich</surname><given-names>Jens</given-names></name>
+        <name><surname>Hashemi</surname><given-names>Negar</given-names></name>
+        <name><surname>Zhang</surname><given-names>Lu</given-names></name>
+      </person-group>
+      <article-title>Test flakiness’ causes, detection, impact and responses: A multivocal review</article-title>
+      <source>Journal of Systems and Software</source>
+      <year iso-8601-date="2023">2023</year>
+      <volume>206</volume>
+      <issn>0164-1212</issn>
+      <uri>https://www.sciencedirect.com/science/article/pii/S0164121223002327</uri>
+      <pub-id pub-id-type="doi">10.1016/j.jss.2023.111837</pub-id>
+      <fpage>111837</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-shaker">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Cordeiro</surname><given-names>Marcello</given-names></name>
+        <name><surname>Silva</surname><given-names>Denini</given-names></name>
+        <name><surname>Teixeira</surname><given-names>Leopoldo</given-names></name>
+        <name><surname>Miranda</surname><given-names>Breno</given-names></name>
+        <name><surname>d’ Amorim</surname><given-names>Marcelo</given-names></name>
+      </person-group>
+      <article-title>Shaker: A Tool for Detecting More Flaky Tests Faster</article-title>
+      <source>2021 36th IEEE/ACM International Conference on Automated Software Engineering (ASE)</source>
+      <year iso-8601-date="2021-11">2021</year><month>11</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2024-10-11">2024</year><month>10</month><day>11</day></date-in-citation>
+      <uri>https://ieeexplore.ieee.org/document/9678918</uri>
+      <pub-id pub-id-type="doi">10.1109/ASE51524.2021.9678918</pub-id>
+      <fpage>1281</fpage>
+      <lpage>1285</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-idflakies">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Lam</surname><given-names>Wing</given-names></name>
+        <name><surname>Oei</surname><given-names>Reed</given-names></name>
+        <name><surname>Shi</surname><given-names>August</given-names></name>
+        <name><surname>Marinov</surname><given-names>Darko</given-names></name>
+        <name><surname>Xie</surname><given-names>Tao</given-names></name>
+      </person-group>
+      <article-title>iDFlakies: A Framework for Detecting and Partially Classifying Flaky Tests</article-title>
+      <source>2019 12th IEEE Conference on Software Testing, Validation and Verification (ICST)</source>
+      <year iso-8601-date="2019-04">2019</year><month>04</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2024-10-13">2024</year><month>10</month><day>13</day></date-in-citation>
+      <uri>https://ieeexplore.ieee.org/document/8730188</uri>
+      <pub-id pub-id-type="doi">10.1109/ICST.2019.00038</pub-id>
+      <fpage>312</fpage>
+      <lpage>322</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-fitter">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Parry</surname><given-names>Owain</given-names></name>
+        <name><surname>Kapfhammer</surname><given-names>Gregory M.</given-names></name>
+        <name><surname>Hilton</surname><given-names>Michael</given-names></name>
+        <name><surname>McMinn</surname><given-names>Phil</given-names></name>
+      </person-group>
+      <article-title>Flake It ’Till You Make It: Using Automated Repair to Induce and Fix Latent Test Flakiness</article-title>
+      <source>Proceedings of the IEEE/ACM 42nd International Conference on Software Engineering Workshops</source>
+      <publisher-name>Association for Computing Machinery</publisher-name>
+      <publisher-loc>New York, NY, USA</publisher-loc>
+      <year iso-8601-date="2020-09">2020</year><month>09</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2024-10-11">2024</year><month>10</month><day>11</day></date-in-citation>
+      <isbn>978-1-4503-7963-2</isbn>
+      <uri>https://dl.acm.org/doi/10.1145/3387940.3392177</uri>
+      <pub-id pub-id-type="doi">10.1145/3387940.3392177</pub-id>
+      <fpage>11</fpage>
+      <lpage>12</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Parry2021">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Parry</surname><given-names>Owain</given-names></name>
+        <name><surname>Hilton</surname><given-names>Michael</given-names></name>
+        <name><surname>Kapfhammer</surname><given-names>Gregory M.</given-names></name>
+        <name><surname>McMinn</surname><given-names>Phil</given-names></name>
+      </person-group>
+      <article-title>A survey of flaky tests</article-title>
+      <source>ACM Transactions on Software Engineering and Methodology</source>
+      <year iso-8601-date="2021">2021</year>
+      <pub-id pub-id-type="doi">10.1145/3476105</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-nextest">
+    <element-citation publication-type="software">
+      <person-group person-group-type="author">
+        <name><surname>Rain</surname></name>
+        <name><surname>others</surname></name>
+      </person-group>
+      <article-title>Nextest</article-title>
+      <year iso-8601-date="2025">2025</year>
+      <uri>https://github.com/nextest-rs/nextest</uri>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
