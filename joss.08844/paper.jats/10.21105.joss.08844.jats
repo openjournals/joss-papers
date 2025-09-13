@@ -1,0 +1,800 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">8844</article-id>
+<article-id pub-id-type="doi">10.21105/joss.08844</article-id>
+<title-group>
+<article-title>Improving reproducibility of cheminformatics workflows
+with <monospace>chembl-downloader</monospace></article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author" corresp="yes">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0003-4423-4370</contrib-id>
+<name>
+<surname>Hoyt</surname>
+<given-names>Charles Tapley</given-names>
+</name>
+<email>cthoyt@gmail.com</email>
+<xref ref-type="aff" rid="aff-1"/>
+<xref ref-type="corresp" rid="cor-1"><sup>*</sup></xref>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>RWTH Aachen University, Institute of Inorganic Chemistry,
+Aachen, Germany</institution>
+<institution-id institution-id-type="ROR">04xfq0f34</institution-id>
+</institution-wrap>
+</aff>
+</contrib-group>
+<author-notes>
+<corresp id="cor-1">* E-mail: <email>cthoyt@gmail.com</email></corresp>
+</author-notes>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2025-07-07">
+<day>7</day>
+<month>7</month>
+<year>2025</year>
+</pub-date>
+<volume>10</volume>
+<issue>113</issue>
+<fpage>8844</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2025</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>Python</kwd>
+<kwd>chemistry</kwd>
+<kwd>computational chemistry</kwd>
+<kwd>cheminformatics</kwd>
+<kwd>pharmacology</kwd>
+<kwd>toxicology</kwd>
+<kwd>systems pharmacology</kwd>
+<kwd>systems toxicology</kwd>
+<kwd>systems medicine</kwd>
+<kwd>systems biology</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p>Many modern cheminformatics workflows derive datasets from ChEMBL
+  (<xref alt="Gaulton et al., 2017" rid="ref-Gaulton2017" ref-type="bibr">Gaulton
+  et al., 2017</xref>;
+  <xref alt="Zdrazil et al., 2023" rid="ref-Zdrazil2023" ref-type="bibr">Zdrazil
+  et al., 2023</xref>), but few of these datasets are published with
+  accompanying code for their generation. Consequently, their
+  methodologies (e.g., selection, filtering, aggregation) are opaque,
+  reproduction is difficult, and interpretation of results therefore
+  lacks important context. Further, such static datasets quickly become
+  out-of-date. For example, the current version of ChEMBL is v35 (as of
+  December 2024), but ExCAPE-DB
+  (<xref alt="Sun et al., 2017" rid="ref-Sun2017" ref-type="bibr">Sun et
+  al., 2017</xref>) uses v20, Deep Confidence
+  (<xref alt="Cortés-Ciriano &amp; Bender, 2019" rid="ref-Cortes-Ciriano2019" ref-type="bibr">Cortés-Ciriano
+  &amp; Bender, 2019</xref>) uses v23, the consensus dataset from
+  Isigkeit et al.
+  (<xref alt="2022" rid="ref-Isigkeit2022" ref-type="bibr">2022</xref>)
+  uses v28, and Papyrus
+  (<xref alt="Béquignon et al., 2023" rid="ref-Béquignon2023" ref-type="bibr">Béquignon
+  et al., 2023</xref>) uses v30. Therefore, there is a need for tools
+  that provide reproducible bulk access to the latest (or a given)
+  version of ChEMBL in order to enable researchers to make their derived
+  datasets more transparent, updatable, and trustworthy.</p>
+</sec>
+<sec id="state-of-the-field">
+  <title>State of the field</title>
+  <p>ChEMBL is typically accessed through its
+  <ext-link ext-link-type="uri" xlink:href="https://www.ebi.ac.uk/chembl/api/data/docs">application
+  programming interface (API)</ext-link>, through its Python client
+  (<xref alt="Davies et al., 2015" rid="ref-Davies2015" ref-type="bibr">Davies
+  et al., 2015</xref>), through its RDF platform
+  (<xref alt="Jupp et al., 2014" rid="ref-Jupp2014" ref-type="bibr">Jupp
+  et al., 2014</xref>), or in bulk through its
+  <ext-link ext-link-type="uri" xlink:href="https://ftp.ebi.ac.uk/pub/databases/chembl/ChEMBLdb/releases">file
+  transfer protocol (FTP) server</ext-link>. However, APIs and their
+  respective wrapper libraries are generally not efficient for querying
+  and processing data in bulk due to dependency on network connection,
+  remote server uptime and load, rate limits, and the need to paginate
+  over results. Alternatively, bulk access is currently cumbersome for
+  most potential users due to the need to download, set up, and connect
+  to databases locally. Finally, third-party software such as
+  <ext-link ext-link-type="uri" xlink:href="https://web.archive.org/web/20250724192013/https://www.3ds.com/products/biovia/pipeline-pilot">Pipeline
+  Pilot</ext-link>, KNIME
+  (<xref alt="Berthold et al., 2009" rid="ref-Berthold2009" ref-type="bibr">Berthold
+  et al., 2009</xref>), Galaxy
+  (<xref alt="The Galaxy Community, 2024" rid="ref-Galaxy2024" ref-type="bibr">The
+  Galaxy Community, 2024</xref>), and others reviewed by Warr
+  (<xref alt="2012" rid="ref-Warr2012" ref-type="bibr">2012</xref>),
+  that provide access to ChEMBL are often inflexible or inextensible due
+  to being proprietary, closed source, or lacking approachable
+  documentation.</p>
+</sec>
+<sec id="summary">
+  <title>Summary</title>
+  <p>This article introduces <monospace>chembl-downloader</monospace>, a
+  Python package for the reproducible acquisition, access, and
+  manipulation of ChEMBL data through its FTP server.</p>
+  <p>At a low-level, it uses a combination of the
+  <ext-link ext-link-type="uri" xlink:href="https://github.com/cthoyt/pystow"><monospace>pystow</monospace></ext-link>
+  Python software package and custom logic for the reproducible
+  acquisition and pre-processing (e.g., uncompressing) of either the
+  latest or a given version of most resources in the ChEMBL FTP server.
+  These include relational database dumps (e.g., in SQLite), molecule
+  lists (e.g., in SDF, TSV), pre-computed molecular fingerprints (e.g.,
+  in binary), a monomer library (e.g., in XML), and UniProt target
+  mappings (e.g., in TSV).</p>
+  <p>At a mid-level, it provides utilities for accessing these files
+  through useful data structures and functions such as querying the
+  SQLite database with combination of Python’s
+  <ext-link ext-link-type="uri" xlink:href="https://docs.python.org/3/library/sqlite3.html"><monospace>sqlite3</monospace></ext-link>
+  library and <monospace>pandas</monospace>
+  (<xref alt="McKinney, 2010" rid="ref-Mckinney2010" ref-type="bibr">McKinney,
+  2010</xref>), parsing SDF files with RDKit
+  (<xref alt="Landrum, n.d." rid="ref-rdkit" ref-type="bibr">Landrum,
+  n.d.</xref>), parsing TSVs with <monospace>pandas</monospace>, loading
+  fingerprints with <monospace>chemfp</monospace>
+  (<xref alt="Dalke, 2019" rid="ref-Dalke2019" ref-type="bibr">Dalke,
+  2019</xref>), and parsing the monomer library with Python’s
+  <monospace>xml</monospace> library. The low- and mid-level utilities
+  are kept small and simple such that they can be arbitrarily extended
+  by users.</p>
+  <p>At a high-level, it maintains a small number of task-specific
+  utilities. It contains several pre-formatted SQL queries to retrieve
+  the bioactivities associated with a given assay or target, to retrieve
+  the compounds mentioned in a publication or patent, to retrieve the
+  names of all compounds, etc.</p>
+</sec>
+<sec id="case-studies">
+  <title>Case studies</title>
+  <p>A first case study demonstrates how the high-level utilities in
+  <monospace>chembl-downloader</monospace> can be used to reproduce the
+  dataset generation from Cortés-Ciriano &amp; Bender
+  (<xref alt="2019" rid="ref-Cortes-Ciriano2019" ref-type="bibr">2019</xref>),
+  highlight some of the methodological controversies (e.g., using
+  arithmetic mean instead of geometric mean for pIC<sub>50</sub>
+  values), show the immense variability introduced by new datapoints in
+  later versions of ChEMBL, and highlight the number of additional
+  compounds added to each of its 24 target-specific datasets. Landrum
+  &amp; Riniker
+  (<xref alt="2024" rid="ref-Landrum2024" ref-type="bibr">2024</xref>)
+  further investigated the impact of such aggregation. See the
+  corresponding
+  <ext-link ext-link-type="uri" xlink:href="https://github.com/cthoyt/chembl-downloader/blob/v0.5.2/notebooks/cortes-ciriano-refresh.ipynb">Jupyter
+  notebook</ext-link>.</p>
+  <p>A second case study demonstrates the value of having a reproducible
+  script for identifying missing identifier mappings between molecules
+  in ChEMBL and ChEBI
+  (<xref alt="Hastings et al., 2016" rid="ref-Hastings2016" ref-type="bibr">Hastings
+  et al., 2016</xref>) <italic>via</italic> lexical mappings produced by
+  Gilda
+  (<xref alt="Gyori et al., 2022" rid="ref-Gyori2022" ref-type="bibr">Gyori
+  et al., 2022</xref>), which identified 4,266 potential mappings for
+  curation e.g., in a workflow such as Biomappings
+  (<xref alt="Hoyt et al., 2023" rid="ref-Hoyt2022" ref-type="bibr">Hoyt
+  et al., 2023</xref>). See the corresponding
+  <ext-link ext-link-type="uri" xlink:href="https://github.com/cthoyt/chembl-downloader/blob/v0.5.2/notebooks/chebi-mappings.ipynb">Jupyter
+  notebook</ext-link>.</p>
+  <p>A final case study demonstrates the utility of
+  <monospace>chembl-downloader</monospace> by making pull requests to
+  the code repositories corresponding to three popular cheminformatics
+  blogs
+  (<ext-link ext-link-type="uri" xlink:href="https://greglandrum.github.io/rdkit-blog/">the
+  RDKit Blog</ext-link>,
+  <ext-link ext-link-type="uri" xlink:href="https://practicalcheminformatics.blogspot.com">Practical
+  Cheminformatics</ext-link>, and
+  <ext-link ext-link-type="uri" xlink:href="https://iwatobipen.wordpress.com/">Is
+  Life Worth Living?</ext-link>) to make the code more reproducible
+  (where the source data was not available) and
+  ChEMBL-version-agnostic:</p>
+  <list list-type="bullet">
+    <list-item>
+      <p><ext-link ext-link-type="uri" xlink:href="https://github.com/greglandrum/rdkit_blog/pull/5">greglandrum/rdkit_blog
+      (#5)</ext-link> for generating a substructure library</p>
+    </list-item>
+    <list-item>
+      <p><ext-link ext-link-type="uri" xlink:href="https://github.com/PatWalters/sfi/pull/11">PatWalters/sfi
+      (#11)</ext-link> for calculating compounds’ solubility forecast
+      index, originally proposed by Hill &amp; Young
+      (<xref alt="2010" rid="ref-Hill2010" ref-type="bibr">2010</xref>)</p>
+    </list-item>
+    <list-item>
+      <p><ext-link ext-link-type="uri" xlink:href="https://github.com/PatWalters/jcamd_model_comparison/pull/1">PatWalters/jcamd_model_comparison
+      (#1)</ext-link> for comparing classification models</p>
+    </list-item>
+    <list-item>
+      <p><ext-link ext-link-type="uri" xlink:href="https://github.com/iwatobipen/playground/pull/4">iwatobipen/playground
+      (#4)</ext-link> for parsing and using ChEMBL’s monomer library</p>
+    </list-item>
+    <list-item>
+      <p><ext-link ext-link-type="uri" xlink:href="https://github.com/iwatobipen/playground/pull/5">iwatobipen/playground
+      (#5)</ext-link> for analyzing chemical space of molecules from a
+      set of patents</p>
+    </list-item>
+  </list>
+  <p>Additional external use cases can be found by
+  <ext-link ext-link-type="uri" xlink:href="https://github.com/search?q=%22import%20chembl_downloader%22%20OR%20%22from%20chembl_downloader%20import%22%20language%3APython%20NOT%20is%3Afork%20-owner%3Acthoyt&amp;type=code">searching
+  GitHub</ext-link>. Finally, several scholarly articles, including from
+  the ChEMBL group itself, have used
+  <monospace>chembl-downloader</monospace> in their associated code
+  (<xref alt="Domingo-Fernández et al., 2023" rid="ref-Domingo-Fernández2023" ref-type="bibr">Domingo-Fernández
+  et al., 2023</xref>;
+  <xref alt="Gadiya et al., 2023" rid="ref-Gadiya2023" ref-type="bibr">Gadiya
+  et al., 2023</xref>;
+  <xref alt="Gorostiola González et al., 2024" rid="ref-Gorostiola2024" ref-type="bibr">Gorostiola
+  González et al., 2024</xref>;
+  <xref alt="Nisonoff et al., 2023" rid="ref-Nisonoff2023" ref-type="bibr">Nisonoff
+  et al., 2023</xref>;
+  <xref alt="Schoenmaker et al., 2025" rid="ref-Schoenmaker2025" ref-type="bibr">Schoenmaker
+  et al., 2025</xref>;
+  <xref alt="Zdrazil et al., 2023" rid="ref-Zdrazil2023" ref-type="bibr">Zdrazil
+  et al., 2023</xref>;
+  <xref alt="Zhang et al., 2024" rid="ref-Zhang2024" ref-type="bibr">Zhang
+  et al., 2024</xref>).</p>
+</sec>
+<sec id="availability-and-usage">
+  <title>Availability and usage</title>
+  <p><monospace>chembl-downloader</monospace> is available as a package
+  on
+  <ext-link ext-link-type="uri" xlink:href="https://pypi.org/project/chembl-downloader">PyPI</ext-link>
+  with the source code available at
+  <ext-link ext-link-type="uri" xlink:href="https://github.com/cthoyt/chembl-downloader">https://github.com/cthoyt/chembl-downloader</ext-link>
+  and documentation available at
+  <ext-link ext-link-type="uri" xlink:href="https://chembl-downloader.readthedocs.io">https://chembl-downloader.readthedocs.io</ext-link>.
+  The repository also contains an interactive Jupyter notebook tutorial
+  and notebooks for the case studies described above.</p>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>The author would like to thank Yojana Gadiya and Jennifer HY Lin
+  for helpful discussions and the NFDI4Chem Consortium
+  (https://www.nfdi4chem.de) for support.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <title></title>
+  <ref id="ref-Gaulton2017">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Gaulton</surname><given-names>Anna</given-names></name>
+        <name><surname>Hersey</surname><given-names>Anne</given-names></name>
+        <name><surname>Nowotka</surname><given-names>Micha L.</given-names></name>
+        <name><surname>Patricia Bento</surname><given-names>A.</given-names></name>
+        <name><surname>Chambers</surname><given-names>Jon</given-names></name>
+        <name><surname>Mendez</surname><given-names>David</given-names></name>
+        <name><surname>Mutowo</surname><given-names>Prudence</given-names></name>
+        <name><surname>Atkinson</surname><given-names>Francis</given-names></name>
+        <name><surname>Bellis</surname><given-names>Louisa J.</given-names></name>
+        <name><surname>Cibrian-Uhalte</surname><given-names>Elena</given-names></name>
+        <name><surname>Davies</surname><given-names>Mark</given-names></name>
+        <name><surname>Dedman</surname><given-names>Nathan</given-names></name>
+        <name><surname>Karlsson</surname><given-names>Anneli</given-names></name>
+        <name><surname>Magarinos</surname><given-names>Maŕia Paula</given-names></name>
+        <name><surname>Overington</surname><given-names>John P.</given-names></name>
+        <name><surname>Papadatos</surname><given-names>George</given-names></name>
+        <name><surname>Smit</surname><given-names>Ines</given-names></name>
+        <name><surname>Leach</surname><given-names>Andrew R.</given-names></name>
+      </person-group>
+      <article-title>The ChEMBL database in 2017</article-title>
+      <source>Nucleic Acids Res.</source>
+      <year iso-8601-date="2017">2017</year>
+      <volume>45</volume>
+      <issue>D1</issue>
+      <isbn>2076792171</isbn>
+      <pub-id pub-id-type="doi">10.1093/nar/gkw1074</pub-id>
+      <fpage>D945</fpage>
+      <lpage>D954</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Davies2015">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Davies</surname><given-names>Mark</given-names></name>
+        <name><surname>Nowotka</surname><given-names>Michał</given-names></name>
+        <name><surname>Papadatos</surname><given-names>George</given-names></name>
+        <name><surname>Dedman</surname><given-names>Nathan</given-names></name>
+        <name><surname>Gaulton</surname><given-names>Anna</given-names></name>
+        <name><surname>Atkinson</surname><given-names>Francis</given-names></name>
+        <name><surname>Bellis</surname><given-names>Louisa</given-names></name>
+        <name><surname>Overington</surname><given-names>John P.</given-names></name>
+      </person-group>
+      <article-title>ChEMBL web services: streamlining access to drug discovery data and utilities</article-title>
+      <source>Nucleic Acids Research</source>
+      <year iso-8601-date="2015-04">2015</year><month>04</month>
+      <volume>43</volume>
+      <issue>W1</issue>
+      <issn>0305-1048</issn>
+      <uri>https://doi.org/10.1093/nar/gkv352</uri>
+      <pub-id pub-id-type="doi">10.1093/nar/gkv352</pub-id>
+      <fpage>W612</fpage>
+      <lpage>W620</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Jupp2014">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Jupp</surname><given-names>Simon</given-names></name>
+        <name><surname>Malone</surname><given-names>James</given-names></name>
+        <name><surname>Bolleman</surname><given-names>Jerven</given-names></name>
+        <name><surname>Brandizi</surname><given-names>Marco</given-names></name>
+        <name><surname>Davies</surname><given-names>Mark</given-names></name>
+        <name><surname>Garcia</surname><given-names>Leyla</given-names></name>
+        <name><surname>Gaulton</surname><given-names>Anna</given-names></name>
+        <name><surname>Gehant</surname><given-names>Sebastien</given-names></name>
+        <name><surname>Laibe</surname><given-names>Camille</given-names></name>
+        <name><surname>Redaschi</surname><given-names>Nicole</given-names></name>
+        <name><surname>Wimalaratne</surname><given-names>Sarala M.</given-names></name>
+        <name><surname>Martin</surname><given-names>Maria</given-names></name>
+        <name><surname>Le Novère</surname><given-names>Nicolas</given-names></name>
+        <name><surname>Parkinson</surname><given-names>Helen</given-names></name>
+        <name><surname>Birney</surname><given-names>Ewan</given-names></name>
+        <name><surname>Jenkinson</surname><given-names>Andrew M.</given-names></name>
+      </person-group>
+      <article-title>The EBI RDF platform: linked open data for the life sciences</article-title>
+      <source>Bioinformatics</source>
+      <year iso-8601-date="2014-01">2014</year><month>01</month>
+      <volume>30</volume>
+      <issue>9</issue>
+      <issn>1367-4803</issn>
+      <uri>https://doi.org/10.1093/bioinformatics/btt765</uri>
+      <pub-id pub-id-type="doi">10.1093/bioinformatics/btt765</pub-id>
+      <fpage>1338</fpage>
+      <lpage>1339</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Hill2010">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Hill</surname><given-names>Alan P</given-names></name>
+        <name><surname>Young</surname><given-names>Robert J</given-names></name>
+      </person-group>
+      <article-title>Getting physical in drug discovery: a contemporary perspective on solubility and hydrophobicity</article-title>
+      <source>Drug Discov. Today</source>
+      <year iso-8601-date="2010">2010</year>
+      <volume>15</volume>
+      <issue>15</issue>
+      <issn>1359-6446</issn>
+      <uri>https://www.sciencedirect.com/science/article/pii/S1359644610001923</uri>
+      <pub-id pub-id-type="doi">10.1016/j.drudis.2010.05.016</pub-id>
+      <fpage>648</fpage>
+      <lpage>655</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Dalke2019">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Dalke</surname><given-names>Andrew</given-names></name>
+      </person-group>
+      <article-title>The chemfp project</article-title>
+      <source>J. Cheminform.</source>
+      <year iso-8601-date="2019">2019</year>
+      <volume>11</volume>
+      <issue>1</issue>
+      <issn>1758-2946</issn>
+      <uri>https://doi.org/10.1186/s13321-019-0398-8</uri>
+      <pub-id pub-id-type="doi">10.1186/s13321-019-0398-8</pub-id>
+      <fpage>76</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-rdkit">
+    <element-citation publication-type="webpage">
+      <person-group person-group-type="author">
+        <name><surname>Landrum</surname><given-names>Gregory A.</given-names></name>
+      </person-group>
+      <article-title>RDKit: Open-source cheminformatics</article-title>
+      <uri>http://www.rdkit.org</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-Cortes-Ciriano2019">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Cortés-Ciriano</surname><given-names>Isidro</given-names></name>
+        <name><surname>Bender</surname><given-names>Andreas</given-names></name>
+      </person-group>
+      <article-title>Deep Confidence: A Computationally Efficient Framework for Calculating Reliable Prediction Errors for Deep Neural Networks</article-title>
+      <source>J. Chem. Inf. Model.</source>
+      <publisher-name>American Chemical Society</publisher-name>
+      <year iso-8601-date="2019-03">2019</year><month>03</month>
+      <volume>59</volume>
+      <issue>3</issue>
+      <issn>1549-9596</issn>
+      <uri>https://doi.org/10.1021/acs.jcim.8b00542</uri>
+      <pub-id pub-id-type="doi">10.1021/acs.jcim.8b00542</pub-id>
+      <fpage>1269</fpage>
+      <lpage>1281</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Isigkeit2022">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Isigkeit</surname><given-names>Laura</given-names></name>
+        <name><surname>Chaikuad</surname><given-names>Apirat</given-names></name>
+        <name><surname>Merk</surname><given-names>Daniel</given-names></name>
+      </person-group>
+      <article-title>A Consensus Compound/Bioactivity Dataset for Data-Driven Drug Design and Chemogenomics</article-title>
+      <source>Molecules</source>
+      <year iso-8601-date="2022">2022</year>
+      <volume>27</volume>
+      <issue>8</issue>
+      <issn>1420-3049</issn>
+      <uri>https://www.mdpi.com/1420-3049/27/8/2513</uri>
+      <pub-id pub-id-type="doi">10.3390/molecules27082513</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-Sun2017">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Sun</surname><given-names>Jiangming</given-names></name>
+        <name><surname>Jeliazkova</surname><given-names>Nina</given-names></name>
+        <name><surname>Chupakin</surname><given-names>Vladimir</given-names></name>
+        <name><surname>Golib-Dzib</surname><given-names>Jose Felipe</given-names></name>
+        <name><surname>Engkvist</surname><given-names>Ola</given-names></name>
+        <name><surname>Carlsson</surname><given-names>Lars</given-names></name>
+        <name><surname>Wegner</surname><given-names>Jörg</given-names></name>
+        <name><surname>Ceulemans</surname><given-names>Hugo</given-names></name>
+        <name><surname>Georgiev</surname><given-names>Ivan</given-names></name>
+        <name><surname>Jeliazkov</surname><given-names>Vedrin</given-names></name>
+        <name><surname>Kochev</surname><given-names>Nikolay</given-names></name>
+        <name><surname>Ashby</surname><given-names>Thomas J.</given-names></name>
+        <name><surname>Chen</surname><given-names>Hongming</given-names></name>
+      </person-group>
+      <article-title>ExCAPE-DB: An integrated large scale dataset facilitating Big Data analysis in chemogenomics</article-title>
+      <source>J. Cheminform.</source>
+      <publisher-name>Springer International Publishing</publisher-name>
+      <year iso-8601-date="2017">2017</year>
+      <volume>9</volume>
+      <issue>1</issue>
+      <pub-id pub-id-type="doi">10.1186/s13321-017-0203-5</pub-id>
+      <fpage>1</fpage>
+      <lpage>9</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Béquignon2023">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Béquignon</surname><given-names>O. J. M.</given-names></name>
+        <name><surname>Bongers</surname><given-names>B. J.</given-names></name>
+        <name><surname>Jespers</surname><given-names>W.</given-names></name>
+        <name><surname>IJzerman</surname><given-names>A. P.</given-names></name>
+        <name><surname>Water</surname><given-names>B. van der</given-names></name>
+        <name><surname>Westen</surname><given-names>G. J. P. van</given-names></name>
+      </person-group>
+      <article-title>Papyrus: A large-scale curated dataset aimed at bioactivity predictions</article-title>
+      <source>Journal of Cheminformatics</source>
+      <year iso-8601-date="2023-01-06">2023</year><month>01</month><day>06</day>
+      <volume>15</volume>
+      <issue>1</issue>
+      <issn>1758-2946</issn>
+      <uri>https://doi.org/10.1186/s13321-022-00672-x</uri>
+      <pub-id pub-id-type="doi">10.1186/s13321-022-00672-x</pub-id>
+      <fpage>3</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Hastings2016">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Hastings</surname><given-names>Janna</given-names></name>
+        <name><surname>Owen</surname><given-names>Gareth</given-names></name>
+        <name><surname>Dekker</surname><given-names>Adriano</given-names></name>
+        <name><surname>Ennis</surname><given-names>Marcus</given-names></name>
+        <name><surname>Kale</surname><given-names>Namrata</given-names></name>
+        <name><surname>Muthukrishnan</surname><given-names>Venkatesh</given-names></name>
+        <name><surname>Turner</surname><given-names>Steve</given-names></name>
+        <name><surname>Swainston</surname><given-names>Neil</given-names></name>
+        <name><surname>Mendes</surname><given-names>Pedro</given-names></name>
+        <name><surname>Steinbeck</surname><given-names>Christoph</given-names></name>
+      </person-group>
+      <article-title>ChEBI in 2016: Improved services and an expanding collection of metabolites</article-title>
+      <source>Nucleic Acids Res.</source>
+      <year iso-8601-date="2016">2016</year>
+      <volume>44</volume>
+      <issue>D1</issue>
+      <pub-id pub-id-type="doi">10.1093/nar/gkv1031</pub-id>
+      <fpage>D1214</fpage>
+      <lpage>D1219</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Hoyt2022">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Hoyt</surname><given-names>Charles Tapley</given-names></name>
+        <name><surname>Hoyt</surname><given-names>Amelia L</given-names></name>
+        <name><surname>Gyori</surname><given-names>Benjamin M</given-names></name>
+      </person-group>
+      <article-title>Prediction and Curation of Missing Biomedical Identifier Mappings with Biomappings</article-title>
+      <source>Bioinformatics</source>
+      <year iso-8601-date="2023-03">2023</year><month>03</month>
+      <issn>1367-4811</issn>
+      <uri>https://doi.org/10.1093/bioinformatics/btad130</uri>
+      <pub-id pub-id-type="doi">10.1093/bioinformatics/btad130</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-Gyori2022">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Gyori</surname><given-names>Benjamin M</given-names></name>
+        <name><surname>Hoyt</surname><given-names>Charles Tapley</given-names></name>
+        <name><surname>Steppi</surname><given-names>Albert</given-names></name>
+      </person-group>
+      <article-title>Gilda: biomedical entity text normalization with machine-learned disambiguation as a service</article-title>
+      <source>Bioinformatics Advances</source>
+      <year iso-8601-date="2022-05">2022</year><month>05</month>
+      <issn>2635-0041</issn>
+      <uri>https://doi.org/10.1093/bioadv/vbac034</uri>
+      <pub-id pub-id-type="doi">10.1093/bioadv/vbac034</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-Mckinney2010">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>McKinney</surname><given-names>Wes</given-names></name>
+      </person-group>
+      <article-title>Data Structures for Statistical Computing in Python</article-title>
+      <source>Proceedings of the 9th Python in Science Conference</source>
+      <person-group person-group-type="editor">
+        <name><surname>Walt</surname><given-names>Stéfan van der</given-names></name>
+        <name><surname>Millman</surname><given-names>Jarrod</given-names></name>
+      </person-group>
+      <year iso-8601-date="2010">2010</year>
+      <pub-id pub-id-type="doi">10.25080/Majora-92bf1922-00a</pub-id>
+      <fpage>56</fpage>
+      <lpage>61</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Landrum2024">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Landrum</surname><given-names>Gregory A.</given-names></name>
+        <name><surname>Riniker</surname><given-names>Sereina</given-names></name>
+      </person-group>
+      <article-title>Combining IC50 or ki values from different sources is a source of significant noise</article-title>
+      <source>Journal of Chemical Information and Modeling</source>
+      <year iso-8601-date="2024">2024</year>
+      <volume>64</volume>
+      <issue>5</issue>
+      <uri>https://doi.org/10.1021/acs.jcim.4c00049</uri>
+      <pub-id pub-id-type="doi">10.1021/acs.jcim.4c00049</pub-id>
+      <fpage>1560</fpage>
+      <lpage>1567</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Schoenmaker2025">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Schoenmaker</surname><given-names>Linde</given-names></name>
+        <name><surname>Sastrokarijo</surname><given-names>Enzo G.</given-names></name>
+        <name><surname>Heitman</surname><given-names>Laura H.</given-names></name>
+        <name><surname>Beltman</surname><given-names>Joost B.</given-names></name>
+        <name><surname>Jespers</surname><given-names>Willem</given-names></name>
+        <name><surname>Westen</surname><given-names>Gerard J. P. van</given-names></name>
+      </person-group>
+      <article-title>Towards assay-aware bioactivity model(er)s: Getting a grip on biological context</article-title>
+      <source>ChemRxiv</source>
+      <year iso-8601-date="2025">2025</year>
+      <pub-id pub-id-type="doi">10.26434/chemrxiv-2025-vnd2c</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-Gorostiola2024">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Gorostiola González</surname><given-names>Marina</given-names></name>
+        <name><surname>Béquignon</surname><given-names>Olivier J. M.</given-names></name>
+        <name><surname>Manners</surname><given-names>Emma</given-names></name>
+        <name><surname>Gaulton</surname><given-names>Anna</given-names></name>
+        <name><surname>Mutowo</surname><given-names>Prudence</given-names></name>
+        <name><surname>Dawson</surname><given-names>Elisabeth</given-names></name>
+        <name><surname>Zdrazil</surname><given-names>Barbara</given-names></name>
+        <name><surname>Leach</surname><given-names>Andrew R.</given-names></name>
+        <name><surname>IJzerman</surname><given-names>Adriaan P.</given-names></name>
+        <name><surname>Heitman</surname><given-names>Laura H.</given-names></name>
+        <name><surname>al.</surname></name>
+      </person-group>
+      <article-title>Excuse me, there is a mutant in my bioactivity soup! A comprehensive analysis of the genetic variability landscape of bioactivity databases and its effect on activity modelling</article-title>
+      <source>ChemRxiv</source>
+      <year iso-8601-date="2024">2024</year>
+      <pub-id pub-id-type="doi">10.26434/chemrxiv-2024-kxlgm</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-Zhang2024">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Zhang</surname><given-names>Haohui</given-names></name>
+        <name><surname>Wu</surname><given-names>Juntong</given-names></name>
+        <name><surname>Liu</surname><given-names>Shichao</given-names></name>
+        <name><surname>Han</surname><given-names>Shen</given-names></name>
+      </person-group>
+      <article-title>A pre-trained multi-representation fusion network for molecular property prediction</article-title>
+      <source>Information Fusion</source>
+      <year iso-8601-date="2024">2024</year>
+      <volume>103</volume>
+      <issn>1566-2535</issn>
+      <uri>https://www.sciencedirect.com/science/article/pii/S1566253523004086</uri>
+      <pub-id pub-id-type="doi">10.1016/j.inffus.2023.102092</pub-id>
+      <fpage>102092</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Zdrazil2023">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Zdrazil</surname><given-names>Barbara</given-names></name>
+        <name><surname>Felix</surname><given-names>Eloy</given-names></name>
+        <name><surname>Hunter</surname><given-names>Fiona</given-names></name>
+        <name><surname>Manners</surname><given-names>Emma J</given-names></name>
+        <name><surname>Blackshaw</surname><given-names>James</given-names></name>
+        <name><surname>Corbett</surname><given-names>Sybilla</given-names></name>
+        <name><surname>Veij</surname><given-names>Marleen de</given-names></name>
+        <name><surname>Ioannidis</surname><given-names>Harris</given-names></name>
+        <name><surname>Lopez</surname><given-names>David Mendez</given-names></name>
+        <name><surname>Mosquera</surname><given-names>Juan F</given-names></name>
+        <name><surname>Magarinos</surname><given-names>Maria Paula</given-names></name>
+        <name><surname>Bosc</surname><given-names>Nicolas</given-names></name>
+        <name><surname>Arcila</surname><given-names>Ricardo</given-names></name>
+        <name><surname>Kizilören</surname><given-names>Tevfik</given-names></name>
+        <name><surname>Gaulton</surname><given-names>Anna</given-names></name>
+        <name><surname>Bento</surname><given-names>A Patrícia</given-names></name>
+        <name><surname>Adasme</surname><given-names>Melissa F</given-names></name>
+        <name><surname>Monecke</surname><given-names>Peter</given-names></name>
+        <name><surname>Landrum</surname><given-names>Gregory A.</given-names></name>
+        <name><surname>Leach</surname><given-names>Andrew R</given-names></name>
+      </person-group>
+      <article-title>The ChEMBL database in 2023: A drug discovery platform spanning multiple bioactivity data types and time periods</article-title>
+      <source>Nucleic Acids Research</source>
+      <year iso-8601-date="2023-11">2023</year><month>11</month>
+      <volume>52</volume>
+      <issue>D1</issue>
+      <issn>0305-1048</issn>
+      <uri>https://doi.org/10.1093/nar/gkad1004</uri>
+      <pub-id pub-id-type="doi">10.1093/nar/gkad1004</pub-id>
+      <fpage>D1180</fpage>
+      <lpage>D1192</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Domingo-Fernández2023">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Domingo-Fernández</surname><given-names>Daniel</given-names></name>
+        <name><surname>Gadiya</surname><given-names>Yojana</given-names></name>
+        <name><surname>Mubeen</surname><given-names>Sarah</given-names></name>
+        <name><surname>Healey</surname><given-names>David</given-names></name>
+        <name><surname>Norman</surname><given-names>Bryan H.</given-names></name>
+        <name><surname>Colluru</surname><given-names>Viswa</given-names></name>
+      </person-group>
+      <article-title>Exploring the known chemical space of the plant kingdom: Insights into taxonomic patterns, knowledge gaps, and bioactive regions</article-title>
+      <source>Journal of Cheminformatics</source>
+      <year iso-8601-date="2023-11-10">2023</year><month>11</month><day>10</day>
+      <volume>15</volume>
+      <issue>1</issue>
+      <issn>1758-2946</issn>
+      <uri>https://doi.org/10.1186/s13321-023-00778-w</uri>
+      <pub-id pub-id-type="doi">10.1186/s13321-023-00778-w</pub-id>
+      <fpage>107</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Nisonoff2023">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Nisonoff</surname><given-names>Hunter</given-names></name>
+        <name><surname>Wang</surname><given-names>Yixin</given-names></name>
+        <name><surname>Listgarten</surname><given-names>Jennifer</given-names></name>
+      </person-group>
+      <article-title>Coherent blending of biophysics-based knowledge with bayesian neural networks for robust protein property prediction</article-title>
+      <source>ACS Synthetic Biology</source>
+      <year iso-8601-date="2023">2023</year>
+      <volume>12</volume>
+      <issue>11</issue>
+      <uri>https://doi.org/10.1021/acssynbio.3c00217</uri>
+      <pub-id pub-id-type="doi">10.1021/acssynbio.3c00217</pub-id>
+      <fpage>3242</fpage>
+      <lpage>3251</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Gadiya2023">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Gadiya</surname><given-names>Yojana</given-names></name>
+        <name><surname>Gribbon</surname><given-names>Philip</given-names></name>
+        <name><surname>Hofmann-Apitius</surname><given-names>Martin</given-names></name>
+        <name><surname>Zaliani</surname><given-names>Andrea</given-names></name>
+      </person-group>
+      <article-title>Pharmaceutical patent landscaping: A novel approach to understand patents from the drug discovery perspective</article-title>
+      <source>Artificial Intelligence in the Life Sciences</source>
+      <year iso-8601-date="2023">2023</year>
+      <volume>3</volume>
+      <issn>2667-3185</issn>
+      <uri>https://www.sciencedirect.com/science/article/pii/S2667318523000132</uri>
+      <pub-id pub-id-type="doi">10.1016/j.ailsci.2023.100069</pub-id>
+      <fpage>100069</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Berthold2009">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Berthold</surname><given-names>Michael R.</given-names></name>
+        <name><surname>Cebron</surname><given-names>Nicolas</given-names></name>
+        <name><surname>Dill</surname><given-names>Fabian</given-names></name>
+        <name><surname>Gabriel</surname><given-names>Thomas R.</given-names></name>
+        <name><surname>Kötter</surname><given-names>Tobias</given-names></name>
+        <name><surname>Meinl</surname><given-names>Thorsten</given-names></name>
+        <name><surname>Ohl</surname><given-names>Peter</given-names></name>
+        <name><surname>Thiel</surname><given-names>Kilian</given-names></name>
+        <name><surname>Wiswedel</surname><given-names>Bernd</given-names></name>
+      </person-group>
+      <article-title>KNIME - the konstanz information miner: Version 2.0 and beyond</article-title>
+      <source>SIGKDD Explor. Newsl.</source>
+      <publisher-name>ACM</publisher-name>
+      <publisher-loc>New York, NY, USA</publisher-loc>
+      <year iso-8601-date="2009-11">2009</year><month>11</month>
+      <volume>11</volume>
+      <issue>1</issue>
+      <issn>1931-0145</issn>
+      <uri>http://doi.acm.org/10.1145/1656274.1656280</uri>
+      <pub-id pub-id-type="doi">10.1145/1656274.1656280</pub-id>
+      <fpage>26</fpage>
+      <lpage>31</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Galaxy2024">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <string-name>The Galaxy Community</string-name>
+      </person-group>
+      <article-title>The Galaxy platform for accessible, reproducible, and collaborative data analyses: 2024 update</article-title>
+      <source>Nucleic Acids Res.</source>
+      <publisher-name>Oxford University Press</publisher-name>
+      <year iso-8601-date="2024">2024</year>
+      <volume>52</volume>
+      <issue>W1</issue>
+      <uri>https://doi.org/10.1093/nar/gkae410</uri>
+      <pub-id pub-id-type="doi">10.1093/nar/gkae410</pub-id>
+      <fpage>W83</fpage>
+      <lpage>W94</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Warr2012">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Warr</surname><given-names>Wendy A.</given-names></name>
+      </person-group>
+      <article-title>Scientific workflow systems: Pipeline Pilot and KNIME</article-title>
+      <source>Journal of Computer-Aided Molecular Design</source>
+      <year iso-8601-date="2012-07">2012</year><month>07</month>
+      <volume>26</volume>
+      <issue>7</issue>
+      <issn>1573-4951</issn>
+      <uri>https://doi.org/10.1007/s10822-012-9577-7</uri>
+      <pub-id pub-id-type="doi">10.1007/s10822-012-9577-7</pub-id>
+      <fpage>801</fpage>
+      <lpage>804</lpage>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
