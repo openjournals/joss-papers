@@ -1,0 +1,565 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">9278</article-id>
+<article-id pub-id-type="doi">10.21105/joss.09278</article-id>
+<title-group>
+<article-title>SWIFTGalaxy: a Python package to work with particle
+groups from SWIFT simulations</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author" corresp="yes">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0001-9857-7788</contrib-id>
+<name>
+<surname>Oman</surname>
+<given-names>Kyle A.</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+<xref ref-type="aff" rid="aff-2"/>
+<xref ref-type="corresp" rid="cor-1"><sup>*</sup></xref>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Institute for Computational Cosmology, Physics Department,
+Durham University, United Kingdom</institution>
+</institution-wrap>
+</aff>
+<aff id="aff-2">
+<institution-wrap>
+<institution>Centre for Extragalactic Astronomy, Physics Department,
+Durham University, United Kingdom</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<author-notes>
+<corresp id="cor-1">* E-mail: <email></email></corresp>
+</author-notes>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2024-08-04">
+<day>4</day>
+<month>8</month>
+<year>2024</year>
+</pub-date>
+<volume>10</volume>
+<issue>114</issue>
+<fpage>9278</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2025</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>Python</kwd>
+<kwd>astronomy</kwd>
+<kwd>simulations</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p>SWIFTGalaxy is an open-source astrophysics module that extends
+  SWIFTSimIO
+  (<xref alt="Borrow &amp; Borrisov, 2020" rid="ref-Borrow2020" ref-type="bibr">Borrow
+  &amp; Borrisov, 2020</xref>) to analyses of particles belonging to
+  individual galaxies simulated with SWIFT
+  (<xref alt="Schaller et al., 2024" rid="ref-Schaller2024" ref-type="bibr">Schaller
+  et al., 2024</xref>). It inherits from and extends the functionality
+  of SWIFTSimIO’s SWIFTDataset class. It understands the content of halo
+  catalogues and therefore which particles belong to a galaxy or other
+  group of particles, and its integrated properties. The particles
+  occupy a coordinate frame that is enforced to be consistent, such that
+  particles loaded on-the-fly will match e.g. rotations and translations
+  of particles already in memory. Intuitive masking of particle datasets
+  is also enabled. Utilities to make working in cylindrical and
+  spherical coordinate systems more convenient are also provided.
+  Finally, tools to iterate efficiently over multiple galaxies are
+  provided.</p>
+</sec>
+<sec id="background">
+  <title>Background</title>
+  <p>Cosmological hydrodynamical galaxy formation simulations begin with
+  a representation of the early universe where its two key
+  constituents—dark matter and gas—are discretized. The dark matter is
+  usually represented with collisionless particles that respond only to
+  the gravitational force, while gas may be represented by particles
+  (Lagrangian tracers) or mesh cells (Eulerian tracers) and obeys the
+  laws of hydrodynamics in addition to gravity. The SWIFT code
+  (<xref alt="Schaller et al., 2024" rid="ref-Schaller2024" ref-type="bibr">Schaller
+  et al., 2024</xref>) takes the former approach, implementing the
+  smoothed particle hydrodynamics (SPH,
+  <xref alt="Gingold &amp; Monaghan, 1977" rid="ref-Gingold1977" ref-type="bibr">Gingold
+  &amp; Monaghan, 1977</xref>;
+  <xref alt="Lucy, 1977" rid="ref-Lucy1977" ref-type="bibr">Lucy,
+  1977</xref>) formalism. Observations of the cosmic microwave
+  background are used to constrain a multiscale Gaussian random field to
+  formulate the initial conditions for a simulation of a representative
+  region of the early Universe, before the first galaxies formed (e.g.
+  <xref alt="Bertschinger, 2001" rid="ref-Bertschinger2001" ref-type="bibr">Bertschinger,
+  2001</xref>). In addition to hydrodynamics and gravity, galaxy
+  formation models include additional physical processes such as
+  radiative gas cooling, star formation, energetic feedback from
+  supernovae and supermassive black hole accretion, and more. Many of
+  these are formally unresolved, leading these to be collectively
+  referred to as “sub-grid” elements of the models.</p>
+  <p>As time integration of a cosmological hydrodynamical galaxy
+  formation simulation proceeds, outputs containing a “snapshot” of the
+  simulation state are typically written at regular intervals. These
+  contain tables of the properties of particles including at least
+  positions, velocities, masses and unique identifiers. More physically
+  complex particle types, such as stars and gas, carry additional
+  properties such as temperature, metallicity, internal energy, and many
+  more. SWIFT snapshot files include rich metadata recording the full
+  configuration of the code and galaxy formation model, plus physical
+  units and related information for all data.</p>
+  <p>For many types of analysis the snapshot files alone are
+  insufficient: knowledge of which groups of particles “belong” to
+  gravitationally bound structures—galaxies—is needed. In SWIFT this is
+  most commonly determined in a two-stage process. In the first stage
+  particles are linked to neighbouring particles separated by less than
+  a suitably chosen linking length to form connected
+  “friends-of-friends” (FOF,
+  <xref alt="Davis et al., 1985" rid="ref-Davis1985" ref-type="bibr">Davis
+  et al., 1985</xref>) groups. The second step consists of finding
+  overdense, self-bound particle groups or “halos” within each FOF
+  group. There are numerous algorithms that accomplish this task. The
+  current implementation recommended for the SWIFT community is the
+  HBT-Herons
+  (<xref alt="Forouhar Moreno et al., 2025" rid="ref-ForouharMoreno2025" ref-type="bibr">Forouhar
+  Moreno et al., 2025</xref>) implementation of the hierarchical
+  bound-tracing plus (HBT+,
+  <xref alt="Han et al., 2018" rid="ref-Han2018" ref-type="bibr">Han et
+  al., 2018</xref>) algorithm. The properties of halos can be tabulated
+  in “halo catalogues”, where again many algorithms exist. This is often
+  done as part of the halo-finding process, but the recommendation for
+  the SWIFT community is to move this to a separate step and use the
+  spherical overdensity and aperture processor (SOAP,
+  <xref alt="McGibbon et al., 2025" rid="ref-McGibbon2025" ref-type="bibr">McGibbon
+  et al., 2025</xref>) tool.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p>The collection of standard cosmological hydrodynamical simulation
+  data products—snapshots of particles, halo membership information and
+  halo catalogues—leads to a generic workflow to begin analysis of
+  individual galaxies in such simulations. First, an object of interest
+  is identified in the halo catalogue. Then, the halo membership
+  information is queried to locate its member particles. Finally, the
+  particles are loaded from the snapshot to proceed with analysis. The
+  SWIFT community already maintains the SWIFTSimIO tool
+  (<xref alt="Borrow &amp; Borrisov, 2020" rid="ref-Borrow2020" ref-type="bibr">Borrow
+  &amp; Borrisov, 2020</xref>) that supports reading in SWIFT snapshot
+  files and SOAP catalogue files. It uses metadata in the files to
+  annotate data arrays with physical units and relevant cosmological
+  information. It is also able to efficiently select spatial sub-regions
+  of a simulation by taking advantage of the fact the particles in cells
+  of a “top-level cell” grid covering the simulation domain are stored
+  contiguously. Finally, it includes some data visualisation tools.</p>
+  <p>SWIFTGalaxy extends SWIFTSimIO by implementing the workflow
+  outlined above supplemented with additional features including
+  coordinate transformations, data array masking and efficient iteration
+  over galaxies. All of the SWIFTSimIO features, including use of the
+  visualisation tools, are inherited by SWIFTGalaxy. The package
+  prevents duplication of effort by users who would otherwise each need
+  to implement the same steps independently. It also helps to avoid
+  common errors, such as applying a coordinate transformation to one
+  particle type (e.g. rotation of the dark matter) but forgetting to
+  apply it to others (e.g. the gas remains unrotated) by enforcing a
+  consistent data state where applicable.</p>
+  <p>A core design principle of SWIFTGalaxy is that only operations with
+  an unambiguous implementation are included. In other words,
+  SWIFTGalaxy tries to avoid making decisions for its users. This is a
+  key difference when compared to other packages serving this purpose,
+  such as pynbody
+  (<xref alt="Pontzen et al., 2013" rid="ref-Pontzen2013" ref-type="bibr">Pontzen
+  et al., 2013</xref>) and yt
+  (<xref alt="Turk et al., 2011" rid="ref-Turk2011" ref-type="bibr">Turk
+  et al., 2011</xref>) that can also be used with SWIFT data sets. Other
+  packages are also less tailored to SWIFT and therefore less able to
+  take advantage of the detailed structure of the data layout on disk
+  and information available as metadata.</p>
+  <p>Despite being tailored for use with SWIFT simulations, SWIFTGalaxy
+  is modular: it has interchangeable interfaces to different halo
+  catalogue formats. In addition to the preferred SOAP format, the
+  Velociraptor
+  (<xref alt="Elahi et al., 2019" rid="ref-Elahi2019" ref-type="bibr">Elahi
+  et al., 2019</xref>) and
+  <ext-link ext-link-type="uri" xlink:href="https://github.com/dnarayanan/caesar">Caesar</ext-link>
+  formats are also supported, and adding support for other formats is
+  straightforward by design. A “standalone” mode is also available so
+  that the other features of SWIFTGalaxy can be used on arbitrary
+  collections of particles even if no halo catalogue is available or
+  desired.</p>
+  <p>SWIFTGalaxy is hosted on
+  <ext-link ext-link-type="uri" xlink:href="https://github.com/SWIFTSIM/swiftgalaxy">GitHub</ext-link>
+  and has documentation available through
+  <ext-link ext-link-type="uri" xlink:href="https://swiftgalaxy.readthedocs.io">ReadTheDocs</ext-link>.
+  The first research article using the package has recently appeared
+  (<xref alt="Trayford et al., 2025" rid="ref-Trayford2025" ref-type="bibr">Trayford
+  et al., 2025</xref>). Many more projects using it are currently
+  ongoing, especially in the context of the COLIBRE simulations project
+  (<xref alt="Chaikin et al., 2025" rid="ref-Chaikin2025" ref-type="bibr">Chaikin
+  et al., 2025</xref>;
+  <xref alt="Schaye et al., 2025" rid="ref-Schaye2025" ref-type="bibr">Schaye
+  et al., 2025</xref>).</p>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>KAO acknowledges support by the Royal Society through Dorothy
+  Hodgkin Fellowship DHF/R1/231105, by STFC through grant ST/T000244/1,
+  and by the European Research Council (ERC) through an Advanced
+  Investigator Grant to C. S. Frenk, DMIDAS (GA 786910). This work has
+  made use of NASA’s Astrophysics Data System.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <title></title>
+  <ref id="ref-Borrow2020">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Borrow</surname><given-names>Josh</given-names></name>
+        <name><surname>Borrisov</surname><given-names>Alexei</given-names></name>
+      </person-group>
+      <article-title>swiftsimio: A Python library for reading SWIFT data</article-title>
+      <source>The Journal of Open Source Software</source>
+      <year iso-8601-date="2020-08">2020</year><month>08</month>
+      <volume>5</volume>
+      <issue>52</issue>
+      <pub-id pub-id-type="doi">10.21105/joss.02430</pub-id>
+      <fpage>2430</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Schaller2024">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Schaller</surname><given-names>Matthieu</given-names></name>
+        <name><surname>Borrow</surname><given-names>Josh</given-names></name>
+        <name><surname>Draper</surname><given-names>Peter W.</given-names></name>
+        <name><surname>Ivkovic</surname><given-names>Mladen</given-names></name>
+        <name><surname>McAlpine</surname><given-names>Stuart</given-names></name>
+        <name><surname>Vandenbroucke</surname><given-names>Bert</given-names></name>
+        <name><surname>Bahé</surname><given-names>Yannick</given-names></name>
+        <name><surname>Chaikin</surname><given-names>Evgenii</given-names></name>
+        <name><surname>Chalk</surname><given-names>Aidan B. G.</given-names></name>
+        <name><surname>Chan</surname><given-names>Tsang Keung</given-names></name>
+        <name><surname>Correa</surname><given-names>Camila</given-names></name>
+        <name><surname>van Daalen</surname><given-names>Marcel</given-names></name>
+        <name><surname>Elbers</surname><given-names>Willem</given-names></name>
+        <name><surname>Gonnet</surname><given-names>Pedro</given-names></name>
+        <name><surname>Hausammann</surname><given-names>Loı̈c</given-names></name>
+        <name><surname>Helly</surname><given-names>John</given-names></name>
+        <name><surname>Huško</surname><given-names>Filip</given-names></name>
+        <name><surname>Kegerreis</surname><given-names>Jacob A.</given-names></name>
+        <name><surname>Nobels</surname><given-names>Folkert S. J.</given-names></name>
+        <name><surname>Ploeckinger</surname><given-names>Sylvia</given-names></name>
+        <name><surname>Revaz</surname><given-names>Yves</given-names></name>
+        <name><surname>Roper</surname><given-names>William J.</given-names></name>
+        <name><surname>Ruiz-Bonilla</surname><given-names>Sergio</given-names></name>
+        <name><surname>Sandnes</surname><given-names>Thomas D.</given-names></name>
+        <name><surname>Uyttenhove</surname><given-names>Yolan</given-names></name>
+        <name><surname>Willis</surname><given-names>James S.</given-names></name>
+        <name><surname>Xiang</surname><given-names>Zhen</given-names></name>
+      </person-group>
+      <article-title>SWIFT: A modern highly-parallel gravity and smoothed particle hydrodynamics solver for astrophysical and cosmological applications</article-title>
+      <source>Monthly Notices of the Royal Astronomical Society</source>
+      <year iso-8601-date="2024-05">2024</year><month>05</month>
+      <volume>530</volume>
+      <issue>2</issue>
+      <uri>https://arxiv.org/abs/2305.13380</uri>
+      <pub-id pub-id-type="doi">10.1093/mnras/stae922</pub-id>
+      <fpage>2378</fpage>
+      <lpage>2419</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Elahi2019">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Elahi</surname><given-names>Pascal J.</given-names></name>
+        <name><surname>Cañas</surname><given-names>Rodrigo</given-names></name>
+        <name><surname>Poulton</surname><given-names>Rhys J. J.</given-names></name>
+        <name><surname>Tobar</surname><given-names>Rodrigo J.</given-names></name>
+        <name><surname>Willis</surname><given-names>James S.</given-names></name>
+        <name><surname>Lagos</surname><given-names>Claudia del P.</given-names></name>
+        <name><surname>Power</surname><given-names>Chris</given-names></name>
+        <name><surname>Robotham</surname><given-names>Aaron S. G.</given-names></name>
+      </person-group>
+      <article-title>Hunting for galaxies and halos in simulations with VELOCIraptor</article-title>
+      <source>Publications of the Astronomical Society of Australia</source>
+      <year iso-8601-date="2019-05">2019</year><month>05</month>
+      <volume>36</volume>
+      <uri>https://arxiv.org/abs/1902.01010</uri>
+      <pub-id pub-id-type="doi">10.1017/pasa.2019.12</pub-id>
+      <fpage>e021</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-McGibbon2025">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>McGibbon</surname><given-names>Robert</given-names></name>
+        <name><surname>Helly</surname><given-names>John</given-names></name>
+        <name><surname>Schaye</surname><given-names>Joop</given-names></name>
+        <name><surname>Schaller</surname><given-names>Matthieu</given-names></name>
+        <name><surname>Vandenbroucke</surname><given-names>Bert</given-names></name>
+      </person-group>
+      <article-title>SOAP: A Python package for calculating the properties of galaxies and halos formed in cosmological simulations</article-title>
+      <source>The Journal of Open Source Software</source>
+      <year iso-8601-date="2025-07">2025</year><month>07</month>
+      <volume>10</volume>
+      <issue>111</issue>
+      <pub-id pub-id-type="doi">10.21105/joss.08252</pub-id>
+      <fpage>8252</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-ForouharMoreno2025">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Forouhar Moreno</surname><given-names>Victor J.</given-names></name>
+        <name><surname>Helly</surname><given-names>John</given-names></name>
+        <name><surname>McGibbon</surname><given-names>Rob</given-names></name>
+        <name><surname>Schaye</surname><given-names>Joop</given-names></name>
+        <name><surname>Schaller</surname><given-names>Matthieu</given-names></name>
+        <name><surname>Han</surname><given-names>Jiaxin</given-names></name>
+        <name><surname>Kugel</surname><given-names>Roi</given-names></name>
+        <name><surname>Bahé</surname><given-names>Yannick M.</given-names></name>
+      </person-group>
+      <article-title>Assessing subhalo finders in cosmological hydrodynamical simulations</article-title>
+      <source>Monthly Notices of the Royal Astronomical Society</source>
+      <year iso-8601-date="2025-09">2025</year><month>09</month>
+      <uri>https://arxiv.org/abs/2502.06932</uri>
+      <pub-id pub-id-type="doi">10.1093/mnras/staf1478</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-Han2018">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Han</surname><given-names>Jiaxin</given-names></name>
+        <name><surname>Cole</surname><given-names>Shaun</given-names></name>
+        <name><surname>Frenk</surname><given-names>Carlos S.</given-names></name>
+        <name><surname>Benitez-Llambay</surname><given-names>Alejandro</given-names></name>
+        <name><surname>Helly</surname><given-names>John</given-names></name>
+      </person-group>
+      <article-title>HBT+: An improved code for finding subhaloes and building merger trees in cosmological simulations</article-title>
+      <source>Monthly Notices of the Royal Astronomical Society</source>
+      <year iso-8601-date="2018-02">2018</year><month>02</month>
+      <volume>474</volume>
+      <issue>1</issue>
+      <uri>https://arxiv.org/abs/1708.03646</uri>
+      <pub-id pub-id-type="doi">10.1093/mnras/stx2792</pub-id>
+      <fpage>604</fpage>
+      <lpage>617</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Pontzen2013">
+    <element-citation publication-type="software">
+      <person-group person-group-type="author">
+        <name><surname>Pontzen</surname><given-names>Andrew</given-names></name>
+        <name><surname>Roškar</surname><given-names>Rok</given-names></name>
+        <name><surname>Stinson</surname><given-names>Greg</given-names></name>
+        <name><surname>Woods</surname><given-names>Rory</given-names></name>
+      </person-group>
+      <article-title>pynbody: N-Body/SPH analysis for python</article-title>
+      <publisher-name>Astrophysics Source Code Library, record ascl:1305.002</publisher-name>
+      <year iso-8601-date="2013-05">2013</year><month>05</month>
+    </element-citation>
+  </ref>
+  <ref id="ref-Turk2011">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Turk</surname><given-names>Matthew J.</given-names></name>
+        <name><surname>Smith</surname><given-names>Britton D.</given-names></name>
+        <name><surname>Oishi</surname><given-names>Jeffrey S.</given-names></name>
+        <name><surname>Skory</surname><given-names>Stephen</given-names></name>
+        <name><surname>Skillman</surname><given-names>Samuel W.</given-names></name>
+        <name><surname>Abel</surname><given-names>Tom</given-names></name>
+        <name><surname>Norman</surname><given-names>Michael L.</given-names></name>
+      </person-group>
+      <article-title>yt: A multi-code analysis toolkit for astrophysical simulation data</article-title>
+      <source>The Astrophysical Journal Supplement Series</source>
+      <year iso-8601-date="2011-01">2011</year><month>01</month>
+      <volume>192</volume>
+      <issue>1</issue>
+      <uri>https://arxiv.org/abs/1011.3514</uri>
+      <pub-id pub-id-type="doi">10.1088/0067-0049/192/1/9</pub-id>
+      <fpage>9</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Davis1985">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Davis</surname><given-names>M.</given-names></name>
+        <name><surname>Efstathiou</surname><given-names>G.</given-names></name>
+        <name><surname>Frenk</surname><given-names>C. S.</given-names></name>
+        <name><surname>White</surname><given-names>S. D. M.</given-names></name>
+      </person-group>
+      <article-title>The evolution of large-scale structure in a universe dominated by cold dark matter</article-title>
+      <source>The Astrophysical Journal</source>
+      <year iso-8601-date="1985-05">1985</year><month>05</month>
+      <volume>292</volume>
+      <pub-id pub-id-type="doi">10.1086/163168</pub-id>
+      <fpage>371</fpage>
+      <lpage>394</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Trayford2025">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Trayford</surname><given-names>James W.</given-names></name>
+        <name><surname>Schaye</surname><given-names>Joop</given-names></name>
+        <name><surname>Correa</surname><given-names>Camila</given-names></name>
+        <name><surname>Ploeckinger</surname><given-names>Sylvia</given-names></name>
+        <name><surname>Richings</surname><given-names>Alexander J.</given-names></name>
+        <name><surname>Chaikin</surname><given-names>Evgenii</given-names></name>
+        <name><surname>Schaller</surname><given-names>Matthieu</given-names></name>
+        <name><surname>Benitez-Llambay</surname><given-names>Alejandro</given-names></name>
+        <name><surname>Frenk</surname><given-names>Carlos</given-names></name>
+        <name><surname>Husko</surname><given-names>Filip</given-names></name>
+      </person-group>
+      <article-title>Modelling the evolution and influence of dust in cosmological simulations that include the cold phase of the interstellar medium</article-title>
+      <source>arXiv e-prints</source>
+      <year iso-8601-date="2025-05">2025</year><month>05</month>
+      <uri>https://arxiv.org/abs/2505.13056</uri>
+      <pub-id pub-id-type="doi">10.48550/arXiv.2505.13056</pub-id>
+      <fpage>arXiv:2505.13056</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Lucy1977">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Lucy</surname><given-names>L. B.</given-names></name>
+      </person-group>
+      <article-title>A numerical approach to the testing of the fission hypothesis.</article-title>
+      <source>The Astronomical Journal</source>
+      <year iso-8601-date="1977-12">1977</year><month>12</month>
+      <volume>82</volume>
+      <pub-id pub-id-type="doi">10.1086/112164</pub-id>
+      <fpage>1013</fpage>
+      <lpage>1024</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Gingold1977">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Gingold</surname><given-names>R. A.</given-names></name>
+        <name><surname>Monaghan</surname><given-names>J. J.</given-names></name>
+      </person-group>
+      <article-title>Smoothed particle hydrodynamics: Theory and application to non-spherical stars.</article-title>
+      <source>Monthly Notices of the Royal Astronomical Society</source>
+      <year iso-8601-date="1977-11">1977</year><month>11</month>
+      <volume>181</volume>
+      <pub-id pub-id-type="doi">10.1093/mnras/181.3.375</pub-id>
+      <fpage>375</fpage>
+      <lpage>389</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Bertschinger2001">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Bertschinger</surname><given-names>Edmund</given-names></name>
+      </person-group>
+      <article-title>Multiscale Gaussian random fields and their application to cosmological simulations</article-title>
+      <source>The Astrophysical Journal Supplement Series</source>
+      <year iso-8601-date="2001-11">2001</year><month>11</month>
+      <volume>137</volume>
+      <issue>1</issue>
+      <uri>https://arxiv.org/abs/astro-ph/0103301</uri>
+      <pub-id pub-id-type="doi">10.1086/322526</pub-id>
+      <fpage>1</fpage>
+      <lpage>20</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Schaye2025">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Schaye</surname><given-names>Joop</given-names></name>
+        <name><surname>Chaikin</surname><given-names>Evgenii</given-names></name>
+        <name><surname>Schaller</surname><given-names>Matthieu</given-names></name>
+        <name><surname>Ploeckinger</surname><given-names>Sylvia</given-names></name>
+        <name><surname>Huško</surname><given-names>Filip</given-names></name>
+        <name><surname>McGibbon</surname><given-names>Rob</given-names></name>
+        <name><surname>Trayford</surname><given-names>James W.</given-names></name>
+        <name><surname>Benı́tez-Llambay</surname><given-names>Alejandro</given-names></name>
+        <name><surname>Correa</surname><given-names>Camila</given-names></name>
+        <name><surname>Frenk</surname><given-names>Carlos S.</given-names></name>
+        <name><surname>Richings</surname><given-names>Alexander J.</given-names></name>
+        <name><surname>Forouhar Moreno</surname><given-names>Victor J.</given-names></name>
+        <name><surname>Bahé</surname><given-names>Yannick M.</given-names></name>
+        <name><surname>Borrow</surname><given-names>Josh</given-names></name>
+        <name><surname>Durrant</surname><given-names>Anna</given-names></name>
+        <name><surname>Gebek</surname><given-names>Andrea</given-names></name>
+        <name><surname>Helly</surname><given-names>John C.</given-names></name>
+        <name><surname>Jenkins</surname><given-names>Adrian</given-names></name>
+        <name><surname>Lacey</surname><given-names>Cedric G.</given-names></name>
+        <name><surname>Ludlow</surname><given-names>Aaron</given-names></name>
+        <name><surname>Nobels</surname><given-names>Folkert S. J.</given-names></name>
+      </person-group>
+      <article-title>The COLIBRE project: Cosmological hydrodynamical simulations of galaxy formation and evolution</article-title>
+      <source>arXiv e-prints</source>
+      <year iso-8601-date="2025-08">2025</year><month>08</month>
+      <uri>https://arxiv.org/abs/2508.21126</uri>
+      <pub-id pub-id-type="doi">10.48550/arXiv.2508.21126</pub-id>
+      <fpage>arXiv:2508.21126</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Chaikin2025">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Chaikin</surname><given-names>Evgenii</given-names></name>
+        <name><surname>Schaye</surname><given-names>Joop</given-names></name>
+        <name><surname>Schaller</surname><given-names>Matthieu</given-names></name>
+        <name><surname>Ploeckinger</surname><given-names>Sylvia</given-names></name>
+        <name><surname>Bahé</surname><given-names>Yannick M.</given-names></name>
+        <name><surname>Benı́tez-Llambay</surname><given-names>Alejandro</given-names></name>
+        <name><surname>Correa</surname><given-names>Camila</given-names></name>
+        <name><surname>Forouhar Moreno</surname><given-names>Victor J.</given-names></name>
+        <name><surname>Frenk</surname><given-names>Carlos S.</given-names></name>
+        <name><surname>Huško</surname><given-names>Filip</given-names></name>
+        <name><surname>Kugel</surname><given-names>Roi</given-names></name>
+        <name><surname>McGibbon</surname><given-names>Robert</given-names></name>
+        <name><surname>Richings</surname><given-names>Alexander J.</given-names></name>
+        <name><surname>Trayford</surname><given-names>James W.</given-names></name>
+        <name><surname>Borrow</surname><given-names>Josh</given-names></name>
+        <name><surname>Crain</surname><given-names>Robert A.</given-names></name>
+        <name><surname>Helly</surname><given-names>John C.</given-names></name>
+        <name><surname>Lacey</surname><given-names>Cedric G.</given-names></name>
+        <name><surname>Ludlow</surname><given-names>Aaron</given-names></name>
+        <name><surname>Nobels</surname><given-names>Folkert S. J.</given-names></name>
+      </person-group>
+      <article-title>COLIBRE: Calibrating subgrid feedback in cosmological simulations that include a cold gas phase</article-title>
+      <source>arXiv e-prints</source>
+      <year iso-8601-date="2025-09">2025</year><month>09</month>
+      <uri>https://arxiv.org/abs/2509.04067</uri>
+      <pub-id pub-id-type="doi">10.48550/arXiv.2509.04067</pub-id>
+      <fpage>arXiv:2509.04067</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
