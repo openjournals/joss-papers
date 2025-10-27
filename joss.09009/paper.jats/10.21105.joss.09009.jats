@@ -1,0 +1,771 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">9009</article-id>
+<article-id pub-id-type="doi">10.21105/joss.09009</article-id>
+<title-group>
+<article-title>xr_fresh: Automated Time Series Feature Extraction for
+Remote Sensing &amp; Gridded Data</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0002-6268-6867</contrib-id>
+<name>
+<surname>Mann</surname>
+<given-names>Michael L.</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>The George Washington University, Department of Geography
+&amp; Environment, Washington DC 20052</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2025-05-21">
+<day>21</day>
+<month>5</month>
+<year>2025</year>
+</pub-date>
+<volume>10</volume>
+<issue>114</issue>
+<fpage>9009</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2025</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<abstract>
+<p>xr_fresh is a Python library for automated feature extraction from
+gridded time series data, such as satellite imagery, climate model
+outputs, and sensor arrays. Building on the methodology of tsfresh,
+xr_fresh extends this approach to pixel-level temporal sequences common
+in observational data such as from earth observation or repeat
+photography data. It computes a comprehensive set of statistical, trend,
+and distribution-based features for each pixel, enabling scalable
+preprocessing for classical machine learning. The library is optimized
+for large-scale applications through parallelized computation using
+xarray, Dask, Ray, and JAX. It also includes advanced interpolation
+techniques for handling missing data and GPU-accelerated kernel PCA for
+dimensionality reduction.</p>
+</abstract>
+<kwd-group kwd-group-type="author">
+<kwd>Feature Extraction</kwd>
+<kwd>Remote Sensing</kwd>
+<kwd>Time Series</kwd>
+<kwd>Machine Learning</kwd>
+<kwd>Crop Classification</kwd>
+<kwd>xarray</kwd>
+<kwd>Python</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p>Gridded time series data from satellites, climate models, camera
+  feeds, and sensors contain rich temporal information for applications
+  like crop type classification and yields, anomaly detection, robotics,
+  quality control, environmental monitoring, and natural resource
+  management
+  (<xref alt="Delince et al., 2017" rid="ref-delince2017handbook" ref-type="bibr">Delince
+  et al., 2017</xref>;
+  <xref alt="Hufkens et al., 2019" rid="ref-hufkens2019monitoring" ref-type="bibr">Hufkens
+  et al., 2019</xref>;
+  <xref alt="Michael L. Mann et al., 2019" rid="ref-mann2019predicting" ref-type="bibr">Michael
+  L. Mann et al., 2019</xref>;
+  <xref alt="Michael L. Mann &amp; Warner, 2017" rid="ref-MANN201760" ref-type="bibr">Michael
+  L. Mann &amp; Warner, 2017</xref>;
+  <xref alt="Mumuni &amp; Mumuni, 2024" rid="ref-mumuni2024automated" ref-type="bibr">Mumuni
+  &amp; Mumuni, 2024</xref>). Efficiently extracting relevant time
+  series features at scale remains challenging, necessitating automation
+  (<xref alt="Faouzi, 2022" rid="ref-faouzi2022time" ref-type="bibr">Faouzi,
+  2022</xref>;
+  <xref alt="Li et al., 2020" rid="ref-li2020forecasting" ref-type="bibr">Li
+  et al., 2020</xref>). Inspired by <monospace>tsfresh</monospace>, we
+  introduce <monospace>xr_fresh</monospace>, tailored specifically for
+  gridded time series by automating the extraction of time series
+  features on a pixel-by-pixel basis
+  (<xref alt="Christ et al., 2018" rid="ref-CHRIST201872" ref-type="bibr">Christ
+  et al., 2018</xref>).</p>
+  <p>Currently, there is no method to rapidly extract a comprehensive
+  set of features from gridded time series data, such as those derived
+  from remote sensing imagery. Existing packages like
+  <monospace>tsfresh</monospace> are not optimized for the unique
+  structure of gridded time series data and take
+  <ext-link ext-link-type="uri" xlink:href="../notebooks/time_trial.ipynb">160
+  times longer</ext-link> to process. This limitation hinders the
+  ability to efficiently analyze and model these datasets, particularly
+  in the context of remote sensing applications where large volumes of
+  data are generated.</p>
+  <p>To address this gap, <monospace>xr_fresh</monospace> automates the
+  extraction of salient temporal and statistical features from each
+  pixel time series. Using automated feature extraction,
+  <monospace>xr_fresh</monospace> reduces manual intervention and
+  improves reproducibility in remote sensing workflows.</p>
+</sec>
+<sec id="problems-and-background">
+  <title>Problems and Background</title>
+  <p>An image time series can be represented as a three-dimensional
+  array with spatial dimensions <inline-formula><alternatives>
+  <tex-math><![CDATA[x]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>x</mml:mi></mml:math></alternatives></inline-formula>
+  and <inline-formula><alternatives>
+  <tex-math><![CDATA[y]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>y</mml:mi></mml:math></alternatives></inline-formula>,
+  and temporal dimension <inline-formula><alternatives>
+  <tex-math><![CDATA[z]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>z</mml:mi></mml:math></alternatives></inline-formula>.
+  Each pixel at location <inline-formula><alternatives>
+  <tex-math><![CDATA[(x_i, y_j)]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>x</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mo>,</mml:mo><mml:msub><mml:mi>y</mml:mi><mml:mi>j</mml:mi></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:math></alternatives></inline-formula>
+  holds a time series:</p>
+  <p><disp-formula><alternatives>
+  <tex-math><![CDATA[
+  \mathcal{D} = \{ X_{i,j} \in \mathbb{R}^T \mid i = 1, \ldots, H; j = 1, \ldots, W \}
+  ]]></tex-math>
+  <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>𝒟</mml:mi><mml:mo>=</mml:mo><mml:mo stretchy="false" form="prefix">{</mml:mo><mml:msub><mml:mi>X</mml:mi><mml:mrow><mml:mi>i</mml:mi><mml:mo>,</mml:mo><mml:mi>j</mml:mi></mml:mrow></mml:msub><mml:mo>∈</mml:mo><mml:msup><mml:mi>ℝ</mml:mi><mml:mi>T</mml:mi></mml:msup><mml:mo>∣</mml:mo><mml:mi>i</mml:mi><mml:mo>=</mml:mo><mml:mn>1</mml:mn><mml:mo>,</mml:mo><mml:mi>…</mml:mi><mml:mo>,</mml:mo><mml:mi>H</mml:mi><mml:mo>;</mml:mo><mml:mi>j</mml:mi><mml:mo>=</mml:mo><mml:mn>1</mml:mn><mml:mo>,</mml:mo><mml:mi>…</mml:mi><mml:mo>,</mml:mo><mml:mi>W</mml:mi><mml:mo stretchy="false" form="postfix">}</mml:mo></mml:mrow></mml:math></alternatives></disp-formula></p>
+  <p>where <inline-formula><alternatives>
+  <tex-math><![CDATA[H]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>H</mml:mi></mml:math></alternatives></inline-formula>
+  and <inline-formula><alternatives>
+  <tex-math><![CDATA[W]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>W</mml:mi></mml:math></alternatives></inline-formula>
+  are the height and width of the image, and
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[T]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>T</mml:mi></mml:math></alternatives></inline-formula>
+  is the number of temporal observations (e.g. monthly composites or
+  daily acquisitions).</p>
+  <p>To prepare these data for use in supervised or unsupervised machine
+  learning, each pixel time series <inline-formula><alternatives>
+  <tex-math><![CDATA[X_{i,j} = (x_{i,j,1}, x_{i,j,2}, \ldots, x_{i,j,T})]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>X</mml:mi><mml:mrow><mml:mi>i</mml:mi><mml:mo>,</mml:mo><mml:mi>j</mml:mi></mml:mrow></mml:msub><mml:mo>=</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>x</mml:mi><mml:mrow><mml:mi>i</mml:mi><mml:mo>,</mml:mo><mml:mi>j</mml:mi><mml:mo>,</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:msub><mml:mo>,</mml:mo><mml:msub><mml:mi>x</mml:mi><mml:mrow><mml:mi>i</mml:mi><mml:mo>,</mml:mo><mml:mi>j</mml:mi><mml:mo>,</mml:mo><mml:mn>2</mml:mn></mml:mrow></mml:msub><mml:mo>,</mml:mo><mml:mi>…</mml:mi><mml:mo>,</mml:mo><mml:msub><mml:mi>x</mml:mi><mml:mrow><mml:mi>i</mml:mi><mml:mo>,</mml:mo><mml:mi>j</mml:mi><mml:mo>,</mml:mo><mml:mi>T</mml:mi></mml:mrow></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>
+  is transformed into a feature vector:</p>
+  <p><disp-formula><alternatives>
+  <tex-math><![CDATA[
+  \vec{x}_{i,j} = \left(f_1(X_{i,j}), f_2(X_{i,j}), \ldots, f_M(X_{i,j})\right)
+  ]]></tex-math>
+  <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mover><mml:mi>x</mml:mi><mml:mo accent="true">→</mml:mo></mml:mover><mml:mrow><mml:mi>i</mml:mi><mml:mo>,</mml:mo><mml:mi>j</mml:mi></mml:mrow></mml:msub><mml:mo>=</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>f</mml:mi><mml:mn>1</mml:mn></mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>X</mml:mi><mml:mrow><mml:mi>i</mml:mi><mml:mo>,</mml:mo><mml:mi>j</mml:mi></mml:mrow></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>,</mml:mo><mml:msub><mml:mi>f</mml:mi><mml:mn>2</mml:mn></mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>X</mml:mi><mml:mrow><mml:mi>i</mml:mi><mml:mo>,</mml:mo><mml:mi>j</mml:mi></mml:mrow></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>,</mml:mo><mml:mi>…</mml:mi><mml:mo>,</mml:mo><mml:msub><mml:mi>f</mml:mi><mml:mi>M</mml:mi></mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>X</mml:mi><mml:mrow><mml:mi>i</mml:mi><mml:mo>,</mml:mo><mml:mi>j</mml:mi></mml:mrow></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></disp-formula></p>
+  <p>where each <inline-formula><alternatives>
+  <tex-math><![CDATA[f_m]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>f</mml:mi><mml:mi>m</mml:mi></mml:msub></mml:math></alternatives></inline-formula>
+  is a time series feature extraction function (e.g. mean, variance,
+  trend, autocorrelation), and <inline-formula><alternatives>
+  <tex-math><![CDATA[M]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>M</mml:mi></mml:math></alternatives></inline-formula>
+  is the total number of extracted features.</p>
+  <p>A visual representation of this transformation is shown in Figure
+  1.</p>
+  <fig>
+    <caption><p>Feature Extraction Process</p></caption>
+    <graphic mimetype="image" mime-subtype="png" xlink:href="figures/feature%20extract.png" />
+  </fig>
+  <p>This results in a 2D design matrix of features for the entire
+  image:</p>
+  <p><disp-formula><alternatives>
+  <tex-math><![CDATA[
+  \mathbf{X}_{\text{features}} \in \mathbb{R}^{H \times W \times M}
+  ]]></tex-math>
+  <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>𝐗</mml:mi><mml:mtext mathvariant="normal">features</mml:mtext></mml:msub><mml:mo>∈</mml:mo><mml:msup><mml:mi>ℝ</mml:mi><mml:mrow><mml:mi>H</mml:mi><mml:mo>×</mml:mo><mml:mi>W</mml:mi><mml:mo>×</mml:mo><mml:mi>M</mml:mi></mml:mrow></mml:msup></mml:mrow></mml:math></alternatives></disp-formula></p>
+  <p>This transformation effectively reduces the temporal complexity
+  while preserving informative temporal patterns, enabling efficient
+  training of models or aggregation to coarser units (e.g., fields or
+  regions).</p>
+  <p>Additional static features (e.g., soil type, elevation), can be
+  concatenated:</p>
+  <p><disp-formula><alternatives>
+  <tex-math><![CDATA[
+  \vec{x}_{i,j}^\text{final} = \left[ \vec{x}_{i,j} \,|\, \vec{a}_{i,j} \right] \in \mathbb{R}^{M + U}
+  ]]></tex-math>
+  <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msubsup><mml:mover><mml:mi>x</mml:mi><mml:mo accent="true">→</mml:mo></mml:mover><mml:mrow><mml:mi>i</mml:mi><mml:mo>,</mml:mo><mml:mi>j</mml:mi></mml:mrow><mml:mtext mathvariant="normal">final</mml:mtext></mml:msubsup><mml:mo>=</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">[</mml:mo><mml:msub><mml:mover><mml:mi>x</mml:mi><mml:mo accent="true">→</mml:mo></mml:mover><mml:mrow><mml:mi>i</mml:mi><mml:mo>,</mml:mo><mml:mi>j</mml:mi></mml:mrow></mml:msub><mml:mspace width="0.167em"></mml:mspace><mml:mo stretchy="false" form="prefix">|</mml:mo><mml:mspace width="0.167em"></mml:mspace><mml:msub><mml:mover><mml:mi>a</mml:mi><mml:mo accent="true">→</mml:mo></mml:mover><mml:mrow><mml:mi>i</mml:mi><mml:mo>,</mml:mo><mml:mi>j</mml:mi></mml:mrow></mml:msub><mml:mo stretchy="true" form="postfix">]</mml:mo></mml:mrow><mml:mo>∈</mml:mo><mml:msup><mml:mi>ℝ</mml:mi><mml:mrow><mml:mi>M</mml:mi><mml:mo>+</mml:mo><mml:mi>U</mml:mi></mml:mrow></mml:msup></mml:mrow></mml:math></alternatives></disp-formula></p>
+  <p>where <inline-formula><alternatives>
+  <tex-math><![CDATA[\vec{a}_{i,j} \in \mathbb{R}^U]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mover><mml:mi>a</mml:mi><mml:mo accent="true">→</mml:mo></mml:mover><mml:mrow><mml:mi>i</mml:mi><mml:mo>,</mml:mo><mml:mi>j</mml:mi></mml:mrow></mml:msub><mml:mo>∈</mml:mo><mml:msup><mml:mi>ℝ</mml:mi><mml:mi>U</mml:mi></mml:msup></mml:mrow></mml:math></alternatives></inline-formula>
+  represents the <inline-formula><alternatives>
+  <tex-math><![CDATA[U]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>U</mml:mi></mml:math></alternatives></inline-formula>
+  univariate attributes at pixel <inline-formula><alternatives>
+  <tex-math><![CDATA[(i, j)]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>i</mml:mi><mml:mo>,</mml:mo><mml:mi>j</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:math></alternatives></inline-formula>.</p>
+  <sec id="time-series-feature-set">
+    <title>Time Series Feature Set</title>
+    <p>The
+    <ext-link ext-link-type="uri" xlink:href="https://mmann1123.github.io/xr_fresh/feature_calculator_series.html">documentation</ext-link>
+    summarizes the suite of time series features extracted by the
+    <monospace>xr_fresh</monospace> module from gridded data. These
+    features are designed to characterize the temporal behavior of each
+    pixel <inline-formula><alternatives>
+    <tex-math><![CDATA[(x_i, y_j)]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>x</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mo>,</mml:mo><mml:msub><mml:mi>y</mml:mi><mml:mi>j</mml:mi></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:math></alternatives></inline-formula>.
+    By including a diverse set of statistical, trend and
+    distribution-based metrics, <monospace>xr_fresh</monospace> enables
+    a detailed and scalable analysis of temporal patterns
+    (<xref alt="Jin et al., 2022" rid="ref-jin2022automated" ref-type="bibr">Jin
+    et al., 2022</xref>;
+    <xref alt="Venkatachalam et al., 2024" rid="ref-venkatachalam2024temporal" ref-type="bibr">Venkatachalam
+    et al., 2024</xref>). Additional features can be added to the
+    library as needed, and users can also define custom feature
+    extraction functions.</p>
+  </sec>
+  <sec id="interpolation">
+    <title>Interpolation</title>
+    <p>The <monospace>xr_fresh</monospace> library includes
+    functionality to interpolate missing values pixel-wise in gridded
+    data. The interpolation methods implemented in
+    <monospace>xr_fresh</monospace> are designed to be computationally
+    efficient and can handle large datasets effectively. The module
+    supports advanced interpolation techniques including linear,
+    nearest-neighbor, cubic, and univariate spline interpolation
+    (<xref alt="Virtanen et al., 2020" rid="ref-virtanen2020scipy" ref-type="bibr">Virtanen
+    et al., 2020</xref>).</p>
+    <p>Formally, for a fixed pixel <inline-formula><alternatives>
+    <tex-math><![CDATA[(i, j)]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>i</mml:mi><mml:mo>,</mml:mo><mml:mi>j</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:math></alternatives></inline-formula>,
+    let the time series be:</p>
+    <p><disp-formula><alternatives>
+    <tex-math><![CDATA[
+    X_{i,j} = (x_{i,j,1}, x_{i,j,2}, \ldots, x_{i,j,T})
+    ]]></tex-math>
+    <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>X</mml:mi><mml:mrow><mml:mi>i</mml:mi><mml:mo>,</mml:mo><mml:mi>j</mml:mi></mml:mrow></mml:msub><mml:mo>=</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msub><mml:mi>x</mml:mi><mml:mrow><mml:mi>i</mml:mi><mml:mo>,</mml:mo><mml:mi>j</mml:mi><mml:mo>,</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:msub><mml:mo>,</mml:mo><mml:msub><mml:mi>x</mml:mi><mml:mrow><mml:mi>i</mml:mi><mml:mo>,</mml:mo><mml:mi>j</mml:mi><mml:mo>,</mml:mo><mml:mn>2</mml:mn></mml:mrow></mml:msub><mml:mo>,</mml:mo><mml:mi>…</mml:mi><mml:mo>,</mml:mo><mml:msub><mml:mi>x</mml:mi><mml:mrow><mml:mi>i</mml:mi><mml:mo>,</mml:mo><mml:mi>j</mml:mi><mml:mo>,</mml:mo><mml:mi>T</mml:mi></mml:mrow></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></disp-formula></p>
+    <p>where some <inline-formula><alternatives>
+    <tex-math><![CDATA[x_{i,j,t}]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>x</mml:mi><mml:mrow><mml:mi>i</mml:mi><mml:mo>,</mml:mo><mml:mi>j</mml:mi><mml:mo>,</mml:mo><mml:mi>t</mml:mi></mml:mrow></mml:msub></mml:math></alternatives></inline-formula>
+    may be missing due to clouds or sensor gaps. The interpolation
+    estimates these missing values by fitting a function
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[f(t)]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>f</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>t</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>
+    to the observed time steps <inline-formula><alternatives>
+    <tex-math><![CDATA[\{t_k \in [1, T] \mid x_{i,j,t_k} \text{ is observed} \}]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mo stretchy="false" form="prefix">{</mml:mo><mml:msub><mml:mi>t</mml:mi><mml:mi>k</mml:mi></mml:msub><mml:mo>∈</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">[</mml:mo><mml:mn>1</mml:mn><mml:mo>,</mml:mo><mml:mi>T</mml:mi><mml:mo stretchy="true" form="postfix">]</mml:mo></mml:mrow><mml:mo>∣</mml:mo><mml:msub><mml:mi>x</mml:mi><mml:mrow><mml:mi>i</mml:mi><mml:mo>,</mml:mo><mml:mi>j</mml:mi><mml:mo>,</mml:mo><mml:msub><mml:mi>t</mml:mi><mml:mi>k</mml:mi></mml:msub></mml:mrow></mml:msub><mml:mrow><mml:mspace width="0.333em"></mml:mspace><mml:mtext mathvariant="normal"> is observed</mml:mtext></mml:mrow><mml:mo stretchy="false" form="postfix">}</mml:mo></mml:mrow></mml:math></alternatives></inline-formula>.
+    The interpolated value at time <inline-formula><alternatives>
+    <tex-math><![CDATA[t]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>t</mml:mi></mml:math></alternatives></inline-formula>
+    is:</p>
+    <p><disp-formula><alternatives>
+    <tex-math><![CDATA[
+    \hat{x}_{i,j,t} = f(t), \quad \text{for } x_{i,j,t} \text{ missing}
+    ]]></tex-math>
+    <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mover><mml:mi>x</mml:mi><mml:mo accent="true">̂</mml:mo></mml:mover><mml:mrow><mml:mi>i</mml:mi><mml:mo>,</mml:mo><mml:mi>j</mml:mi><mml:mo>,</mml:mo><mml:mi>t</mml:mi></mml:mrow></mml:msub><mml:mo>=</mml:mo><mml:mi>f</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>t</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>,</mml:mo><mml:mspace width="1.0em"></mml:mspace><mml:mrow><mml:mtext mathvariant="normal">for </mml:mtext><mml:mspace width="0.333em"></mml:mspace></mml:mrow><mml:msub><mml:mi>x</mml:mi><mml:mrow><mml:mi>i</mml:mi><mml:mo>,</mml:mo><mml:mi>j</mml:mi><mml:mo>,</mml:mo><mml:mi>t</mml:mi></mml:mrow></mml:msub><mml:mrow><mml:mspace width="0.333em"></mml:mspace><mml:mtext mathvariant="normal"> missing</mml:mtext></mml:mrow></mml:mrow></mml:math></alternatives></disp-formula></p>
+    <p>The function <inline-formula><alternatives>
+    <tex-math><![CDATA[f(t)]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>f</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>t</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>
+    may take the form of: 1) linear interpolation, 2) nearest neighbor,
+    3) cubic spline interpolation, or 4) univariate spline
+    interpolation. If acquisition times are irregular, the time
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[t]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>t</mml:mi></mml:math></alternatives></inline-formula>
+    is replaced by a datetime indexes.</p>
+  </sec>
+  <sec id="dimensionality-reduction">
+    <title>Dimensionality Reduction</title>
+    <p>For high-dimensional inputs or when the number of bands/time
+    steps is large, dimensionality reduction can improve model
+    performance. <monospace>xr_fresh</monospace> integrates a
+    GPU/CPU-parallelized Kernel Principal Component Analysis (KPCA)
+    module
+    (<xref alt="Pedregosa et al., 2011" rid="ref-scikit-learn" ref-type="bibr">Pedregosa
+    et al., 2011</xref>). The KPCA implementation samples valid
+    observations for training, fits the kernel model, and projects each
+    pixel’s time series into a lower-dimensional space.</p>
+  </sec>
+</sec>
+<sec id="software-framework">
+  <title>Software Framework</title>
+  <p><monospace>xr_fresh</monospace> achieves scalability by employing a
+  combination of parallel and distributed computing strategies. During
+  feature extraction, functions are applied in parallel across spatial
+  windows with Dask and xarray, which provide lazy evaluation, chunked
+  computation
+  (<xref alt="Graesser &amp; Mann, 2025" rid="ref-geowombat" ref-type="bibr">Graesser
+  &amp; Mann, 2025</xref>;
+  <xref alt="Hoyer &amp; Hamman, 2017" rid="ref-hoyer2017xarray" ref-type="bibr">Hoyer
+  &amp; Hamman, 2017</xref>;
+  <xref alt="Rocklin, 2015" rid="ref-rocklin2015dask" ref-type="bibr">Rocklin,
+  2015</xref>). Seamlessly integrated into the parallel pipeline and can
+  leverage accelerated libraries like JAX, NumPy, ray, numba or PyTorch
+  for additional speedup
+  (<xref alt="Bradbury et al., 2018" rid="ref-jax2018github" ref-type="bibr">Bradbury
+  et al., 2018</xref>;
+  <xref alt="Harris et al., 2020" rid="ref-harris2020array" ref-type="bibr">Harris
+  et al., 2020</xref>;
+  <xref alt="Lam et al., 2015" rid="ref-lam2015numba" ref-type="bibr">Lam
+  et al., 2015</xref>;
+  <xref alt="Moritz et al., 2018" rid="ref-moritz2018ray" ref-type="bibr">Moritz
+  et al., 2018</xref>). Together, these strategies ensure that methods
+  are highly scalable, for use on large-scale datasets.</p>
+</sec>
+<sec id="example-precipitation-in-africa">
+  <title>Example: Precipitation In Africa</title>
+  <p>We apply <monospace>xr_fresh</monospace> methods to a dataset of
+  monthly precipitation estimates in Africa (Figure 2)
+  (<xref alt="Funk et al., 2015" rid="ref-funk2015climate" ref-type="bibr">Funk
+  et al., 2015</xref>). The goal is to extract features from the time
+  series data, enabling subsequent analysis and modeling. The
+  <monospace>extract_features_series</monospace> function takes a list
+  of files, a dictionary of desired features.</p>
+  <fig>
+    <caption><p>Precipitation input data</p></caption>
+    <graphic mimetype="image" mime-subtype="png" xlink:href="precip.png" />
+  </fig>
+  <code language="python"># create list of desired series and arguments
+feature_list = {
+    &quot;minimum&quot;: [{}],
+    &quot;abs_energy&quot;: [{}],
+    &quot;doy_of_maximum&quot;: [{&quot;dates&quot;: dates}],
+    &quot;mean_abs_change&quot;: [{}],
+    &quot;ratio_beyond_r_sigma&quot;: [{&quot;r&quot;: 1}, {&quot;r&quot;: 2}],
+    &quot;symmetry_looking&quot;: [{}],
+    &quot;sum&quot;: [{}],
+    &quot;quantile&quot;: [{&quot;q&quot;: 0.05}, {&quot;q&quot;: 0.95}],
+}
+from xr_fresh.extractors_series import extract_features_series
+
+# Extract features from the geospatial time series
+extract_features_series(image_list, feature_list, band_name, out_dir, 
+                        num_workers=12, nodata=-9999)</code>
+  <fig>
+    <caption><p>Time series feature set</p></caption>
+    <graphic mimetype="image" mime-subtype="png" xlink:href="features.png" />
+  </fig>
+  <p>The extracted features found in Figure 3 can then be used in a
+  variety of applications.</p>
+</sec>
+<sec id="conclusions">
+  <title>Conclusions</title>
+  <p><monospace>xr_fresh</monospace> is a powerful and efficient tool
+  for automated feature extraction from gridded time series. Using
+  advanced statistical methods and parallel computing, it enables the
+  extraction of a comprehensive set of features that can significantly
+  enhance the performance of machine learning models. Integration with
+  existing Python geospatial libraries ensures that
+  <monospace>xr_fresh</monospace> is easy to use and can be seamlessly
+  incorporated into existing machine learning workflows. It also
+  provides advanced interpolation and dimensionality reduction
+  capabilities, addressing common challenges in remote sensing data
+  analysis.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <title></title>
+  <ref id="ref-CHRIST201872">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Christ</surname><given-names>Maximilian</given-names></name>
+        <name><surname>Braun</surname><given-names>Nils</given-names></name>
+        <name><surname>Neuffer</surname><given-names>Julius</given-names></name>
+        <name><surname>Kempa-Liehr</surname><given-names>Andreas W.</given-names></name>
+      </person-group>
+      <article-title>Time series FeatuRe extraction on basis of scalable hypothesis tests (tsfresh – a python package)</article-title>
+      <source>Neurocomputing</source>
+      <year iso-8601-date="2018">2018</year>
+      <volume>307</volume>
+      <issn>0925-2312</issn>
+      <uri>https://www.sciencedirect.com/science/article/pii/S0925231218304843</uri>
+      <pub-id pub-id-type="doi">10.1016/j.neucom.2018.03.067</pub-id>
+      <fpage>72</fpage>
+      <lpage>77</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-delince2017handbook">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Delince</surname><given-names>J</given-names></name>
+        <name><surname>Lemoine</surname><given-names>G</given-names></name>
+        <name><surname>Defourny</surname><given-names>P</given-names></name>
+        <name><surname>Gallego</surname><given-names>J</given-names></name>
+        <name><surname>Davidson</surname><given-names>A</given-names></name>
+        <name><surname>Ray</surname><given-names>S</given-names></name>
+        <name><surname>Rojas</surname><given-names>O</given-names></name>
+        <name><surname>Latham</surname><given-names>J</given-names></name>
+        <name><surname>Achard</surname><given-names>F</given-names></name>
+      </person-group>
+      <article-title>Handbook on remote sensing for agricultural statistics</article-title>
+      <source>GSARS: Rome, Italy</source>
+      <year iso-8601-date="2017">2017</year>
+      <pub-id pub-id-type="doi">10.13140/RG.2.2.13259.69920</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-faouzi2022time">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Faouzi</surname><given-names>Johann</given-names></name>
+      </person-group>
+      <article-title>Time series classification: A review of algorithms and implementations</article-title>
+      <source>Machine Learning (Emerging Trends and Applications)</source>
+      <year iso-8601-date="2022">2022</year>
+      <pub-id pub-id-type="doi">10.5772/intechopen.1004810</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-funk2015climate">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Funk</surname><given-names>Chris</given-names></name>
+        <name><surname>Peterson</surname><given-names>Pete</given-names></name>
+        <name><surname>Landsfeld</surname><given-names>Martin</given-names></name>
+        <name><surname>Pedreros</surname><given-names>Diego</given-names></name>
+        <name><surname>Verdin</surname><given-names>James</given-names></name>
+        <name><surname>Shukla</surname><given-names>Shraddhanand</given-names></name>
+        <name><surname>Husak</surname><given-names>Gregory</given-names></name>
+        <name><surname>Rowland</surname><given-names>James</given-names></name>
+        <name><surname>Harrison</surname><given-names>Laura</given-names></name>
+        <name><surname>Hoell</surname><given-names>Andrew</given-names></name>
+        <name><surname>others</surname></name>
+      </person-group>
+      <article-title>The climate hazards infrared precipitation with stations—a new environmental record for monitoring extremes</article-title>
+      <source>Scientific data</source>
+      <publisher-name>Nature Publishing Group</publisher-name>
+      <year iso-8601-date="2015">2015</year>
+      <volume>2</volume>
+      <issue>1</issue>
+      <pub-id pub-id-type="doi">10.1038/sdata.2015.66</pub-id>
+      <fpage>1</fpage>
+      <lpage>21</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-hufkens2019monitoring">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Hufkens</surname><given-names>Koen</given-names></name>
+        <name><surname>Melaas</surname><given-names>Eli K</given-names></name>
+        <name><surname>Mann</surname><given-names>Michael L</given-names></name>
+        <name><surname>Foster</surname><given-names>Timothy</given-names></name>
+        <name><surname>Ceballos</surname><given-names>Francisco</given-names></name>
+        <name><surname>Robles</surname><given-names>Miguel</given-names></name>
+        <name><surname>Kramer</surname><given-names>Berber</given-names></name>
+      </person-group>
+      <article-title>Monitoring crop phenology using a smartphone based near-surface remote sensing approach</article-title>
+      <source>Agricultural and forest meteorology</source>
+      <publisher-name>Elsevier</publisher-name>
+      <year iso-8601-date="2019">2019</year>
+      <volume>265</volume>
+      <pub-id pub-id-type="doi">10.1016/j.agrformet.2018.11.002</pub-id>
+      <fpage>327</fpage>
+      <lpage>337</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-jax2018github">
+    <element-citation publication-type="software">
+      <person-group person-group-type="author">
+        <name><surname>Bradbury</surname><given-names>James</given-names></name>
+        <name><surname>Frostig</surname><given-names>Roy</given-names></name>
+        <name><surname>Hawkins</surname><given-names>Peter</given-names></name>
+        <name><surname>Johnson</surname><given-names>Matthew James</given-names></name>
+        <name><surname>Leary</surname><given-names>Chris</given-names></name>
+        <name><surname>Maclaurin</surname><given-names>Dougal</given-names></name>
+        <name><surname>Necula</surname><given-names>George</given-names></name>
+        <name><surname>Paszke</surname><given-names>Adam</given-names></name>
+        <name><surname>VanderPlas</surname><given-names>Jake</given-names></name>
+        <name><surname>Wanderman-Milne</surname><given-names>Skye</given-names></name>
+        <name><surname>Zhang</surname><given-names>Qiao</given-names></name>
+      </person-group>
+      <article-title>JAX: Composable transformations of Python+NumPy programs</article-title>
+      <year iso-8601-date="2018">2018</year>
+      <uri>http://github.com/jax-ml/jax</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-jin2022automated">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Jin</surname><given-names>Guangyin</given-names></name>
+        <name><surname>Li</surname><given-names>Fuxian</given-names></name>
+        <name><surname>Zhang</surname><given-names>Jinlei</given-names></name>
+        <name><surname>Wang</surname><given-names>Mudan</given-names></name>
+        <name><surname>Huang</surname><given-names>Jincai</given-names></name>
+      </person-group>
+      <article-title>Automated dilated spatio-temporal synchronous graph modeling for traffic prediction</article-title>
+      <source>IEEE Transactions on Intelligent Transportation Systems</source>
+      <publisher-name>IEEE</publisher-name>
+      <year iso-8601-date="2022">2022</year>
+      <volume>24</volume>
+      <issue>8</issue>
+      <pub-id pub-id-type="doi">10.1109/TITS.2022.3195232</pub-id>
+      <fpage>8820</fpage>
+      <lpage>8830</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-lam2015numba">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Lam</surname><given-names>Siu Kwan</given-names></name>
+        <name><surname>Pitrou</surname><given-names>Antoine</given-names></name>
+        <name><surname>Seibert</surname><given-names>Stanley</given-names></name>
+      </person-group>
+      <article-title>Numba: A LLVM-based python JIT compiler</article-title>
+      <source>Proceedings of the second workshop on the LLVM compiler infrastructure in HPC</source>
+      <publisher-name>Association for Computing Machinery</publisher-name>
+      <publisher-loc>New York, NY, USA</publisher-loc>
+      <year iso-8601-date="2015">2015</year>
+      <isbn>9781450340052</isbn>
+      <uri>https://doi.org/10.1145/2833157.2833162</uri>
+      <pub-id pub-id-type="doi">10.1145/2833157.2833162</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-li2020forecasting">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Li</surname><given-names>Xixi</given-names></name>
+        <name><surname>Kang</surname><given-names>Yanfei</given-names></name>
+        <name><surname>Li</surname><given-names>Feng</given-names></name>
+      </person-group>
+      <article-title>Forecasting with time series imaging</article-title>
+      <source>Expert Systems with Applications</source>
+      <publisher-name>Elsevier</publisher-name>
+      <year iso-8601-date="2020">2020</year>
+      <volume>160</volume>
+      <pub-id pub-id-type="doi">10.1016/j.eswa.2020.113680</pub-id>
+      <fpage>113680</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-MANN201760">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Mann</surname><given-names>Michael L.</given-names></name>
+        <name><surname>Warner</surname><given-names>James M.</given-names></name>
+      </person-group>
+      <article-title>Ethiopian wheat yield and yield gap estimation: A spatially explicit small area integrated data approach</article-title>
+      <source>Field Crops Research</source>
+      <year iso-8601-date="2017">2017</year>
+      <volume>201</volume>
+      <issn>0378-4290</issn>
+      <uri>https://www.sciencedirect.com/science/article/pii/S0378429016305238</uri>
+      <pub-id pub-id-type="doi">10.1016/j.fcr.2016.10.014</pub-id>
+      <fpage>60</fpage>
+      <lpage>74</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-mann2019predicting">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Mann</surname><given-names>Michael L</given-names></name>
+        <name><surname>Warner</surname><given-names>James M</given-names></name>
+        <name><surname>Malik</surname><given-names>Arun S</given-names></name>
+      </person-group>
+      <article-title>Predicting high-magnitude, low-frequency crop losses using machine learning: An application to cereal crops in ethiopia</article-title>
+      <source>Climatic change</source>
+      <publisher-name>Springer</publisher-name>
+      <year iso-8601-date="2019">2019</year>
+      <volume>154</volume>
+      <issue>1</issue>
+      <pub-id pub-id-type="doi">10.1007/s10584-019-02432-7</pub-id>
+      <fpage>211</fpage>
+      <lpage>227</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-mumuni2024automated">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Mumuni</surname><given-names>Alhassan</given-names></name>
+        <name><surname>Mumuni</surname><given-names>Fuseini</given-names></name>
+      </person-group>
+      <article-title>Automated data processing and feature engineering for deep learning and big data applications: A survey</article-title>
+      <source>Journal of Information and Intelligence</source>
+      <publisher-name>Elsevier</publisher-name>
+      <year iso-8601-date="2024">2024</year>
+      <pub-id pub-id-type="doi">10.1016/j.jiixd.2024.01.002</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-scikit-learn">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Pedregosa</surname><given-names>F.</given-names></name>
+        <name><surname>Varoquaux</surname><given-names>G.</given-names></name>
+        <name><surname>Gramfort</surname><given-names>A.</given-names></name>
+        <name><surname>Michel</surname><given-names>V.</given-names></name>
+        <name><surname>Thirion</surname><given-names>B.</given-names></name>
+        <name><surname>Grisel</surname><given-names>O.</given-names></name>
+        <name><surname>Blondel</surname><given-names>M.</given-names></name>
+        <name><surname>Prettenhofer</surname><given-names>P.</given-names></name>
+        <name><surname>Weiss</surname><given-names>R.</given-names></name>
+        <name><surname>Dubourg</surname><given-names>V.</given-names></name>
+        <name><surname>Vanderplas</surname><given-names>J.</given-names></name>
+        <name><surname>Passos</surname><given-names>A.</given-names></name>
+        <name><surname>Cournapeau</surname><given-names>D.</given-names></name>
+        <name><surname>Brucher</surname><given-names>M.</given-names></name>
+        <name><surname>Perrot</surname><given-names>M.</given-names></name>
+        <name><surname>Duchesnay</surname><given-names>E.</given-names></name>
+      </person-group>
+      <article-title>Scikit-learn: Machine learning in Python</article-title>
+      <source>Journal of Machine Learning Research</source>
+      <year iso-8601-date="2011">2011</year>
+      <volume>12</volume>
+      <uri>https://dl.acm.org/doi/10.5555/1953048.2078195</uri>
+      <fpage>2825</fpage>
+      <lpage>2830</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-geowombat">
+    <element-citation publication-type="software">
+      <person-group person-group-type="author">
+        <name><surname>Graesser</surname><given-names>Jordan</given-names></name>
+        <name><surname>Mann</surname><given-names>Michael</given-names></name>
+      </person-group>
+      <article-title>GeoWombat (v2.1.22): Utilities for geospatial data</article-title>
+      <publisher-name>Zenodo</publisher-name>
+      <year iso-8601-date="2025-05">2025</year><month>05</month>
+      <uri>https://doi.org/10.5281/zenodo.15483823</uri>
+      <pub-id pub-id-type="doi">10.5281/zenodo.15483823</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-hoyer2017xarray">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Hoyer</surname><given-names>S.</given-names></name>
+        <name><surname>Hamman</surname><given-names>J.</given-names></name>
+      </person-group>
+      <article-title>Xarray: N-D labeled arrays and datasets in Python</article-title>
+      <source>J. Open Res. Software</source>
+      <year iso-8601-date="2017">2017</year>
+      <pub-id pub-id-type="doi">10.5334/jors.148</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-virtanen2020scipy">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Virtanen</surname><given-names>Pauli</given-names></name>
+        <name><surname>Gommers</surname><given-names>Ralf</given-names></name>
+        <name><surname>Oliphant</surname><given-names>Travis E</given-names></name>
+        <name><surname>Haberland</surname><given-names>Matt</given-names></name>
+        <name><surname>Reddy</surname><given-names>Tyler</given-names></name>
+        <name><surname>Cournapeau</surname><given-names>David</given-names></name>
+        <name><surname>Burovski</surname><given-names>Evgeni</given-names></name>
+        <name><surname>Peterson</surname><given-names>Pearu</given-names></name>
+        <name><surname>Weckesser</surname><given-names>Warren</given-names></name>
+        <name><surname>Bright</surname><given-names>Jonathan</given-names></name>
+        <name><surname>others</surname></name>
+      </person-group>
+      <article-title>SciPy 1.0: Fundamental algorithms for scientific computing in python</article-title>
+      <source>Nature methods</source>
+      <publisher-name>Nature Publishing Group US New York</publisher-name>
+      <year iso-8601-date="2020">2020</year>
+      <volume>17</volume>
+      <issue>3</issue>
+      <pub-id pub-id-type="doi">10.1038/s41592-019-0686-2</pub-id>
+      <fpage>261</fpage>
+      <lpage>272</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-harris2020array">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Harris</surname><given-names>Charles R.</given-names></name>
+        <name><surname>Millman</surname><given-names>K. Jarrod</given-names></name>
+        <name><surname>Walt</surname><given-names>Stéfan J. van der</given-names></name>
+        <name><surname>Gommers</surname><given-names>Ralf</given-names></name>
+        <name><surname>Virtanen</surname><given-names>Pauli</given-names></name>
+        <name><surname>Cournapeau</surname><given-names>David</given-names></name>
+        <name><surname>Wieser</surname><given-names>Eric</given-names></name>
+        <name><surname>Taylor</surname><given-names>Julian</given-names></name>
+        <name><surname>Berg</surname><given-names>Sebastian</given-names></name>
+        <name><surname>Smith</surname><given-names>Nathaniel J.</given-names></name>
+        <name><surname>Kern</surname><given-names>Robert</given-names></name>
+        <name><surname>Picus</surname><given-names>Matti</given-names></name>
+        <name><surname>Hoyer</surname><given-names>Stephan</given-names></name>
+        <name><surname>Kerkwijk</surname><given-names>Marten H. van</given-names></name>
+        <name><surname>Brett</surname><given-names>Matthew</given-names></name>
+        <name><surname>Haldane</surname><given-names>Allan</given-names></name>
+        <name><surname>Río</surname><given-names>Jaime Fernández del</given-names></name>
+        <name><surname>Wiebe</surname><given-names>Mark</given-names></name>
+        <name><surname>Peterson</surname><given-names>Pearu</given-names></name>
+        <name><surname>Gérard-Marchant</surname><given-names>Pierre</given-names></name>
+        <name><surname>Sheppard</surname><given-names>Kevin</given-names></name>
+        <name><surname>Reddy</surname><given-names>Tyler</given-names></name>
+        <name><surname>Weckesser</surname><given-names>Warren</given-names></name>
+        <name><surname>Abbasi</surname><given-names>Hameer</given-names></name>
+        <name><surname>Gohlke</surname><given-names>Christoph</given-names></name>
+        <name><surname>Oliphant</surname><given-names>Travis E.</given-names></name>
+      </person-group>
+      <article-title>Array programming with NumPy</article-title>
+      <source>Nature</source>
+      <year iso-8601-date="2020">2020</year>
+      <volume>585</volume>
+      <uri>https://www.nature.com/articles/s41586-020-2649-2</uri>
+      <pub-id pub-id-type="doi">10.1038/s41586-020-2649-2</pub-id>
+      <fpage>357</fpage>
+      <lpage>362</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-rocklin2015dask">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Rocklin</surname><given-names>Matthew</given-names></name>
+      </person-group>
+      <article-title>Dask: Parallel computation with blocked algorithms and task scheduling</article-title>
+      <source>Proceedings of the 14th python in science conference</source>
+      <year iso-8601-date="2015">2015</year>
+      <uri>https://dask.org/</uri>
+      <pub-id pub-id-type="doi">10.25080/Majora-7b98e3ed-013</pub-id>
+      <fpage>130</fpage>
+      <lpage>136</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-moritz2018ray">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Moritz</surname><given-names>Philipp</given-names></name>
+        <name><surname>Nishihara</surname><given-names>Robert</given-names></name>
+        <name><surname>Wang</surname><given-names>Stephanie</given-names></name>
+        <name><surname>Tumanov</surname><given-names>Alexey</given-names></name>
+        <name><surname>Liaw</surname><given-names>Richard</given-names></name>
+        <name><surname>Liang</surname><given-names>Eric</given-names></name>
+        <name><surname>Elibol</surname><given-names>Melih</given-names></name>
+        <name><surname>Yang</surname><given-names>Zongheng</given-names></name>
+        <name><surname>Paul</surname><given-names>William</given-names></name>
+        <name><surname>Jordan</surname><given-names>Michael I.</given-names></name>
+        <name><surname>Stoica</surname><given-names>Ion</given-names></name>
+      </person-group>
+      <article-title>Ray: A distributed framework for emerging AI applications</article-title>
+      <source>13th USENIX symposium on operating systems design and implementation (OSDI 18)</source>
+      <publisher-name>USENIX Association</publisher-name>
+      <publisher-loc>Carlsbad, CA</publisher-loc>
+      <year iso-8601-date="2018">2018</year>
+      <isbn>978-1-939133-08-3</isbn>
+      <uri>https://www.usenix.org/conference/osdi18/presentation/moritz</uri>
+      <pub-id pub-id-type="doi">10.48550/arXiv.1712.05889</pub-id>
+      <fpage>561</fpage>
+      <lpage>577</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-venkatachalam2024temporal">
+    <element-citation publication-type="manuscript">
+      <person-group person-group-type="author">
+        <name><surname>Venkatachalam</surname><given-names>Sairam</given-names></name>
+        <name><surname>Kacha</surname><given-names>Disha</given-names></name>
+        <name><surname>Sheth</surname><given-names>Devarsh</given-names></name>
+        <name><surname>Mann</surname><given-names>Michael</given-names></name>
+        <name><surname>Jafari</surname><given-names>Amir</given-names></name>
+      </person-group>
+      <article-title>Temporal patterns and pixel precision: Satellite-based crop classification using deep learning and machine learning</article-title>
+      <publisher-name>George Washington University, Department of Geography &amp; Environment; Data Science Program</publisher-name>
+      <year iso-8601-date="2024">2024</year>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
