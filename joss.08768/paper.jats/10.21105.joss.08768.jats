@@ -1,0 +1,1052 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">8768</article-id>
+<article-id pub-id-type="doi">10.21105/joss.08768</article-id>
+<title-group>
+<article-title>automesh: Automatic mesh generation in
+Rust</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author" equal-contrib="yes">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0003-0915-5765</contrib-id>
+<name>
+<surname>Hovey</surname>
+<given-names>Chad B.</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<contrib contrib-type="author" equal-contrib="yes">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0003-1892-0502</contrib-id>
+<name>
+<surname>Buche</surname>
+<given-names>Michael R.</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Sandia National Laboratories, United States</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2025-04-30">
+<day>30</day>
+<month>4</month>
+<year>2025</year>
+</pub-date>
+<volume>10</volume>
+<issue>114</issue>
+<fpage>8768</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2025</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>Rust</kwd>
+<kwd>segmentation</kwd>
+<kwd>computational geometry</kwd>
+<kwd>finite element mesh</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p><monospace>automesh</monospace> is an open-source Rust software
+  program that uses a <bold>segmentation</bold>, typically generated
+  from a 3D image stack, to create a finite element <bold>mesh</bold>,
+  composed either of hexahedral (volumetric) or triangular (isosurface)
+  elements. <monospace>automesh</monospace> <bold>converts</bold>
+  between segmentation formats (<monospace>.npy</monospace>,
+  <monospace>.spn</monospace>) and mesh formats
+  (<monospace>.exo</monospace>, <monospace>.inp</monospace>,
+  <monospace>.mesh</monospace>, <monospace>.stl</monospace>,
+  <monospace>.vtk</monospace>). <monospace>automesh</monospace> can
+  <bold>defeature</bold> voxel domains, apply Laplacian and Taubin
+  <bold>smoothing</bold>, and output mesh quality <bold>metrics</bold>.
+  <monospace>automesh</monospace> uses an internal octree for fast
+  performance.</p>
+</sec>
+<sec id="introduction">
+  <title>Introduction</title>
+  <p>Computed Tomography (CT), Magnetic Resonance Imaging (MRI), and
+  other similar imaging modalities that stack a sequence of 2D digital
+  images (composed of pixels) to create a 3D voxel (volumetric)
+  representation of a subject have revolutionized the fields of
+  engineering and medicine by providing non-invasive and non-destructive
+  insights into the internal structures of complex systems.</p>
+  <list list-type="bullet">
+    <list-item>
+      <p>In the medical field, 3D voxel data sets are instrumental for
+      visualizing internal organs and soft tissues, facilitating
+      accurate diagnoses and enhancing surgical planning.</p>
+    </list-item>
+    <list-item>
+      <p>In dentistry, they play a vital role in jaw surgery and the
+      placement of dental implants.</p>
+    </list-item>
+    <list-item>
+      <p>Biomedical engineering benefits include fit and integrity of
+      surgical implants and prosthetic devices.</p>
+    </list-item>
+    <list-item>
+      <p>In biomechanical engineering, the human digital twin can be
+      used in injury risk prediction in environments not suited for
+      human surrogate models; for example, automotive barrier crash
+      testing and military environments that have blast and ballistic
+      exposure.</p>
+    </list-item>
+    <list-item>
+      <p>In materials engineering, 3D imaging is employed to analyze the
+      internal structures of materials, enabling the detection of voids,
+      inclusions, and defects.</p>
+    </list-item>
+    <list-item>
+      <p>Aerospace engineering utilizes these techniques to inspect
+      critical components, such as turbine blades, ensuring their
+      structural integrity.</p>
+    </list-item>
+    <list-item>
+      <p>Civil and geotechnical engineering applications include imaging
+      voids, rebar, and anomalies in concrete structures, as well as
+      characterizing subsurface geology through seismic reflection and
+      refraction.</p>
+    </list-item>
+    <list-item>
+      <p>Petroleum engineering applications include characterization of
+      reservoir rocks and fluids, providing insights into porosity and
+      permeability.</p>
+    </list-item>
+  </list>
+  <p>This compendium of applications underscores the versatility and
+  significance of 3D voxel data sets derived from CT and MRI as a
+  fundamental ingredient of model development for patient-specific,
+  site-specific, or as-built geometry. This concept is referred to as a
+  <italic>digital twin</italic>. The geometric aspects of a digital twin
+  involve image processing,<xref ref-type="fn" rid="fn1">1</xref> and in
+  particular, segmentation.</p>
+  <p>Segmentation is the process of classifying each voxel in a data set
+  as belonging to a specific class within the geometric domain,
+  typically as a unique material, air, or void. We use a segmented 3D
+  voxel data set as our start point. We seek to transform the voxel set
+  into a finite element mesh suitable for numerical analysis, our end
+  point.</p>
+  <p>The most direct way to undertake this conversion is to create a
+  one-to-one map from voxel to hexahedral element. This rudimentary
+  approach, while attractive due to its effectiveness and simplicity,
+  can result in billions to trillions of elements that can overwhelm
+  current-day solvers, create massive input/output bottlenecks, and
+  result in excessive consumption of digital storage resources.</p>
+  <p>To achieve a more tractable number of elements, on the order of
+  millions, <bold>downsampling</bold> of the original image data can be
+  used to decrease the effective resolution, resulting in fewer voxels.
+  Additionally, <bold>adaptivity</bold> of the finite element mesh,
+  allowing non-uniform element sizes to span several length scales, can
+  be used.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of Need</title>
+  <p>Our endeavor to create a finite element mesh suitable for analysis
+  from a segmentation has ten specific requirements. These requirements
+  arise from the unique character of our mission space, collaborators,
+  and sponsors. The first requirement comes from our start point. The
+  next five requirements stem from our end point. The remaining four
+  requirements follow from the workflow, converting a segmentation into
+  a mesh.</p>
+  <p>We list each of these requirements below:</p>
+  <list list-type="order">
+    <list-item>
+      <label>(1)</label>
+      <p><bold>Segmentation start point.</bold> Many finite element mesh
+      applications use geometric primitives (e.g., tessellations) or
+      analytical geometry (e.g., splines, NURBS, isosurfaces) as a start
+      point. In contrast, our start point is a segmentation composed of
+      a 3D stack of voxels.</p>
+    </list-item>
+    <list-item>
+      <label>(2)</label>
+      <p><bold>All-hex mesh.</bold> While tetrahedral finite elements
+      offer excellent adaptivity characteristics, hexahedral finite
+      elements offer superior performance characteristics. Moreover,
+      higher-order tetrahedral elements, such as the 10-noded composite
+      formulation, can result in a very large number of degrees of
+      freedom, potentially overwhelming solver and serialization
+      capabilities. In contrast, 8-noded hexahedral elements provide an
+      economy of degrees of freedom and can be underintegrated to offer
+      excellent performance with incompressible materials, so long as
+      hourglass energy modes are monitored and controlled.</p>
+    </list-item>
+    <list-item>
+      <label>(3)</label>
+      <p><bold>Multi-material.</bold> The mesh must be able to
+      accommodate numerous materials throughout the domain. For example,
+      mesh generation for microstructures that have prolific grain
+      boundaries must be handled.</p>
+    </list-item>
+    <list-item>
+      <label>(4)</label>
+      <p><bold>Multi-scale.</bold> The characteristic length scale of
+      the features we seek to resolve can be significantly smaller than
+      the length scales of the overall domain. Mesh adaptivity can be
+      helpful to reconcile these differences of scale.</p>
+    </list-item>
+    <list-item>
+      <label>(5)</label>
+      <p><bold>Quality.</bold> Elements must retain sufficient quality
+      to ensure use with numerical computation. Common quality metrics
+      include minimum scaled Jacobian, skew, edge ratio, and minimum
+      angle. Poor element quality can lead to inaccurate results and
+      convergence issues.</p>
+    </list-item>
+    <list-item>
+      <label>(6)</label>
+      <p><bold>Input/Output Format.</bold> The segmentation input format
+      must support both NumPy
+      (<xref alt="NumPy Developers, 2025" rid="ref-numpy_format" ref-type="bibr">NumPy
+      Developers, 2025</xref>) and SPN
+      (<xref alt="Sandia National Laboratories, 2025" rid="ref-cubit_sandia" ref-type="bibr">Sandia
+      National Laboratories, 2025</xref>). The mesh output must support
+      both ExodusII
+      (<xref alt="Schoof &amp; Yarberry, 1994" rid="ref-schoof1994exodus" ref-type="bibr">Schoof
+      &amp; Yarberry, 1994</xref>) and ABAQUS
+      (<xref alt="Dassault Systèmes, 2025" rid="ref-simulia_abaqus" ref-type="bibr">Dassault
+      Systèmes, 2025</xref>).</p>
+    </list-item>
+    <list-item>
+      <label>(7)</label>
+      <p><bold>Automated.</bold> Creating finite element meshes from
+      image stacks can be a time-consuming task, often representing the
+      biggest bottleneck in an analyst’s workflow. The workflow from
+      segmentation to mesh should be completely automated, without the
+      need for human intervention.</p>
+    </list-item>
+    <list-item>
+      <label>(8)</label>
+      <p><bold>Fast.</bold> The program must be as fast or faster than
+      other available mesh generation software.</p>
+    </list-item>
+    <list-item>
+      <label>(9)</label>
+      <p><bold>Open-source.</bold> All the source code must be freely
+      available as open-source software.</p>
+    </list-item>
+    <list-item>
+      <label>(10)</label>
+      <p><bold>Professional.</bold> The application source code must
+      reside on GitHub, Gitlab, or an equivalent platform, have a
+      comprehensive test suite to assure quality and reproducibility,
+      use continuous integration and continuous delivery principles
+      (CI/CD), and be supported by the authors.</p>
+    </list-item>
+  </list>
+</sec>
+<sec id="existing-art">
+  <title>Existing Art</title>
+  <p>While there are many applications suitable for creation of finite
+  element meshes, we found none that could meet all of our
+  requirements.</p>
+  <p>Commercial (closed-source) applications such as Altair HyperMesh
+  (<xref alt="Altair Engineering, Inc., 2025" rid="ref-altair_hypermesh" ref-type="bibr">Altair
+  Engineering, Inc., 2025</xref>), ANSYS Meshing
+  (<xref alt="ANSYS, Inc., 2025" rid="ref-ansys_meshing" ref-type="bibr">ANSYS,
+  Inc., 2025</xref>), COMSOL Multiphysics
+  (<xref alt="COMSOL, Inc., 2025" rid="ref-comsol_multiphysics" ref-type="bibr">COMSOL,
+  Inc., 2025</xref>), Cubit
+  (<xref alt="Sandia National Laboratories, 2025" rid="ref-cubit_sandia" ref-type="bibr">Sandia
+  National Laboratories, 2025</xref>), Gridgen
+  (<xref alt="Pointwise, Inc., 2025" rid="ref-gridgen_pointwise" ref-type="bibr">Pointwise,
+  Inc., 2025</xref>), Hexotic
+  (<xref alt="INRIA Gamma Team, 2023" rid="ref-hexotic" ref-type="bibr">INRIA
+  Gamma Team, 2023</xref>;
+  <xref alt="Maréchal, 2009" rid="ref-marechal2009advances" ref-type="bibr">Maréchal,
+  2009</xref>,
+  <xref alt="2016" rid="ref-marechal2016all" ref-type="bibr">2016</xref>),
+  Sculpt
+  (<xref alt="Owen et al., 2014" rid="ref-owen2014parallel" ref-type="bibr">Owen
+  et al., 2014</xref>;
+  <xref alt="Owen &amp; Shelton, 2014" rid="ref-owen2014validation" ref-type="bibr">Owen
+  &amp; Shelton, 2014</xref>), Siemens Simcenter
+  (<xref alt="Siemens AG, 2025" rid="ref-siemens_simcenter" ref-type="bibr">Siemens
+  AG, 2025</xref>), and TrueGrid
+  (<xref alt="TrueGrid, 2025" rid="ref-truegrid" ref-type="bibr">TrueGrid,
+  2025</xref>) were not suitable due to our open-source requirement.</p>
+  <p>While existing open-source software packages provide valuable
+  features for finite element mesh generation, they often lack one or
+  more of our specific requirements, particularly in terms of
+  segmentation input, all-hex meshing, and comprehensive input/output
+  format support. We found specific limitations as follows:</p>
+  <list list-type="bullet">
+    <list-item>
+      <p>cinolib supports all-hex meshing, but it does not support
+      NumPy, SPN, ExodusII, and ABAQUS file types
+      (<xref alt="Livesu, 2019" rid="ref-livesu2019cinolib" ref-type="bibr">Livesu,
+      2019</xref>). Additionally, for meshing cases that rely on integer
+      linear programming
+      (<xref alt="Pitzalis et al., 2021" rid="ref-pitzalis2021generalized" ref-type="bibr">Pitzalis
+      et al., 2021</xref>), cinolib depends on Gurobi, which is
+      closed-source, commercial software
+      (<xref alt="Gurobi Optimization, LLC, 2025" rid="ref-gurobi" ref-type="bibr">Gurobi
+      Optimization, LLC, 2025</xref>).</p>
+    </list-item>
+  </list>
+  <list list-type="bullet">
+    <list-item>
+      <p>FEniCS supports segmentation, but does not create an all-hex
+      only mesh. It does not support SPN and ABAQUS file types
+      (<xref alt="FEniCS Project Developers, 2025" rid="ref-fenics" ref-type="bibr">FEniCS
+      Project Developers, 2025</xref>).</p>
+    </list-item>
+    <list-item>
+      <p>FreeFEM supports segmentation, but primarily focuses on
+      geometric primitives. It does not support all-hex meshing. It does
+      not support NumPy or SPN input formats. It can output to ExodusII
+      but not to ABAQUS
+      (<xref alt="FreeFEM Developers, 2025" rid="ref-freefem" ref-type="bibr">FreeFEM
+      Developers, 2025</xref>).</p>
+    </list-item>
+    <list-item>
+      <p>GetFEM++ supports segmentation, but does not produce a mesh
+      that is all-hex. It does not have NumPy or SPN support. It
+      supports ExodusII but not ABAQUS outputs
+      (<xref alt="GetFEM Developers, 2025" rid="ref-getfem" ref-type="bibr">GetFEM
+      Developers, 2025</xref>).</p>
+    </list-item>
+    <list-item>
+      <p>GMSH primarily uses geometric primitives, with limited support
+      for voxel-based segmentation. It supports all-hex meshing, but not
+      exclusively. It lacks direct NumPy and SPN input formats. It can
+      output to ExodusII but not to ABAQUS
+      (<xref alt="GMSH Developers, 2025" rid="ref-gmshtool" ref-type="bibr">GMSH
+      Developers, 2025</xref>).</p>
+    </list-item>
+    <list-item>
+      <p>MeshLab supports segmentation, but not all-hex meshing. It has
+      limited multi-material support and no mesh adaptivity. It does not
+      support NumPy, SPN, ExodusII, and ABAQUS file types
+      (<xref alt="ISTI-CNR, 2025" rid="ref-meshlab" ref-type="bibr">ISTI-CNR,
+      2025</xref>).</p>
+    </list-item>
+    <list-item>
+      <p>NETGEN is an automatic tetrahedral mesh generator. It supports
+      neither segmentation input nor all-hex mesh generation. It does
+      not support NumPy and SPN file types
+      (<xref alt="Netgen Developers, 2025" rid="ref-netgen" ref-type="bibr">Netgen
+      Developers, 2025</xref>).</p>
+    </list-item>
+    <list-item>
+      <p>OpenFOAM primarily uses geometric definitions, has limited
+      voxel support, and does not support exclusively all-hex meshing.
+      It does not support NumPy, SPN, and ABAQUS file types.
+      (<xref alt="OpenFOAM Foundation, 2025" rid="ref-openfoam" ref-type="bibr">OpenFOAM
+      Foundation, 2025</xref>).</p>
+    </list-item>
+    <list-item>
+      <p>TetGen primarily works with geometric input, such as points,
+      edges, and faces, and creates tetrahedral elements. It supports
+      neither segmentation input nor all-hex mesh generation. It does
+      not support NumPy, SPN, and ExodusII file types
+      (<xref alt="Si, 2025" rid="ref-tetgen" ref-type="bibr">Si,
+      2025</xref>).</p>
+    </list-item>
+  </list>
+</sec>
+<sec id="features-and-implementation">
+  <title>Features and Implementation</title>
+  <p><monospace>automesh</monospace> is available for download from
+  <ext-link ext-link-type="uri" xlink:href="https://crates.io/crates/automesh">crates.io</ext-link>,
+  the official package registry for the Rust programming language. A
+  Python interface is also available from
+  <ext-link ext-link-type="uri" xlink:href="https://pypi.org/project/automesh/">PyPI</ext-link>.
+  The
+  <ext-link ext-link-type="uri" xlink:href="https://autotwin.github.io/automesh/">User
+  Guide</ext-link> introduces the segmentation-to-mesh workflow, covers
+  software installation, and contains examples based on unit tests and
+  larger analysis sets. Source code can be obtained from
+  <ext-link ext-link-type="uri" xlink:href="https://github.com/autotwin/automesh">GitHub</ext-link>
+  (<xref alt="Hovey &amp; Buche, 2025" rid="ref-automesh" ref-type="bibr">Hovey
+  &amp; Buche, 2025</xref>).</p>
+  <p>One significant attribute of <monospace>automesh</monospace> is its
+  implementation in Rust, a modern programming language known for its
+  performance and memory safety. Rust’s ownership model prevents common
+  programming errors such as null pointer dereferencing and buffer
+  overflows, ensuring that <monospace>automesh</monospace> operates
+  reliably and securely. Furthermore, Rust’s zero-cost abstractions
+  allow <monospace>automesh</monospace> to deliver high performance
+  without sacrificing code readability or maintainability. The
+  language’s strong type system and concurrency features also enhance
+  the robustness, making it well-suited for handling complex
+  computational tasks efficiently
+  (<xref alt="Klabnik &amp; Nichols, 2019" rid="ref-rust_programming_language" ref-type="bibr">Klabnik
+  &amp; Nichols, 2019</xref>).</p>
+  <p><monospace>automesh</monospace> is used via its command line
+  interface. <monospace>automesh</monospace> directly converts voxels
+  classified by a non-negative integer in the segmentation input file
+  into a hexahedral finite element mesh. Segmented classes can be
+  arbitrarily eliminated from the resultant mesh. For example, air or
+  void surrounding a subject, often segmented with integer
+  <monospace>0</monospace>, can be eliminated, which can significantly
+  reduce the resultant mesh size and complexity.</p>
+  <p><bold>Defeaturing</bold> is accomplished by specifying a voxel
+  threshold. A cluster of voxels, defined as two or more voxels that
+  share a face (edge and node sharing do not constitute a cluster) with
+  count at or above the threshold will be preserved, whereas a cluster
+  of voxels with a count below the threshold will be eliminated through
+  resorption into the surrounding material. Figure 1 shows an example of
+  a mesh before and after defeaturing.</p>
+  <fig>
+    <caption><p>Example of defeaturing: (left) mesh prior to
+    defeaturing, (right) mesh after defeaturing.</p></caption>
+    <graphic mimetype="image" mime-subtype="png" xlink:href="blob_defeatured_iso2_high_res.png" />
+  </fig>
+  <p><monospace>automesh</monospace> provides both Laplace
+  (<xref alt="Sorkine, 2005" rid="ref-sorkine2005laplacian" ref-type="bibr">Sorkine,
+  2005</xref>) and Taubin
+  (<xref alt="Taubin, 1995" rid="ref-taubin1995signal" ref-type="bibr">Taubin,
+  1995</xref>) formulations for mesh <bold>smoothing</bold>, with
+  optional hierarchical control. Hierarchical control classifies all
+  nodes as prescribed, boundary, or interior. With hierarchical control,
+  the updated (smoothed) position of a boundary node is influenced only
+  by prescribed nodes and other boundary nodes; whereas, the updated
+  position of an interior node is influenced by all types of nodes
+  (prescribed, boundary, and interior). Smoothing with hierarchical
+  control can help maintain domain boundaries better than smoothing
+  alone
+  (<xref alt="Chen &amp; Ostoja-Starzewski, 2010" rid="ref-chen2010mri" ref-type="bibr">Chen
+  &amp; Ostoja-Starzewski, 2010</xref>).</p>
+  <p>Figure 2 shows <monospace>automesh</monospace> results of Taubin
+  smoothing on an all-hexahedral mesh in the shape of a sphere (green)
+  with a concentric shell (yellow). Similar to the original
+  demonstration of Taubin smoothing on a tessellation
+  (<xref alt="Taubin, 1995" rid="ref-taubin1995signal" ref-type="bibr">Taubin,
+  1995</xref>), we apply Taubin smoothing to a hexahedral domain, with
+  noise added to the <inline-formula><alternatives>
+  <tex-math><![CDATA[x > 0]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>x</mml:mi><mml:mo>&gt;</mml:mo><mml:mn>0</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>
+  hemisphere.</p>
+  <fig>
+    <caption><p>Example of Taubin smoothing applied to a volume mesh:
+    (top left) isometric view of mesh with noised
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[x > 0]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>x</mml:mi><mml:mo>&gt;</mml:mo><mml:mn>0</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>
+    hemisphere, (top right) noised domain with cut plane, (bottom left)
+    smoothed mesh after 200 iterations, (bottom right) smoothed mesh
+    with cut plane.</p></caption>
+    <graphic mimetype="image" mime-subtype="png" xlink:href="taubin_composite.png" />
+  </fig>
+  <p>Unlike Laplace smoothing, which drastically reduces volume, Taubin
+  smoothing nearly preserves volumes. For the example in Figure 2,
+  Laplace reduced the volume by 16% in 10 iterations; whereas, Taubin
+  increased the volume by 1% in 200 iterations, while effectively
+  smoothing. With Taubin, the noise in the
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[x > 0]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>x</mml:mi><mml:mo>&gt;</mml:mo><mml:mn>0</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>
+  hemisphere was removed, with a very small volumetric change. The
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[x < 0]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>x</mml:mi><mml:mo>&lt;</mml:mo><mml:mn>0</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>
+  hemisphere did not degrade from its original configuration. Notice the
+  smoothing capability of <monospace>automesh</monospace> is available
+  for any <monospace>.inp</monospace> or <monospace>.stl</monospace>
+  input format, regardless of whether the mesh originated from a
+  segmentation.</p>
+  <p>Surface reconstruction of a 3D, all-triangular mesh
+  <bold>isosurface</bold> can also be created from a segmentation.
+  Figure 3 shows a two-material laser weld segmentation, composed of
+  approximately 6.7 million voxels
+  (<xref alt="Karlson et al., 2023" rid="ref-karlson2023toward" ref-type="bibr">Karlson
+  et al., 2023</xref>;
+  <xref alt="Polonsky et al., 2023" rid="ref-polonsky2023toward" ref-type="bibr">Polonsky
+  et al., 2023</xref>). The workflow used defeaturing and smoothing to
+  create an <monospace>.stl</monospace> isosurface output composed of
+  762,396 facets.</p>
+  <fig>
+    <caption><p>Surface reconstruction of a real weld: (top) isosurface
+    mesh generated from a CT segmentation, (bottom) example of voxel
+    domain (left) used to generate a smooth isosurface
+    (right).</p></caption>
+    <graphic mimetype="image" mime-subtype="png" xlink:href="weld_composite.png" />
+  </fig>
+  <p><monospace>automesh</monospace> uses an <bold>octree</bold> for
+  efficient performance
+  (<xref alt="Meagher, 1980" rid="ref-meagher1980" ref-type="bibr">Meagher,
+  1980</xref>). The octree serves as an adaptive segmentation, which
+  accelerates defeaturing. Our current implementation requires the
+  octree to be strongly balanced, not weakly balanced.</p>
+  <p>Octree balancing refers to how much neighboring cells can differ in
+  their level of refinement and the type of adjacency (face, edge,
+  vertex) that is considered
+  (<xref alt="Livesu et al., 2021" rid="ref-livesu2021optimal" ref-type="bibr">Livesu
+  et al., 2021</xref>):</p>
+  <list list-type="bullet">
+    <list-item>
+      <p>A <bold>strongly balanced</bold> octree requires neighboring
+      cells that share a face, edge, or vertex to differ by no more than
+      one level of refinement.</p>
+    </list-item>
+    <list-item>
+      <p>A <bold>weakly balanced</bold> octree requires neighboring
+      cells that share a face to differ by no more than one level of
+      refinement, while edge and vertex neighbors may differ by more
+      than one level of refinement.</p>
+    </list-item>
+  </list>
+  <p>The top two items of Figure 4 show a visualization in HexaLab
+  (<xref alt="Bracci et al., 2019" rid="ref-bracci2019hexalab" ref-type="bibr">Bracci
+  et al., 2019</xref>) of an <monospace>automesh</monospace> octree
+  composing a spherical domain. The cut plane on the right item exposes
+  the octree adaptivity. Four levels of cell refinement are present.</p>
+  <p>The bottom two items of Figure 4 show application of
+  <monospace>automesh</monospace> to a large problem, illustrating the
+  importance of the octree implementation. The micro CT segmentation
+  input is composed of one billion voxels, representable in an octree
+  with only 10 million cells. Five million of those octree cells are
+  removable void. With this 200<inline-formula><alternatives>
+  <tex-math><![CDATA[\times]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>×</mml:mi></mml:math></alternatives></inline-formula>
+  reduction, only 36 seconds is required to create the mesh.</p>
+  <fig>
+    <caption><p>Application of the <monospace>automesh</monospace>
+    octree: (top left) octree mesh of a spherical domain, (top right)
+    cut plane through the domain to expose the adaptivity of the octree,
+    (bottom left), sagittal view of a micro CT of a spinal unit,
+    courtesy of
+    (<xref alt="Nicolella et al., 2025" rid="ref-nicolella2025" ref-type="bibr">Nicolella
+    et al., 2025</xref>) (used with permission) with segmentation IDs
+    <monospace>0</monospace> through <monospace>8</monospace>, (bottom
+    right) axial view of <monospace>automesh</monospace> octree, used to
+    create a finite element mesh from the segmentation.</p></caption>
+    <graphic mimetype="image" mime-subtype="png" xlink:href="spine_composite.png" />
+  </fig>
+  <sec id="conclusion">
+    <title>Conclusion</title>
+    <p><monospace>automesh</monospace> presents a robust solution for
+    automatic mesh generation from segmentation data, bridging the gap
+    between 3D imaging modalities and finite element analysis. By
+    leveraging defeaturing, smoothing, and an efficient octree
+    structure, <monospace>automesh</monospace> not only enhances the
+    quality of the generated meshes but also significantly reduces
+    computational overhead. Its ability to handle multiple input and
+    output formats, including support for both hexahedral and triangular
+    elements, makes it versatile for various applications across
+    engineering and biomedical fields. The integration of automated
+    workflows ensures that users can efficiently convert complex voxel
+    data into high-quality meshes without manual intervention.</p>
+  </sec>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>This work was supported by the Office of Naval Research
+  (Dr. Timothy Bentley) under grant N0001424IP00025.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <title></title>
+  <ref id="ref-altair_hypermesh">
+    <element-citation>
+      <person-group person-group-type="author">
+        <string-name>Altair Engineering, Inc.</string-name>
+      </person-group>
+      <article-title>Altair HyperMesh</article-title>
+      <year iso-8601-date="2025">2025</year>
+      <uri>https://www.altair.com/hypermesh/</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-ansys_meshing">
+    <element-citation>
+      <person-group person-group-type="author">
+        <string-name>ANSYS, Inc.</string-name>
+      </person-group>
+      <article-title>ANSYS meshing</article-title>
+      <year iso-8601-date="2025">2025</year>
+      <uri>https://www.ansys.com/products/meshing/ansys-meshing</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-automesh">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Hovey</surname><given-names>Chad B.</given-names></name>
+        <name><surname>Buche</surname><given-names>Michael R.</given-names></name>
+      </person-group>
+      <article-title>Automesh: A rust crate for automatic mesh generation</article-title>
+      <year iso-8601-date="2025">2025</year>
+      <uri>https://crates.io/crates/automesh</uri>
+      <pub-id pub-id-type="doi">10.5281/zenodo.15328507</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-chen2010mri">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Chen</surname><given-names>Ying</given-names></name>
+        <name><surname>Ostoja-Starzewski</surname><given-names>Martin</given-names></name>
+      </person-group>
+      <article-title>MRI-based finite element modeling of head trauma: Spherically focusing shear waves</article-title>
+      <source>Acta mechanica</source>
+      <publisher-name>Springer</publisher-name>
+      <year iso-8601-date="2010">2010</year>
+      <volume>213</volume>
+      <issue>1</issue>
+      <pub-id pub-id-type="doi">10.1007/s00707-009-0274-0</pub-id>
+      <fpage>155</fpage>
+      <lpage>167</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-bracci2019hexalab">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Bracci</surname><given-names>Matteo</given-names></name>
+        <name><surname>Tarini</surname><given-names>Marco</given-names></name>
+        <name><surname>Pietroni</surname><given-names>Nico</given-names></name>
+        <name><surname>Livesu</surname><given-names>Marco</given-names></name>
+        <name><surname>Cignoni</surname><given-names>Paolo</given-names></name>
+      </person-group>
+      <article-title>HexaLab.net: An online viewer for hexahedral meshes</article-title>
+      <source>Computer-Aided Design</source>
+      <publisher-name>Elsevier</publisher-name>
+      <year iso-8601-date="2019">2019</year>
+      <volume>110</volume>
+      <pub-id pub-id-type="doi">10.1016/j.cad.2018.12.003</pub-id>
+      <fpage>24</fpage>
+      <lpage>36</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-comsol_multiphysics">
+    <element-citation>
+      <person-group person-group-type="author">
+        <string-name>COMSOL, Inc.</string-name>
+      </person-group>
+      <article-title>COMSOL multiphysics</article-title>
+      <year iso-8601-date="2025">2025</year>
+      <uri>https://www.comsol.com/comsol-multiphysics</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-cubit_sandia">
+    <element-citation>
+      <person-group person-group-type="author">
+        <string-name>Sandia National Laboratories</string-name>
+      </person-group>
+      <article-title>CUBIT: A 3D mesh generation tool</article-title>
+      <year iso-8601-date="2025">2025</year>
+      <uri>https://cubit.sandia.gov</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-fenics">
+    <element-citation>
+      <person-group person-group-type="author">
+        <string-name>FEniCS Project Developers</string-name>
+      </person-group>
+      <article-title>FEniCS project</article-title>
+      <year iso-8601-date="2025">2025</year>
+      <uri>https://fenicsproject.org/</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-freefem">
+    <element-citation>
+      <person-group person-group-type="author">
+        <string-name>FreeFEM Developers</string-name>
+      </person-group>
+      <article-title>FreeFEM</article-title>
+      <year iso-8601-date="2025">2025</year>
+      <uri>https://freefem.org/</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-getfem">
+    <element-citation>
+      <person-group person-group-type="author">
+        <string-name>GetFEM Developers</string-name>
+      </person-group>
+      <article-title>GetFEM++</article-title>
+      <year iso-8601-date="2025">2025</year>
+      <uri>http://getfem.org/</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-gmshtool">
+    <element-citation>
+      <person-group person-group-type="author">
+        <string-name>GMSH Developers</string-name>
+      </person-group>
+      <article-title>GMSH</article-title>
+      <year iso-8601-date="2025">2025</year>
+      <uri>http://gmsh.info/</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-gridgen_pointwise">
+    <element-citation>
+      <person-group person-group-type="author">
+        <string-name>Pointwise, Inc.</string-name>
+      </person-group>
+      <article-title>Gridgen</article-title>
+      <year iso-8601-date="2025">2025</year>
+      <uri>https://www.pointwise.com/</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-gurobi">
+    <element-citation>
+      <person-group person-group-type="author">
+        <string-name>Gurobi Optimization, LLC</string-name>
+      </person-group>
+      <article-title>Gurobi optimizer</article-title>
+      <year iso-8601-date="2025">2025</year>
+      <uri>https://www.gurobi.com/</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-hexotic">
+    <element-citation>
+      <person-group person-group-type="author">
+        <string-name>INRIA Gamma Team</string-name>
+      </person-group>
+      <article-title>Hexotic: A software for hexahedral mesh generation</article-title>
+      <year iso-8601-date="2023">2023</year>
+      <uri>https://team.inria.fr/gamma/gamma-software/hexotic/</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-karlson2023toward">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Karlson</surname><given-names>Kyle N</given-names></name>
+        <name><surname>Skulborstad</surname><given-names>Alyssa J</given-names></name>
+        <name><surname>Madison</surname><given-names>Jonathan D</given-names></name>
+        <name><surname>Polonsky</surname><given-names>Andrew T</given-names></name>
+        <name><surname>Jin</surname><given-names>Helena</given-names></name>
+        <name><surname>Jones</surname><given-names>Amanda</given-names></name>
+        <name><surname>Sanborn</surname><given-names>Brett</given-names></name>
+        <name><surname>Kramer</surname><given-names>Sharlotte LB</given-names></name>
+        <name><surname>Antoun</surname><given-names>Bonnie R</given-names></name>
+        <name><surname>Lu</surname><given-names>Wei-Yang</given-names></name>
+      </person-group>
+      <article-title>Toward accurate prediction of partial-penetration laser weld performance informed by three-dimensional characterization–part II: \muCT based finite element simulations</article-title>
+      <source>Tomography of Materials and Structures</source>
+      <publisher-name>Elsevier</publisher-name>
+      <year iso-8601-date="2023">2023</year>
+      <volume>2</volume>
+      <pub-id pub-id-type="doi">10.1016/j.tmater.2023.100007</pub-id>
+      <fpage>100007</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-livesu2019cinolib">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Livesu</surname><given-names>Marco</given-names></name>
+      </person-group>
+      <article-title>Cinolib: A generic programming header only c++ library for processing polygonal and polyhedral meshes</article-title>
+      <source>Transactions on Computational Science XXXIV</source>
+      <publisher-name>Springer</publisher-name>
+      <year iso-8601-date="2019">2019</year>
+      <uri>https://github.com/mlivesu/cinolib/</uri>
+      <pub-id pub-id-type="doi">10.1007/978-3-662-59958-7_4</pub-id>
+      <fpage>64</fpage>
+      <lpage>76</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-livesu2021optimal">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Livesu</surname><given-names>Marco</given-names></name>
+        <name><surname>Pitzalis</surname><given-names>Luca</given-names></name>
+        <name><surname>Cherchi</surname><given-names>Gianmarco</given-names></name>
+      </person-group>
+      <article-title>Optimal dual schemes for adaptive grid based hexmeshing</article-title>
+      <source>ACM Transactions on Graphics</source>
+      <year iso-8601-date="2021">2021</year>
+      <pub-id pub-id-type="doi">10.1145/3494456</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-marechal2009advances">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Maréchal</surname><given-names>Loı̈c</given-names></name>
+      </person-group>
+      <article-title>Advances in octree-based all-hexahedral mesh generation: Handling sharp features</article-title>
+      <source>Proceedings of the 18th international meshing roundtable</source>
+      <publisher-name>Springer</publisher-name>
+      <year iso-8601-date="2009">2009</year>
+      <pub-id pub-id-type="doi">10.1007/978-3-642-04319-2_5</pub-id>
+      <fpage>65</fpage>
+      <lpage>84</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-marechal2016all">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Maréchal</surname><given-names>Loı̈c</given-names></name>
+      </person-group>
+      <article-title>All hexahedral boundary layers generation</article-title>
+      <source>Procedia engineering</source>
+      <publisher-name>Elsevier</publisher-name>
+      <year iso-8601-date="2016">2016</year>
+      <volume>163</volume>
+      <pub-id pub-id-type="doi">10.1016/j.proeng.2016.11.007</pub-id>
+      <fpage>5</fpage>
+      <lpage>19</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-meagher1980">
+    <element-citation publication-type="report">
+      <person-group person-group-type="author">
+        <name><surname>Meagher</surname><given-names>D. J.</given-names></name>
+      </person-group>
+      <article-title>Octree encoding: A new technique for the representation, manipulation and display of arbitrary 3-d objects by computer</article-title>
+      <publisher-name>Rensselaer Polytechnic Institute</publisher-name>
+      <year iso-8601-date="1980-10">1980</year><month>10</month>
+    </element-citation>
+  </ref>
+  <ref id="ref-meshlab">
+    <element-citation>
+      <person-group person-group-type="author">
+        <string-name>ISTI-CNR</string-name>
+      </person-group>
+      <article-title>MeshLab</article-title>
+      <year iso-8601-date="2025">2025</year>
+      <uri>https://www.meshlab.net/</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-netgen">
+    <element-citation>
+      <person-group person-group-type="author">
+        <string-name>Netgen Developers</string-name>
+      </person-group>
+      <article-title>Netgen: A 3D delaunay tetrahedral mesh generator</article-title>
+      <year iso-8601-date="2025">2025</year>
+      <uri>https://ngsolve.org/</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-nicolella2025">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Nicolella</surname><given-names>D. P.</given-names></name>
+        <name><surname>Shaffer</surname><given-names>S. K.</given-names></name>
+        <name><surname>Frazer</surname><given-names>L. L.</given-names></name>
+        <name><surname>Pant</surname><given-names>A. D.</given-names></name>
+        <name><surname>Kote</surname><given-names>V. B.</given-names></name>
+      </person-group>
+      <article-title>I-PREDICT</article-title>
+      <publisher-name>MTEC</publisher-name>
+      <year iso-8601-date="2025">2025</year>
+    </element-citation>
+  </ref>
+  <ref id="ref-numpy_format">
+    <element-citation>
+      <person-group person-group-type="author">
+        <string-name>NumPy Developers</string-name>
+      </person-group>
+      <article-title>Numpy.lib.format, NumPy v1.24 manual</article-title>
+      <year iso-8601-date="2025">2025</year>
+      <uri>https://numpy.org/doc/stable/reference/generated/numpy.lib.format.html</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-openfoam">
+    <element-citation>
+      <person-group person-group-type="author">
+        <string-name>OpenFOAM Foundation</string-name>
+      </person-group>
+      <article-title>OpenFOAM</article-title>
+      <year iso-8601-date="2025">2025</year>
+      <uri>https://www.openfoam.com/</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-owen2014parallel">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Owen</surname><given-names>Steven J</given-names></name>
+        <name><surname>Staten</surname><given-names>Matthew L</given-names></name>
+        <name><surname>Sorensen</surname><given-names>Marguerite C</given-names></name>
+      </person-group>
+      <article-title>Parallel hexahedral meshing from volume fractions</article-title>
+      <source>Engineering with Computers</source>
+      <publisher-name>Springer</publisher-name>
+      <year iso-8601-date="2014">2014</year>
+      <volume>30</volume>
+      <pub-id pub-id-type="doi">10.1007/s00366-012-0292-8</pub-id>
+      <fpage>301</fpage>
+      <lpage>313</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-owen2014validation">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Owen</surname><given-names>Steven J</given-names></name>
+        <name><surname>Shelton</surname><given-names>Tim R</given-names></name>
+      </person-group>
+      <article-title>Validation of grid-based hex meshes with computational solid mechanics</article-title>
+      <source>Proceedings of the 22nd international meshing roundtable</source>
+      <publisher-name>Springer</publisher-name>
+      <year iso-8601-date="2014">2014</year>
+      <pub-id pub-id-type="doi">10.1007/978-3-319-02335-9_3</pub-id>
+      <fpage>39</fpage>
+      <lpage>56</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-pitzalis2021generalized">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Pitzalis</surname><given-names>Luca</given-names></name>
+        <name><surname>Livesu</surname><given-names>Marco</given-names></name>
+        <name><surname>Cherchi</surname><given-names>Gianmarco</given-names></name>
+        <name><surname>Gobbetti</surname><given-names>Enrico</given-names></name>
+        <name><surname>Scateni</surname><given-names>Riccardo</given-names></name>
+      </person-group>
+      <article-title>Generalized adaptive refinement for grid-based hexahedral meshing</article-title>
+      <source>ACM Transactions on Graphics (TOG)</source>
+      <publisher-name>ACM New York, NY, USA</publisher-name>
+      <year iso-8601-date="2021">2021</year>
+      <volume>40</volume>
+      <issue>6</issue>
+      <pub-id pub-id-type="doi">10.1145/3478513.3480508</pub-id>
+      <fpage>1</fpage>
+      <lpage>13</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-polonsky2023toward">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Polonsky</surname><given-names>Andrew T</given-names></name>
+        <name><surname>Madison</surname><given-names>Jonathan D</given-names></name>
+        <name><surname>Arnhart</surname><given-names>Mary</given-names></name>
+        <name><surname>Jin</surname><given-names>Helena</given-names></name>
+        <name><surname>Karlson</surname><given-names>Kyle N</given-names></name>
+        <name><surname>Skulborstad</surname><given-names>Alyssa J</given-names></name>
+        <name><surname>Foulk</surname><given-names>James W</given-names></name>
+        <name><surname>Murawski</surname><given-names>Scott G</given-names></name>
+      </person-group>
+      <article-title>Toward accurate prediction of partial-penetration laser weld performance informed by three-dimensional characterization–part i: High fidelity interrogation</article-title>
+      <source>Tomography of Materials and Structures</source>
+      <publisher-name>Elsevier</publisher-name>
+      <year iso-8601-date="2023">2023</year>
+      <volume>2</volume>
+      <pub-id pub-id-type="doi">10.1016/j.tmater.2023.100006</pub-id>
+      <fpage>100006</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-rust_programming_language">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Klabnik</surname><given-names>Steve</given-names></name>
+        <name><surname>Nichols</surname><given-names>Carol</given-names></name>
+      </person-group>
+      <article-title>The rust programming language</article-title>
+      <publisher-name>No Starch Press</publisher-name>
+      <year iso-8601-date="2019">2019</year>
+      <uri>https://doc.rust-lang.org/book/</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-schoof1994exodus">
+    <element-citation publication-type="report">
+      <person-group person-group-type="author">
+        <name><surname>Schoof</surname><given-names>Larry A</given-names></name>
+        <name><surname>Yarberry</surname><given-names>Victor R</given-names></name>
+      </person-group>
+      <article-title>EXODUS II: A finite element data model</article-title>
+      <publisher-name>Sandia National Lab.(SNL-NM), Albuquerque, NM (United States)</publisher-name>
+      <year iso-8601-date="1994">1994</year>
+      <pub-id pub-id-type="doi">10.2172/10102115</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-siemens_simcenter">
+    <element-citation>
+      <person-group person-group-type="author">
+        <string-name>Siemens AG</string-name>
+      </person-group>
+      <article-title>Siemens simcenter</article-title>
+      <year iso-8601-date="2025">2025</year>
+      <uri>https://www.plm.automation.siemens.com/global/en/products/simcenter/</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-simulia_abaqus">
+    <element-citation>
+      <person-group person-group-type="author">
+        <string-name>Dassault Systèmes</string-name>
+      </person-group>
+      <article-title>Abaqus</article-title>
+      <year iso-8601-date="2025">2025</year>
+      <uri>https://www.3ds.com/products/simulia/abaqus</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-sorkine2005laplacian">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Sorkine</surname><given-names>Olga</given-names></name>
+      </person-group>
+      <article-title>Laplacian mesh processing</article-title>
+      <source>Eurographics (State of the Art Reports)</source>
+      <year iso-8601-date="2005">2005</year>
+      <volume>4</volume>
+      <issue>4</issue>
+      <fpage>1</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-taubin1995signal">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Taubin</surname><given-names>Gabriel</given-names></name>
+      </person-group>
+      <article-title>A signal processing approach to fair surface design</article-title>
+      <source>Proceedings of the 22nd annual conference on computer graphics and interactive techniques</source>
+      <year iso-8601-date="1995">1995</year>
+      <pub-id pub-id-type="doi">10.1145/3596711.3596724</pub-id>
+      <fpage>351</fpage>
+      <lpage>358</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-tetgen">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Si</surname><given-names>H.</given-names></name>
+      </person-group>
+      <article-title>TetGen: A delaunay-based quality tetrahedral mesh generator</article-title>
+      <year iso-8601-date="2025">2025</year>
+      <uri>https://wias-berlin.de/software/index.jsp?id=TetGen&amp;lang=1</uri>
+      <pub-id pub-id-type="doi">10.1145/2629697</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-truegrid">
+    <element-citation>
+      <person-group person-group-type="author">
+        <string-name>TrueGrid</string-name>
+      </person-group>
+      <article-title>TrueGrid: Finite element mesh generation software</article-title>
+      <year iso-8601-date="2025">2025</year>
+      <uri>http://www.truegrid.com</uri>
+    </element-citation>
+  </ref>
+</ref-list>
+<fn-group>
+  <fn id="fn1">
+    <label>1</label><p>Image processing subtopics can include
+    acquisition details (exposure time, magnification, resolution),
+    pre-processing (calibration, distortion control, noise reduction),
+    stitching (feature detection, feature matching, homography
+    estimation, warping, blending), baseline correction (background
+    subtraction, normalization) and post-processing (image enhancement,
+    downscaling, and segmentation).</p>
+  </fn>
+</fn-group>
+</back>
+</article>
