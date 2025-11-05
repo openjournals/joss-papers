@@ -1,0 +1,515 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">9234</article-id>
+<article-id pub-id-type="doi">10.21105/joss.09234</article-id>
+<title-group>
+<article-title>GlobalSearch-rs: A multistart framework for global
+optimization written in Rust</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0009-0007-9834-7924</contrib-id>
+<name>
+<surname>Heim</surname>
+<given-names>Germán Martín</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+<xref ref-type="aff" rid="aff-2"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Universidad Nacional del Sur, Department of Chemical
+Engineering, Bahía Blanca, Buenos Aires, Argentina</institution>
+<institution-id institution-id-type="ROR">028crwz56</institution-id>
+</institution-wrap>
+</aff>
+<aff id="aff-2">
+<institution-wrap>
+<institution>The Dow Chemical Company, Bahía Blanca, Buenos Aires,
+Argentina</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2025-09-26">
+<day>26</day>
+<month>9</month>
+<year>2025</year>
+</pub-date>
+<volume>10</volume>
+<issue>115</issue>
+<fpage>9234</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2025</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>Rust</kwd>
+<kwd>Python</kwd>
+<kwd>optimization</kwd>
+<kwd>numerical methods</kwd>
+<kwd>NLPs</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p><monospace>GlobalSearch-rs</monospace> is an open-source global
+  optimization library written in Rust that implements a multistart
+  optimization strategy. It is based on the
+  <monospace>OptQuest/NLP (OQNLP)</monospace> algorithm, combining
+  scatter search metaheuristics with local nonlinear programming (NLP)
+  solvers. The software is designed to solve nonlinear global
+  optimization problems by leveraging Rust’s built-in guarantees for
+  safe and efficient parallel computing. Additionally,
+  <monospace>GlobalSearch-rs</monospace> provides Python bindings,
+  allowing seamless integration with Python-based workflows, making it a
+  versatile tool for working in scientific computing and data-driven
+  optimization tasks. This library provides an alternative to
+  proprietary solutions like MATLAB’s
+  <monospace>GlobalSearch</monospace>, offering a high-performance,
+  open-source alternative accessible to the scientific and engineering
+  communities.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p>Global optimization is a fundamental problem in engineering,
+  physics, and applied mathematics, where objective functions often
+  exhibit multiple local minima. The existing
+  <monospace>OQNLP</monospace> algorithm
+  (<xref alt="Ugray et al., 2007" rid="ref-ugray" ref-type="bibr">Ugray
+  et al., 2007</xref>) effectively balances exploration (broad
+  exploration of the search space) and exploitation (local refinement of
+  promising regions) by employing a multi-start strategy with scatter
+  search and local optimization.</p>
+  <p>Building on these algorithmic advances, practical software
+  implementations have become essential for researchers and engineers.
+  MATLAB’s <monospace>GlobalSearch</monospace>, for example, has been
+  widely adopted, with applications ranging from airfoil design
+  optimization
+  (<xref alt="Liu et al., 2022" rid="ref-airfoil" ref-type="bibr">Liu et
+  al., 2022</xref>) to kinetic mechanism analysis of polyurethane
+  decomposition
+  (<xref alt="Chen et al., 2021" rid="ref-kinetics" ref-type="bibr">Chen
+  et al., 2021</xref>). However, despite its popularity, to the best of
+  our knowledge, no actively maintained open-source alternative that
+  implements the <monospace>OQNLP</monospace> algorithm currently
+  exists. The only open-source implementation,
+  <monospace>MEIGO</monospace>
+  (<xref alt="Egea et al., 2014" rid="ref-meigo" ref-type="bibr">Egea et
+  al., 2014</xref>), is still written in MATLAB, a proprietary language,
+  limiting accessibility.</p>
+  <p>Several high-quality open-source optimization libraries are
+  available, such as <monospace>NLopt</monospace>
+  (<xref alt="Johnson, 2007" rid="ref-nlopt" ref-type="bibr">Johnson,
+  2007</xref>), which provides both Rust and Python bindings. This
+  library offers a broad collection of local and global optimization
+  algorithms. However, it does not provide an implementation of the
+  <monospace>OQNLP</monospace> algorithm specifically.</p>
+  <p><monospace>GlobalSearch-rs</monospace> addresses this gap and
+  extends its functionality with additional features designed to improve
+  practical usability. It offers a modern, high-performance
+  implementation for bound-constrained nonlinear programming (NLP)
+  problems:</p>
+  <p><disp-formula><alternatives>
+  <tex-math><![CDATA[
+  \begin{aligned}
+  \underset{x \in \mathbb{R}^n}{\text{minimize}} \quad & f(x) \\\text{s. t.} \quad & l_i \leq x_i \leq u_i, \quad i = 1, \ldots, n
+  \end{aligned}
+  ]]></tex-math>
+  <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mtable><mml:mtr><mml:mtd columnalign="right" style="text-align: right"><mml:munder><mml:mtext mathvariant="normal">minimize</mml:mtext><mml:mrow><mml:mi>x</mml:mi><mml:mo>∈</mml:mo><mml:msup><mml:mi>ℝ</mml:mi><mml:mi>n</mml:mi></mml:msup></mml:mrow></mml:munder><mml:mspace width="1.0em"></mml:mspace></mml:mtd><mml:mtd columnalign="left" style="text-align: left"><mml:mi>f</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>x</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mtd></mml:mtr><mml:mtr><mml:mtd columnalign="right" style="text-align: right"><mml:mtext mathvariant="normal">s. t.</mml:mtext><mml:mspace width="1.0em"></mml:mspace></mml:mtd><mml:mtd columnalign="left" style="text-align: left"><mml:msub><mml:mi>l</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mo>≤</mml:mo><mml:msub><mml:mi>x</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mo>≤</mml:mo><mml:msub><mml:mi>u</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mo>,</mml:mo><mml:mspace width="1.0em"></mml:mspace><mml:mi>i</mml:mi><mml:mo>=</mml:mo><mml:mn>1</mml:mn><mml:mo>,</mml:mo><mml:mi>…</mml:mi><mml:mo>,</mml:mo><mml:mi>n</mml:mi></mml:mtd></mml:mtr></mml:mtable></mml:math></alternatives></disp-formula></p>
+  <p>Developed in Rust—a free and open-source programming language—it
+  combines accessibility with performance, ensuring that researchers are
+  not limited by proprietary ecosystems. Rust’s ownership model and
+  concurrency features enable safe and efficient execution, making the
+  library suitable for high-performance computing applications, a claim
+  further supported by recent work demonstrating Rust’s advantages in
+  high-performance computing
+  (<xref alt="Sudwoj, 2020" rid="ref-eth-rust" ref-type="bibr">Sudwoj,
+  2020</xref>).</p>
+  <p><xref alt="[fig:logos]" rid="figU003Alogos">[fig:logos]</xref>
+  shows the logos of the two packages introduced in this work.</p>
+  <fig>
+    <caption><p><monospace>GlobalSearch-rs</monospace> (left) and
+    <monospace>PyGlobalSearch</monospace> (right)
+    logos.<styled-content id="figU003Alogos"></styled-content></p></caption>
+    <graphic mimetype="image" mime-subtype="png" xlink:href="./figures/logos.png" />
+  </fig>
+</sec>
+<sec id="library-features">
+  <title>Library features</title>
+  <p><monospace>GlobalSearch-rs</monospace> implements scatter search
+  metaheuristics, which balance diversification (generation of a
+  collection of diverse trial solutions) and intensification (deeper
+  search around promising areas) strategies to navigate complex
+  objective landscapes
+  (<xref alt="Laguna &amp; Martí, 2005" rid="ref-Laguna2005" ref-type="bibr">Laguna
+  &amp; Martí, 2005</xref>). By leveraging these techniques, the
+  algorithm increases the probability of locating the true global
+  minimum compared to simple local search methods, which can easily
+  become trapped in local optima. However, as with other stochastic
+  global optimization algorithms, <monospace>GlobalSearch-rs</monospace>
+  cannot guarantee that the best solution found is the true global
+  minimum. Instead, it aims to identify high-quality solutions with high
+  probability. Users can increase confidence by performing multiple
+  independent runs or using different random seeds.</p>
+  <p>The library integrates with both the <monospace>cobyla</monospace>
+  (<xref alt="Lafage, 2021" rid="ref-cobyla" ref-type="bibr">Lafage,
+  2021</xref>) and <monospace>argmin</monospace>
+  (<xref alt="Kroboth, 2017" rid="ref-argmin" ref-type="bibr">Kroboth,
+  2017</xref>) crates. These Rust-based optimization libraries provide a
+  range of local NLP solvers. Supported methods include COBYLA, LBFGS,
+  Nelder-Mead, Steepest Descent, Newton-Conjugate-Gradient and Trust
+  Region solvers, ensuring flexibility in handling different types of
+  objective functions
+  (<xref alt="Lavezzi et al., 2023" rid="ref-drones7080487" ref-type="bibr">Lavezzi
+  et al., 2023</xref>).</p>
+  <p>Parallel execution is a core feature of
+  <monospace>GlobalSearch-rs</monospace>, utilizing the
+  <monospace>Rayon</monospace> library to distribute computation across
+  multiple threads. This has the potential of significant reductions in
+  elapsed (wall-clock) time, enabling users to tackle large-scale
+  optimization problems with improved completion time compared to
+  single-threaded alternatives. To further support long-running tasks,
+  the library provides checkpointing capabilities, allowing users to
+  save and resume optimization states without restarting from
+  scratch.</p>
+  <p>As an open-source and cross-platform library,
+  <monospace>GlobalSearch-rs</monospace> is designed to be accessible to
+  researchers and engineers from various fields. The Python bindings,
+  created using <monospace>PyO3</monospace> and
+  <monospace>maturin</monospace>, enable users to leverage its
+  capabilities within Python-based numerical and data science
+  environments (e.g., <monospace>NumPy</monospace>
+  (<xref alt="Harris et al., 2020" rid="ref-numpy" ref-type="bibr">Harris
+  et al., 2020</xref>), <monospace>JAX</monospace>
+  (<xref alt="Bradbury et al., 2018" rid="ref-jax" ref-type="bibr">Bradbury
+  et al., 2018</xref>)), making it a practical choice for
+  interdisciplinary research and engineering applications.</p>
+  <p>The software is distributed under the permissive MIT license,
+  encouraging use, modification, and contribution from the community. To
+  ensure reliability and maintain quality, continuous integration
+  testing is performed via GitHub Actions, providing automated
+  validation of builds and functionality across supported platforms.</p>
+</sec>
+<sec id="example-optimizing-the-six-hump-camel-function">
+  <title>Example: Optimizing the Six-Hump Camel Function</title>
+  <p>To illustrate a concrete use case, let’s consider a common
+  benchmark problem in global optimization: the two-dimensional Six-Hump
+  Camel function. The function is defined in
+  <xref alt="Equation 1" rid="eqU003Asixhumpcamel">Equation 1</xref>. It
+  is continuous, differentiable and non-convex.</p>
+  <p><named-content id="eqU003Asixhumpcamel" content-type="equation"><disp-formula><alternatives>
+  <tex-math><![CDATA[
+  f(x) = \left(4 - 2.1 x_1^2 + \frac{x_1^4}{4} \right)x_1^2 + x_1 x_2 + (-4 +4 x_2^2)x_2^2]]></tex-math>
+  <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>f</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>x</mml:mi><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>=</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mn>4</mml:mn><mml:mo>−</mml:mo><mml:mn>2.1</mml:mn><mml:msubsup><mml:mi>x</mml:mi><mml:mn>1</mml:mn><mml:mn>2</mml:mn></mml:msubsup><mml:mo>+</mml:mo><mml:mfrac><mml:msubsup><mml:mi>x</mml:mi><mml:mn>1</mml:mn><mml:mn>4</mml:mn></mml:msubsup><mml:mn>4</mml:mn></mml:mfrac><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:msubsup><mml:mi>x</mml:mi><mml:mn>1</mml:mn><mml:mn>2</mml:mn></mml:msubsup><mml:mo>+</mml:mo><mml:msub><mml:mi>x</mml:mi><mml:mn>1</mml:mn></mml:msub><mml:msub><mml:mi>x</mml:mi><mml:mn>2</mml:mn></mml:msub><mml:mo>+</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>−</mml:mi><mml:mn>4</mml:mn><mml:mo>+</mml:mo><mml:mn>4</mml:mn><mml:msubsup><mml:mi>x</mml:mi><mml:mn>2</mml:mn><mml:mn>2</mml:mn></mml:msubsup><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:msubsup><mml:mi>x</mml:mi><mml:mn>2</mml:mn><mml:mn>2</mml:mn></mml:msubsup></mml:mrow></mml:math></alternatives></disp-formula></named-content></p>
+  <p>The function is evaluated in the domain (bounds)
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[x_1 \in [-3, 3]]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>x</mml:mi><mml:mn>1</mml:mn></mml:msub><mml:mo>∈</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">[</mml:mo><mml:mi>−</mml:mi><mml:mn>3</mml:mn><mml:mo>,</mml:mo><mml:mn>3</mml:mn><mml:mo stretchy="true" form="postfix">]</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>
+  and <inline-formula><alternatives>
+  <tex-math><![CDATA[x_2 \in [-2, 2]]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>x</mml:mi><mml:mn>2</mml:mn></mml:msub><mml:mo>∈</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">[</mml:mo><mml:mi>−</mml:mi><mml:mn>2</mml:mn><mml:mo>,</mml:mo><mml:mn>2</mml:mn><mml:mo stretchy="true" form="postfix">]</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>.
+  It has two global minima at approximately
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[\mathbf{x}^*_{\pm} \approx (\pm 0.0898, \mp 0.7126)]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msubsup><mml:mi>𝐱</mml:mi><mml:mo>±</mml:mo><mml:mo>*</mml:mo></mml:msubsup><mml:mo>≈</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>±</mml:mi><mml:mn>0.0898</mml:mn><mml:mo>,</mml:mo><mml:mi>∓</mml:mi><mml:mn>0.7126</mml:mn><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></inline-formula>
+  with a function value of <inline-formula><alternatives>
+  <tex-math><![CDATA[f(\mathbf{x}^*_{\pm}) \approx -1.0316]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>f</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:msubsup><mml:mi>𝐱</mml:mi><mml:mo>±</mml:mo><mml:mo>*</mml:mo></mml:msubsup><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>≈</mml:mo><mml:mi>−</mml:mi><mml:mn>1.0316</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>.</p>
+  <p>The <monospace>GlobalSearch-rs</monospace> algorithm solves this
+  problem in two stages. In the first stage, it explores the search
+  space by generating an initial population of candidate solutions
+  within the prescribed bounds, forming a reference set. In the second
+  stage, it performs local optimization from a subset of promising
+  points in this reference set to refine the search and converge toward
+  local (and potentially global) optima.</p>
+  <p><xref alt="[fig:ex-reference-set]" rid="figU003Aex-reference-set">[fig:ex-reference-set]</xref>
+  presents the contour plot of the Six-Hump Camel function alongside the
+  initial distribution of candidate solutions generated in stage
+  one.</p>
+  <fig>
+    <caption><p>Contour plot of the Six-Hump Camel function with initial
+    population.<styled-content id="figU003Aex-reference-set"></styled-content></p></caption>
+    <graphic mimetype="image" mime-subtype="svg+xml" xlink:href="./figures/sixhumpcamel_contour_with_initial_population.svg" />
+  </fig>
+  <p>The orange diamond marks the best candidate in the initial
+  population, used as the starting point for the first local
+  optimization.</p>
+  <p>The algorithm then enters the stage two, where it performs local
+  optimization on the selected reference set points that have been
+  identified as promising (i.e., those within the merit and distance
+  thresholds).
+  <xref alt="[fig:ex-stage-two]" rid="figU003Aex-stage-two">[fig:ex-stage-two]</xref>
+  shows the contour plot and surface of the function colored by the
+  stage two iteration number.</p>
+  <fig>
+    <caption><p>Contour plot of the Six-Hump Camel function during stage
+    two.<styled-content id="figU003Aex-stage-two"></styled-content></p></caption>
+    <graphic mimetype="image" mime-subtype="svg+xml" xlink:href="./figures/sixhumpcamel_contour_stage_two.svg" />
+  </fig>
+  <p>The algorithm successfully finds both global minima of the Six-Hump
+  Camel function.</p>
+</sec>
+<sec id="conclusion">
+  <title>Conclusion</title>
+  <p><monospace>GlobalSearch-rs</monospace> provides a robust and
+  accessible open-source framework for nonlinear global optimization. By
+  combining parallelization, flexible local solvers, and Python
+  integration, it offers a compelling alternative to proprietary tools.
+  The Rust implementation ensures efficiency and reliability, supporting
+  transparent and reproducible optimization workflows across scientific
+  and engineering domains. This tool advances the state of open-source
+  global optimization by delivering a modern and extensible solution for
+  complex problems.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <title></title>
+  <ref id="ref-ugray">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Ugray</surname><given-names>Zsolt</given-names></name>
+        <name><surname>Lasdon</surname><given-names>Leon</given-names></name>
+        <name><surname>Plummer</surname><given-names>John</given-names></name>
+        <name><surname>Glover</surname><given-names>Fred</given-names></name>
+        <name><surname>Kelly</surname><given-names>James</given-names></name>
+        <name><surname>Martı́</surname><given-names>Rafael</given-names></name>
+      </person-group>
+      <article-title>Scatter search and local NLP solvers: A multistart framework for global optimization</article-title>
+      <source>INFORMS Journal on Computing</source>
+      <year iso-8601-date="2007">2007</year>
+      <volume>19</volume>
+      <issue>3</issue>
+      <uri>https://doi.org/10.1287/ijoc.1060.0175</uri>
+      <pub-id pub-id-type="doi">10.1287/ijoc.1060.0175</pub-id>
+      <fpage>328</fpage>
+      <lpage>340</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-airfoil">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Liu</surname><given-names>Xinqiang</given-names></name>
+        <name><surname>Wei</surname><given-names>Fengmei</given-names></name>
+        <name><surname>Zhang</surname><given-names>Guanghua</given-names></name>
+      </person-group>
+      <article-title>Uncertainty optimization design of airfoil based on adaptive point adding strategy</article-title>
+      <source>Aerospace Science and Technology</source>
+      <year iso-8601-date="2022">2022</year>
+      <volume>130</volume>
+      <issn>1270-9638</issn>
+      <uri>https://www.sciencedirect.com/science/article/pii/S1270963822005491</uri>
+      <pub-id pub-id-type="doi">10.1016/j.ast.2022.107875</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-kinetics">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Chen</surname><given-names>Yangui</given-names></name>
+        <name><surname>He</surname><given-names>Hongzhou</given-names></name>
+        <name><surname>Liu</surname><given-names>Zhongqing</given-names></name>
+      </person-group>
+      <article-title>Application of the global search algorithm to analyze the kinetic mechanism of the thermal decomposition of flexible polyurethane foam</article-title>
+      <source>Progress in Reaction Kinetics and Mechanism</source>
+      <year iso-8601-date="2021">2021</year>
+      <volume>46</volume>
+      <pub-id pub-id-type="doi">10.1177/1468678320982185</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-meigo">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Egea</surname><given-names>Jose A.</given-names></name>
+        <name><surname>Henriques</surname><given-names>David</given-names></name>
+        <name><surname>Cokelaer</surname><given-names>Thomas</given-names></name>
+        <name><surname>Villaverde</surname><given-names>Alejandro F.</given-names></name>
+        <name><surname>MacNamara</surname><given-names>Aidan</given-names></name>
+        <name><surname>Danciu</surname><given-names>Diana-Patricia</given-names></name>
+        <name><surname>Banga</surname><given-names>Julio R.</given-names></name>
+        <name><surname>Saez-Rodriguez</surname><given-names>Julio</given-names></name>
+      </person-group>
+      <article-title>MEIGO: An open-source software suite based on metaheuristics for global optimization in systems biology and bioinformatics</article-title>
+      <source>BMC Bioinformatics</source>
+      <year iso-8601-date="2014-05-10">2014</year><month>05</month><day>10</day>
+      <volume>15</volume>
+      <issue>1</issue>
+      <issn>1471-2105</issn>
+      <pub-id pub-id-type="doi">10.1186/1471-2105-15-136</pub-id>
+      <fpage>136</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-eth-rust">
+    <element-citation publication-type="thesis">
+      <person-group person-group-type="author">
+        <name><surname>Sudwoj</surname><given-names>Michal</given-names></name>
+      </person-group>
+      <article-title>Rust programming language in the high-performance computing environment</article-title>
+      <year iso-8601-date="2020">2020</year>
+      <pub-id pub-id-type="doi">10.3929/ethz-b-000474922</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-drones7080487">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Lavezzi</surname><given-names>Giovanni</given-names></name>
+        <name><surname>Guye</surname><given-names>Kidus</given-names></name>
+        <name><surname>Cichella</surname><given-names>Venanzio</given-names></name>
+        <name><surname>Ciarcià</surname><given-names>Marco</given-names></name>
+      </person-group>
+      <article-title>Comparative analysis of nonlinear programming solvers: Performance evaluation, benchmarking, and multi-UAV optimal path planning</article-title>
+      <source>Drones</source>
+      <year iso-8601-date="2023">2023</year>
+      <volume>7</volume>
+      <issue>8</issue>
+      <issn>2504-446X</issn>
+      <uri>https://www.mdpi.com/2504-446X/7/8/487</uri>
+      <pub-id pub-id-type="doi">10.3390/drones7080487</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-numpy">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Harris</surname><given-names>Charles R.</given-names></name>
+        <name><surname>Millman</surname><given-names>K. Jarrod</given-names></name>
+        <name><surname>Walt</surname><given-names>Stéfan J. van der</given-names></name>
+        <name><surname>Gommers</surname><given-names>Ralf</given-names></name>
+        <name><surname>Virtanen</surname><given-names>Pauli</given-names></name>
+        <name><surname>Cournapeau</surname><given-names>David</given-names></name>
+        <name><surname>Wieser</surname><given-names>Eric</given-names></name>
+        <name><surname>Taylor</surname><given-names>Julian</given-names></name>
+        <name><surname>Berg</surname><given-names>Sebastian</given-names></name>
+        <name><surname>Smith</surname><given-names>Nathaniel J.</given-names></name>
+        <name><surname>Kern</surname><given-names>Robert</given-names></name>
+        <name><surname>Picus</surname><given-names>Matti</given-names></name>
+        <name><surname>Hoyer</surname><given-names>Stephan</given-names></name>
+        <name><surname>Kerkwijk</surname><given-names>Marten H. van</given-names></name>
+        <name><surname>Brett</surname><given-names>Matthew</given-names></name>
+        <name><surname>Haldane</surname><given-names>Allan</given-names></name>
+        <name><surname>Río</surname><given-names>Jaime Fernández del</given-names></name>
+        <name><surname>Wiebe</surname><given-names>Mark</given-names></name>
+        <name><surname>Peterson</surname><given-names>Pearu</given-names></name>
+        <name><surname>Gérard-Marchant</surname><given-names>Pierre</given-names></name>
+        <name><surname>Sheppard</surname><given-names>Kevin</given-names></name>
+        <name><surname>Reddy</surname><given-names>Tyler</given-names></name>
+        <name><surname>Weckesser</surname><given-names>Warren</given-names></name>
+        <name><surname>Abbasi</surname><given-names>Hameer</given-names></name>
+        <name><surname>Gohlke</surname><given-names>Christoph</given-names></name>
+        <name><surname>Oliphant</surname><given-names>Travis E.</given-names></name>
+      </person-group>
+      <article-title>Array programming with NumPy</article-title>
+      <source>Nature</source>
+      <publisher-name>Springer Science; Business Media LLC</publisher-name>
+      <year iso-8601-date="2020-09">2020</year><month>09</month>
+      <volume>585</volume>
+      <issue>7825</issue>
+      <uri>https://doi.org/10.1038/s41586-020-2649-2</uri>
+      <pub-id pub-id-type="doi">10.1038/s41586-020-2649-2</pub-id>
+      <fpage>357</fpage>
+      <lpage>362</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-jax">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Bradbury</surname><given-names>James</given-names></name>
+        <name><surname>Frostig</surname><given-names>Roy</given-names></name>
+        <name><surname>Hawkins</surname><given-names>Peter</given-names></name>
+        <name><surname>Johnson</surname><given-names>Matthew James</given-names></name>
+        <name><surname>Leary</surname><given-names>Chris</given-names></name>
+        <name><surname>Maclaurin</surname><given-names>Dougal</given-names></name>
+        <name><surname>Necula</surname><given-names>George</given-names></name>
+        <name><surname>Paszke</surname><given-names>Adam</given-names></name>
+        <name><surname>VanderPlas</surname><given-names>Jake</given-names></name>
+        <name><surname>Wanderman-Milne</surname><given-names>Skye</given-names></name>
+        <name><surname>Zhang</surname><given-names>Qiao</given-names></name>
+      </person-group>
+      <article-title>JAX: Composable transformations of Python+NumPy programs</article-title>
+      <source>GitHub repository</source>
+      <publisher-name>GitHub</publisher-name>
+      <year iso-8601-date="2018">2018</year>
+      <uri>https://github.com/jax-ml/jax</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-argmin">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Kroboth</surname><given-names>Stefan</given-names></name>
+      </person-group>
+      <article-title>argmin: Mathematical optimization in pure Rust.</article-title>
+      <source>GitHub repository</source>
+      <publisher-name>GitHub</publisher-name>
+      <year iso-8601-date="2017">2017</year>
+      <uri>https://github.com/argmin-rs/argmin</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-cobyla">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Lafage</surname><given-names>Rémi</given-names></name>
+      </person-group>
+      <article-title>cobyla - a pure Rust implementation.</article-title>
+      <source>GitHub repository</source>
+      <publisher-name>GitHub</publisher-name>
+      <year iso-8601-date="2021">2021</year>
+      <uri>https://github.com/relf/cobyla/</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-nlopt">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Johnson</surname><given-names>Steven G.</given-names></name>
+      </person-group>
+      <article-title>The NLopt nonlinear-optimization package</article-title>
+      <source>GitHub repository</source>
+      <publisher-name>GitHub</publisher-name>
+      <year iso-8601-date="2007">2007</year>
+      <uri>https://github.com/stevengj/nlopt</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-Laguna2005">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Laguna</surname><given-names>Manuel</given-names></name>
+        <name><surname>Martí</surname><given-names>Rafael</given-names></name>
+      </person-group>
+      <article-title>Experimental testing of advanced scatter search designs for global optimization of multimodal functions</article-title>
+      <source>Journal of Global Optimization</source>
+      <year iso-8601-date="2005-10-01">2005</year><month>10</month><day>01</day>
+      <volume>33</volume>
+      <issue>2</issue>
+      <issn>1573-2916</issn>
+      <uri>https://doi.org/10.1007/s10898-004-1936-z</uri>
+      <pub-id pub-id-type="doi">10.1007/s10898-004-1936-z</pub-id>
+      <fpage>235</fpage>
+      <lpage>255</lpage>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
