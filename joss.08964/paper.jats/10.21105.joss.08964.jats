@@ -1,0 +1,422 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">8964</article-id>
+<article-id pub-id-type="doi">10.21105/joss.08964</article-id>
+<title-group>
+<article-title>Tabbed: A Python package for reading variably structured
+text files at scale</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0002-3656-9261</contrib-id>
+<name>
+<surname>Caudill</surname>
+<given-names>Matthew S.</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+<xref ref-type="aff" rid="aff-2"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Department of Neuroscience, Baylor College of Medicine,
+Houston, TX, United States of America</institution>
+</institution-wrap>
+</aff>
+<aff id="aff-2">
+<institution-wrap>
+<institution>Jan and Dan Duncan Neurological Research Institute at Texas
+Children’s Hospital, Houston, TX, United States of America</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2025-07-07">
+<day>7</day>
+<month>7</month>
+<year>2025</year>
+</pub-date>
+<volume>10</volume>
+<issue>115</issue>
+<fpage>8964</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2025</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>Python</kwd>
+<kwd>Data Science</kwd>
+<kwd>File Parsing</kwd>
+<kwd>Text Processing</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p>Delimiter separated value (DSV) text files are ubiquitous for
+  representing tabular data. For example, a search of Github.com for
+  comma separated value files, a subset of the DSV format, returns 75
+  million matches. They are simple to create, easy to share, and can
+  encode a variety of data types. Despite their broad use, variability
+  in the formatting and structure of DSV files has hindered attempts to
+  automate their parsing for decades. The clevercsv package
+  (<xref alt="Burg et al., 2019" rid="ref-vandenBurg2019" ref-type="bibr">Burg
+  et al., 2019</xref>) made significant progress on this problem with
+  consistency measures that accurately detect a file’s dialect:
+  delimiter, quote character, and escape character. The structure of a
+  DSV file introduces another source of variability. DSVs may contain a
+  metadata section that offsets the header and start row. Tabbed uses
+  row length and type consistency measures to automatically detect
+  metadata, header and data sections of a DSV file. Furthermore, tabbed
+  provides a value-based conditional reader for reading these irregular
+  DSV files at scale.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p>To the best of our knowledge, no parser of DSV files exists that
+  can locate the start of the data section irrespective of the presence
+  of metadata and/or a header. Further, we found no reader of DSV files
+  that can conditionally read rows from the data section based on a
+  row’s type casted values. We here define a set of desiderata for
+  parsing irregular text files that optionally contain metadata, header,
+  and ragged data rows. To motivate this set, we consider the DSV shown
+  in Figure 1.</p>
+  <fig>
+    <caption><p>The first 12 lines of a delimiter separated file named
+    <italic>sample.txt</italic> with metadata on lines 1-4 and a header
+    on line 7. The metadata contains both semicolon-delimited and
+    undelimited strings. Notice the data section uses a different
+    delimiter than the metadata and contains mixed data types.
+    <styled-content id="figU003AU0020figure1"></styled-content></p></caption>
+    <graphic mimetype="image" mime-subtype="png" xlink:href="figure1.png" />
+  </fig>
+  <sec id="structural-detection">
+    <title>Structural Detection</title>
+    <p>A header line (line 7 of
+    <xref alt="[fig: figure1]" rid="figU003AU0020figure1">[fig: figure1]</xref>)
+    marks the boundary between the metadata and data sections of a file.
+    Detection of this line is critical for correct automated parsing.
+    Tabbed can locate a header line using string inconsistencies or type
+    inconsistencies depending on the data types represented in the file.
+    Importantly, some irregular DSV files do not have a header. In this
+    case tabbed generates a header based on the number of data columns
+    it measures from a sample of the file.</p>
+  </sec>
+  <sec id="type-casting">
+    <title>Type Casting</title>
+    <p>Strings in the data section of the file shown in
+    <xref alt="[fig: figure1]" rid="figU003AU0020figure1">[fig: figure1]</xref>
+    represent mixed types that need to be type casted. Tabbed supports
+    conversion to <monospace>int</monospace>,
+    <monospace>float</monospace>, <monospace>complex</monospace>,
+    <monospace>time</monospace>, <monospace>date</monospace> and
+    <monospace>datetime</monospace> instances. These conversions are
+    graceful, returning strings on failure and logging the conversion
+    problem for post-reading introspection.</p>
+  </sec>
+  <sec id="value-based-filtering">
+    <title>Value-based Filtering</title>
+    <p>Selectively reading rows from a DSV file based on type casted
+    content is extremely useful for selecting subsets of the data. For
+    example, in the sample file of
+    <xref alt="[fig: figure1]" rid="figU003AU0020figure1">[fig: figure1]</xref>,
+    users may want to only read data rows where the column named
+    <italic>Annotation</italic> has a string value of
+    <italic>exploring</italic>. Tabbed supports both column selection
+    and row filtering with equality, membership, rich comparison,
+    regular expression matching, and custom callables. To support an
+    intuitive interface for creating these filters, tabbed uses simple
+    keyword arguments passed to a method called `tab’ of the Reader
+    class. Below we illustrate the simplicity of constructing these
+    filters for the sample file shown in
+    <xref alt="[fig: figure1]" rid="figU003AU0020figure1">[fig: figure1]</xref>.</p>
+    <code language="python">from tabbed.reading import Reader
+
+with open('sample.txt', 'r') as infile:
+    reader = Reader(infile)
+    # Tell the reader to only read these tabbed rows
+    reader.tab(Start_Time ='&gt;=2/09/2022 9:37:00', Annotation = 'exploring')
+    result = reader.read()</code>
+  </sec>
+  <sec id="iterative-reading">
+    <title>Iterative Reading</title>
+    <p>DSV files have no file size limits making it essential that
+    readers support file streaming. Tabbed’s reader returns an iterator
+    whose per-iteration memory consumption is tunable. For speed, this
+    feature is implemented using a first-in-first-out (FIFO) data
+    structure with O(1) time complexity allowing tabbed to linearly
+    scale to large files.</p>
+  </sec>
+</sec>
+<sec id="comparison">
+  <title>Comparison</title>
+  <p>Tablib
+  (<xref alt="Reitz, 2016" rid="ref-tablib" ref-type="bibr">Reitz,
+  2016</xref>), comma
+  (<xref alt="Lumbroso, 2020" rid="ref-comma" ref-type="bibr">Lumbroso,
+  2020</xref>), pandas
+  (<xref alt="McKinney, 2010" rid="ref-mckinney2010" ref-type="bibr">McKinney,
+  2010</xref>;
+  <xref alt="The pandas development team, 2025" rid="ref-pandas" ref-type="bibr">The
+  pandas development team, 2025</xref>) and frictionless-py
+  (<xref alt="Karev et al., 2025" rid="ref-frictionless" ref-type="bibr">Karev
+  et al., 2025</xref>) are popular alternative packages to tabbed.
+  <xref alt="[tbl:&#10;table1]" rid="tblU003AU000Atable1">[tbl:
+  table1]</xref> compares their respective features. Pandas
+  <monospace>read_csv</monospace> and Frictionless’
+  <monospace>extract</monospace> functions most closely match the
+  available features in tabbed. Both support broad type casting and
+  iterative reading of large files. However, both require specifying the
+  header row if metadata is written to the file. This per file
+  specification of the header location makes batch reading of text files
+  with varying structure difficult. Additionally, neither package stores
+  the skipped metadata section for later use.</p>
+  <table-wrap>
+    <caption>
+      <p>Comparison of features for four common open-source software
+      packages for reading DSV files. Plus (+) and minus (-) indicates
+      package support or lack of support for each feature respectively.
+      <styled-content id="tblU003AU0020table1"></styled-content></p>
+    </caption>
+    <table>
+      <colgroup>
+        <col width="18%" />
+        <col width="26%" />
+        <col width="13%" />
+        <col width="27%" />
+        <col width="15%" />
+      </colgroup>
+      <thead>
+        <tr>
+          <th align="center"><bold>Software</bold></th>
+          <th align="center"><bold>Structural Detection</bold></th>
+          <th align="center"><bold>Casting</bold></th>
+          <th align="center"><bold>Value-based Filtering</bold></th>
+          <th align="center"><bold>Iterative</bold></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td align="center"><bold>tablib</bold></td>
+          <td align="center">-</td>
+          <td align="center">+</td>
+          <td align="center">Row Equality Only</td>
+          <td align="center">-</td>
+        </tr>
+        <tr>
+          <td align="center"><bold>comma</bold></td>
+          <td align="center">-</td>
+          <td align="center">limited</td>
+          <td align="center">-</td>
+          <td align="center">-</td>
+        </tr>
+        <tr>
+          <td align="center"><bold>pandas</bold></td>
+          <td align="center">-</td>
+          <td align="center">+</td>
+          <td align="center">Columns Only</td>
+          <td align="center">+</td>
+        </tr>
+        <tr>
+          <td align="center"><bold>frictionless</bold></td>
+          <td align="center">-</td>
+          <td align="center">+</td>
+          <td align="center">+</td>
+          <td align="center">+</td>
+        </tr>
+        <tr>
+          <td align="center"><bold>tabbed</bold></td>
+          <td align="center">+</td>
+          <td align="center">+</td>
+          <td align="center">+</td>
+          <td align="center">+</td>
+        </tr>
+      </tbody>
+    </table>
+  </table-wrap>
+  <p>Given that pandas <monospace>read_csv</monospace> closely matches
+  tabbed’s capabilities, we tested tabbed’s read speeds against pandas
+  in
+  <xref alt="[fig: figure2]" rid="figU003AU0020figure2">[fig: figure2]</xref>.
+  For this test, we selected the <monospace>python</monospace> engine in
+  pandas rather than the <monospace>c</monospace> or
+  <monospace>pyarrow</monospace> engines which are an order of magnitude
+  faster but do not support dialect inference like pandas
+  <monospace>python</monospace> engine or tabbed’s
+  <monospace>Reader</monospace> class. The speed test was conducted on a
+  DSV file with all floats and a DSV file with floats and datetime
+  instances. The file size in each case was 10 columns by 100,000 rows.
+  The left panel of
+  <xref alt="[fig: figure2]" rid="figU003AU0020figure2">[fig: figure2]</xref>
+  shows that tabbed is slower on both the float and mixed type files.
+  Nevertheless, users can expect to read millions of cells from a DSV
+  file in just a few seconds with tabbed.</p>
+  <fig>
+    <caption><p>Tabbed and pandas read speed comparison. Left:
+    Comparison of number of cells casted per second between tabbed and
+    pandas for DSV files composed of floats or mixed types. The
+    conversion engine for pandas was chosen to be “python”. Right:
+    Tabbed’s read speed as a function of the number of filters applied
+    to each row during reading. In both panels black circles and error
+    bars are the mean and standard deviation across 30 trials. These
+    comparisons were carried out on a single 2.4 GHz Intel Core i5-6300U
+    processor.
+    <styled-content id="figU003AU000Afigure2"></styled-content></p></caption>
+    <graphic mimetype="image" mime-subtype="png" xlink:href="figure2.png" />
+  </fig>
+  <p>To further understand tabbed’s performance, we tested how row
+  filtering impacts read speeds. The right panel of
+  <xref alt="[fig: figure2]" rid="figU003AU0020figure2">[fig: figure2]</xref>
+  shows the read speed as a function of the number of filters applied to
+  each data row. The left-most point is the baseline with no filters. We
+  measure an approximate 2% reduction in speed for each new filter
+  added.</p>
+</sec>
+<sec id="conclusion">
+  <title>Conclusion</title>
+  <p>Automated reading of large irregularly structured DSV files, a
+  format that is broadly used, is an open challenge. Tabbed’s four
+  features—structural detection, type casting, value-based filtering,
+  and iterative row reading—work together to automate reading of these
+  files. The simple interface and deeply tested API of these features
+  (see
+  <ext-link ext-link-type="uri" xlink:href="https://mscaudill.github.io/tabbed/">documentation</ext-link>)
+  makes tabbed accessible to a broad audience of analysts, researchers,
+  and developers across disciplines.</p>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>We thank Claudia Singhal for her thoughtful reading of the
+  manuscript and Brad Sheppard for useful discussions about testing
+  tabbed.</p>
+  <p>We are grateful for the support of the Ting Tsung and Wei Fong Chao
+  Foundation and the Jan and Dan Duncan Neurological Research Institute
+  at Texas Children’s that generously supports tabbed.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <title></title>
+  <ref id="ref-vandenBurg2019">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Burg</surname><given-names>G. J. J. van den</given-names></name>
+        <name><surname>Nazábal</surname><given-names>A.</given-names></name>
+        <name><surname>Sutton</surname><given-names>C.</given-names></name>
+      </person-group>
+      <article-title>Wrangling messy CSV files by detecting row and type patterns</article-title>
+      <source>Data Mining and Knowledge Discovery</source>
+      <publisher-name>Springer Science; Business Media LLC</publisher-name>
+      <year iso-8601-date="2019-07">2019</year><month>07</month>
+      <volume>33</volume>
+      <issue>6</issue>
+      <issn>1573-756X</issn>
+      <uri>http://dx.doi.org/10.1007/s10618-019-00646-y</uri>
+      <pub-id pub-id-type="doi">10.1007/s10618-019-00646-y</pub-id>
+      <fpage>1799</fpage>
+      <lpage>1820</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-tablib">
+    <element-citation publication-type="software">
+      <person-group person-group-type="author">
+        <name><surname>Reitz</surname><given-names>K.</given-names></name>
+      </person-group>
+      <article-title>Tablib: Pythonic tabular datasets</article-title>
+      <publisher-name>GitHub</publisher-name>
+      <year iso-8601-date="2016">2016</year>
+      <uri>https://github.com/jazzband/tablib</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-comma">
+    <element-citation publication-type="software">
+      <person-group person-group-type="author">
+        <name><surname>Lumbroso</surname><given-names>J.</given-names></name>
+      </person-group>
+      <article-title>Comma</article-title>
+      <publisher-name>GitHub</publisher-name>
+      <year iso-8601-date="2020">2020</year>
+      <uri>https://github.com/jlumbroso/comma</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-pandas">
+    <element-citation publication-type="software">
+      <person-group person-group-type="author">
+        <string-name>The pandas development team</string-name>
+      </person-group>
+      <article-title>Pandas-dev/pandas: pandas</article-title>
+      <publisher-name>Zenodo</publisher-name>
+      <year iso-8601-date="2025-08">2025</year><month>08</month>
+      <uri>https://doi.org/10.5281/zenodo.16918803</uri>
+      <pub-id pub-id-type="doi">10.5281/zenodo.16918803</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-mckinney2010">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>McKinney</surname></name>
+      </person-group>
+      <article-title>Data Structures for Statistical Computing in Python</article-title>
+      <source>Proceedings of the 9th Python in Science Conference</source>
+      <person-group person-group-type="editor">
+        <name><surname>Walt</surname></name>
+        <name><surname>Millman</surname></name>
+      </person-group>
+      <year iso-8601-date="2010">2010</year>
+      <pub-id pub-id-type="doi">10.25080/Majora-92bf1922-00a</pub-id>
+      <fpage>56 </fpage>
+      <lpage> 61</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-frictionless">
+    <element-citation publication-type="software">
+      <person-group person-group-type="author">
+        <name><surname>Karev</surname><given-names>Evgeny</given-names></name>
+        <name><surname>Camilleri</surname><given-names>Pierre</given-names></name>
+        <name><surname>Baptista</surname><given-names>Vitor</given-names></name>
+        <name><surname>Bere</surname><given-names>Georgiana</given-names></name>
+        <name><surname>Borruso</surname><given-names>Andrea</given-names></name>
+        <name><surname>Desmet</surname><given-names>Peter</given-names></name>
+        <name><surname>Gharti</surname><given-names>Shashi</given-names></name>
+        <name><surname>Herrmann</surname><given-names>Augusto</given-names></name>
+        <name><surname>Kariv</surname><given-names>Adam</given-names></name>
+        <name><surname>Shaw</surname><given-names>Chris</given-names></name>
+        <name><surname>Walsh</surname><given-names>Paul</given-names></name>
+        <name><surname>Winfree</surname><given-names>Lilly</given-names></name>
+        <name><surname>Zanella Alvarenga</surname><given-names>Edgar</given-names></name>
+        <name><surname>Zedlitz</surname><given-names>Jesper</given-names></name>
+        <name><surname>Foundation</surname><given-names>Open Knowledge</given-names></name>
+        <name><surname>Petti</surname><given-names>Sara</given-names></name>
+      </person-group>
+      <article-title>Frictionless: Python library for data packages</article-title>
+      <publisher-name>Zenodo</publisher-name>
+      <year iso-8601-date="2025-03">2025</year><month>03</month>
+      <uri>https://doi.org/10.5281/zenodo.15085933</uri>
+      <pub-id pub-id-type="doi">10.5281/zenodo.15085933</pub-id>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
