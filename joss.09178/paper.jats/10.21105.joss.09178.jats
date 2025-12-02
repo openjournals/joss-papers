@@ -1,0 +1,403 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">9178</article-id>
+<article-id pub-id-type="doi">10.21105/joss.09178</article-id>
+<title-group>
+<article-title>xbitinfo: Compressing geospatial data based on
+information theory</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0001-5468-1137</contrib-id>
+<name>
+<surname>Schulz</surname>
+<given-names>Hauke</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+<xref ref-type="aff" rid="aff-2"/>
+</contrib>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0002-3920-4356</contrib-id>
+<name>
+<surname>Klöwer</surname>
+<given-names>Milan</given-names>
+</name>
+<xref ref-type="aff" rid="aff-3"/>
+</contrib>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0003-0216-2241</contrib-id>
+<name>
+<surname>Spring</surname>
+<given-names>Aaron</given-names>
+</name>
+<xref ref-type="aff" rid="aff-4"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>University of Washington, Seattle, United States of
+America</institution>
+</institution-wrap>
+</aff>
+<aff id="aff-2">
+<institution-wrap>
+<institution>eScience Institute, University of Washington, Seattle,
+United States of America</institution>
+</institution-wrap>
+</aff>
+<aff id="aff-3">
+<institution-wrap>
+<institution>University of Oxford, Oxford, United Kingdom</institution>
+</institution-wrap>
+</aff>
+<aff id="aff-4">
+<institution-wrap>
+<institution>Max Planck Institute for Meteorology, Hamburg,
+Germany</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2025-09-22">
+<day>22</day>
+<month>9</month>
+<year>2025</year>
+</pub-date>
+<volume>10</volume>
+<issue>116</issue>
+<fpage>9178</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2025</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>Python</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p>Xbitinfo analyses datasets based on their bitwise real information
+  content and applies lossy compression accordingly. Xbitinfo provides
+  additional tools to visualize the information histograms and to make
+  informed decisions on the real information threshold that is
+  subsequently used as the preserved precision during the compression of
+  arrays of floating-point numbers. In contrast, the false information
+  is rounded to zero using bit rounding. Lossless compression
+  subsequently exploits the high compressibility from trailing zero
+  mantissa bits. Xbitinfo’s functionality supports xarray datasets and
+  therefore a range of common input and output data formats, and all
+  numcodecs compression algorithms.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p>The geosciences, similar to other research fields, are generating
+  more and more data both through simulations and observations. At the
+  same time, data storage capacity has not kept pace. In addition, data
+  is increasingly stored in the cloud where egress fees and network
+  speeds are a concern. Compression algorithms can help to reduce the
+  pressure on these components significantly and are therefore commonly
+  used.</p>
+  <p>Lossless compressors like Zlib or Zstandard encode datasets
+  exploiting redundancies without losing any information. This is often
+  unnecessarily conservative as not all the bits are meaningful,
+  i.e. they do not contain real information. They often encode
+  floating-point numbers with unnecessarily high precision, several
+  orders of magnitude higher than the uncertainty of the data (arising
+  from, for example, model, numerical, observational or rounding errors)
+  itself. Lossy compression is therefore often used, sacrificing bits
+  with little to no real information, and from image and audio
+  compression, JPEG and MP3 are two prominent examples. Geospatial data
+  lacks a similarly widely accepted compression standard.</p>
+  <p>JPEG and MP3 use perceptual models of the human visual and auditory
+  system to decide on whether or not to keep information
+  (<xref alt="International Organization for Standardization, 1993" rid="ref-mp3_iso" ref-type="bibr">International
+  Organization for Standardization, 1993</xref>,
+  <xref alt="1994" rid="ref-jpeg_iso" ref-type="bibr">1994</xref>).
+  Applied to geospatial data, the visual approach is acceptable for the
+  publication of a scientific figure, however, it may not yield a
+  tolerable compression error for the original data that still undergoes
+  mathematical operations, like gradients. Commonly used with geospatial
+  data is linear quantization as it is a standard algorithm supported by
+  the GRIB format. It encodes the min-max range of the data into evenly,
+  or linearly, spaced quanta and enumerates those using integers. The
+  issue with linear quantization is however that it often is not a good
+  mapping for geophysical quantities with a more logarithmic
+  distribution. In practice, the number of preserved mantissa bits in
+  the quantization process is often applied to an entire set of
+  variables and dimensions. As a consequence, some variables have too
+  little information preserved while others keep too much (false)
+  information.</p>
+  <p>Klöwer et al.
+  (<xref alt="2021" rid="ref-klower_compressing_2021" ref-type="bibr">2021</xref>)
+  have developed an algorithm that can distinguish between real and
+  false information content based on information theory. It further
+  allows one to set a threshold for the real information content that
+  shall be preserved if additional compression is needed beyond the
+  filtering of false information.</p>
+  <p>As typical for lossy compression, parameters can be set to
+  influence the loss. In the case of the bit information algorithm, the
+  <monospace>inflevel</monospace> parameter can be set to decide on the
+  percentage of real information content to be preserved. The
+  compression can therefore be split into three main stages:</p>
+  <list list-type="bullet">
+    <list-item>
+      <p><bold>Bit information</bold>: analysing the bit information
+      content</p>
+    </list-item>
+    <list-item>
+      <p><bold>Bit rounding</bold>:</p>
+      <list list-type="bullet">
+        <list-item>
+          <p>deciding on information content to keep
+          (<monospace>inflevel</monospace>)</p>
+        </list-item>
+        <list-item>
+          <p>translate <monospace>inflevel</monospace> to mantissa bits
+          to keep (<monospace>keepbits</monospace>) after rounding</p>
+        </list-item>
+        <list-item>
+          <p>bit rounding according to keepbits</p>
+        </list-item>
+      </list>
+    </list-item>
+    <list-item>
+      <p><bold>Compression</bold>:</p>
+      <list list-type="bullet">
+        <list-item>
+          <p>applying lossless compression</p>
+        </list-item>
+      </list>
+    </list-item>
+  </list>
+  <p>All stages are shown in
+  <xref alt="[fig:general_workflow]" rid="figU003Ageneral_workflow">[fig:general_workflow]</xref>.</p>
+  <fig>
+    <caption><p>General
+    workflow.<styled-content id="figU003Ageneral_workflow"></styled-content></p></caption>
+    <graphic mimetype="image" mime-subtype="png" xlink:href="general_workflow.png" />
+  </fig>
+  <p>Bit rounding is supported by many libraries (e.g. CDO, netCDF,
+  numcodecs). One can also set the <monospace>inflevel</monospace> and
+  get the corresponding number of keepbits with the Julia implementation
+  provided by Klöwer et al.
+  (<xref alt="2021" rid="ref-klower_compressing_2021" ref-type="bibr">2021</xref>).
+  However, for a user with a workflow that is otherwise Python-based
+  this is not convenient. In practice, the decision on how much real
+  information to keep needs testing with the downstream tools and is
+  often an iterative process to ensure consistent behaviour with the
+  original dataset. The gathering of the bit information and the
+  decision on the bit-rounding parameters are therefore often not
+  immediately following each other and are interrupted by visual
+  inspection and testing (see
+  <xref alt="[fig:xbitinfo_workflow]" rid="figU003Axbitinfo_workflow">[fig:xbitinfo_workflow]</xref>).</p>
+  <fig>
+    <caption><p>Xbitinfo workflow with the addition of storing the
+    computationally expensive retrieval of the bit information content
+    in a JSON file for later reference and the ability to evaluate and
+    adjust the keepbits on subsets of the original
+    dataset.<styled-content id="figU003Axbitinfo_workflow"></styled-content></p></caption>
+    <graphic mimetype="image" mime-subtype="png" xlink:href="xbitinfo_workflow.png" />
+  </fig>
+  <p>Xbitinfo therefore provides additional convenience functions over
+  Klöwer et al.
+  (<xref alt="2021" rid="ref-klower_compressing_2021" ref-type="bibr">2021</xref>)
+  to analyse, filter, and visualize the bitwise real information
+  content. Because Xbitinfo operates on xarray
+  (<xref alt="Hoyer &amp; Joseph, 2017" rid="ref-xarray" ref-type="bibr">Hoyer
+  &amp; Joseph, 2017</xref>) datasets it can also handle a large variety
+  of input and output formats, such as netCDF
+  (<xref alt="NSF Unidata et al., 2025" rid="ref-netcdf" ref-type="bibr">NSF
+  Unidata et al., 2025</xref>) and Zarr
+  (<xref alt="Miles et al., 2025" rid="ref-zarr" ref-type="bibr">Miles
+  et al., 2025</xref>) and naturally fits into other scientific
+  workflows. Thanks to the xarray-compatibility, it can also make use of
+  a wide range of modern lossless compression algorithms that are
+  implemented for specific output data formats, allowing them to exploit
+  the additional compression gains due to reduced information.</p>
+  <p>Xbitinfo provides two backends for the calculation of the real
+  bitwise information content. One wraps the latest Julia implementation
+  in BitInformation.jl provided with Klöwer et al.
+  (<xref alt="2021" rid="ref-klower_compressing_2021" ref-type="bibr">2021</xref>)
+  for consistency, and the other uses numpy to be dask compatible and
+  therefore is more performant when compressing in parallel.</p>
+</sec>
+<sec id="example">
+  <title>Example</title>
+  <p>To compress a dataset based on its real bitwise information content
+  with xbitinfo follow these steps:</p>
+  <code language="python">import xarray as xr
+import xbitinfo as xb
+
+ds = xr.open_dataset(&quot;/path/to/input/file&quot;)
+bitinfo = xb.get_bitinformation(ds)
+keepbits = xb.get_keepbits(bitinfo, inflevel=0.95)
+ds = xb.xr_bitround(ds, keepbits)
+ds.to_compressed_zarr(&quot;/path/to/output/file&quot;)</code>
+</sec>
+<sec id="remarks">
+  <title>Remarks</title>
+  <p>It should be noted that the BitInformation algorithm relies on
+  uncompressed data that hasn’t been manipulated beforehand. A common
+  issue is that climate model output has been linearly quantized during
+  its generation, e.g. because it has been written to the GRIB format.
+  Such datasets should be handled with care as the bit information often
+  contains artificial information resulting in too many keepbits.
+  Filters to capture those cases are currently being developed within
+  xbitinfo to warn the user.</p>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>We acknowledge all GitHub contributors that have helped and
+  continue to help to improve Xbitinfo and its dependencies. We also
+  thank the ECMWF Code4Earth and Google Summer of Code programs for
+  providing funding for students to work on new features of Xbitinfo. HS
+  was supported in part by the University of Washington eScience
+  Institute and the Cooperative Institute for Climate, Ocean, &amp;
+  Ecosystem Studies (CICOES) under NOAA Cooperative Agreement
+  NA20OAR4320271, Contribution No. 2025-1507</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <title></title>
+  <ref id="ref-klower_compressing_2021">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Klöwer</surname><given-names>Milan</given-names></name>
+        <name><surname>Razinger</surname><given-names>Miha</given-names></name>
+        <name><surname>Dominguez</surname><given-names>Juan J.</given-names></name>
+        <name><surname>Düben</surname><given-names>Peter D.</given-names></name>
+        <name><surname>Palmer</surname><given-names>Tim N.</given-names></name>
+      </person-group>
+      <article-title>Compressing atmospheric data into its real information content</article-title>
+      <source>Nature Computational Science</source>
+      <publisher-name>Nature Publishing Group</publisher-name>
+      <year iso-8601-date="2021-11">2021</year><month>11</month>
+      <volume>1</volume>
+      <issue>11, 11</issue>
+      <issn>2662-8457</issn>
+      <pub-id pub-id-type="doi">10.1038/s43588-021-00156-2</pub-id>
+      <fpage>713</fpage>
+      <lpage>724</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-mp3_iso">
+    <element-citation publication-type="webpage">
+      <person-group person-group-type="author">
+        <string-name>International Organization for Standardization</string-name>
+      </person-group>
+      <article-title>ISO/IEC 11172-3:1993</article-title>
+      <publisher-name>ISO</publisher-name>
+      <year iso-8601-date="1993">1993</year>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2024-12-29">2024</year><month>12</month><day>29</day></date-in-citation>
+      <uri>https://www.iso.org/standard/22412.html</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-jpeg_iso">
+    <element-citation publication-type="webpage">
+      <person-group person-group-type="author">
+        <string-name>International Organization for Standardization</string-name>
+      </person-group>
+      <article-title>ISO/IEC 10918-1:1994</article-title>
+      <publisher-name>ISO</publisher-name>
+      <year iso-8601-date="1994">1994</year>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2024-12-29">2024</year><month>12</month><day>29</day></date-in-citation>
+      <uri>https://www.iso.org/standard/18902.html</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-zarr">
+    <element-citation publication-type="software">
+      <person-group person-group-type="author">
+        <name><surname>Miles</surname><given-names>Alistair</given-names></name>
+        <name><surname>jakirkham</surname></name>
+        <name><surname>Stansby</surname><given-names>David</given-names></name>
+        <name><surname>Orfanos</surname><given-names>Dimitri Papadopoulos</given-names></name>
+        <name><surname>Hamman</surname><given-names>Joe</given-names></name>
+        <name><surname>Bennett</surname><given-names>Davis</given-names></name>
+        <name><surname>Bussonnier</surname><given-names>M</given-names></name>
+        <name><surname>Moore</surname><given-names>Josh</given-names></name>
+        <name><surname>Augspurger</surname><given-names>Tom</given-names></name>
+        <name><surname>Cherian</surname><given-names>Deepak</given-names></name>
+        <name><surname>Jones</surname><given-names>Max</given-names></name>
+        <name><surname>Rzepka</surname><given-names>Norman</given-names></name>
+        <name><surname>Spitz</surname><given-names>Hannes</given-names></name>
+        <name><surname>Verma</surname><given-names>Sanket</given-names></name>
+        <name><surname>Bourbeau</surname><given-names>James</given-names></name>
+        <name><surname>Fulton</surname><given-names>Andrew</given-names></name>
+        <name><surname>Abernathey</surname><given-names>Ryan</given-names></name>
+        <name><surname>Lee</surname><given-names>Gregory</given-names></name>
+        <name><surname>Kristensen</surname><given-names>Mads R. B.</given-names></name>
+        <name><surname>Patel</surname><given-names>Zain</given-names></name>
+        <name><surname>Chopra</surname><given-names>Saransh</given-names></name>
+        <name><surname>Rocklin</surname><given-names>Matthew</given-names></name>
+        <name><surname>Zimmerman</surname><given-names>Nathan</given-names></name>
+        <name><surname>Gold</surname><given-names>Ilan</given-names></name>
+        <name><surname>AGHANGU</surname><given-names>AWA DESTINY</given-names></name>
+        <name><surname>Hunt-Isaak</surname><given-names>Ian</given-names></name>
+        <name><surname>Andrade</surname><given-names>Elliott Sales de</given-names></name>
+        <name><surname>Durant</surname><given-names>Martin</given-names></name>
+      </person-group>
+      <article-title>Zarr-developers/zarr-python: v3.1.4</article-title>
+      <publisher-name>Zenodo</publisher-name>
+      <year iso-8601-date="2025-11">2025</year><month>11</month>
+      <uri>https://doi.org/10.5281/zenodo.17666358</uri>
+      <pub-id pub-id-type="doi">10.5281/zenodo.17666358</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-netcdf">
+    <element-citation publication-type="software">
+      <person-group person-group-type="author">
+        <string-name>NSF Unidata</string-name>
+        <name><surname>Davis</surname><given-names>Glenn</given-names></name>
+        <name><surname>Rew</surname><given-names>Russ</given-names></name>
+        <name><surname>Heimbigner</surname><given-names>Dennis</given-names></name>
+        <name><surname>Hartnett</surname><given-names>Edward</given-names></name>
+        <name><surname>Fisher</surname><given-names>Ward</given-names></name>
+        <name><surname>others</surname></name>
+      </person-group>
+      <article-title>NetCDF-C </article-title>
+      <year iso-8601-date="2025">2025</year>
+      <uri>https://github.com/Unidata/netcdf-c</uri>
+      <pub-id pub-id-type="doi">10.5065/D6H70CW6</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-xarray">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Hoyer</surname><given-names>Stephan</given-names></name>
+        <name><surname>Joseph</surname><given-names>Hamman</given-names></name>
+      </person-group>
+      <article-title>Xarray: N-D labeled arrays and datasets in Python</article-title>
+      <source>Journal of Open Research Software</source>
+      <year iso-8601-date="2017-04">2017</year><month>04</month>
+      <volume>5</volume>
+      <issue>1</issue>
+      <pub-id pub-id-type="doi">10.5334/jors.148</pub-id>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
