@@ -1,0 +1,518 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">9494</article-id>
+<article-id pub-id-type="doi">10.21105/joss.09494</article-id>
+<title-group>
+<article-title>Blini: lightweight nucleotide sequence search and
+dereplication</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0003-3928-5907</contrib-id>
+<name>
+<surname>Lavon</surname>
+<given-names>Amit</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>University of California, Irvine, CA, United States of
+America</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2025-06-24">
+<day>24</day>
+<month>6</month>
+<year>2025</year>
+</pub-date>
+<volume>11</volume>
+<issue>117</issue>
+<fpage>9494</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2026</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>genetics</kwd>
+<kwd>metagenomics</kwd>
+<kwd>microbiome</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p>Blini is a tool for quick lookup of nucleotide sequences in
+  databases, and for quick dereplication of sequence collections. It is
+  meant to help cleaning and characterizing large collections of
+  sequences that would otherwise be too big to search with BLAST
+  (<xref alt="Altschul et al., 1990" rid="ref-altschul1990basic" ref-type="bibr">Altschul
+  et al., 1990</xref>) or too demanding for a local machine to process,
+  for example with Sourmash
+  (<xref alt="Brown &amp; Irber, 2016" rid="ref-brown2016sourmash" ref-type="bibr">Brown
+  &amp; Irber, 2016</xref>) or with MMseqs
+  (<xref alt="Steinegger &amp; Söding, 2018" rid="ref-steinegger2018clustering" ref-type="bibr">Steinegger
+  &amp; Söding, 2018</xref>). Blini is designed to be fast and have a
+  small memory footprint, while allowing the user to tweak its resource
+  consumption to improve matching resolution. Finally, Blini is
+  delivered as a single runnable binary, with no need to install any
+  additional software.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p>Metagenomes are collections of genetic material from various
+  organisms, which are often not initially known. In modern
+  metagenomics, researchers often generate hundreds of thousands of
+  redundant metagenome-assembled genomes (MAGs) across different
+  samples. In
+  (<xref alt="Pasolli et al., 2019" rid="ref-pasolli2019extensive" ref-type="bibr">Pasolli
+  et al., 2019</xref>) for example, over 150,000 MAGs were dereplicated
+  into about 5,000 species-level bins. Such clustering operations
+  typically require many compute hours, which can grow quadratically
+  with the size of the input when using classical clustering
+  algorithms.</p>
+  <p>Characterizing the taxonomic makeup of a sample or a MAG collection
+  involves searching its contents in large databases in order to find
+  which organism matches each nucleotide sequence. Assembled sequences
+  can reach lengths of millions of bases, making alignment-based search
+  methods too cumbersome. Such big queries are often outsourced to
+  powerful cloud-based services such as BLAST
+  (<xref alt="Altschul et al., 1990" rid="ref-altschul1990basic" ref-type="bibr">Altschul
+  et al., 1990</xref>) or CZID
+  (<xref alt="Simmonds et al., 2024" rid="ref-simmonds2024cz" ref-type="bibr">Simmonds
+  et al., 2024</xref>).</p>
+  <p>In recent years, k-mer-based algorithms were introduced, which
+  enabled efficient searching in large datasets on local machines. Mash
+  distance
+  (<xref alt="Ondov et al., 2016" rid="ref-ondov2016mash" ref-type="bibr">Ondov
+  et al., 2016</xref>) introduced an alignment-free estimation formula
+  for average nucleotide identity between sequences, making sequence
+  comparison linear. Sourmash
+  (<xref alt="Brown &amp; Irber, 2016" rid="ref-brown2016sourmash" ref-type="bibr">Brown
+  &amp; Irber, 2016</xref>) uses fractional min-hashing in order to
+  create small representations of large sequences, which allow for
+  efficient searching and comparison. The LinClust clustering algorithm
+  (<xref alt="Steinegger &amp; Söding, 2018" rid="ref-steinegger2018clustering" ref-type="bibr">Steinegger
+  &amp; Söding, 2018</xref>) uses k-mer matching to reduce the number of
+  pairwise comparisons and achieve linear scaling with the size of the
+  input.</p>
+  <p>This work, Blini, combines insights from Mash, Sourmash, and
+  LinClust into a simple tool that can quickly cluster or look up big
+  collections of sequences using estimated identity or containment, with
+  tweakable estimation resolution (similar to Sourmash’s
+  <italic>scale</italic>).</p>
+</sec>
+<sec id="algorithm">
+  <title>Algorithm</title>
+  <sec id="fingerprinting-with-k-mers">
+    <title>Fingerprinting with k-mers</title>
+    <p>Blini uses constant-length subsequences (k-mers) to create
+    fingerprints for sequences. It uses the fractional min-hashing
+    technique, similarly to Sourmash
+    (<xref alt="Brown &amp; Irber, 2016" rid="ref-brown2016sourmash" ref-type="bibr">Brown
+    &amp; Irber, 2016</xref>). A sliding window of length
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[k]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>k</mml:mi></mml:math></alternatives></inline-formula>
+    goes over the sequence and hashes each canonical k-mer. This
+    collection of hashes is often called the sequence’s
+    <italic>sketch</italic>. The lower <inline-formula><alternatives>
+    <tex-math><![CDATA[1/s]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mn>1</mml:mn><mml:mi>/</mml:mi><mml:mi>s</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>
+    hashes are retained, for an input scale parameter
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[s]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>s</mml:mi></mml:math></alternatives></inline-formula>.
+    A high <inline-formula><alternatives>
+    <tex-math><![CDATA[s]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>s</mml:mi></mml:math></alternatives></inline-formula>
+    means fewer hashes used in downstream calculations, trading accuracy
+    for better CPU and RAM performance. Once k-mer hashes are extracted,
+    the sequence is discarded and only its sketch is used for downstream
+    operations. These sketches can be saved to files and reused.</p>
+  </sec>
+  <sec id="similarity-estimation">
+    <title>Similarity estimation</title>
+    <p>Blini uses Mash distance
+    (<xref alt="Ondov et al., 2016" rid="ref-ondov2016mash" ref-type="bibr">Ondov
+    et al., 2016</xref>) to estimate average nucleotide identity (ANI)
+    between sequences. This formula translates the Jaccard similarity
+    between two k-mer sets to an estimation of the ANI between the
+    original sequences. For containment matching, the hashes of the
+    query sequence are compared against their intersection with the
+    hashes of the reference sequence.</p>
+  </sec>
+  <sec id="search">
+    <title>Search</title>
+    <p>The first step of searching is indexing the reference dataset.
+    After the reference sequences are fingerprinted, the 25% lowest
+    hashes are used for indexing. The index is a mapping from hash value
+    to a list of sequence identifiers of the reference sequences that
+    had that hash in their fingerprints. The number 25% was chosen as a
+    sweet spot between saving memory and retaining enough information
+    for the search. As an optimization, hashes with a single reference
+    sequence are kept in a separate ‘singletons’ map. Since in practice
+    most of the index elements are singletons, this helps reduce RAM
+    consumption and garbage collection times.</p>
+    <p>In the second stage, each query sequence is read and
+    fingerprinted. The hash values are looked up in the index, and
+    candidate reference sequences are fetched. Then, the query sequence
+    is compared against each candidate sequence using Mash distance, and
+    matches that pass the similarity threshold are reported.</p>
+  </sec>
+  <sec id="clustering">
+    <title>Clustering</title>
+    <p>The clustering (dereplication) procedure follows a similar scheme
+    to LinClust
+    (<xref alt="Steinegger &amp; Söding, 2018" rid="ref-steinegger2018clustering" ref-type="bibr">Steinegger
+    &amp; Söding, 2018</xref>). Sequences are indexed and ordered from
+    the longest to the shortest. Then, going by that order, each
+    sequence is searched for using the search procedure. Matches that
+    pass the similarity threshold are joined with the query sequence and
+    are considered a cluster. These matches are then removed from the
+    search loop’s candidates. This clustering procedure does not produce
+    inter-cluster distances for hierarchy generation.</p>
+  </sec>
+</sec>
+<sec id="performance-evaluation">
+  <title>Performance evaluation</title>
+  <sec id="search---small">
+    <title>Search - small</title>
+    <p>The search function was tested on RefSeq’s viral reference
+    (<xref alt="Pruitt et al., 2007" rid="ref-pruitt2007ncbi" ref-type="bibr">Pruitt
+    et al., 2007</xref>). Blini was compared against Sourmash and
+    MMseqs. 100 viral genomes were randomly selected for the test. The
+    algorithms were then run on the 100 genomes as queries, and the
+    original database as reference. Each algorithm was expected to match
+    each genome to its source in the database. In a second run, random
+    single-nucleotide polymorphisms (SNPs) were introduced to 1% of the
+    genomes’ bases, and the same test was rerun. For each test, the
+    number of matches with sequences other than the query’s source was
+    also measured. The searches were run against an index of the
+    reference dataset, created by each tool.</p>
+    <p>All three tools were able to match all 100 queries with their
+    sources in the database (Figure 1a). The number of non-source
+    matches was 824 and 712 in Blini, 865 and 660 in Sourmash, and 3143
+    and 3019 in MMseqs, in the raw and mutated datasets, respectively
+    (Figure 1b).</p>
+    <p>Run time was measured for searching the 100 sequences
+    sequentially. Blini and MMseqs were executed once and searched for
+    all the queries in one run, while Sourmash had to be executed once
+    for each individual query. Each run was repeated five times and the
+    average run time is reported. Blini completed the run in 0.5
+    seconds, Sourmash completed the run in 126 seconds, and MMseqs
+    completed the run in 151 seconds (Figure 1c). The times shown here
+    do not include reference-preprocessing time.</p>
+    <fig>
+      <caption><p>Search results for the viral dataset. Each tool was
+      run on 100 randomly chosen viral genomes, to find them in the
+      original dataset. (A) shows how many of the 100 genomes were
+      correctly mapped to their source in the database. (B) shows how
+      many additional matches were found in addition to the 100 chosen
+      genomes. (C) shows the search times for the 100 queries
+      together.</p></caption>
+      <graphic mimetype="image" mime-subtype="png" xlink:href="search.png" />
+    </fig>
+  </sec>
+  <sec id="search---big">
+    <title>Search - big</title>
+    <p>To test the search function on a large dataset, the bacterial
+    contigs from Pasolli et al.
+    (<xref alt="2019" rid="ref-pasolli2019extensive" ref-type="bibr">2019</xref>)
+    were used. This 10GB dataset contains 934K contigs from almost 5K
+    bacterial species. Each of the compared tools was run to create an
+    index of the dataset.</p>
+    <p>The simulated query dataset consisted of 100K random fragments of
+    length 10K bases, sampled uniformly from the bacterial contigs. Each
+    fragment was mutated with random SNPs in 0.1% of its bases. Blini,
+    Sourmash and MMseqs were run on the query dataset, to search it in
+    the bacterial reference. Because of the long search times, only
+    Blini was run on the full set of queries, while the other tools were
+    run on one or ten queries out of the 100K.</p>
+    <p>MMseqs took longer than 30 minutes to search for a single query,
+    and was therefore terminated prematurely. Sourmash was run on one
+    query and on ten queries and took 31 seconds per query. Blini took 6
+    seconds for one and ten queries, and 25 seconds for the entire set
+    of 100K queries (Figure 2). This means a throughput of 5100 queries
+    per second after the 6 seconds of loading the reference index. Blini
+    matched all 100K queries with their correct source in the reference,
+    with 2444 additional non-source matches (false positives).</p>
+    <fig>
+      <caption><p>Search times for the bacterial dataset. Each tool was
+      run on randomly chosen 10 kilobase fragments from a 10GB bacterial
+      dataset. MMseqs is marked with an X because it was stopped
+      manually before it could finish running.</p></caption>
+      <graphic mimetype="image" mime-subtype="png" xlink:href="search_big.png" />
+    </fig>
+  </sec>
+  <sec id="clustering-1">
+    <title>Clustering</title>
+    <p>The clustering function was tested on two simulated datasets
+    created from the 100 chosen genomes of the previous test. In one
+    dataset, each sequence had multiple counterparts with random SNPs.
+    In the second dataset, random fragments were extracted from each
+    root sequence. In the SNPs dataset, each of the 100 original
+    sequences had another 100 mutated counterparts. Each counterpart had
+    random SNPs in 1% of its bases. In the fragments dataset, each of
+    the 100 original sequences had 300 random fragments extracted from
+    it, of length at least 1000 bases. The algorithms were expected to
+    group each sequence with its mutated counterparts or with its
+    fragments. Performance was evaluated using the Adjusted Rand Index
+    (ARI). Blini’s <italic>scale</italic> refers to the fraction of
+    k-mers considered for the operation. Scale 100 means that 1/100 of
+    k-mers were used.</p>
+    <p>In the SNPs dataset, both Blini and MMseqs achieved an ARI
+    between 0.999 and 1.0, except for Blini with scale 200, which
+    achieved an ARI of 0.997 (Figure 3b). Blini created 100, 100, 101
+    and 110 clusters using scales 25, 50, 100 and 200 respectively.
+    MMseqs created 103 clusters (Figure 3a). Blini took on average 10.5
+    seconds, and MMseqs took 46 seconds with one thread, and 14 seconds
+    with four threads (Figure 3b). In terms of memory, Blini had a
+    maximal memory footprint of 255, 129, 65, and 38 MB using scales 25,
+    50, 100 and 200 respectively. MMseqs had a maximal memory footprint
+    of 3072 MB (Figure 3c).</p>
+    <fig>
+      <caption><p>Clustering results for the SNPs dataset. Each of the
+      100 viral genomes from the search benchmark was used to create 100
+      mutant sequences with SNPs in 1% of their bases. The tools were
+      run on this collection of 10,100 genomes and were expected to
+      cluster them into 100 groups, corresponding to the original
+      genomes.</p></caption>
+      <graphic mimetype="image" mime-subtype="png" xlink:href="clust_snps.png" />
+    </fig>
+    <p>In the fragments dataset, MMseqs achieved an ARI of 1.0 while
+    Blini achieved an ARI of 0.999, 0.999, 0.998 and 0.989 with scales
+    25, 50, 100 and 200 (Figure 4b). Blini grouped the dataset into 100,
+    104, 135 and 386 clusters, while MMseqs grouped the dataset into 101
+    clusters (Figure 4a). The decline in performance with increasing
+    scale is discussed below under Limitations. Blini took on average 20
+    seconds, and MMseqs took 80 seconds with one thread, and 24 seconds
+    with four threads (Figure 4c). In terms of memory, Blini had a
+    maximal memory footprint of 462, 233, 119, and 67 MB using scales
+    25, 50, 100 and 200 respectively. MMseqs had a maximal memory
+    footprint of 5632 MB (Figure 4d).</p>
+    <fig>
+      <caption><p>Clustering results for the fragments dataset. Each of
+      the 100 viral genomes from the search benchmark was used to create
+      300 random fragments of length 1000 bases and above. The tools
+      were run on this collection of 30100 genomes and were expected to
+      cluster them into 100 groups, corresponding to the original
+      genomes.</p></caption>
+      <graphic mimetype="image" mime-subtype="png" xlink:href="clust_frag.png" />
+    </fig>
+  </sec>
+</sec>
+<sec id="limitations">
+  <title>Limitations</title>
+  <p>The scale parameter controls how much information Blini can work
+  with. While a higher scale reduces resource consumption, it also means
+  that distances are calculated based on less information, which means a
+  higher sampling error. For example, a 100-base sequence has fewer than
+  100 k-mers, which means fewer than 100 hashes. With the default scale
+  of 100, it means on average less than one hash for a 100-base
+  sequence. Using a binomial proportion error estimation
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[\sigma_{\mathrm{err}} = \sqrt{\frac{J(J-1)}{|A_{\mathrm{sub}} \cap B_{\mathrm{sub}}|}}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>σ</mml:mi><mml:mrow><mml:mi mathvariant="normal">e</mml:mi><mml:mi mathvariant="normal">r</mml:mi><mml:mi mathvariant="normal">r</mml:mi></mml:mrow></mml:msub><mml:mo>=</mml:mo><mml:msqrt><mml:mfrac><mml:mrow><mml:mi>J</mml:mi><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mi>J</mml:mi><mml:mo>−</mml:mo><mml:mn>1</mml:mn><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mrow><mml:mrow><mml:mo stretchy="true" form="prefix">|</mml:mo><mml:msub><mml:mi>A</mml:mi><mml:mrow><mml:mi mathvariant="normal">s</mml:mi><mml:mi mathvariant="normal">u</mml:mi><mml:mi mathvariant="normal">b</mml:mi></mml:mrow></mml:msub><mml:mo>∩</mml:mo><mml:msub><mml:mi>B</mml:mi><mml:mrow><mml:mi mathvariant="normal">s</mml:mi><mml:mi mathvariant="normal">u</mml:mi><mml:mi mathvariant="normal">b</mml:mi></mml:mrow></mml:msub><mml:mo stretchy="true" form="postfix">|</mml:mo></mml:mrow></mml:mfrac></mml:msqrt></mml:mrow></mml:math></alternatives></inline-formula>,
+  where <inline-formula><alternatives>
+  <tex-math><![CDATA[J]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>J</mml:mi></mml:math></alternatives></inline-formula>
+  is the true Jaccard similarity and <inline-formula><alternatives>
+  <tex-math><![CDATA[A_{\mathrm{sub}}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>A</mml:mi><mml:mrow><mml:mi mathvariant="normal">s</mml:mi><mml:mi mathvariant="normal">u</mml:mi><mml:mi mathvariant="normal">b</mml:mi></mml:mrow></mml:msub></mml:math></alternatives></inline-formula>
+  and <inline-formula><alternatives>
+  <tex-math><![CDATA[B_{\mathrm{sub}}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>B</mml:mi><mml:mrow><mml:mi mathvariant="normal">s</mml:mi><mml:mi mathvariant="normal">u</mml:mi><mml:mi mathvariant="normal">b</mml:mi></mml:mrow></mml:msub></mml:math></alternatives></inline-formula>
+  are the subsamples of sets <inline-formula><alternatives>
+  <tex-math><![CDATA[A]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>A</mml:mi></mml:math></alternatives></inline-formula>
+  and <inline-formula><alternatives>
+  <tex-math><![CDATA[B]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>B</mml:mi></mml:math></alternatives></inline-formula>,
+  a subsample of at least 25 k-mers is required in order to reduce the
+  Jaccard estimation error below 10%. Therefore, Blini is effective for
+  sequences at least 25 times longer than the chosen scale value. For
+  the default value of 100, sequences shorter than 2,500 bases are
+  likely to be falsely missed. This can be seen in Figure 3, where
+  clustering of sequences of length 1000+ bases was less accurate with a
+  scale value of 200. While the scale can be tweaked, this tool might
+  not be suitable for short reads.</p>
+  <p>Blini also currently only works for nucleotide sequences. Amino
+  acid sequences might be added in the future. On the technical side,
+  Blini is currently single-threaded. Multithreading can be considered
+  in the future if a concrete need arises.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <title></title>
+  <ref id="ref-ondov2016mash">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Ondov</surname><given-names>Brian D</given-names></name>
+        <name><surname>Treangen</surname><given-names>Todd J</given-names></name>
+        <name><surname>Melsted</surname><given-names>Páll</given-names></name>
+        <name><surname>Mallonee</surname><given-names>Adam B</given-names></name>
+        <name><surname>Bergman</surname><given-names>Nicholas H</given-names></name>
+        <name><surname>Koren</surname><given-names>Sergey</given-names></name>
+        <name><surname>Phillippy</surname><given-names>Adam M</given-names></name>
+      </person-group>
+      <article-title>Mash: Fast genome and metagenome distance estimation using MinHash</article-title>
+      <source>Genome biology</source>
+      <publisher-name>BioMed Central</publisher-name>
+      <year iso-8601-date="2016">2016</year>
+      <volume>17</volume>
+      <pub-id pub-id-type="doi">10.1186/s13059-016-0997-x</pub-id>
+      <fpage>1</fpage>
+      <lpage>14</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-steinegger2018clustering">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Steinegger</surname><given-names>Martin</given-names></name>
+        <name><surname>Söding</surname><given-names>Johannes</given-names></name>
+      </person-group>
+      <article-title>Clustering huge protein sequence sets in linear time</article-title>
+      <source>Nature communications</source>
+      <publisher-name>Nature Publishing Group UK London</publisher-name>
+      <year iso-8601-date="2018">2018</year>
+      <volume>9</volume>
+      <issue>1</issue>
+      <pub-id pub-id-type="doi">10.1038/s41467-018-04964-5</pub-id>
+      <fpage>2542</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-altschul1990basic">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Altschul</surname><given-names>Stephen F</given-names></name>
+        <name><surname>Gish</surname><given-names>Warren</given-names></name>
+        <name><surname>Miller</surname><given-names>Webb</given-names></name>
+        <name><surname>Myers</surname><given-names>Eugene W</given-names></name>
+        <name><surname>Lipman</surname><given-names>David J</given-names></name>
+      </person-group>
+      <article-title>Basic local alignment search tool</article-title>
+      <source>Journal of molecular biology</source>
+      <publisher-name>Elsevier</publisher-name>
+      <year iso-8601-date="1990">1990</year>
+      <volume>215</volume>
+      <issue>3</issue>
+      <pub-id pub-id-type="doi">10.1016/S0022-2836(05)80360-2</pub-id>
+      <fpage>403</fpage>
+      <lpage>410</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-pruitt2007ncbi">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Pruitt</surname><given-names>Kim D</given-names></name>
+        <name><surname>Tatusova</surname><given-names>Tatiana</given-names></name>
+        <name><surname>Maglott</surname><given-names>Donna R</given-names></name>
+      </person-group>
+      <article-title>NCBI reference sequences (RefSeq): A curated non-redundant sequence database of genomes, transcripts and proteins</article-title>
+      <source>Nucleic acids research</source>
+      <publisher-name>Oxford University Press</publisher-name>
+      <year iso-8601-date="2007">2007</year>
+      <volume>35</volume>
+      <issue>suppl_1</issue>
+      <pub-id pub-id-type="doi">10.1093/nar/gkl842</pub-id>
+      <fpage>D61</fpage>
+      <lpage>D65</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-brown2016sourmash">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Brown</surname><given-names>C Titus</given-names></name>
+        <name><surname>Irber</surname><given-names>Luiz</given-names></name>
+      </person-group>
+      <article-title>Sourmash: A library for MinHash sketching of DNA</article-title>
+      <source>Journal of open source software</source>
+      <year iso-8601-date="2016">2016</year>
+      <volume>1</volume>
+      <issue>5</issue>
+      <pub-id pub-id-type="doi">10.21105/joss.00027</pub-id>
+      <fpage>27</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-pasolli2019extensive">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Pasolli</surname><given-names>Edoardo</given-names></name>
+        <name><surname>Asnicar</surname><given-names>Francesco</given-names></name>
+        <name><surname>Manara</surname><given-names>Serena</given-names></name>
+        <name><surname>Zolfo</surname><given-names>Moreno</given-names></name>
+        <name><surname>Karcher</surname><given-names>Nicolai</given-names></name>
+        <name><surname>Armanini</surname><given-names>Federica</given-names></name>
+        <name><surname>Beghini</surname><given-names>Francesco</given-names></name>
+        <name><surname>Manghi</surname><given-names>Paolo</given-names></name>
+        <name><surname>Tett</surname><given-names>Adrian</given-names></name>
+        <name><surname>Ghensi</surname><given-names>Paolo</given-names></name>
+        <name><surname>others</surname></name>
+      </person-group>
+      <article-title>Extensive unexplored human microbiome diversity revealed by over 150,000 genomes from metagenomes spanning age, geography, and lifestyle</article-title>
+      <source>Cell</source>
+      <publisher-name>Elsevier</publisher-name>
+      <year iso-8601-date="2019">2019</year>
+      <volume>176</volume>
+      <issue>3</issue>
+      <pub-id pub-id-type="doi">10.1016/j.cell.2019.01.001</pub-id>
+      <fpage>649</fpage>
+      <lpage>662</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-simmonds2024cz">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Simmonds</surname><given-names>Sara E</given-names></name>
+        <name><surname>Ly</surname><given-names>Lynn</given-names></name>
+        <name><surname>Beaulaurier</surname><given-names>John</given-names></name>
+        <name><surname>Lim</surname><given-names>Ryan</given-names></name>
+        <name><surname>Morse</surname><given-names>Todd</given-names></name>
+        <name><surname>Thakku</surname><given-names>Sri Gowtham</given-names></name>
+        <name><surname>Rosario</surname><given-names>Karyna</given-names></name>
+        <name><surname>Perez</surname><given-names>Juan Caballero</given-names></name>
+        <name><surname>Puschnik</surname><given-names>Andreas</given-names></name>
+        <name><surname>Mwakibete</surname><given-names>Lusajo</given-names></name>
+        <name><surname>others</surname></name>
+      </person-group>
+      <article-title>CZ ID: A cloud-based, no-code platform enabling advanced long read metagenomic analysis</article-title>
+      <source>bioRxiv</source>
+      <publisher-name>Cold Spring Harbor Laboratory</publisher-name>
+      <year iso-8601-date="2024">2024</year>
+      <pub-id pub-id-type="doi">10.1101/2024.02.29.579666</pub-id>
+      <fpage>2024</fpage>
+      <lpage>02</lpage>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
