@@ -1,0 +1,608 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">9059</article-id>
+<article-id pub-id-type="doi">10.21105/joss.09059</article-id>
+<title-group>
+<article-title>pythainer: composable and reusable Docker builders and
+runners for reproducible research</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0001-6608-6562</contrib-id>
+<name>
+<surname>Paolillo</surname>
+<given-names>Antonio</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Software Languages Lab, Vrije Universiteit Brussel (VUB),
+Belgium</institution>
+<institution-id institution-id-type="ROR">006e5kg04</institution-id>
+</institution-wrap>
+</aff>
+</contrib-group>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2025-09-16">
+<day>16</day>
+<month>9</month>
+<year>2025</year>
+</pub-date>
+<volume>11</volume>
+<issue>117</issue>
+<fpage>9059</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2026</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>Python</kwd>
+<kwd>Docker</kwd>
+<kwd>reproducibility</kwd>
+<kwd>software engineering</kwd>
+<kwd>research tooling</kwd>
+<kwd>system software</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p>Software experiments today often depend on complex Linux
+  environments that combine several toolchains, devices, and graphical
+  interfaces. Many research projects
+  (<xref alt="Mayoral-Vilches et al., 2022" rid="ref-robotcore" ref-type="bibr">Mayoral-Vilches
+  et al., 2022</xref>;
+  <xref alt="Millane et al., 2024" rid="ref-nvblox" ref-type="bibr">Millane
+  et al., 2024</xref>), for instance, need to compose ROS 2
+  (<xref alt="Macenski et al., 2022" rid="ref-macenski2022ros2" ref-type="bibr">Macenski
+  et al., 2022</xref>) with CUDA
+  (<xref alt="CUDA C++ Programming Guide, 2025" rid="ref-nvidiaCudaPg13" ref-type="bibr"><italic>CUDA
+  C++ Programming Guide</italic>, 2025</xref>), require non-root users,
+  provide GPU and GUI access, and must be reproducible across time and
+  machines. Docker
+  (<xref alt="Docker, Inc., 2013" rid="ref-docker" ref-type="bibr">Docker,
+  Inc., 2013</xref>) is a widely adopted substrate for packaging and
+  running such environments, and is commonly used to improve
+  reproducibility in research software
+  (<xref alt="Tani et al., 2020" rid="ref-tani2020reproducible" ref-type="bibr">Tani
+  et al., 2020</xref>). However, writing and maintaining Dockerfiles and
+  project-specific <monospace>docker run</monospace> scripts becomes a
+  burden as requirements grow.</p>
+  <p><monospace>pythainer</monospace> raises the level of abstraction
+  while remaining Docker-native. It lets users describe images as small,
+  testable Python <italic>builders</italic> that can be composed (e.g.,
+  ROS 2 + CUDA) and executed with reusable <italic>runners</italic> that
+  capture runtime policy (GPU, GUI, users, mounts).
+  <monospace>pythainer</monospace> renders deterministic Dockerfiles,
+  builds standard images, and centralizes run configuration, hence
+  improving reuse and reducing duplication across repositories.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p>Plain Dockerfiles are intentionally minimal: they offer sequential
+  shell steps but no first-class functions, loops, or composition. This
+  is adequate for simple images, yet it complicates reuse in research
+  settings where environments must be combined and parameterized. In
+  particular, merging two existing images (e.g., community ROS 2 and
+  NVIDIA CUDA) is not first-class: multi-stage builds help trim
+  artifacts but require intimate knowledge of which files, environment
+  variables, and paths must be copied and preserved. On the runtime
+  side, real projects often need non-root users, persistent volumes,
+  access to GPUs and GUIs (X11/Wayland), and device mappings. These
+  concerns are typically maintained as long shell scripts that are
+  copy-pasted and diverge across projects.</p>
+  <p>The primary target audience of <monospace>pythainer</monospace> is
+  anyone who needs to write and maintain multiple Dockerfiles or complex
+  containerized environments that share interchangeable build steps and
+  runtime requirements. This includes, but is not limited to, research
+  groups and labs (e.g., robotics, vision, ML, compilers, systems),
+  instructors who need reliable student environments, and continuous
+  integration (CI) maintainers who prefer deterministic builds and
+  centralized run policy over ad-hoc scripts.</p>
+</sec>
+<sec id="functionality">
+  <title>Functionality</title>
+  <p><monospace>pythainer</monospace> is a lightweight Python package
+  and CLI that provides a programmable front-end to Docker. It addresses
+  the above pain points by adding a programmable abstraction for image
+  construction and a reusable abstraction for execution policy. Builders
+  are Python objects and functions that support ordinary programming
+  constructs (conditionals, loops, parameters) and can be composed with
+  a simple operator. Runners encapsulate repeatable
+  <monospace>docker run</monospace> policy, so launching a container is
+  a matter of selecting presets rather than rewriting long commands.</p>
+  <p>Instead of writing raw Dockerfiles and shell scripts, users compose
+  images with builders and control runtime behavior with runners. The
+  library integrates naturally into Python workflows while emitting
+  standard, human-readable Dockerfiles that are built and executed using
+  the Docker engine with reproducible runtime settings.
+  <monospace>pythainer</monospace> is centered around two core
+  abstractions, builders and runners:</p>
+  <list list-type="bullet">
+    <list-item>
+      <p><bold>Builders (image construction).</bold> A small API exposes
+      common steps (e.g., FROM/RUN/ENV/WORKDIR, package installs).
+      Builders can be composed via an in-place operator to form larger
+      images (e.g., ROS 2 + CUDA). Output rendering is deterministic,
+      which simplifies testing and review.</p>
+    </list-item>
+    <list-item>
+      <p><bold>Runners (execution policy).</bold> A runner object
+      assembles <monospace>docker run</monospace> flags for typical
+      research needs: non-root user mapping, volumes, devices, GPUs, and
+      GUI/X11 forwarding. Presets capture best practices (e.g., mapping
+      the X socket and <monospace>DISPLAY</monospace>, requesting
+      <monospace>--gpus all</monospace> with the expected environment
+      variables), reducing duplication across repositories.</p>
+    </list-item>
+  </list>
+  <p><monospace>pythainer</monospace> is designed around composable
+  building blocks: users can define their own builders or runners and
+  combine them across projects. The library also ships a small set of
+  representative builders and runners for common research needs (e.g.,
+  language toolchains, emulation, GPU and GUI support), which can be
+  reused directly or extended in project-specific workflows. This
+  enables reuse that is difficult to achieve with monolithic
+  Dockerfiles.</p>
+  <fig>
+    <caption><p>Mapping between a pythainer builder recipe (left) and
+    the resulting Dockerfile (right). Each builder method contributes a
+    deterministic Dockerfile block. Execution policy is defined
+    separately via runners (e.g., GUI/X11 support), which assemble the
+    docker run invocation without modifying the image.
+    <styled-content id="figU003Apythainer-dockerfile"></styled-content></p></caption>
+    <graphic mimetype="image" mime-subtype="svg+xml" xlink:href="pythainer-dockerfile.svg" />
+  </fig>
+  <p><xref alt="[fig:pythainer-dockerfile]" rid="figU003Apythainer-dockerfile">[fig:pythainer-dockerfile]</xref>
+  illustrates the core workflow of pythainer. Users specify image
+  construction declaratively in Python using builders, which are
+  rendered into a standard Dockerfile and built with the Docker engine.
+  Execution policy is handled separately via runners, which assemble the
+  required docker run flags before launching the container.</p>
+  <p><monospace>pythainer</monospace> is accompanied by supporting
+  tooling:</p>
+  <list list-type="bullet">
+    <list-item>
+      <p><bold>CLI.</bold> A command-line interface provides two
+      convenience commands: <monospace>scaffold</monospace> generates a
+      starter Python script (builders + runners) and
+      <monospace>run</monospace> composes and executes directly for
+      one-offs.</p>
+    </list-item>
+    <list-item>
+      <p><bold>Examples and tests.</bold> The package ships small
+      composition recipes (e.g., LLVM/MLIR, QEMU, Rust)
+      (<xref alt="Chris Lattner et al., 2021" rid="ref-mlir" ref-type="bibr">Chris
+      Lattner et al., 2021</xref>;
+      <xref alt="C. Lattner &amp; Adve, 2004" rid="ref-llvm" ref-type="bibr">C.
+      Lattner &amp; Adve, 2004</xref>;
+      <xref alt="QEMU Project, 2003" rid="ref-qemu" ref-type="bibr">QEMU
+      Project, 2003</xref>). Unit tests lock down Dockerfile rendering
+      and CLI behavior; an opt-in integration test builds a tiny image
+      to validate the end-to-end flow. Continuous integration runs tests
+      and linters.</p>
+    </list-item>
+  </list>
+</sec>
+<sec id="research-applications">
+  <title>Research applications</title>
+  <p>We have used <monospace>pythainer</monospace> to assemble
+  environments for (i) robotics experiments combining ROS 2 with CUDA
+  toolchains
+  (<xref alt="Imec ITF World 2024 SAFEBOT Demo, 2024" rid="ref-itf24safebot" ref-type="bibr"><italic>Imec
+  ITF World 2024 SAFEBOT Demo</italic>, 2024</xref>;
+  <xref alt="Shen et al., 2025" rid="ref-shen2025sentryrt1" ref-type="bibr">Shen
+  et al., 2025</xref>); (ii) compiler research that requires pinned LLVM
+  toolchains
+  (<xref alt="De Greef et al., 2025" rid="ref-degreef2025macros" ref-type="bibr">De
+  Greef et al., 2025</xref>); (iii) systems evaluations using QEMU built
+  from source; and (iv) GPU scheduling experiments where deterministic
+  containerized environments are required
+  (<xref alt="Discepoli et al., 2025" rid="ref-discepoli2025computeKernels" ref-type="bibr">Discepoli
+  et al., 2025</xref>).</p>
+  <p>In each case, the same small recipes are reused and composed across
+  projects, which shortens setup time and reduces configuration drift.
+  Because <monospace>pythainer</monospace> emits human-readable
+  Dockerfiles, the resulting images remain transparent and easy to
+  audit, and the approach integrates well with existing Docker-centric
+  CI.</p>
+</sec>
+<sec id="related-work">
+  <title>Related work</title>
+  <p><monospace>pythainer</monospace> complements the Docker ecosystem
+  by adding a programmable composition model on top of Dockerfiles.
+  Unlike Docker Compose or the Docker SDK for Python, which focus on
+  orchestrating multi-service deployments or driving the daemon
+  (<xref alt="Docker, Inc., 2014a" rid="ref-docker_compose" ref-type="bibr">Docker,
+  Inc., 2014a</xref>,
+  <xref alt="2014b" rid="ref-docker_sdk_python" ref-type="bibr">2014b</xref>),
+  <monospace>pythainer</monospace> focuses on single-image construction
+  and single-container execution policy. This makes it especially suited
+  for research projects where the goal is to provide a single
+  reproducible environment for experiments rather than a full
+  service-oriented stack.</p>
+  <p>Compared with editor-centric templates such as VS Code
+  devcontainers
+  (<xref alt="Dev Containers Spec, 2022" rid="ref-devcontainers" ref-type="bibr">Dev
+  Containers Spec, 2022</xref>) or domain-specific generators such as
+  repo2docker
+  (<xref alt="Project Jupyter, 2017" rid="ref-repo2docker" ref-type="bibr">Project
+  Jupyter, 2017</xref>), <monospace>pythainer</monospace> treats
+  environment recipes as code with tests and deterministic rendering.
+  Functional package managers such as Nix and Guix offer deep
+  system-level reproducibility but require adopting a different stack
+  (<xref alt="Courtès, 2013" rid="ref-courtes2013guix" ref-type="bibr">Courtès,
+  2013</xref>;
+  <xref alt="Dolstra et al., 2004" rid="ref-nix04lisa" ref-type="bibr">Dolstra
+  et al., 2004</xref>); <monospace>pythainer</monospace> stays
+  Docker-native for easier adoption in labs and CI. Pragmatically, many
+  third-party packages (e.g., CUDA and ROS 2) are primarily supported on
+  Ubuntu, so staying Docker-native with Ubuntu-based images eases
+  reproduction without changing the base distribution.</p>
+  <p>Projects such as Caliban
+  (<xref alt="Ritchie et al., 2020" rid="ref-ritchie2020caliban" ref-type="bibr">Ritchie
+  et al., 2020</xref>) and x11docker
+  (<xref alt="Viereck, 2019" rid="ref-viereck2019x11docker" ref-type="bibr">Viereck,
+  2019</xref>) address related pain points in research containerization.
+  Caliban streamlines packaging and running ML experiments across local
+  and cloud environments, while x11docker provides secure and convenient
+  ways to run GUI applications inside Docker. However, neither of these
+  works addresses general-purpose composition of images and runtime
+  policy. In contrast, <monospace>pythainer</monospace> focuses on
+  composable image construction and reusable execution policy while
+  remaining domain-agnostic and Docker-native.</p>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>We thank contributors for feedback and patches that improved early
+  designs and examples, including Attilio Discepoli, Yuwen Shen, Aaron
+  Bogaert, Samuel Beesoon, Robbe De Greef, and Esteban Aguililla
+  Klein.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <title></title>
+  <ref id="ref-nvblox">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Millane</surname><given-names>Alexander</given-names></name>
+        <name><surname>Oleynikova</surname><given-names>Helen</given-names></name>
+        <name><surname>Wirbel</surname><given-names>Emilie</given-names></name>
+        <name><surname>Steiner</surname><given-names>Remo</given-names></name>
+        <name><surname>Ramasamy</surname><given-names>Vikram</given-names></name>
+        <name><surname>Tingdahl</surname><given-names>David</given-names></name>
+        <name><surname>Siegwart</surname><given-names>Roland</given-names></name>
+      </person-group>
+      <article-title>Nvblox: GPU-accelerated incremental signed distance field mapping</article-title>
+      <source>2024 IEEE international conference on robotics and automation (ICRA)</source>
+      <year iso-8601-date="2024">2024</year>
+      <volume></volume>
+      <pub-id pub-id-type="doi">10.1109/ICRA57147.2024.10611532</pub-id>
+      <fpage>2698</fpage>
+      <lpage>2705</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-robotcore">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Mayoral-Vilches</surname><given-names>Víctor</given-names></name>
+        <name><surname>Neuman</surname><given-names>Sabrina M.</given-names></name>
+        <name><surname>Plancher</surname><given-names>Brian</given-names></name>
+        <name><surname>Reddi</surname><given-names>Vijay Janapa</given-names></name>
+      </person-group>
+      <article-title>RobotCore: An open architecture for hardware acceleration in ROS 2</article-title>
+      <source>2022 IEEE/RSJ international conference on intelligent robots and systems (IROS)</source>
+      <year iso-8601-date="2022">2022</year>
+      <volume></volume>
+      <pub-id pub-id-type="doi">10.1109/IROS47612.2022.9982082</pub-id>
+      <fpage>9692</fpage>
+      <lpage>9699</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-tani2020reproducible">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Tani</surname><given-names>Jacopo</given-names></name>
+        <name><surname>Daniele</surname><given-names>Andrea F.</given-names></name>
+        <name><surname>Bernasconi</surname><given-names>Gianmarco</given-names></name>
+        <name><surname>Camus</surname><given-names>Amaury</given-names></name>
+        <name><surname>Petrov</surname><given-names>Aleksandar</given-names></name>
+        <name><surname>Courchesne</surname><given-names>Anthony</given-names></name>
+        <name><surname>Mehta</surname><given-names>Bhairav</given-names></name>
+        <name><surname>Suri</surname><given-names>Rohit</given-names></name>
+        <name><surname>Zaluska</surname><given-names>Tomasz</given-names></name>
+        <name><surname>Walter</surname><given-names>Matthew R.</given-names></name>
+        <name><surname>Frazzoli</surname><given-names>Emilio</given-names></name>
+        <name><surname>Paull</surname><given-names>Liam</given-names></name>
+        <name><surname>Censi</surname><given-names>Andrea</given-names></name>
+      </person-group>
+      <article-title>Integrated benchmarking and design for reproducible and accessible evaluation of robotic agents</article-title>
+      <source>2020 IEEE/RSJ international conference on intelligent robots and systems (IROS)</source>
+      <year iso-8601-date="2020">2020</year>
+      <volume></volume>
+      <pub-id pub-id-type="doi">10.1109/IROS45743.2020.9341677</pub-id>
+      <fpage>6229</fpage>
+      <lpage>6236</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-macenski2022ros2">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Macenski</surname><given-names>Steven</given-names></name>
+        <name><surname>Foote</surname><given-names>Tully</given-names></name>
+        <name><surname>Gerkey</surname><given-names>Brian</given-names></name>
+        <name><surname>Lalancette</surname><given-names>Chris</given-names></name>
+        <name><surname>Woodall</surname><given-names>William</given-names></name>
+      </person-group>
+      <article-title>Robot operating system 2: Design, architecture, and uses in the wild</article-title>
+      <source>Science Robotics</source>
+      <year iso-8601-date="2022">2022</year>
+      <volume>7</volume>
+      <issue>66</issue>
+      <uri>https://www.science.org/doi/abs/10.1126/scirobotics.abm6074</uri>
+      <pub-id pub-id-type="doi">10.1126/scirobotics.abm6074</pub-id>
+      <fpage>eabm6074</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-nvidiaCudaPg13">
+    <element-citation publication-type="book">
+      <source>CUDA C++ programming guide</source>
+      <publisher-name>NVIDIA Corporation; https://docs.nvidia.com/cuda/cuda-c-programming-guide/, accessed 2025-09-15</publisher-name>
+      <year iso-8601-date="2025">2025</year>
+    </element-citation>
+  </ref>
+  <ref id="ref-qemu">
+    <element-citation>
+      <person-group person-group-type="author">
+        <string-name>QEMU Project</string-name>
+      </person-group>
+      <article-title>QEMU: A generic and open source machine emulator and virtualizer</article-title>
+      <publisher-name>https://www.qemu.org/ accessed 2025-09-15</publisher-name>
+      <year iso-8601-date="2003">2003</year>
+    </element-citation>
+  </ref>
+  <ref id="ref-docker">
+    <element-citation>
+      <person-group person-group-type="author">
+        <string-name>Docker, Inc.</string-name>
+      </person-group>
+      <article-title>Docker: Accelerated container application development</article-title>
+      <publisher-name>https://www.docker.com/ accessed 2025-09-15</publisher-name>
+      <year iso-8601-date="2013">2013</year>
+    </element-citation>
+  </ref>
+  <ref id="ref-llvm">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Lattner</surname><given-names>C.</given-names></name>
+        <name><surname>Adve</surname><given-names>V.</given-names></name>
+      </person-group>
+      <article-title>LLVM: A compilation framework for lifelong program analysis &amp; transformation</article-title>
+      <source>International symposium on code generation and optimization, 2004. CGO 2004.</source>
+      <year iso-8601-date="2004">2004</year>
+      <volume></volume>
+      <pub-id pub-id-type="doi">10.1109/CGO.2004.1281665</pub-id>
+      <fpage>75</fpage>
+      <lpage>86</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-mlir">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Lattner</surname><given-names>Chris</given-names></name>
+        <name><surname>Amini</surname><given-names>Mehdi</given-names></name>
+        <name><surname>Bondhugula</surname><given-names>Uday</given-names></name>
+        <name><surname>Cohen</surname><given-names>Albert</given-names></name>
+        <name><surname>Davis</surname><given-names>Andy</given-names></name>
+        <name><surname>Pienaar</surname><given-names>Jacques</given-names></name>
+        <name><surname>Riddle</surname><given-names>River</given-names></name>
+        <name><surname>Shpeisman</surname><given-names>Tatiana</given-names></name>
+        <name><surname>Vasilache</surname><given-names>Nicolas</given-names></name>
+        <name><surname>Zinenko</surname><given-names>Oleksandr</given-names></name>
+      </person-group>
+      <article-title>MLIR: Scaling compiler infrastructure for domain specific computation</article-title>
+      <source>2021 IEEE/ACM international symposium on code generation and optimization (CGO)</source>
+      <year iso-8601-date="2021">2021</year>
+      <volume></volume>
+      <pub-id pub-id-type="doi">10.1109/CGO51591.2021.9370308</pub-id>
+      <fpage>2</fpage>
+      <lpage>14</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-shen2025sentryrt1">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Shen</surname><given-names>Yuwen</given-names></name>
+        <name><surname>Mynsbrugge</surname><given-names>Jorrit Vander</given-names></name>
+        <name><surname>Roshandel</surname><given-names>Nima</given-names></name>
+        <name><surname>Bouchez</surname><given-names>Robin</given-names></name>
+        <name><surname>FirouziPouyaei</surname><given-names>Hamed</given-names></name>
+        <name><surname>Scholz</surname><given-names>Constantin</given-names></name>
+        <name><surname>Cao</surname><given-names>Hoang‑Long</given-names></name>
+        <name><surname>Vanderborght</surname><given-names>Bram</given-names></name>
+        <name><surname>Joosen</surname><given-names>Wouter</given-names></name>
+        <name><surname>Paolillo</surname><given-names>Antonio</given-names></name>
+      </person-group>
+      <article-title>SentryRT‑1: A case study in evaluating real‑time linux for safety‑critical robotic perception</article-title>
+      <source>Proceedings of the 19th workshop on operating systems platforms for embedded real‑time applications (OSPERT 2025)</source>
+      <publisher-loc>Brussels, Belgium</publisher-loc>
+      <year iso-8601-date="2025">2025</year>
+      <fpage>35</fpage>
+      <lpage>41</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-itf24safebot">
+    <element-citation>
+      <article-title>Imec ITF world 2024 SAFEBOT demo</article-title>
+      <publisher-name>https://www.youtube.com/watch?v=F7m5_kQ_mRQ accessed 2025-09-15</publisher-name>
+      <year iso-8601-date="2024">2024</year>
+    </element-citation>
+  </ref>
+  <ref id="ref-degreef2025macros">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>De Greef</surname><given-names>Robbe</given-names></name>
+        <name><surname>Discepoli</surname><given-names>Attilio</given-names></name>
+        <name><surname>Aguililla Klein</surname><given-names>Esteban</given-names></name>
+        <name><surname>Engels</surname><given-names>Théo</given-names></name>
+        <name><surname>Hasselmann</surname><given-names>Ken</given-names></name>
+        <name><surname>Paolillo</surname><given-names>Antonio</given-names></name>
+      </person-group>
+      <article-title>Towards macro-aware C-to-Rust transpilation (WIP)</article-title>
+      <source>Proceedings of the 26th ACM SIGPLAN/SIGBED international conference on languages, compilers, and tools for embedded systems</source>
+      <publisher-name>Association for Computing Machinery</publisher-name>
+      <publisher-loc>New York, NY, USA</publisher-loc>
+      <year iso-8601-date="2025">2025</year>
+      <isbn>9798400719219</isbn>
+      <uri>https://doi.org/10.1145/3735452.3735535</uri>
+      <pub-id pub-id-type="doi">10.1145/3735452.3735535</pub-id>
+      <fpage>57</fpage>
+      <lpage>61</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-discepoli2025computeKernels">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Discepoli</surname><given-names>Attilio</given-names></name>
+        <name><surname>Huygen</surname><given-names>Mathias Louis</given-names></name>
+        <name><surname>Paolillo</surname><given-names>Antonio</given-names></name>
+      </person-group>
+      <article-title>Compute kernels as moldable tasks: Towards real‑time gang scheduling in GPUs</article-title>
+      <source>Proceedings of the 19th workshop on operating systems platforms for embedded real‑time applications (OSPERT 2025)</source>
+      <publisher-loc>Brussels, Belgium</publisher-loc>
+      <year iso-8601-date="2025">2025</year>
+      <fpage>29</fpage>
+      <lpage>33</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-docker_compose">
+    <element-citation>
+      <person-group person-group-type="author">
+        <string-name>Docker, Inc.</string-name>
+      </person-group>
+      <article-title>Docker compose</article-title>
+      <publisher-name>https://docs.docker.com/compose/ accessed 2025-09-15</publisher-name>
+      <year iso-8601-date="2014">2014</year>
+    </element-citation>
+  </ref>
+  <ref id="ref-docker_sdk_python">
+    <element-citation>
+      <person-group person-group-type="author">
+        <string-name>Docker, Inc.</string-name>
+      </person-group>
+      <article-title>Docker SDK for python</article-title>
+      <publisher-name>https://docker-py.readthedocs.io/ accessed 2025-09-15</publisher-name>
+      <year iso-8601-date="2014">2014</year>
+    </element-citation>
+  </ref>
+  <ref id="ref-devcontainers">
+    <element-citation>
+      <person-group person-group-type="author">
+        <string-name>Dev Containers Spec</string-name>
+      </person-group>
+      <article-title>Development containers specification</article-title>
+      <publisher-name>https://containers.dev accessed 2025-09-15</publisher-name>
+      <year iso-8601-date="2022">2022</year>
+    </element-citation>
+  </ref>
+  <ref id="ref-repo2docker">
+    <element-citation>
+      <person-group person-group-type="author">
+        <string-name>Project Jupyter</string-name>
+      </person-group>
+      <article-title>repo2docker: Turn repositories into Jupyter-enabled Docker images</article-title>
+      <publisher-name>https://repo2docker.readthedocs.io/ accessed 2025-09-15</publisher-name>
+      <year iso-8601-date="2017">2017</year>
+    </element-citation>
+  </ref>
+  <ref id="ref-nix04lisa">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Dolstra</surname><given-names>Eelco</given-names></name>
+        <name><surname>Jonge</surname><given-names>Merijn de</given-names></name>
+        <name><surname>Visser</surname><given-names>Eelco</given-names></name>
+      </person-group>
+      <article-title>Nix: A safe and policy-free system for software deployment</article-title>
+      <source>Proceedings of the 18th USENIX conference on system administration</source>
+      <publisher-name>USENIX Association</publisher-name>
+      <publisher-loc>USA</publisher-loc>
+      <year iso-8601-date="2004">2004</year>
+      <fpage>79</fpage>
+      <lpage>92</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-courtes2013guix">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Courtès</surname><given-names>Ludovic</given-names></name>
+      </person-group>
+      <article-title>Functional package management with Guix</article-title>
+      <year iso-8601-date="2013">2013</year>
+      <uri>https://arxiv.org/abs/1305.4584</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-ritchie2020caliban">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Ritchie</surname><given-names>Sam</given-names></name>
+        <name><surname>Slone</surname><given-names>Ambrose</given-names></name>
+        <name><surname>Ramasesh</surname><given-names>Vinay</given-names></name>
+      </person-group>
+      <article-title>Caliban: Docker-based job manager for reproducible workflows</article-title>
+      <source>Journal of Open Source Software</source>
+      <publisher-name>The Open Journal</publisher-name>
+      <year iso-8601-date="2020">2020</year>
+      <volume>5</volume>
+      <issue>53</issue>
+      <uri>https://doi.org/10.21105/joss.02403</uri>
+      <pub-id pub-id-type="doi">10.21105/joss.02403</pub-id>
+      <fpage>2403</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-viereck2019x11docker">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Viereck</surname><given-names>Martin</given-names></name>
+      </person-group>
+      <article-title>x11docker: Run GUI applications in Docker containers</article-title>
+      <source>Journal of Open Source Software</source>
+      <publisher-name>The Open Journal</publisher-name>
+      <year iso-8601-date="2019">2019</year>
+      <volume>4</volume>
+      <issue>37</issue>
+      <uri>https://doi.org/10.21105/joss.01349</uri>
+      <pub-id pub-id-type="doi">10.21105/joss.01349</pub-id>
+      <fpage>1349</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
