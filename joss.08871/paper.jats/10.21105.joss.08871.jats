@@ -1,0 +1,519 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">8871</article-id>
+<article-id pub-id-type="doi">10.21105/joss.08871</article-id>
+<title-group>
+<article-title>vkCompViz: Universal C++ Library for GPU-Based
+Experiments</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0003-3126-0545</contrib-id>
+<name>
+<surname>Chlubna</surname>
+<given-names>Tomas</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Faculty of Information Technology Brno University of
+Technology, Czech Republic</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2017-08-07">
+<day>7</day>
+<month>8</month>
+<year>2017</year>
+</pub-date>
+<volume>11</volume>
+<issue>117</issue>
+<fpage>8871</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2026</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>GPU</kwd>
+<kwd>Vulkan</kwd>
+<kwd>acceleration</kwd>
+<kwd>graphics</kwd>
+<kwd>GPGPU</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p>GPUs are gaining popularity due to their massive computational
+  parallelism
+  (<xref alt="Jia et al., 2021" rid="ref-jia2021" ref-type="bibr">Jia et
+  al., 2021</xref>) and usage in interactive graphics
+  (<xref alt="Nguyen, 2007" rid="ref-nguyen2007" ref-type="bibr">Nguyen,
+  2007</xref>) or machine learning applications
+  (<xref alt="Mittal &amp; Vaishay, 2019" rid="ref-mittal2019" ref-type="bibr">Mittal
+  &amp; Vaishay, 2019</xref>). Prototyping GPU-executed experiments is
+  often time-consuming due to the complexity of GPU-related APIs.
+  Multiplatform and multi-vendor support is also not guaranteed with all
+  existing APIs. The vkCompViz C++ library offers a simple way to write
+  a GPGPU
+  (<xref alt="Hu et al., 2016" rid="ref-hu2016" ref-type="bibr">Hu et
+  al., 2016</xref>) (general-purpose computing on graphics processing
+  units) program. Only the paths to files with GPU code (shader/kernel),
+  paths to input images, or a buffer of arbitrary input data need to be
+  provided by the host application. The library is capable of running a
+  sequence of compute shaders, processing the input data, and storing
+  the result or presenting it in a window. Memory usage and
+  computational time can also be automatically measured.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p>Necessary data allocations and transfers, and the execution of
+  shaders, require a special API that communicates with the GPU drivers
+  (<xref alt="Henriksen, 2024" rid="ref-henriksen2024" ref-type="bibr">Henriksen,
+  2024</xref>;
+  <xref alt="Plebański et al., 2025" rid="ref-plebanski2025" ref-type="bibr">Plebański
+  et al., 2025</xref>). Vendor-specific GPGPU API CUDA by NVIDIA and HIP
+  by AMD quickly provide access to new GPU features but can be used only
+  with the given vendor’s GPUs. OpenCL is a vendor-free multiplatform
+  API with a lot of features that are usually not fully supported by
+  drivers. These APIs are only for GPGPU computations and lack access to
+  GPU rendering features. The subsequent APIs can use rendering
+  pipelines and GPGPU functions. DirectX does not depend on the vendor,
+  but is developed by Microsoft and can be used only on Windows.
+  Similarly, Metal works only on Apple devices. OpenGL is multiplatform
+  and vendor-free, but it does not support new features and its
+  development is discontinued. Vulkan is multi-platform, vendor-free,
+  supports new features quickly, and offers low-level optimization
+  settings. The verbosity of Vulkan makes it difficult to use for quick
+  experiments. A substantial portion of the code is necessary even for
+  basic functionality. All the APIs also require the host application to
+  allocate data in GPU memory, load and decode resources like images,
+  transfer the data, create a window, etc.</p>
+  <p>The proposed vkCompViz library offers a high-level API that
+  significantly simplifies GPU programming. The library only requires
+  the paths to the code files to be executed on GPU, paths to the input
+  images, a buffer with arbitrary input data, and a set of parameters.
+  The library then allocates the necessary memory, creates the
+  GPU-related objects, transfers the data on the GPU, runs the
+  computation (or rendering) pipeline, and returns or stores the
+  results. The library can visualize the results in a window, where the
+  parameters can be interactively adjusted at run-time, or can be run in
+  headless mode on machines with no window systems. The memory usage and
+  time performance of the data transfer and shader execution reporting
+  mechanism is also implemented. Users do not need to study complex GPU
+  APIs to conduct scientific experiments. This addresses a frequent
+  issue in science, where implementing an experimental concept often
+  requires a considerable amount of time due to technical
+  difficulties.</p>
+  <p>Compared to existing frameworks used in science that simplify the
+  work with Vulkan, such as vk-bootstrap
+  (<xref alt="Muñoz Lopez &amp; Winston, 2025" rid="ref-lopez2025" ref-type="bibr">Muñoz
+  Lopez &amp; Winston, 2025</xref>), or Auto-Vk-Toolkit
+  (<xref alt="Unterguggenberger et al., 2023" rid="ref-unter2023" ref-type="bibr">Unterguggenberger
+  et al., 2023</xref>), the proposed library does not require an
+  in-depth work with the GPU-related structures. The library is
+  specially designed for quick experimental prototyping. Other
+  frameworks often focus on specific tasks, such as Datoviz
+  (<xref alt="Rossant &amp; Rougier, 2021" rid="ref-rossant2021" ref-type="bibr">Rossant
+  &amp; Rougier, 2021</xref>) for scientific data visualization, the
+  framework for remote rendering of large data
+  (<xref alt="Lavrič et al., 2018" rid="ref-lavrivc2018" ref-type="bibr">Lavrič
+  et al., 2018</xref>), or VComputeBench for benchmarking purposes
+  (<xref alt="Mammeri &amp; Juurlink, 2018" rid="ref-mammeri2018" ref-type="bibr">Mammeri
+  &amp; Juurlink, 2018</xref>). The proposed library aims to be a
+  general GPGPU scientific framework. Kokkos
+  (<xref alt="Trott et al., 2022" rid="ref-trott2022" ref-type="bibr">Trott
+  et al., 2022</xref>) and RAJA
+  (<xref alt="Beckingsale et al., 2019" rid="ref-beckingsale2019" ref-type="bibr">Beckingsale
+  et al., 2019</xref>) are C++ abstractions for performance-portable
+  parallel computation across CPUs and GPUs. In contrast, vkCompViz is
+  GPU-oriented. Its goal is not only to simplify parallel computing but
+  also visualization and data loading and provide access to additional
+  GPU capabilities, such as rendering and other features exposed by
+  Vulkan.</p>
+</sec>
+<sec id="architecture">
+  <title>Architecture</title>
+  <p>The library uses Vulkan
+  (<xref alt="Bailey, 2019" rid="ref-bailey2019" ref-type="bibr">Bailey,
+  2019</xref>), which ensures support for modern operating systems and
+  GPUs. Vulkan is expected to be further supported in the future and
+  also quickly adopts novel GPU features which can be possibly used in
+  the library. The input shaders are expected to be written in the Slang
+  language, which is a universal modern language designed for GPU
+  shaders. The input images are loaded with the FFmpeg library, which
+  supports a wide range of multimedia formats. The window is created by
+  the GLFW multi-platform library. The library workflow and architecture
+  are described in
+  <xref alt="[fig:architecture]" rid="figU003Aarchitecture">[fig:architecture]</xref>.</p>
+  <fig>
+    <caption><p>The figure describes the architecture of vkCompViz
+    library.<styled-content id="figU003Aarchitecture"></styled-content></p></caption>
+    <graphic mimetype="application" mime-subtype="pdf" xlink:href="vkCompViz.pdf" />
+  </fig>
+</sec>
+<sec id="usage">
+  <title>Usage</title>
+  <p>The project uses CMake, C++26 standard, and C++20 modules. The
+  usage of the library is demonstrated and documented in three basic
+  example subprojects. The Simple Blending example demonstrates
+  operations with images in which two images can be blended together
+  with a given factor. The 3D Viewer also shows how the rendering
+  pipeline can be customized to render an input 3D model file. The
+  Parallel Reduction example shows how the library can be used to
+  accelerate a summation of a big array of numbers. This example
+  demonstrates a simple use case of an experimental evaluation of the
+  GPU accelerated algorithm
+  (<xref alt="Jradi et al., 2020" rid="ref-jradi2020" ref-type="bibr">Jradi
+  et al., 2020</xref>), compared to its CPU variant. The experiment was
+  carried out on a machine equipped with a NVIDIA GeForce RTX 3060 Ti
+  and Intel(R) Core(TM) i5-8500 CPU @ 3.00GHz CPU, running Arch Linux.
+  The output of several runs of this example is shown in
+  <xref alt="[fig:reduction]" rid="figU003Areduction">[fig:reduction]</xref>.
+  <xref alt="[fig:reductionZoom]" rid="figU003AreductionZoom">[fig:reductionZoom]</xref>
+  shows the detailed runs where the GPU started to be faster than CPU.
+  The results show that computational time is shorter with massively
+  parallel GPU architecture. However, the data transfer delay increases
+  the total time and shows that using GPU for this use case is viable
+  only when the data is already generated on GPU or later used there or
+  when the data size reaches certain amount. This fact is in alignment
+  with previously published findings
+  (<xref alt="Dinkelbach et al., 2012" rid="ref-dinkelbach2012" ref-type="bibr">Dinkelbach
+  et al., 2012</xref>).</p>
+  <fig>
+    <caption><p>Comparison of GPU and CPU array summation is shown in
+    the
+    chart.<styled-content id="figU003Areduction"></styled-content></p></caption>
+    <graphic mimetype="application" mime-subtype="pdf" xlink:href="reduction.pdf" />
+  </fig>
+  <fig>
+    <caption><p>The turning point where GPU starts to be faster than CPU
+    for array summation is shown with two neighboring
+    measurements.<styled-content id="figU003AreductionZoom"></styled-content></p></caption>
+    <graphic mimetype="application" mime-subtype="pdf" xlink:href="reductionZoom.pdf" />
+  </fig>
+</sec>
+</body>
+<back>
+<ref-list>
+  <title></title>
+  <ref id="ref-plebanski2025">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Plebański</surname><given-names>Piotr</given-names></name>
+        <name><surname>Kelm</surname><given-names>Anna</given-names></name>
+        <name><surname>Hajder</surname><given-names>Marcin</given-names></name>
+      </person-group>
+      <article-title>Efficiency and development effort of OpenCL interoperability in vulkan and OpenGL environments: A comparative case study</article-title>
+      <year iso-8601-date="2025-01">2025</year><month>01</month>
+      <pub-id pub-id-type="doi">10.5220/0013529000003964</pub-id>
+      <fpage>111</fpage>
+      <lpage>119</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-henriksen2024">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Henriksen</surname><given-names>Troels</given-names></name>
+      </person-group>
+      <article-title>A comparison of OpenCL, CUDA, and HIP as compilation targets for a functional array language</article-title>
+      <source>Proceedings of the 1st ACM SIGPLAN international workshop on functional programming for productivity and performance</source>
+      <publisher-name>Association for Computing Machinery</publisher-name>
+      <publisher-loc>New York, NY, USA</publisher-loc>
+      <year iso-8601-date="2024">2024</year>
+      <isbn>9798400711008</isbn>
+      <pub-id pub-id-type="doi">10.1145/3677997.3678226</pub-id>
+      <fpage>1</fpage>
+      <lpage>9</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-lopez2025">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Muñoz Lopez</surname><given-names>Jose Emilio</given-names></name>
+        <name><surname>Winston</surname><given-names>Steven</given-names></name>
+      </person-group>
+      <article-title>Hands-on vulkan® ray tracing with dynamic rendering</article-title>
+      <source>Proceedings of the special interest group on computer graphics and interactive techniques conference labs</source>
+      <publisher-name>Association for Computing Machinery</publisher-name>
+      <publisher-loc>New York, NY, USA</publisher-loc>
+      <year iso-8601-date="2025">2025</year>
+      <isbn>9798400715501</isbn>
+      <pub-id pub-id-type="doi">10.1145/3721251.3742861</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-rossant2021">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Rossant</surname><given-names>Cyrille</given-names></name>
+        <name><surname>Rougier</surname><given-names>Nicolas P.</given-names></name>
+      </person-group>
+      <article-title>High-performance interactive scientific visualization with datoviz via the vulkan low-level GPU API</article-title>
+      <source>Computing in Science &amp; Engineering</source>
+      <year iso-8601-date="2021">2021</year>
+      <volume>23</volume>
+      <issue>4</issue>
+      <pub-id pub-id-type="doi">10.1109/MCSE.2021.3078345</pub-id>
+      <fpage>85</fpage>
+      <lpage>90</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-lavrivc2018">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Lavrič</surname><given-names>Primož</given-names></name>
+        <name><surname>Bohak</surname><given-names>Ciril</given-names></name>
+        <name><surname>Marolt</surname><given-names>Matija</given-names></name>
+      </person-group>
+      <article-title>Vulkan abstraction layer for large data remote rendering system</article-title>
+      <source>Augmented reality, virtual reality, and computer graphics</source>
+      <person-group person-group-type="editor">
+        <name><surname>De Paolis</surname><given-names>Lucio Tommaso</given-names></name>
+        <name><surname>Bourdot</surname><given-names>Patrick</given-names></name>
+      </person-group>
+      <publisher-name>Springer International Publishing</publisher-name>
+      <publisher-loc>Cham</publisher-loc>
+      <year iso-8601-date="2018">2018</year>
+      <isbn>978-3-319-95270-3</isbn>
+      <pub-id pub-id-type="doi">10.1007/978-3-319-95270-3_40</pub-id>
+      <fpage>480</fpage>
+      <lpage>488</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-unter2023">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Unterguggenberger</surname><given-names>Johannes</given-names></name>
+        <name><surname>Kerbl</surname><given-names>Bernhard</given-names></name>
+        <name><surname>Wimmer</surname><given-names>Michael</given-names></name>
+      </person-group>
+      <article-title>Vulkan all the way: Transitioning to a modern low-level graphics API in academia</article-title>
+      <source>Computers &amp; Graphics</source>
+      <year iso-8601-date="2023">2023</year>
+      <volume>111</volume>
+      <issn>0097-8493</issn>
+      <pub-id pub-id-type="doi">10.1016/j.cag.2023.02.001</pub-id>
+      <fpage>155</fpage>
+      <lpage>165</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-mammeri2018">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Mammeri</surname><given-names>Nadjib</given-names></name>
+        <name><surname>Juurlink</surname><given-names>Ben</given-names></name>
+      </person-group>
+      <article-title>VComputeBench: A vulkan benchmark suite for GPGPU on mobile and embedded GPUs</article-title>
+      <source>2018 IEEE international symposium on workload characterization (IISWC)</source>
+      <year iso-8601-date="2018">2018</year>
+      <volume></volume>
+      <pub-id pub-id-type="doi">10.1109/IISWC.2018.8573477</pub-id>
+      <fpage>25</fpage>
+      <lpage>35</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-bailey2019">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Bailey</surname><given-names>Mike</given-names></name>
+      </person-group>
+      <article-title>Introduction to the vulkan® computer graphics API</article-title>
+      <source>SIGGRAPH asia 2019 courses</source>
+      <publisher-name>Association for Computing Machinery</publisher-name>
+      <publisher-loc>New York, NY, USA</publisher-loc>
+      <year iso-8601-date="2019">2019</year>
+      <isbn>9781450369411</isbn>
+      <pub-id pub-id-type="doi">10.1145/3355047.3359405</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-jradi2020">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Jradi</surname><given-names>Walid Abdala Rfaei</given-names></name>
+        <name><surname>Nascimento</surname><given-names>Hugo Alexandre Dantas do</given-names></name>
+        <name><surname>Martins</surname><given-names>Wellington Santos</given-names></name>
+      </person-group>
+      <article-title>A GPU-based parallel reduction implementation</article-title>
+      <source>High performance computing systems</source>
+      <person-group person-group-type="editor">
+        <name><surname>Bianchini</surname><given-names>Calebe</given-names></name>
+        <name><surname>Osthoff</surname><given-names>Carla</given-names></name>
+        <name><surname>Souza</surname><given-names>Paulo</given-names></name>
+        <name><surname>Ferreira</surname><given-names>Renato</given-names></name>
+      </person-group>
+      <publisher-name>Springer International Publishing</publisher-name>
+      <publisher-loc>Cham</publisher-loc>
+      <year iso-8601-date="2020">2020</year>
+      <isbn>978-3-030-41050-6</isbn>
+      <pub-id pub-id-type="doi">10.1007/978-3-030-41050-6_11</pub-id>
+      <fpage>168</fpage>
+      <lpage>182</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-hu2016">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Hu</surname><given-names>Liang</given-names></name>
+        <name><surname>Che</surname><given-names>Xilong</given-names></name>
+        <name><surname>Zheng</surname><given-names>Si-Qing</given-names></name>
+      </person-group>
+      <article-title>A closer look at GPGPU</article-title>
+      <publisher-name>Association for Computing Machinery</publisher-name>
+      <publisher-loc>New York, NY, USA</publisher-loc>
+      <year iso-8601-date="2016-03">2016</year><month>03</month>
+      <volume>48</volume>
+      <issue>4</issue>
+      <issn>0360-0300</issn>
+      <uri>https://doi.org/10.1145/2873053</uri>
+      <pub-id pub-id-type="doi">10.1145/2873053</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-jia2021">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Jia</surname><given-names>Shiwei</given-names></name>
+        <name><surname>Tian</surname><given-names>Ze</given-names></name>
+        <name><surname>Ma</surname><given-names>Yueyuan</given-names></name>
+        <name><surname>Sun</surname><given-names>Chenglu</given-names></name>
+        <name><surname>Zhang</surname><given-names>Yimen</given-names></name>
+        <name><surname>Zhang</surname><given-names>Yuming</given-names></name>
+      </person-group>
+      <article-title>A survey of GPGPU parallel processing architecture performance optimization</article-title>
+      <source>2021 IEEE/ACIS 20th international fall conference on computer and information science (ICIS fall)</source>
+      <year iso-8601-date="2021">2021</year>
+      <volume></volume>
+      <pub-id pub-id-type="doi">10.1109/ICISFall51598.2021.9627400</pub-id>
+      <fpage>75</fpage>
+      <lpage>82</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-nguyen2007">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Nguyen</surname><given-names>Hubert</given-names></name>
+      </person-group>
+      <source>GPU gems 3</source>
+      <publisher-name>Addison-Wesley Professional</publisher-name>
+      <year iso-8601-date="2007">2007</year>
+      <isbn>9780321515261</isbn>
+    </element-citation>
+  </ref>
+  <ref id="ref-mittal2019">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Mittal</surname><given-names>Sparsh</given-names></name>
+        <name><surname>Vaishay</surname><given-names>Shraiysh</given-names></name>
+      </person-group>
+      <article-title>A survey of techniques for optimizing deep learning on GPUs</article-title>
+      <source>Journal of Systems Architecture</source>
+      <year iso-8601-date="2019">2019</year>
+      <volume>99</volume>
+      <issn>1383-7621</issn>
+      <uri>https://www.sciencedirect.com/science/article/pii/S1383762119302656</uri>
+      <pub-id pub-id-type="doi">10.1016/j.sysarc.2019.101635</pub-id>
+      <fpage>101635</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-dinkelbach2012">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Dinkelbach</surname><given-names>Helge</given-names></name>
+        <name><surname>Vitay</surname><given-names>Julien</given-names></name>
+        <name><surname>Beuth</surname><given-names>Frederik</given-names></name>
+        <name><surname>Hamker</surname><given-names>Fred</given-names></name>
+      </person-group>
+      <article-title>Comparison of GPU- and CPU-implementations of mean-firing rate neural networks on parallel hardware</article-title>
+      <source>Network (Bristol, England)</source>
+      <year iso-8601-date="2012-11">2012</year><month>11</month>
+      <volume>23</volume>
+      <pub-id pub-id-type="doi">10.3109/0954898X.2012.739292</pub-id>
+      <fpage></fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-trott2022">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Trott</surname><given-names>Christian R.</given-names></name>
+        <name><surname>Lebrun-Grandié</surname><given-names>Damien</given-names></name>
+        <name><surname>Arndt</surname><given-names>Daniel</given-names></name>
+        <name><surname>Ciesko</surname><given-names>Jan</given-names></name>
+        <name><surname>Dang</surname><given-names>Vinh</given-names></name>
+        <name><surname>Ellingwood</surname><given-names>Nathan</given-names></name>
+        <name><surname>Gayatri</surname><given-names>Rahulkumar</given-names></name>
+        <name><surname>Harvey</surname><given-names>Evan</given-names></name>
+        <name><surname>Hollman</surname><given-names>Daisy S.</given-names></name>
+        <name><surname>Ibanez</surname><given-names>Dan</given-names></name>
+        <name><surname>Liber</surname><given-names>Nevin</given-names></name>
+        <name><surname>Madsen</surname><given-names>Jonathan</given-names></name>
+        <name><surname>Miles</surname><given-names>Jeff</given-names></name>
+        <name><surname>Poliakoff</surname><given-names>David</given-names></name>
+        <name><surname>Powell</surname><given-names>Amy</given-names></name>
+        <name><surname>Rajamanickam</surname><given-names>Sivasankaran</given-names></name>
+        <name><surname>Simberg</surname><given-names>Mikael</given-names></name>
+        <name><surname>Sunderland</surname><given-names>Dan</given-names></name>
+        <name><surname>Turcksin</surname><given-names>Bruno</given-names></name>
+        <name><surname>Wilke</surname><given-names>Jeremiah</given-names></name>
+      </person-group>
+      <article-title>Kokkos 3: Programming model extensions for the exascale era</article-title>
+      <source>IEEE Transactions on Parallel and Distributed Systems</source>
+      <year iso-8601-date="2022">2022</year>
+      <volume>33</volume>
+      <issue>4</issue>
+      <pub-id pub-id-type="doi">10.1109/TPDS.2021.3097283</pub-id>
+      <fpage>805</fpage>
+      <lpage>817</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-beckingsale2019">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Beckingsale</surname><given-names>David A.</given-names></name>
+        <name><surname>Burmark</surname><given-names>Jason</given-names></name>
+        <name><surname>Hornung</surname><given-names>Rich</given-names></name>
+        <name><surname>Jones</surname><given-names>Holger</given-names></name>
+        <name><surname>Killian</surname><given-names>William</given-names></name>
+        <name><surname>Kunen</surname><given-names>Adam J.</given-names></name>
+        <name><surname>Pearce</surname><given-names>Olga</given-names></name>
+        <name><surname>Robinson</surname><given-names>Peter</given-names></name>
+        <name><surname>Ryujin</surname><given-names>Brian S.</given-names></name>
+        <name><surname>Scogland</surname><given-names>Thomas RW</given-names></name>
+      </person-group>
+      <article-title>RAJA: Portable performance for large-scale scientific applications</article-title>
+      <source>2019 IEEE/ACM international workshop on performance, portability and productivity in HPC (P3HPC)</source>
+      <year iso-8601-date="2019">2019</year>
+      <volume></volume>
+      <pub-id pub-id-type="doi">10.1109/P3HPC49587.2019.00012</pub-id>
+      <fpage>71</fpage>
+      <lpage>81</lpage>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
