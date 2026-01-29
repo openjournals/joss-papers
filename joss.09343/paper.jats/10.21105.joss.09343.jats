@@ -1,0 +1,554 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">9343</article-id>
+<article-id pub-id-type="doi">10.21105/joss.09343</article-id>
+<title-group>
+<article-title>OnlinePCA.jl: A Julia Package for Out-of-core and Sparse
+Principal Component Analysis</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0003-3797-2148</contrib-id>
+<name>
+<surname>Tsuyuzaki</surname>
+<given-names>Koki</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+<xref ref-type="aff" rid="aff-2"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Department of Artificial Intelligence Medicine, Graduate
+School of Medicine, Chiba University, Japan</institution>
+</institution-wrap>
+</aff>
+<aff id="aff-2">
+<institution-wrap>
+<institution>Laboratory for Bioinformatics Research, RIKEN Center for
+Biosystems Dynamics Research, Japan</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2025-12-02">
+<day>2</day>
+<month>12</month>
+<year>2025</year>
+</pub-date>
+<volume>11</volume>
+<issue>117</issue>
+<fpage>9343</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2026</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>Julia</kwd>
+<kwd>Principal Component Analysis</kwd>
+<kwd>Out-of-Core</kwd>
+<kwd>Sparse</kwd>
+<kwd>dimensionality reduction</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p>Principal Component Analysis (PCA) is a widely used dimensionality
+  reduction technique
+  (<xref alt="Meng, 2016" rid="ref-review2" ref-type="bibr">Meng,
+  2016</xref>;
+  <xref alt="Stein-O’Brien, 2018" rid="ref-review1" ref-type="bibr">Stein-O’Brien,
+  2018</xref>), but becomes computationally prohibitive for large data
+  matrices. Recent advances in single-cell omics have led to datasets
+  with millions of cells, for which standard PCA implementations often
+  fail to scale. <monospace>OnlinePCA.jl</monospace> is a Julia package
+  that addresses this challenge by providing scalable PCA algorithms
+  (<ext-link ext-link-type="uri" xlink:href="https://github.com/rikenbit/OnlinePCA.jl">https://github.com/rikenbit/OnlinePCA.jl</ext-link>).</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p>PCA is widely used across diverse fields including face recognition
+  (<xref alt="Pablo, 2002" rid="ref-eigenface" ref-type="bibr">Pablo,
+  2002</xref>), animal behavior
+  (<xref alt="Stephens, 2008" rid="ref-eigenworm" ref-type="bibr">Stephens,
+  2008</xref>), genomics
+  (<xref alt="Meng, 2016" rid="ref-review2" ref-type="bibr">Meng,
+  2016</xref>;
+  <xref alt="Stein-O’Brien, 2018" rid="ref-review1" ref-type="bibr">Stein-O’Brien,
+  2018</xref>), population genetics
+  (<xref alt="Li, 2023" rid="ref-pcaone" ref-type="bibr">Li,
+  2023</xref>;
+  <xref alt="Novembre, 2008" rid="ref-genetics" ref-type="bibr">Novembre,
+  2008</xref>), and molecular dynamics
+  (<xref alt="David, 2014" rid="ref-md" ref-type="bibr">David,
+  2014</xref>). However, large data matrices often exceed available
+  memory. An out-of-core (OOC) implementation—where data subsets are
+  loaded from disk—combined with sparse matrix support is highly
+  desirable
+  (<xref alt="Tsuyuzaki, 2020" rid="ref-onlinepcajl" ref-type="bibr">Tsuyuzaki,
+  2020</xref>).</p>
+  <sec id="new-features-since-version-0.3.0">
+    <title>New features since version 0.3.0</title>
+    <p><monospace>OnlinePCA.jl</monospace> previously provided OOC PCA
+    functions and <monospace>tenxpca</monospace> for 10X-HDF5 sparse
+    matrices
+    (<xref alt="Tsuyuzaki, 2020" rid="ref-onlinepcajl" ref-type="bibr">Tsuyuzaki,
+    2020</xref>). These implementations were designed for “short and
+    fat” matrices with few rows (samples) and many columns (features).
+    Since version 0.3.0, the following features have been
+    introduced:</p>
+    <list list-type="bullet">
+      <list-item>
+        <p><italic>Support for Matrix Market and Binary COO
+        formats</italic>: We implemented <monospace>mm2bin</monospace>
+        and <monospace>bincoo2bin</monospace> for binary conversion of
+        sparse data, and extended <monospace>sumr</monospace> with a
+        <monospace>sparse_mode</monospace> option.</p>
+      </list-item>
+      <list-item>
+        <p><italic><monospace>sparse_rsvd</monospace></italic>:
+        Generalizes <monospace>tenxpca</monospace> to Matrix Market
+        format.</p>
+      </list-item>
+      <list-item>
+        <p><italic><monospace>exact_ooc_pca</monospace></italic>:
+        Designed for “tall and thin” matrices, this function computes
+        the covariance matrix in OOC manner followed by
+        eigendecomposition. Supports CSV, MM, and BinCOO formats.
+        Results are mathematically equivalent to offline PCA.</p>
+      </list-item>
+      <list-item>
+        <p><italic>Adjustable chunk size</italic>: Both
+        <monospace>sparse_rsvd</monospace> and
+        <monospace>exact_ooc_pca</monospace> include a
+        <monospace>chunksize</monospace> option for memory control.</p>
+      </list-item>
+    </list>
+    <fig>
+      <caption><p>Overview of workflow in OnlinePCA.jl since
+      v0.3.0.<styled-content id="figU003Apca"></styled-content></p></caption>
+      <graphic mimetype="image" mime-subtype="png" xlink:href="figure.png" />
+    </fig>
+  </sec>
+</sec>
+<sec id="example">
+  <title>Example</title>
+  <p>PCA can be easily reproduced on any machine where Julia is
+  pre-installed by using the following commands in the Julia REPL
+  window:</p>
+  <sec id="installation">
+    <title>Installation</title>
+    <p>First, install <monospace>OnlinePCA.jl</monospace> from the
+    official Julia package registry or directly from GitHub:</p>
+    <code language="julia"># Install OnlinePCA.jl from Julia General
+julia&gt; Pkg.add(&quot;OnlinePCA&quot;)
+
+# or GitHub for the latest version
+julia&gt; Pkg.add(url=&quot;https://github.com/rikenbit/OnlinePCA.jl.git&quot;)</code>
+  </sec>
+  <sec id="preprocess-of-csv">
+    <title>Preprocess of CSV</title>
+    <p>Then, write a synthetic data as a CSV file, convert it to a
+    compressed binary format using Zstandard, and prepare summary
+    statistics for PCA. Matrix Market (MM) format is also supported for
+    sparse matrices.</p>
+    <code language="julia">using OnlinePCA
+using OnlinePCA: write_csv
+using Distributions
+using DelimitedFiles
+using SparseArrays
+using MatrixMarket
+
+# CSV
+tmp = mktempdir()
+data = Int64.(ceil.(rand(NegativeBinomial(1, 0.5), 300, 99)))
+data[1:50, 1:33] .= 100*data[1:50, 1:33]
+data[51:100, 34:66] .= 100*data[51:100, 34:66]
+data[101:150, 67:99] .= 100*data[101:150, 67:99]
+write_csv(joinpath(tmp, &quot;Data.csv&quot;), data)
+
+# Binarization (Zstandard)
+csv2bin(csvfile=joinpath(tmp, &quot;Data.csv&quot;),
+    binfile=joinpath(tmp, &quot;Data.zst&quot;))
+
+# Matrix Market (MM)
+mmwrite(joinpath(tmp, &quot;Data.mtx&quot;), sparse(data))
+
+# Binarization (Zstandard)
+csv2bin(csvfile=joinpath(tmp, &quot;Data.csv&quot;),
+    binfile=joinpath(tmp, &quot;Data.zst&quot;))
+
+# Summary of data for CSV/Dense Matrix
+dense_path = mktempdir()
+sumr(binfile=joinpath(tmp, &quot;Data.zst&quot;), outdir=dense_path)</code>
+  </sec>
+  <sec id="pca-using-halkos-method-on-csv-input">
+    <title>PCA using Halko’s method on CSV input</title>
+    <p>This example performs PCA using Halko’s randomized SVD method on
+    dense CSV input. Results are visualized using the
+    <monospace>subplots</monospace> function defined in the README
+    (<ext-link ext-link-type="uri" xlink:href="https://github.com/rikenbit/OnlinePCA.jl?tab=readme-ov-file#setting-for-plot">https://github.com/rikenbit/OnlinePCA.jl?tab=readme-ov-file#setting-for-plot</ext-link>).</p>
+    <code language="julia">out_halko = halko(input=joinpath(tmp, &quot;Data.zst&quot;), dim=3,
+    scale=&quot;log&quot;,
+    rowmeanlist=joinpath(dense_path, &quot;Feature_LogMeans.csv&quot;))
+
+subplots(out_halko[1], group)</code>
+    <fig>
+      <caption><p>Output of halko against CSV
+      format.<styled-content id="figU003Apca1"></styled-content></p></caption>
+      <graphic mimetype="image" mime-subtype="png" xlink:href="halko.png" />
+    </fig>
+  </sec>
+  <sec id="preprocessing-sparse-data-in-matrix-market-format">
+    <title>Preprocessing sparse data in Matrix Market format</title>
+    <p>The following code converts a sparse matrix in MM format into a
+    binary compressed format and computes summary statistics for
+    PCA.</p>
+    <code language="julia"># Sparsification + Binarization (Zstandard + MM format)
+mm2bin(mmfile=joinpath(tmp, &quot;Data.mtx&quot;),
+    binfile=joinpath(tmp, &quot;Data.mtx.zst&quot;))
+
+sparse_path = mktempdir()
+sumr(binfile=joinpath(tmp, &quot;Data.mtx.zst&quot;),
+    outdir=sparse_path, mode=&quot;sparse_mm&quot;)</code>
+  </sec>
+  <sec id="pca-using-on-matrix-market-input">
+    <title>PCA using <monospace>sparse_rsvd</monospace> on Matrix Market
+    input</title>
+    <p>This example performs PCA using the
+    <monospace>sparse_rsvd</monospace> method, designed for sparse input
+    data in MM format. The top 3 components are visualized.</p>
+    <code language="julia">out_sparse_rsvd = sparse_rsvd(
+  input=joinpath(tmp, &quot;Data.mtx.zst&quot;),
+  scale=&quot;ftt&quot;,
+  rowmeanlist=joinpath(sparse_path, &quot;Feature_FTTMeans.csv&quot;),
+  dim=3, chunksize=100)
+
+subplots(out_sparse_rsvd[1], group)</code>
+    <fig>
+      <caption><p>Output of sparse_rsvd against MM
+      format.<styled-content id="figU003Apca2"></styled-content></p></caption>
+      <graphic mimetype="image" mime-subtype="png" xlink:href="sparse_rsvd.png" />
+    </fig>
+  </sec>
+  <sec id="preparing-another-sparse-matrix-for">
+    <title>Preparing another sparse matrix for
+    <monospace>exact_ooc_pca</monospace></title>
+    <p>This example generates a BinCOO format data to simulate “tall and
+    thin” matrix and compresses it by <monospace>bincoo2bin</monospace>
+    for use with <monospace>exact_ooc_pca</monospace>.</p>
+    <code language="julia"># Binary COO (BinCOO)
+tmp2 = mktempdir()
+data2 = Int64.(ceil.(rand(Binomial(1, 0.2), 99, 33)))
+data2[1:33, 1:11] .= 1
+data2[34:66, 12:22] .= 1
+data2[67:99, 23:33] .= 1
+
+bincoofile = joinpath(tmp2, &quot;Data2.bincoo&quot;)
+open(bincoofile, &quot;w&quot;) do io
+    for i in 1:size(data2, 1)
+        for j in 1:size(data2, 2)
+            if data2[i, j] != 0
+                println(io, &quot;$i $j&quot;)
+            end
+        end
+    end
+end
+
+# Binarziation (BinCOO + Zstandard)
+bincoo2bin(bincoofile=bincoofile, binfile=joinpath(tmp2, &quot;Data2.bincoo.zst&quot;))</code>
+  </sec>
+  <sec id="pca-using-on-bincoo-input">
+    <title>PCA using <monospace>exact_ooc_pca</monospace> on BinCOO
+    input</title>
+    <p>Here, we apply <monospace>exact_ooc_pca</monospace>, which
+    computes the full covariance matrix in a OOC manner and performs
+    eigendecomposition.</p>
+    <code language="julia"># Sparse-mode (BinCOO)
+out_exact_ooc_pca_sparse_bincoo = exact_ooc_pca(
+  input=joinpath(tmp2, &quot;Data2.bincoo.zst&quot;),
+  scale=&quot;raw&quot;, dim=3, chunksize=10, mode=&quot;sparse_bincoo&quot;)
+
+subplots(out_exact_ooc_pca_sparse_bincoo[3], group)</code>
+    <fig>
+      <caption><p>Output of exact_ooc_pca against BinCOO
+      format.<styled-content id="figU003Apca3"></styled-content></p></caption>
+      <graphic mimetype="image" mime-subtype="png" xlink:href="exact_ooc_pca_sparse_bincoo.png" />
+    </fig>
+    <p>For more details, see the README.md of
+    <monospace>OnlinePCA.jl</monospace> at
+    <ext-link ext-link-type="uri" xlink:href="https://github.com/rikenbit/OnlinePCA.jl">https://github.com/rikenbit/OnlinePCA.jl</ext-link>.</p>
+  </sec>
+</sec>
+<sec id="related-work">
+  <title>Related work</title>
+  <p>There are various implementations of PCA and some of them are
+  OOC-type or sparse-type
+  (<xref alt="Li, 2023" rid="ref-pcaone" ref-type="bibr">Li,
+  2023</xref>;
+  <xref alt="Moreno, 2022" rid="ref-dask" ref-type="bibr">Moreno,
+  2022</xref>;
+  <xref alt="Pedregosa, 2011" rid="ref-sklearn" ref-type="bibr">Pedregosa,
+  2011</xref>) but <monospace>OnlinePCA.jl</monospace> is the only tool
+  that supports both OOC computation and sparse data formats (e.g.,
+  10X-HDF5, MM, BinCOO).</p>
+  <table-wrap>
+    <table>
+      <colgroup>
+        <col width="28%" />
+        <col width="24%" />
+        <col width="24%" />
+        <col width="24%" />
+      </colgroup>
+      <thead>
+        <tr>
+          <th align="left">Function Name</th>
+          <th align="center">Language</th>
+          <th align="center">OOC</th>
+          <th align="center">Sparse Format</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td align="left"><monospace>prcomp/princomp</monospace></td>
+          <td align="center">R</td>
+          <td align="center">No</td>
+          <td align="center">-</td>
+        </tr>
+        <tr>
+          <td align="left"><monospace>sklearn.decomposition.PCA</monospace></td>
+          <td align="center">Python</td>
+          <td align="center">No</td>
+          <td align="center">-</td>
+        </tr>
+        <tr>
+          <td align="left"><monospace>MultivariateStats.PCA</monospace></td>
+          <td align="center">Julia</td>
+          <td align="center">No</td>
+          <td align="center">-</td>
+        </tr>
+        <tr>
+          <td align="left"><monospace>oocRPCA::oocPCA_CSV</monospace></td>
+          <td align="center">R</td>
+          <td align="center">Yes</td>
+          <td align="center">-</td>
+        </tr>
+        <tr>
+          <td align="left"><monospace>sklearn.decomposition.IncrementalPCA</monospace></td>
+          <td align="center">Python</td>
+          <td align="center">Yes</td>
+          <td align="center">-</td>
+        </tr>
+        <tr>
+          <td align="left"><monospace>dask_ml.decomposition.PCA</monospace></td>
+          <td align="center">Python</td>
+          <td align="center">Yes</td>
+          <td align="center">-</td>
+        </tr>
+        <tr>
+          <td align="left"><monospace>PCAone</monospace></td>
+          <td align="center">R/C++</td>
+          <td align="center">Yes</td>
+          <td align="center">-</td>
+        </tr>
+        <tr>
+          <td align="left"><monospace>irlba::prcomp_irlba</monospace></td>
+          <td align="center">R</td>
+          <td align="center">No</td>
+          <td align="center">dgCMatrix</td>
+        </tr>
+        <tr>
+          <td align="left"><monospace>sklearn.decomposition.TruncatedSVD</monospace></td>
+          <td align="center">Python</td>
+          <td align="center">No</td>
+          <td align="center">scipy.sparse</td>
+        </tr>
+        <tr>
+          <td align="left"><monospace>tenxpca</monospace></td>
+          <td align="center">Julia</td>
+          <td align="center">Yes</td>
+          <td align="center">10X-HDF5</td>
+        </tr>
+        <tr>
+          <td align="left"><monospace>sparse_rsvd</monospace></td>
+          <td align="center">Julia</td>
+          <td align="center">Yes</td>
+          <td align="center">MM</td>
+        </tr>
+        <tr>
+          <td align="left"><monospace>exact_ooc_pca</monospace></td>
+          <td align="center">Julia</td>
+          <td align="center">Yes</td>
+          <td align="center">CSV/MM/BinCOO</td>
+        </tr>
+      </tbody>
+    </table>
+  </table-wrap>
+  <p>For a more comprehensive comparison, see the Figure 2 in Tsuyuzaki
+  (<xref alt="2020" rid="ref-onlinepcajl" ref-type="bibr">2020</xref>).</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <title></title>
+  <ref id="ref-review1">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Stein-O’Brien</surname><given-names>G. L. et al.</given-names></name>
+      </person-group>
+      <article-title>Enter the matrix: Factorization uncovers knowledge from omics</article-title>
+      <source>Trends in Genetics</source>
+      <year iso-8601-date="2018">2018</year>
+      <volume>34(10)</volume>
+      <pub-id pub-id-type="doi">10.1016/j.tig.2018.07.003</pub-id>
+      <fpage>790</fpage>
+      <lpage>805</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-review2">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Meng</surname><given-names>C. et al.</given-names></name>
+      </person-group>
+      <article-title>Dimension reduction techniques for the integrative analysis of multi-omics data</article-title>
+      <source>Briefings in Bioinformatics</source>
+      <year iso-8601-date="2016">2016</year>
+      <volume>17(4)</volume>
+      <pub-id pub-id-type="doi">10.1093/bib/bbv108</pub-id>
+      <fpage>628</fpage>
+      <lpage>641</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-onlinepcajl">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Tsuyuzaki</surname><given-names>K. et al.</given-names></name>
+      </person-group>
+      <article-title>Benchmarking principal component analysis for large-scale single-cell RNA-sequencing</article-title>
+      <source>Genome Biology</source>
+      <year iso-8601-date="2020">2020</year>
+      <volume>21(1)</volume>
+      <pub-id pub-id-type="doi">10.1186/s13059-019-1900-3</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-genetics">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Novembre</surname><given-names>J. et al.</given-names></name>
+      </person-group>
+      <article-title>Genes mirror geography within Europe</article-title>
+      <source>Nature</source>
+      <year iso-8601-date="2008">2008</year>
+      <volume>456</volume>
+      <pub-id pub-id-type="doi">10.1038/nature07331</pub-id>
+      <fpage>98</fpage>
+      <lpage>101</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-pcaone">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Li</surname><given-names>Z. et al.</given-names></name>
+      </person-group>
+      <article-title>Fast and accurate out-of-core PCA framework for large scale biobank data</article-title>
+      <source>Genome Research</source>
+      <year iso-8601-date="2023">2023</year>
+      <volume>33</volume>
+      <pub-id pub-id-type="doi">10.1101/gr.277525.122</pub-id>
+      <fpage>1599</fpage>
+      <lpage>1608</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-eigenworm">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Stephens</surname><given-names>G. J. et al.</given-names></name>
+      </person-group>
+      <article-title>Dimensionality and dynamics in the behavior of c. elegans</article-title>
+      <source>PLOS Computational Biology</source>
+      <year iso-8601-date="2008">2008</year>
+      <volume>4(4)</volume>
+      <pub-id pub-id-type="doi">10.1371/journal.pcbi.1000028</pub-id>
+      <fpage>e1000028</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-eigenface">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Pablo</surname><given-names>N. et al.</given-names></name>
+      </person-group>
+      <article-title>Analysis and comparison of eigenspace-based face recognition approaches</article-title>
+      <source>International Journal of Pattern Recognition and Artificial Intelligence</source>
+      <year iso-8601-date="2002">2002</year>
+      <volume>16(7)</volume>
+      <pub-id pub-id-type="doi">10.1142/S0218001402002003</pub-id>
+      <fpage>817</fpage>
+      <lpage>830</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-md">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>David</surname><given-names>C. C. et al.</given-names></name>
+      </person-group>
+      <article-title>Principal component analysis: A method for determining the essential dynamics of proteins</article-title>
+      <source>Methods Mol Biol</source>
+      <year iso-8601-date="2014">2014</year>
+      <volume>1084</volume>
+      <pub-id pub-id-type="doi">10.1007/978-1-62703-658-0_11</pub-id>
+      <fpage>193</fpage>
+      <lpage>226</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-sklearn">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Pedregosa</surname><given-names>F. et al.</given-names></name>
+      </person-group>
+      <article-title>Scikit-learn: Machine learning in Python</article-title>
+      <source>Journal of Machine Learning Research</source>
+      <year iso-8601-date="2011">2011</year>
+      <volume>12(85)</volume>
+      <fpage>2825</fpage>
+      <lpage>2830</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-dask">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Moreno</surname><given-names>M. et al.</given-names></name>
+      </person-group>
+      <article-title>Scalable transcriptomics analysis with Dask: Applications in data science and machine learning</article-title>
+      <source>BMC Bioinformatics</source>
+      <year iso-8601-date="2022">2022</year>
+      <volume>23(514)</volume>
+      <pub-id pub-id-type="doi">10.1186/s12859-022-05065-3</pub-id>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
