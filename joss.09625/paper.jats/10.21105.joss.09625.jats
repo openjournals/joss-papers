@@ -1,0 +1,496 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">9625</article-id>
+<article-id pub-id-type="doi">10.21105/joss.09625</article-id>
+<title-group>
+<article-title>Bloch: a strongly typed, hardware-agnostic, hybrid
+quantum programming language</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0009-0004-0465-4420</contrib-id>
+<name>
+<surname>Pal</surname>
+<given-names>Akshay</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Independent Researcher, United Kingdom</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2025-11-23">
+<day>23</day>
+<month>11</month>
+<year>2025</year>
+</pub-date>
+<volume>11</volume>
+<issue>117</issue>
+<fpage>9625</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2026</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>quantum computing</kwd>
+<kwd>programming languages</kwd>
+<kwd>compilers</kwd>
+<kwd>simulation</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p>Bloch is a modern quantum programming language and interpreter
+  designed to feel familiar to systems developers while remaining
+  hardware-agnostic. The project combines a statically typed surface
+  language, a semantic analyser that guards against classical/quantum
+  misuse before execution, and an interpreter that emits OpenQASM traces
+  and aggregates multi-shot measurement results. Bloch supports
+  classical control flow, deterministic resource management, and
+  first-class annotations such as <monospace>@quantum</monospace> (to
+  delineate quantum code) and <monospace>@tracked</monospace> (to stream
+  measurements into probability tables). The language is implemented in
+  C++20, ships with a comprehensive test suite, and is licensed under
+  Apache-2.0 to encourage adoption in research and industrial workflows.
+  By pairing static semantics with vendor-neutral QASM emission, Bloch
+  targets the gap between dynamically typed Python-first SDKs (e.g.,
+  Qiskit and Cirq
+  (<xref alt="Cirq Developers, 2023" rid="ref-cirq-zenodo" ref-type="bibr">Cirq
+  Developers, 2023</xref>;
+  <xref alt="Qiskit contributors, 2023" rid="ref-qiskit-zenodo" ref-type="bibr">Qiskit
+  contributors, 2023</xref>)) and vendor-specific languages while
+  keeping a single-binary, non-Python toolchain.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of Need</title>
+  <p>Quantum practitioners frequently prototype algorithms in
+  Python-first SDKs like Qiskit
+  (<xref alt="Qiskit contributors, 2023" rid="ref-qiskit-zenodo" ref-type="bibr">Qiskit
+  contributors, 2023</xref>) or Cirq
+  (<xref alt="Cirq Developers, 2023" rid="ref-cirq-zenodo" ref-type="bibr">Cirq
+  Developers, 2023</xref>), where dynamic typing and runtime-only
+  feedback can make it difficult to catch logic errors prior to
+  simulation or hardware execution. Researchers building higher-level
+  language abstractions (e.g., Silq
+  (<xref alt="Bichsel et al., 2020" rid="ref-silq" ref-type="bibr">Bichsel
+  et al., 2020</xref>) and Quipper
+  (<xref alt="Green et al., 2013" rid="ref-quipper" ref-type="bibr">Green
+  et al., 2013</xref>)) typically need to choose between tightly coupled
+  vendor ecosystems or experimenting with new type systems without a
+  reference interpreter capable of emitting standard assembly formats
+  (OpenQASM 2
+  (<xref alt="Cross et al., 2017" rid="ref-openqasm2" ref-type="bibr">Cross
+  et al., 2017</xref>)). Practitioner-friendly hybrids such as PennyLane
+  (<xref alt="PennyLane Developers, 2024" rid="ref-pennylane" ref-type="bibr">PennyLane
+  Developers, 2024</xref>) and Microsoft Q#
+  (<xref alt="Microsoft Quantum, 2024" rid="ref-qsharp" ref-type="bibr">Microsoft
+  Quantum, 2024</xref>) also trade stronger typing or portability for
+  deeper vendor/framework integration. Bloch fills this gap by
+  delivering a self-contained toolchain that is explicitly scoped to the
+  following objectives:</p>
+  <list list-type="bullet">
+    <list-item>
+      <p>enforces a compact, explicit type system over both classical
+      and quantum data so that invalid measurements, illegal
+      <monospace>@quantum</monospace> return types, and improper qubit
+      mutations are rejected at compile time;</p>
+    </list-item>
+    <list-item>
+      <p>produces OpenQASM 2 output by default, which enables
+      researchers to feed Bloch programs into downstream simulators or
+      device backends without rewriting;</p>
+    </list-item>
+    <list-item>
+      <p>exposes deterministic multi-shot execution with aggregated
+      statistics so that algorithm designers can validate probabilistic
+      behaviour before running on expensive quantum hardware; and</p>
+    </list-item>
+    <list-item>
+      <p>stays outside heavyweight Python packaging so that experiments
+      can be reproduced from a single CLI binary rather than a coupled
+      SDK stack.</p>
+    </list-item>
+  </list>
+  <p>By targeting developers who are comfortable with systems languages
+  but need a high-level quantum DSL, Bloch reduces the friction between
+  research sketches and reproducible experiments.</p>
+</sec>
+<sec id="design-and-implementation">
+  <title>Design and Implementation</title>
+  <p>Bloch’s architecture is intentionally modular:</p>
+  <list list-type="bullet">
+    <list-item>
+      <p><bold>Front-end.</bold> A hand-written lexer and Pratt-style
+      parser (under <monospace>src/bloch/lexer</monospace> and
+      <monospace>src/bloch/parser</monospace>) build an abstract syntax
+      tree (AST) that covers declarations, control flow constructs,
+      quantum annotations, and array expressions. The AST is shared by
+      the analyser, interpreter, and tests.</p>
+    </list-item>
+    <list-item>
+      <p><bold>Static semantics.</bold> The analyser
+      (<monospace>src/bloch/semantics</monospace>) maintains a scoped
+      symbol table and a compact <monospace>ValueType</monospace>
+      universe to ensure that only valid combinations of classical and
+      quantum operations progress to execution. It also enforces
+      Bloch-specific rules, such as restricting
+      <monospace>@quantum</monospace> functions to
+      <monospace>bit</monospace> or <monospace>void</monospace> return
+      values and rejecting <monospace>@tracked</monospace> annotations
+      on unsupported types.</p>
+    </list-item>
+    <list-item>
+      <p><bold>Runtime &amp; simulator.</bold> The interpreter
+      (<monospace>src/bloch/runtime</monospace>) evaluates the AST,
+      orchestrates an ideal statevector simulator, and records
+      measurement outcomes per tracked symbol. Every run emits an
+      OpenQASM trace, and the CLI (<monospace>src/main.cpp</monospace>)
+      can execute programs for <monospace>N</monospace> shots, aggregate
+      measurement counts, and emit tabulated probability estimates
+      alongside the generated QASM.</p>
+    </list-item>
+    <list-item>
+      <p><bold>Feature staging.</bold> The lightweight feature-flag
+      registry (<monospace>src/bloch/feature_flags.hpp</monospace>)
+      gives maintainers a way to land experimental language constructs
+      (e.g., an upcoming class system) without destabilising the default
+      build.</p>
+    </list-item>
+  </list>
+  <p>The following Bloch kernel produces the interaction shown in Figure
+  1 when run for a single shot:</p>
+  <preformat>@quantum function main() -&gt; void {
+    qubit q;
+    h(q);
+    bit r = measure(q);
+    reset(q);
+}</preformat>
+  <p>Figure 1 illustrates the runtime interaction between a Bloch
+  program and the ideal statevector simulator for a single kernel,
+  showing gate application, measurement, classical result return, and
+  qubit reset:</p>
+  <fig>
+    <caption><p>Figure 1: Program-simulator message flow for a Bloch
+    kernel</p></caption>
+    <graphic mimetype="image" mime-subtype="svg+xml" xlink:href="bloch_execution.svg" />
+  </fig>
+  <p>The project distributes an installable binary and is validated on
+  Linux, macOS, and Windows. Users interact with the CLI
+  (<monospace>bloch &lt;file.bloch&gt;</monospace>) which offers
+  <monospace>--emit-qasm</monospace>, <monospace>--shots=N</monospace>,
+  and <monospace>--echo</monospace> parameters for reproducible
+  experiments.</p>
+</sec>
+<sec id="comparative-analysis-and-performance">
+  <title>Comparative Analysis and Performance</title>
+  <p>Bloch targets a different point in the design space than popular
+  hybrid SDKs:</p>
+  <table-wrap>
+    <table>
+      <colgroup>
+        <col width="24%" />
+        <col width="19%" />
+        <col width="21%" />
+        <col width="18%" />
+        <col width="18%" />
+      </colgroup>
+      <thead>
+        <tr>
+          <th>Capability</th>
+          <th>Bloch</th>
+          <th>PennyLane
+          (<xref alt="PennyLane Developers, 2024" rid="ref-pennylane" ref-type="bibr">PennyLane
+          Developers, 2024</xref>)</th>
+          <th>Q#
+          (<xref alt="Microsoft Quantum, 2024" rid="ref-qsharp" ref-type="bibr">Microsoft
+          Quantum, 2024</xref>)</th>
+          <th>Cirq
+          (<xref alt="Cirq Developers, 2023" rid="ref-cirq-zenodo" ref-type="bibr">Cirq
+          Developers, 2023</xref>)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Implementation language</td>
+          <td>C++20 CLI, single binary</td>
+          <td>Python library with plugin backends</td>
+          <td>.NET language and runtime</td>
+          <td>Python library</td>
+        </tr>
+        <tr>
+          <td>Type system</td>
+          <td>Static, quantum-aware</td>
+          <td>Dynamic (Python)</td>
+          <td>Static</td>
+          <td>Dynamic (Python)</td>
+        </tr>
+        <tr>
+          <td>Default artefact/output</td>
+          <td>OpenQASM 2 trace</td>
+          <td>Backend-specific (optionally QASM)</td>
+          <td>QIR/targeted executables</td>
+          <td>Circuit objects (optionally QASM)</td>
+        </tr>
+        <tr>
+          <td>Hardware/vendor coupling</td>
+          <td>Hardware-agnostic via QASM</td>
+          <td>Plugin-dependent</td>
+          <td>Azure-centric toolchain</td>
+          <td>Google-centric, simulators available</td>
+        </tr>
+        <tr>
+          <td>Built-in multi-shot aggregation</td>
+          <td>Yes (<monospace>@tracked</monospace>, CLI
+          <monospace>--shots</monospace>)</td>
+          <td>Backend-provided</td>
+          <td>Backend-provided</td>
+          <td>Backend-provided</td>
+        </tr>
+      </tbody>
+    </table>
+  </table-wrap>
+  <p>Lightweight performance baselines from the bundled examples
+  (captured with the ideal simulator and 1024-shot runs) are:</p>
+  <table-wrap>
+    <table>
+      <thead>
+        <tr>
+          <th>Algorithm (1024 shots)</th>
+          <th>Bloch execution time (3 s.f.)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Hadamard gate on single qubit</td>
+          <td>0.006 s</td>
+        </tr>
+        <tr>
+          <td>Preparing and measuring a Bell state</td>
+          <td>0.018 s</td>
+        </tr>
+        <tr>
+          <td>Grover search (N = 4)</td>
+          <td>0.055 s</td>
+        </tr>
+      </tbody>
+    </table>
+  </table-wrap>
+  <p>These numbers come from the average runtime across ten runs for
+  example algorithms provided in the <monospace>examples</monospace>
+  folder. It illustrates that the native C++ interpreter has negligible
+  startup cost compared to Python-first stacks.</p>
+</sec>
+<sec id="quality-control">
+  <title>Quality Control</title>
+  <p>Bloch ships with unit and integration tests implemented with the
+  project’s minimal test harness
+  (<monospace>tests/test_framework.hpp</monospace>). The test suite
+  covers the entire pipeline:</p>
+  <list list-type="bullet">
+    <list-item>
+      <p>lexical analysis and token categorisation
+      (<monospace>tests/test_lexer.cpp</monospace>),</p>
+    </list-item>
+    <list-item>
+      <p>parser shape and AST formation
+      (<monospace>tests/test_parser.cpp</monospace>),</p>
+    </list-item>
+    <list-item>
+      <p>static semantics (e.g., scope rules,
+      <monospace>@quantum</monospace> return constraints,
+      <monospace>final</monospace> assignments) in
+      <monospace>tests/test_semantics.cpp</monospace>,</p>
+    </list-item>
+    <list-item>
+      <p>runtime behaviour such as OpenQASM emission, measurement
+      persistence inside loops, <monospace>@tracked</monospace>
+      aggregation, and echo handling in
+      <monospace>tests/test_runtime.cpp</monospace>, and</p>
+    </list-item>
+    <list-item>
+      <p>integration smoke tests that exercise representative Bloch
+      programs end to end
+      (<monospace>tests/test_integration.cpp</monospace>).</p>
+    </list-item>
+  </list>
+  <p>Continuous integration executes <monospace>ctest</monospace> on
+  every pull request, while developers can repeat the same workflow
+  locally via the commands documented in
+  <monospace>README.md</monospace>. Coverage touches the lexer, parser,
+  semantic analyser, and runtime, providing confidence that regressions
+  in the type system, simulator, or CLI are caught early.</p>
+</sec>
+<sec id="use-cases">
+  <title>Use Cases</title>
+  <p>Bloch aims to reduce the distance between whiteboard circuits and
+  evaluable experiments. Current use cases include:</p>
+  <list list-type="order">
+    <list-item>
+      <p><bold>Educational demos.</bold> The Bell-state example
+      (<monospace>examples/02_bell_state.bloch</monospace>) showcases
+      hardware-agnostic entanglement with deterministic statistics
+      reporting, making it suitable for classroom explanations or live
+      coding.</p>
+    </list-item>
+    <list-item>
+      <p><bold>Algorithm sketching.</bold> Researchers can iteratively
+      design algorithms that mix classical control flow with quantum
+      kernels, then export the emitted OpenQASM for downstream tooling
+      without reimplementation. The
+      <monospace>examples/04_grover_search.bloch</monospace> program
+      demonstrates marked-item recovery via amplitude amplification
+      without any Python runtime dependencies.</p>
+    </list-item>
+    <list-item>
+      <p><bold>Runtime experimentation.</bold> The
+      <monospace>@tracked</monospace> facility and
+      <monospace>--shots</monospace> flag make it straightforward to
+      explore noise-free distributions and verify that optimisations
+      preserve measured behaviour before porting kernels to other
+      stacks. These facilities extend to broader application areas such
+      as oracle-based search, small-<monospace>n</monospace>
+      optimisation experiments, and amplitude estimation sketches that
+      can be re-targeted by swapping the QASM consumer.</p>
+    </list-item>
+  </list>
+</sec>
+<sec id="availability">
+  <title>Availability</title>
+  <p>Bloch is openly developed at https://github.com/bloch-labs/bloch
+  under the Apache-2.0 license. The repository bundles setup
+  instructions, contribution guidelines, and a list of feature flags so
+  that new contributors can propose language extensions while
+  maintaining release stability. Pre-built binaries are available but
+  not required; the CMake toolchain builds the CLI across major
+  platforms, and the project’s documentation hub
+  (https://docs.bloch-labs.com) provides user guides and API notes.</p>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>I thank the Bloch open source community for issue reports, early
+  design feedback, and preview testing, as well as the maintainers of
+  the upstream projects cited in this paper whose work makes Bloch
+  interoperability possible.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <title></title>
+  <ref id="ref-qiskit-zenodo">
+    <element-citation publication-type="software">
+      <person-group person-group-type="author">
+        <string-name>Qiskit contributors</string-name>
+      </person-group>
+      <article-title>Qiskit: An open-source framework for quantum computing</article-title>
+      <year iso-8601-date="2023">2023</year>
+      <uri>https://doi.org/10.5281/zenodo.2573505</uri>
+      <pub-id pub-id-type="doi">10.5281/zenodo.2573505</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-cirq-zenodo">
+    <element-citation publication-type="software">
+      <person-group person-group-type="author">
+        <string-name>Cirq Developers</string-name>
+      </person-group>
+      <article-title>Cirq</article-title>
+      <year iso-8601-date="2023">2023</year>
+      <uri>https://doi.org/10.5281/zenodo.4062499</uri>
+      <pub-id pub-id-type="doi">10.5281/zenodo.4062499</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-silq">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Bichsel</surname><given-names>Benedikt</given-names></name>
+        <name><surname>Baader</surname><given-names>Maximilian</given-names></name>
+        <name><surname>Gehr</surname><given-names>Timon</given-names></name>
+        <name><surname>Vechev</surname><given-names>Martin</given-names></name>
+      </person-group>
+      <article-title>Silq: A high-level quantum language with safe uncomputation</article-title>
+      <source>Proceedings of the 41st ACM SIGPLAN conference on programming language design and implementation</source>
+      <year iso-8601-date="2020">2020</year>
+      <pub-id pub-id-type="doi">10.1145/3385412.3386010</pub-id>
+      <fpage>286</fpage>
+      <lpage>300</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-quipper">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Green</surname><given-names>Alexander S.</given-names></name>
+        <name><surname>Lumsdaine</surname><given-names>Peter LeFanu</given-names></name>
+        <name><surname>Ross</surname><given-names>Neil J.</given-names></name>
+        <name><surname>Selinger</surname><given-names>Peter</given-names></name>
+        <name><surname>Valiron</surname><given-names>Benoït</given-names></name>
+      </person-group>
+      <article-title>Quipper: A scalable quantum programming language</article-title>
+      <source>Proceedings of the 34th ACM SIGPLAN conference on programming language design and implementation</source>
+      <year iso-8601-date="2013">2013</year>
+      <pub-id pub-id-type="doi">10.1145/2491956.2462177</pub-id>
+      <fpage>333</fpage>
+      <lpage>342</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-openqasm2">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Cross</surname><given-names>Andrew W.</given-names></name>
+        <name><surname>Bishop</surname><given-names>Lev S.</given-names></name>
+        <name><surname>Smolin</surname><given-names>John A.</given-names></name>
+        <name><surname>Gambetta</surname><given-names>Jay M.</given-names></name>
+      </person-group>
+      <article-title>Open quantum assembly language</article-title>
+      <year iso-8601-date="2017">2017</year>
+      <uri>https://arxiv.org/abs/1707.03429</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-pennylane">
+    <element-citation>
+      <person-group person-group-type="author">
+        <string-name>PennyLane Developers</string-name>
+      </person-group>
+      <article-title>PennyLane: Quantum machine learning and differentiable programming</article-title>
+      <year iso-8601-date="2024">2024</year>
+      <uri>https://pennylane.ai</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-qsharp">
+    <element-citation>
+      <person-group person-group-type="author">
+        <string-name>Microsoft Quantum</string-name>
+      </person-group>
+      <article-title>The q# programming language</article-title>
+      <year iso-8601-date="2024">2024</year>
+      <uri>https://learn.microsoft.com/azure/quantum/user-guide/programming/qsharp/</uri>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
