@@ -1,0 +1,521 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">9293</article-id>
+<article-id pub-id-type="doi">10.21105/joss.09293</article-id>
+<title-group>
+<article-title>OnlineNMF.jl: A Julia Package for Out-of-core and Sparse
+Non-negative Matrix Factorization</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0003-3797-2148</contrib-id>
+<name>
+<surname>Tsuyuzaki</surname>
+<given-names>Koki</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+<xref ref-type="aff" rid="aff-2"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Department of Artificial Intelligence Medicine, Graduate
+School of Medicine, Chiba University, Japan</institution>
+</institution-wrap>
+</aff>
+<aff id="aff-2">
+<institution-wrap>
+<institution>Laboratory for Bioinformatics Research, RIKEN Center for
+Biosystems Dynamics Research, Japan</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2025-12-03">
+<day>3</day>
+<month>12</month>
+<year>2025</year>
+</pub-date>
+<volume>11</volume>
+<issue>117</issue>
+<fpage>9293</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2026</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>Julia</kwd>
+<kwd>Non-negative Matrix Factorization</kwd>
+<kwd>Out-of-Core</kwd>
+<kwd>Sparse</kwd>
+<kwd>dimensionality reduction</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p>Non-negative Matrix Factorization (NMF) is a widely used
+  dimensionality reduction technique for identifying a small number of
+  non-negative components that minimize the reconstruction error when
+  applied to high-dimensional data
+  (<xref alt="Meng, 2016" rid="ref-review2" ref-type="bibr">Meng,
+  2016</xref>;
+  <xref alt="Stein-O’Brien, 2018" rid="ref-review1" ref-type="bibr">Stein-O’Brien,
+  2018</xref>). NMF has been applied across various fields of data
+  science, including face recognition
+  (<xref alt="Lee, 1999" rid="ref-face" ref-type="bibr">Lee,
+  1999</xref>), audio signal processing
+  (<xref alt="Kameoka, 2015" rid="ref-audio" ref-type="bibr">Kameoka,
+  2015</xref>), recommender system
+  (<xref alt="Sajad, 2025" rid="ref-recommend" ref-type="bibr">Sajad,
+  2025</xref>), natural language processing (also known as a “topic
+  model”)
+  (<xref alt="Srivastava &amp; Sahami, 2009" rid="ref-topicmodel" ref-type="bibr">Srivastava
+  &amp; Sahami, 2009</xref>), population genetics (also known as
+  “admixture analysis”)
+  (<xref alt="Simanovsky, 2019" rid="ref-admixture" ref-type="bibr">Simanovsky,
+  2019</xref>), and omics studies
+  (<xref alt="Meng, 2016" rid="ref-review2" ref-type="bibr">Meng,
+  2016</xref>;
+  <xref alt="Rodriques, 2019" rid="ref-slideseq" ref-type="bibr">Rodriques,
+  2019</xref>;
+  <xref alt="Stein-O’Brien, 2018" rid="ref-review1" ref-type="bibr">Stein-O’Brien,
+  2018</xref>).</p>
+  <p>Despite its broad applicability, NMF becomes computationally
+  prohibitive for large data matrices, making it difficult to apply in
+  practice. In particular, recent advances in single-cell omics have led
+  to datasets with millions of cells, for which standard NMF
+  implementations often fail to scale. To meet this requirement, I
+  present <monospace>OnlineNMF.jl</monospace>, which is a Julia package
+  to perform some NMF algorithms
+  (<ext-link ext-link-type="uri" xlink:href="https://github.com/rikenbit/OnlineNMF.jl">https://github.com/rikenbit/OnlineNMF.jl</ext-link>).</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p>NMF is a workhorse algorithm for most data science tasks. However,
+  as the size of the data matrix increases, it often becomes too large
+  to fit into memory. In such cases, an out-of-core (OOC) implementation
+  — where only subsets of data stored on disk are loaded into memory for
+  computation — is desirable. Additionally, representing the data in a
+  sparse matrix format, where only non-zero values and their coordinates
+  are stored, is computationally advantageous. Therefore, a NMF
+  implementation that supports both OOC computation and sparse data
+  handling is highly desirable (Figure 1).</p>
+  <p>Similar discussions have been made in the context of Principal
+  Component Analysis (PCA), and we have independently developed a Julia
+  package, <monospace>OnlinePCA.jl</monospace>
+  (<xref alt="Tsuyuzaki, 2020" rid="ref-onlinepcajl" ref-type="bibr">Tsuyuzaki,
+  2020</xref>). <monospace>OnlineNMF.jl</monospace> is a spin-off
+  version of <monospace>OnlinePCA.jl</monospace>, implementing NMF.</p>
+  <fig>
+    <caption><p>Overview of workflow in
+    OnlineNMF.jl.<styled-content id="figU003Anmf"></styled-content></p></caption>
+    <graphic mimetype="image" mime-subtype="png" xlink:href="figure.png" />
+  </fig>
+</sec>
+<sec id="example">
+  <title>Example</title>
+  <p>NMF can be easily reproduced on any machine where Julia is
+  pre-installed by using the following commands in the Julia REPL
+  window:</p>
+  <sec id="installation">
+    <title>Installation</title>
+    <p>First, install <monospace>OnlineNMF.jl</monospace> from the
+    official Julia package registry or directly from GitHub:</p>
+    <code language="julia"># Install OnlineNMF.jl from Julia General
+julia&gt; Pkg.add(&quot;OnlineNMF&quot;)
+
+# or GitHub for the latest version
+julia&gt; Pkg.add(url=&quot;https://github.com/rikenbit/OnlineNMF.jl.git&quot;)</code>
+  </sec>
+  <sec id="preprocess-of-csv">
+    <title>Preprocess of CSV</title>
+    <p>Then, write a synthetic data as a CSV file, convert it to a
+    compressed binary format using Zstandard, and prepare summary
+    statistics for PCA. Matrix Market (MM) format is also supported for
+    sparse matrices.</p>
+    <code language="julia">using OnlinePCA
+using OnlinePCA: write_csv
+using OnlineNMF
+using Distributions
+using DelimitedFiles
+using SparseArrays
+using MatrixMarket
+
+# CSV
+tmp = mktempdir()
+data = rand(Binomial(10, 0.05), 300, 99)
+data[1:50, 1:33] .= 100*data[1:50, 1:33]
+data[51:100, 34:66] .= 100*data[51:100, 34:66]
+data[101:150, 67:99] .= 100*data[101:150, 67:99]
+write_csv(joinpath(tmp, &quot;Data.csv&quot;), data)
+
+# Matrix Market (MM)
+mmwrite(joinpath(tmp, &quot;Data.mtx&quot;), sparse(data))
+
+# Binarization (Zstandard)
+csv2bin(csvfile=joinpath(tmp, &quot;Data.csv&quot;), binfile=joinpath(tmp, &quot;Data.zst&quot;))
+
+# Sparsification (Zstandard + MM format)
+mm2bin(mmfile=joinpath(tmp, &quot;Data.mtx&quot;), binfile=joinpath(tmp, &quot;Data.mtx.zst&quot;))</code>
+  </sec>
+  <sec id="plot-settings">
+    <title>Plot settings</title>
+    <p>Define a helper function to visualize the results of NMF using
+    the <monospace>PlotlyJS.jl</monospace> package. It generates two
+    subplots: Component-1 vs Component-2 and Component-2 vs Component-3,
+    with color-coded groups.</p>
+    <code language="julia">using DataFrames
+using PlotlyJS
+
+function subplots(out_nmf, group)
+    # data frame
+    data_left = DataFrame(nmf1=out_nmf[1][:,1], nmf2=out_nmf[1][:,2],
+      group=group)
+    data_right = DataFrame(nmf2=out_nmf[1][:,2], nmf3=out_nmf[1][:,3],
+      group=group)
+    # plot
+    p_left = Plot(data_left, x=:nmf1, y=:nmf2, mode=&quot;markers&quot;,
+      marker_size=10, group=:group)
+    p_right = Plot(data_right, x=:nmf2, y=:nmf3, mode=&quot;markers&quot;,
+      marker_size=10,
+    group=:group, showlegend=false)
+    p_left.data[1][&quot;marker_color&quot;] = &quot;red&quot;
+    p_left.data[2][&quot;marker_color&quot;] = &quot;blue&quot;
+    p_left.data[3][&quot;marker_color&quot;] = &quot;green&quot;
+    p_right.data[1][&quot;marker_color&quot;] = &quot;red&quot;
+    p_right.data[2][&quot;marker_color&quot;] = &quot;blue&quot;
+    p_right.data[3][&quot;marker_color&quot;] = &quot;green&quot;
+    p_left.data[1][&quot;name&quot;] = &quot;group1&quot;
+    p_left.data[2][&quot;name&quot;] = &quot;group2&quot;
+    p_left.data[3][&quot;name&quot;] = &quot;group3&quot;
+    p_left.layout[&quot;title&quot;] = &quot;Component 1 vs Component 2&quot;
+    p_right.layout[&quot;title&quot;] = &quot;Component 2 vs Component 3&quot;
+    p_left.layout[&quot;xaxis_title&quot;] = &quot;nmf-1&quot;
+    p_left.layout[&quot;yaxis_title&quot;] = &quot;nmf-2&quot;
+    p_right.layout[&quot;xaxis_title&quot;] = &quot;nmf-2&quot;
+    p_right.layout[&quot;yaxis_title&quot;] = &quot;nmf-3&quot;
+    plot([p_left p_right])
+end
+
+group=vcat(repeat([&quot;group1&quot;],inner=100),
+    repeat([&quot;group2&quot;],inner=100),
+    repeat([&quot;group3&quot;],inner=100))</code>
+  </sec>
+  <sec id="nmf-based-on-alpha-divergence">
+    <title>NMF based on Alpha-Divergence</title>
+    <p>This example demonstrates NMF using the
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[\alpha]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>α</mml:mi></mml:math></alternatives></inline-formula>-divergence
+    as the loss function (Figure 2). By setting alpha=2, the objective
+    corresponds to the Pearson divergence. The input data is assumed to
+    be a dense matrix compressed with Zstandard (.zst format).</p>
+    <code language="julia">out_nmf_alpha = nmf(input=joinpath(tmp, &quot;Data.zst&quot;),
+    dim=3, alpha=2, numepoch=30, algorithm=&quot;alpha&quot;)
+
+subplots(out_nmf_alpha, group)</code>
+    <fig>
+      <caption><p>Output of nmf against binarized CSV
+      format.<styled-content id="figU003Anmf2"></styled-content></p></caption>
+      <graphic mimetype="image" mime-subtype="png" xlink:href="nmf_alpha.png" />
+    </fig>
+  </sec>
+  <sec id="sparse-nmf-based-on-beta-divergence">
+    <title>Sparse-NMF based on Beta-Divergence</title>
+    <p>This example performs NMF on a sparse matrix using the
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[\beta]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>β</mml:mi></mml:math></alternatives></inline-formula>-divergence
+    (Figure 3). The input is a MM formatted sparse matrix file
+    (.mtx.zst). When beta=1, the loss corresponds to the
+    Kullback-Leibler divergence, and sparse-specific optimization is
+    used internally.</p>
+    <code language="julia">out_sparse_nmf_beta = sparse_nmf(input=joinpath(tmp, &quot;Data.mtx.zst&quot;),
+    dim=3, beta=1, numepoch=30, algorithm=&quot;beta&quot;)
+
+subplots(out_sparse_nmf_beta, group)</code>
+    <fig>
+      <caption><p>Output of sparse_nmf against binarized MM
+      format.<styled-content id="figU003Anmf3"></styled-content></p></caption>
+      <graphic mimetype="image" mime-subtype="png" xlink:href="sparse_nmf_beta.png" />
+    </fig>
+  </sec>
+</sec>
+<sec id="related-work">
+  <title>Related work</title>
+  <p>There are various implementations of NMF
+  (<xref alt="Boureima, 2024" rid="ref-nmfk" ref-type="bibr">Boureima,
+  2024</xref>;
+  <xref alt="Pedregosa, 2011" rid="ref-sklearn" ref-type="bibr">Pedregosa,
+  2011</xref>;
+  <xref alt="Tsuyuzaki, 2023" rid="ref-nntensor" ref-type="bibr">Tsuyuzaki,
+  2023</xref>) and some of them support OOC computation or sparse data
+  formats
+  (<xref alt="Lab, 2023" rid="ref-rcppplanc" ref-type="bibr">Lab,
+  2023</xref>;
+  <xref alt="Pedregosa, 2011" rid="ref-sklearn" ref-type="bibr">Pedregosa,
+  2011</xref>). While <monospace>RcppPlanc/PLANC</monospace> supports
+  both OOC and R’s internal sparse format (dgCMatrix),
+  <monospace>OnlineNMF.jl</monospace> is designed to handle
+  language-agnostic sparse formats such as MM and Binary COO (BinCOO),
+  enabling seamless integration with external data pipelines.</p>
+  <table-wrap>
+    <table>
+      <thead>
+        <tr>
+          <th align="left">Function Name</th>
+          <th align="center">Language</th>
+          <th align="center">OOC</th>
+          <th align="center">Sparse Format</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td align="left"><monospace>nnTensor::NMF</monospace></td>
+          <td align="center">R</td>
+          <td align="center">No</td>
+          <td align="center">-</td>
+        </tr>
+        <tr>
+          <td align="left"><monospace>sklearn.decomposition.NMF</monospace></td>
+          <td align="center">Python</td>
+          <td align="center">No</td>
+          <td align="center">-</td>
+        </tr>
+        <tr>
+          <td align="left"><monospace>pyDNMFk</monospace></td>
+          <td align="center">Python</td>
+          <td align="center">No</td>
+          <td align="center">-</td>
+        </tr>
+        <tr>
+          <td align="left"><monospace>NMF.MultUpdate</monospace></td>
+          <td align="center">Julia</td>
+          <td align="center">No</td>
+          <td align="center">-</td>
+        </tr>
+        <tr>
+          <td align="left"><monospace>sklearn.decomposition.MiniBatchNMF</monospace></td>
+          <td align="center">Python</td>
+          <td align="center">Yes</td>
+          <td align="center">-</td>
+        </tr>
+        <tr>
+          <td align="left"><monospace>RcppPlanc/PLANC</monospace></td>
+          <td align="center">R/C++</td>
+          <td align="center">Yes</td>
+          <td align="center">dgCMatrix</td>
+        </tr>
+        <tr>
+          <td align="left"><monospace>OnlineNMF.jl</monospace></td>
+          <td align="center">Julia</td>
+          <td align="center">Yes</td>
+          <td align="center">MM/BinCOO</td>
+        </tr>
+      </tbody>
+    </table>
+  </table-wrap>
+</sec>
+</body>
+<back>
+<ref-list>
+  <title></title>
+  <ref id="ref-review1">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Stein-O’Brien</surname><given-names>G. L. et al.</given-names></name>
+      </person-group>
+      <article-title>Enter the matrix: Factorization uncovers knowledge from omics</article-title>
+      <source>Trends in Genetics</source>
+      <year iso-8601-date="2018">2018</year>
+      <volume>34(10)</volume>
+      <pub-id pub-id-type="doi">10.1016/j.tig.2018.07.003</pub-id>
+      <fpage>790</fpage>
+      <lpage>805</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-review2">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Meng</surname><given-names>C. et al.</given-names></name>
+      </person-group>
+      <article-title>Dimension reduction techniques for the integrative analysis of multi-omics data</article-title>
+      <source>Briefings in Bioinformatics</source>
+      <year iso-8601-date="2016">2016</year>
+      <volume>17(4)</volume>
+      <pub-id pub-id-type="doi">10.1093/bib/bbv108</pub-id>
+      <fpage>628</fpage>
+      <lpage>641</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-face">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Lee</surname><given-names>D. D. et al.</given-names></name>
+      </person-group>
+      <article-title>Learning the parts of objects by non-negative matrix factorization</article-title>
+      <source>Nature</source>
+      <year iso-8601-date="1999">1999</year>
+      <volume>401(6755)</volume>
+      <pub-id pub-id-type="doi">10.1038/44565</pub-id>
+      <fpage>788</fpage>
+      <lpage>791</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-audio">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Kameoka</surname><given-names>H.</given-names></name>
+      </person-group>
+      <article-title>Non-negative matrix factorization and its variants with applications to audio signal processing</article-title>
+      <source>Journal of the Japan Statistical Society, Japanese Issue</source>
+      <year iso-8601-date="2015">2015</year>
+      <volume>44(2)</volume>
+      <pub-id pub-id-type="doi">10.11329/jjssj.44.383</pub-id>
+      <fpage>383</fpage>
+      <lpage>407</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-recommend">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Sajad</surname><given-names>A. et al.</given-names></name>
+      </person-group>
+      <article-title>Recommender systems based on non-negative matrix factorization: A survey</article-title>
+      <source>IEEE Transactions on Artificial Intelligence</source>
+      <year iso-8601-date="2025">2025</year>
+      <pub-id pub-id-type="doi">10.1109/TAI.2025.3559053</pub-id>
+      <fpage>1</fpage>
+      <lpage>21</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-topicmodel">
+    <element-citation publication-type="book">
+      <source>Text mining: Classification, clustering, and applications</source>
+      <person-group person-group-type="editor">
+        <name><surname>Srivastava</surname><given-names>Ashok N.</given-names></name>
+        <name><surname>Sahami</surname><given-names>Mehran</given-names></name>
+      </person-group>
+      <publisher-name>Chapman; Hall/CRC</publisher-name>
+      <year iso-8601-date="2009">2009</year>
+      <pub-id pub-id-type="doi">10.1201/9781420059458</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-admixture">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Simanovsky</surname><given-names>A. L. et al.</given-names></name>
+      </person-group>
+      <article-title>Single haplotype admixture models using large scale HLA genotype frequencies to reproduce human admixture</article-title>
+      <source>Immunogenetics</source>
+      <year iso-8601-date="2019">2019</year>
+      <volume>71</volume>
+      <pub-id pub-id-type="doi">10.1007/s00251-019-01144-7</pub-id>
+      <fpage>589</fpage>
+      <lpage>604</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-slideseq">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Rodriques</surname><given-names>S. G. et al.</given-names></name>
+      </person-group>
+      <article-title>Slide-seq: A scalable technology for measuring genome-wide expression at high spatial resolution</article-title>
+      <source>Science</source>
+      <year iso-8601-date="2019">2019</year>
+      <volume>363</volume>
+      <pub-id pub-id-type="doi">10.1126/science.aaw1219</pub-id>
+      <fpage>1463</fpage>
+      <lpage>1467</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-onlinepcajl">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Tsuyuzaki</surname><given-names>K. et al.</given-names></name>
+      </person-group>
+      <article-title>Benchmarking principal component analysis for large-scale single-cell RNA-sequencing</article-title>
+      <source>Genome Biology</source>
+      <year iso-8601-date="2020">2020</year>
+      <volume>21(1)</volume>
+      <pub-id pub-id-type="doi">10.1186/s13059-019-1900-3</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-sklearn">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Pedregosa</surname><given-names>F. et al.</given-names></name>
+      </person-group>
+      <article-title>Scikit-learn: Machine learning in Python</article-title>
+      <source>Journal of Machine Learning Research</source>
+      <year iso-8601-date="2011">2011</year>
+      <volume>12(85)</volume>
+      <fpage>2825</fpage>
+      <lpage>2830</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-nntensor">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Tsuyuzaki</surname><given-names>K. et al.</given-names></name>
+      </person-group>
+      <article-title>nnTensor: An R package for non-negative matrix/tensor decomposition</article-title>
+      <source>Journal of Open Source Software</source>
+      <year iso-8601-date="2023">2023</year>
+      <volume>8(84)</volume>
+      <pub-id pub-id-type="doi">10.21105/joss.05015</pub-id>
+      <fpage>5015</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-nmfk">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Boureima</surname><given-names>I. et al.</given-names></name>
+      </person-group>
+      <article-title>Distributed out-of-memory NMF on CPU/GPU architectures</article-title>
+      <source>J Supercomput</source>
+      <year iso-8601-date="2024">2024</year>
+      <volume>80</volume>
+      <pub-id pub-id-type="doi">10.1007/s11227-023-05587-4</pub-id>
+      <fpage>3970</fpage>
+      <lpage>3999</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-rcppplanc">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Lab</surname><given-names>Welch</given-names></name>
+      </person-group>
+      <article-title>RcppPlanc: R wrapper for the PLANC nonnegative matrix factorization library</article-title>
+      <publisher-name>https://github.com/welch-lab/RcppPlanc</publisher-name>
+      <year iso-8601-date="2023">2023</year>
+      <pub-id pub-id-type="doi">10.32614/CRAN.package.RcppPlanc</pub-id>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
