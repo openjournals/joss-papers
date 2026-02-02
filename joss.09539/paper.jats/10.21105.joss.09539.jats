@@ -1,0 +1,559 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">9539</article-id>
+<article-id pub-id-type="doi">10.21105/joss.09539</article-id>
+<title-group>
+<article-title>corrselect: Fast and flexible predictor pruning for data
+analysis and modeling</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0003-3070-6066</contrib-id>
+<name>
+<surname>Colling</surname>
+<given-names>Gilles</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Department of Botany and Biodiversity Research, University
+of Vienna, Austria</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2025-09-09">
+<day>9</day>
+<month>9</month>
+<year>2025</year>
+</pub-date>
+<volume>11</volume>
+<issue>118</issue>
+<fpage>9539</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2026</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p><monospace>corrselect</monospace>
+  (<xref alt="Colling, 2025" rid="ref-cran" ref-type="bibr">Colling,
+  2025</xref>) is an R package for reducing multicollinearity and
+  redundancy in predictor sets. It provides two complementary
+  approaches: (1) high-level pruning functions that return a single
+  optimal subset, and (2) exhaustive enumeration of all maximal
+  admissible subsets. The package handles both numeric and mixed-type
+  data, supports forced inclusion of key predictors, and integrates with
+  standard R modeling workflows including mixed-effects models.</p>
+  <p>Version 3.0 introduces <monospace>corrPrune()</monospace> for
+  association-based pruning and <monospace>modelPrune()</monospace> for
+  VIF-based model pruning, while retaining the original exhaustive
+  enumeration functions (<monospace>corrSelect()</monospace>,
+  <monospace>assocSelect()</monospace>,
+  <monospace>MatSelect()</monospace>). A fast C++ greedy algorithm
+  enables efficient pruning for large predictor sets (p &gt; 100), while
+  exact graph-theoretic algorithms guarantee complete enumeration when
+  exhaustive search is feasible.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of Need</title>
+  <p>Collinearity among predictors is common in applied modeling and can
+  degrade inference and prediction
+  (<xref alt="Dormann et al., 2013" rid="ref-Dormann2013" ref-type="bibr">Dormann
+  et al., 2013</xref>). Popular utilities such as
+  <monospace>caret::findCorrelation()</monospace> apply greedy,
+  order-dependent filtering and return a single solution, typically
+  removing the variable with the highest mean correlation at each step.
+  This heuristic approach discards potentially useful subsets and
+  provides no guarantee of optimality: where
+  <monospace>caret</monospace> returns one subset,
+  <monospace>corrselect</monospace> in exact mode might reveal a dozen
+  equally valid alternatives. Having the full set of options helps when
+  domain knowledge should guide final variable selection, or when
+  researchers need to assess the sensitivity of their conclusions to
+  predictor choice. Supervised filter methods such as FCBF
+  (<xref alt="Yu &amp; Liu, 2003" rid="ref-YuLiu2003" ref-type="bibr">Yu
+  &amp; Liu, 2003</xref>) select features correlated with a target
+  variable while removing redundancy, which is a different goal than
+  reducing pairwise redundancy alone. Embedded and wrapper methods like
+  the elastic net
+  (<xref alt="Zou &amp; Hastie, 2005" rid="ref-ZouHastie2005" ref-type="bibr">Zou
+  &amp; Hastie, 2005</xref>) or recursive feature elimination
+  (<xref alt="Witten et al., 2009" rid="ref-Witten2009" ref-type="bibr">Witten
+  et al., 2009</xref>) can be powerful but couple selection to a
+  specific model and reduce transparency.</p>
+  <p><monospace>corrselect</monospace> addresses these limitations
+  through two interfaces. For routine workflows,
+  <monospace>corrPrune()</monospace> and
+  <monospace>modelPrune()</monospace> provide simple, deterministic
+  pruning with a single function call. For exhaustive exploration, the
+  package formulates a global admissible set problem: given variables
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[X_1,\dots,X_p]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>X</mml:mi><mml:mn>1</mml:mn></mml:msub><mml:mo>,</mml:mo><mml:mi>…</mml:mi><mml:mo>,</mml:mo><mml:msub><mml:mi>X</mml:mi><mml:mi>p</mml:mi></mml:msub></mml:mrow></mml:math></alternatives></inline-formula>
+  and pairwise measures <inline-formula><alternatives>
+  <tex-math><![CDATA[r_{ij}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>r</mml:mi><mml:mrow><mml:mi>i</mml:mi><mml:mi>j</mml:mi></mml:mrow></mml:msub></mml:math></alternatives></inline-formula>,
+  find all maximal subsets <inline-formula><alternatives>
+  <tex-math><![CDATA[S]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>S</mml:mi></mml:math></alternatives></inline-formula>
+  such that</p>
+  <p><disp-formula><alternatives>
+  <tex-math><![CDATA[
+  |r_{ij}| \le t \quad \text{for all } i \ne j \in S ,
+  ]]></tex-math>
+  <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mo stretchy="false" form="prefix">|</mml:mo><mml:msub><mml:mi>r</mml:mi><mml:mrow><mml:mi>i</mml:mi><mml:mi>j</mml:mi></mml:mrow></mml:msub><mml:mo stretchy="false" form="prefix">|</mml:mo><mml:mo>≤</mml:mo><mml:mi>t</mml:mi><mml:mspace width="1.0em"></mml:mspace><mml:mrow><mml:mtext mathvariant="normal">for all </mml:mtext><mml:mspace width="0.333em"></mml:mspace></mml:mrow><mml:mi>i</mml:mi><mml:mo>≠</mml:mo><mml:mi>j</mml:mi><mml:mo>∈</mml:mo><mml:mi>S</mml:mi><mml:mo>,</mml:mo></mml:mrow></mml:math></alternatives></disp-formula></p>
+  <p>with a user threshold <inline-formula><alternatives>
+  <tex-math><![CDATA[t \in (0,1)]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>t</mml:mi><mml:mo>∈</mml:mo><mml:mo stretchy="false" form="prefix">(</mml:mo><mml:mn>0</mml:mn><mml:mo>,</mml:mo><mml:mn>1</mml:mn><mml:mo stretchy="false" form="postfix">)</mml:mo></mml:mrow></mml:math></alternatives></inline-formula>.
+  This is equivalent to finding all maximal cliques in the compatibility
+  graph, a well-studied problem in computer science. Unlike greedy
+  methods that return a single result, <monospace>corrselect</monospace>
+  in exact mode enumerates <italic>all</italic> maximal admissible
+  subsets, enabling researchers to explore the full solution space. This
+  gives users both convenience and completeness.</p>
+</sec>
+<sec id="functionality">
+  <title>Functionality</title>
+  <p>The package provides two complementary approaches to predictor
+  pruning: model-agnostic methods that operate on predictors alone, and
+  model-based methods that require fitting a model.</p>
+  <sec id="model-agnostic-pruning">
+    <title>Model-Agnostic Pruning</title>
+    <p>Model-agnostic pruning removes redundant predictors based on
+    pairwise correlation or association measures, without requiring a
+    response variable. This unsupervised approach is useful for
+    pre-modeling dimensionality reduction or when the outcome is not yet
+    defined. The package provides both a simple pruning interface and
+    exhaustive enumeration functions:</p>
+    <list list-type="bullet">
+      <list-item>
+        <p><bold><monospace>corrPrune()</monospace></bold>: Returns a
+        pruned data frame with pairwise associations below a
+        user-specified threshold. Supports exact mode (exhaustive
+        search, recommended for <inline-formula><alternatives>
+        <tex-math><![CDATA[p \le 100]]></tex-math>
+        <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>p</mml:mi><mml:mo>≤</mml:mo><mml:mn>100</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>)
+        and greedy mode (fast polynomial-time algorithm for large
+        <inline-formula><alternatives>
+        <tex-math><![CDATA[p]]></tex-math>
+        <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>p</mml:mi></mml:math></alternatives></inline-formula>).
+        Automatic measure selection handles numeric, factor, and ordered
+        variables. The <monospace>force_in</monospace> parameter
+        protects key predictors from removal.</p>
+      </list-item>
+      <list-item>
+        <p><bold><monospace>corrSelect()</monospace></bold>,
+        <bold><monospace>assocSelect()</monospace></bold>,
+        <bold><monospace>MatSelect()</monospace></bold>: Exhaustive
+        enumeration functions that return all maximal admissible subsets
+        rather than a single solution.
+        <monospace>corrSelect()</monospace> handles numeric data with
+        correlations in <inline-formula><alternatives>
+        <tex-math><![CDATA[[-1,1]]]></tex-math>
+        <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mo stretchy="false" form="prefix">[</mml:mo><mml:mi>−</mml:mi><mml:mn>1</mml:mn><mml:mo>,</mml:mo><mml:mn>1</mml:mn><mml:mo stretchy="false" form="postfix">]</mml:mo></mml:mrow></mml:math></alternatives></inline-formula>;
+        <monospace>assocSelect()</monospace> handles mixed-type data
+        using normalized association measures in
+        <inline-formula><alternatives>
+        <tex-math><![CDATA[[0,1]]]></tex-math>
+        <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mo stretchy="false" form="prefix">[</mml:mo><mml:mn>0</mml:mn><mml:mo>,</mml:mo><mml:mn>1</mml:mn><mml:mo stretchy="false" form="postfix">]</mml:mo></mml:mrow></mml:math></alternatives></inline-formula>,
+        including Pearson, Spearman, and Kendall correlations, biweight
+        midcorrelation
+        (<xref alt="Langfelder &amp; Horvath, 2008" rid="ref-Langfelder2008" ref-type="bibr">Langfelder
+        &amp; Horvath, 2008</xref>), distance correlation
+        (<xref alt="Székely et al., 2007" rid="ref-Szekely2007" ref-type="bibr">Székely
+        et al., 2007</xref>;
+        <xref alt="Székely &amp; Rizzo, 2009" rid="ref-Szekely2009" ref-type="bibr">Székely
+        &amp; Rizzo, 2009</xref>), the maximal information coefficient
+        (<xref alt="Reshef et al., 2011" rid="ref-Reshef2011" ref-type="bibr">Reshef
+        et al., 2011</xref>), ANOVA <inline-formula><alternatives>
+        <tex-math><![CDATA[\eta^2]]></tex-math>
+        <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msup><mml:mi>η</mml:mi><mml:mn>2</mml:mn></mml:msup></mml:math></alternatives></inline-formula>,
+        and Cramér’s V; <monospace>MatSelect()</monospace> operates
+        directly on a symmetric association matrix.</p>
+      </list-item>
+    </list>
+    <p>All enumeration functions return a
+    <monospace>CorrCombo</monospace> object containing maximal subsets,
+    summary statistics, and standard methods
+    (<monospace>print</monospace>, <monospace>summary</monospace>,
+    <monospace>as.data.frame</monospace>). The helper function
+    <monospace>corrSubset()</monospace> extracts filtered data frames
+    from results.</p>
+    <p>For example, on the <monospace>mtcars</monospace> dataset:</p>
+    <code language="r script">library(corrselect)
+result &lt;- corrSelect(mtcars, threshold = 0.7)
+result
+#&gt; CorrCombo object with 12 maximal subsets
+#&gt;   Threshold: 0.7 | Correlation method: pearson
+#&gt;   Sizes: 6, 5, 5, 5, ... | Avg |r|: 0.30, 0.27, 0.30, 0.31, ...
+
+as.data.frame(result)[1:3, c(&quot;subset&quot;, &quot;size&quot;, &quot;avg_corr&quot;)]
+#&gt;                          subset size avg_corr
+#&gt; 1 mpg, cyl, drat, qsec, vs, am    6     0.30
+#&gt; 2     mpg, drat, qsec, vs, gear    5     0.27
+#&gt; 3      mpg, hp, drat, qsec, am    5     0.30</code>
+    <p>Unlike <monospace>caret::findCorrelation()</monospace> which
+    returns a single variable set, <monospace>corrSelect()</monospace>
+    reveals all 12 equally valid solutions, enabling informed selection
+    based on domain knowledge.</p>
+    <sec id="algorithms">
+      <title>Algorithms</title>
+      <p>The admissible set problem is mathematically equivalent to
+      finding all maximal cliques in the “compatibility graph” where
+      edges connect variable pairs with <inline-formula><alternatives>
+      <tex-math><![CDATA[|r_{ij}| \le t]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mo stretchy="false" form="prefix">|</mml:mo><mml:msub><mml:mi>r</mml:mi><mml:mrow><mml:mi>i</mml:mi><mml:mi>j</mml:mi></mml:mrow></mml:msub><mml:mo stretchy="false" form="prefix">|</mml:mo><mml:mo>≤</mml:mo><mml:mi>t</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>,
+      or equivalently, all maximal independent sets in the “conflict
+      graph” where edges connect pairs exceeding the threshold.</p>
+      <p>For exact enumeration, the package implements two algorithms
+      natively in C++ (not as wrappers around external libraries such as
+      igraph
+      (<xref alt="Csardi &amp; Nepusz, 2006" rid="ref-igraph" ref-type="bibr">Csardi
+      &amp; Nepusz, 2006</xref>)):</p>
+      <list list-type="bullet">
+        <list-item>
+          <p><bold>Bron-Kerbosch</bold>: The classical maximal clique
+          enumeration algorithm
+          (<xref alt="Bron &amp; Kerbosch, 1973" rid="ref-Bron1973" ref-type="bibr">Bron
+          &amp; Kerbosch, 1973</xref>), used by default for unrestricted
+          enumeration.</p>
+        </list-item>
+        <list-item>
+          <p><bold>Eppstein-Löffler-Strash (ELS)</bold>: A near-optimal
+          algorithm for sparse graphs
+          (<xref alt="Eppstein et al., 2010" rid="ref-Eppstein2010" ref-type="bibr">Eppstein
+          et al., 2010</xref>), used when
+          <monospace>force_in</monospace> seeds are specified.</p>
+        </list-item>
+      </list>
+      <p>Both exact methods ensure non-redundant and complete
+      enumeration of admissible subsets. However, maximal clique
+      enumeration is NP-hard in the general case, and exact mode may
+      become impractically slow on large or densely connected problems.
+      On a modern desktop (Intel i9-14900K) with correlations clustered
+      near the threshold, <inline-formula><alternatives>
+      <tex-math><![CDATA[p = 100]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>p</mml:mi><mml:mo>=</mml:mo><mml:mn>100</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>
+      completed in under 1 second, <inline-formula><alternatives>
+      <tex-math><![CDATA[p = 150]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>p</mml:mi><mml:mo>=</mml:mo><mml:mn>150</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>
+      in ~19 seconds, <inline-formula><alternatives>
+      <tex-math><![CDATA[p = 175]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>p</mml:mi><mml:mo>=</mml:mo><mml:mn>175</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>
+      in ~3 minutes, and <inline-formula><alternatives>
+      <tex-math><![CDATA[p = 200]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>p</mml:mi><mml:mo>=</mml:mo><mml:mn>200</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>
+      in ~17 minutes. Exact mode is therefore recommended only for
+      moderate-sized problems (<inline-formula><alternatives>
+      <tex-math><![CDATA[p \le 100]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>p</mml:mi><mml:mo>≤</mml:mo><mml:mn>100</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>).</p>
+      <p>For larger predictor sets or low thresholds where exact
+      enumeration becomes infeasible,
+      <monospace>corrPrune(mode = &quot;greedy&quot;)</monospace>
+      provides a fast polynomial-time alternative. Unlike
+      <monospace>caret::findCorrelation()</monospace> which removes the
+      variable with the highest mean correlation, this custom greedy
+      algorithm iteratively removes the variable involved in the most
+      threshold violations, with ties broken by maximum and then average
+      association. This runs in <inline-formula><alternatives>
+      <tex-math><![CDATA[O(p^2 \times k)]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>O</mml:mi><mml:mo stretchy="false" form="prefix">(</mml:mo><mml:msup><mml:mi>p</mml:mi><mml:mn>2</mml:mn></mml:msup><mml:mo>×</mml:mo><mml:mi>k</mml:mi><mml:mo stretchy="false" form="postfix">)</mml:mo></mml:mrow></mml:math></alternatives></inline-formula>
+      time where <inline-formula><alternatives>
+      <tex-math><![CDATA[k]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>k</mml:mi></mml:math></alternatives></inline-formula>
+      is the number of variables removed.</p>
+    </sec>
+  </sec>
+  <sec id="model-based-pruning">
+    <title>Model-Based Pruning</title>
+    <p>Unlike the model-agnostic functions,
+    <monospace>modelPrune()</monospace> addresses multicollinearity
+    using variance inflation factors (VIF) computed within a modeling
+    context. This supervised approach requires a response variable and
+    considers joint relationships among predictors rather than pairwise
+    associations alone.</p>
+    <list list-type="bullet">
+      <list-item>
+        <p><bold><monospace>modelPrune()</monospace></bold>: Iteratively
+        removes the predictor with the highest VIF until all remaining
+        predictors fall below a user-specified limit. Supports multiple
+        modeling engines (<monospace>lm</monospace>,
+        <monospace>glm</monospace>, <monospace>lme4</monospace>,
+        <monospace>glmmTMB</monospace>) and custom engine definitions
+        for integration with any R modeling package (e.g., INLA, mgcv,
+        brms). For mixed-effects models, only fixed effects are pruned
+        while random effect structures are preserved.</p>
+      </list-item>
+    </list>
+  </sec>
+</sec>
+<sec id="related-work">
+  <title>Related Work</title>
+  <p>Heuristic correlation filters are widely used but are
+  order-dependent and return only a single result.
+  <monospace>corrselect</monospace> goes further by providing both fast
+  deterministic pruning and exhaustive enumeration, support for mixed
+  data types, VIF-based model pruning, and user control via
+  <monospace>force_in</monospace>. The model-agnostic functions are
+  interpretable and independent of any particular modeling framework,
+  while the graph-theoretic foundation links admissible subsets to
+  maximal cliques and independent sets.</p>
+  <p>Other feature selection methods include embedded approaches such as
+  the elastic net
+  (<xref alt="Zou &amp; Hastie, 2005" rid="ref-ZouHastie2005" ref-type="bibr">Zou
+  &amp; Hastie, 2005</xref>), recursive feature elimination
+  (<xref alt="Witten et al., 2009" rid="ref-Witten2009" ref-type="bibr">Witten
+  et al., 2009</xref>), or permutation-based algorithms such as Boruta.
+  These methods can be powerful but are tied to specific modeling
+  frameworks and may be non-deterministic or hard to interpret when
+  predictors are collinear. By contrast, the model-agnostic functions in
+  <monospace>corrselect</monospace> are fast, deterministic, and
+  formulate subset selection as a well-defined optimization problem.</p>
+</sec>
+<sec id="applications">
+  <title>Applications</title>
+  <p>The package supports feature screening in high-dimensional modeling
+  and exploratory mapping of alternative, equally valid predictor sets.
+  With support for correlation and association measures such as biweight
+  midcorrelation
+  (<xref alt="Langfelder &amp; Horvath, 2008" rid="ref-Langfelder2008" ref-type="bibr">Langfelder
+  &amp; Horvath, 2008</xref>), distance correlation
+  (<xref alt="Székely et al., 2007" rid="ref-Szekely2007" ref-type="bibr">Székely
+  et al., 2007</xref>;
+  <xref alt="Székely &amp; Rizzo, 2009" rid="ref-Szekely2009" ref-type="bibr">Székely
+  &amp; Rizzo, 2009</xref>), and the maximal information coefficient
+  (<xref alt="Reshef et al., 2011" rid="ref-Reshef2011" ref-type="bibr">Reshef
+  et al., 2011</xref>), <monospace>corrselect</monospace> is applicable
+  across domains including genomics, network analysis, environmental
+  modeling, and machine learning. The VIF-based
+  <monospace>modelPrune()</monospace> function integrates directly with
+  regression and mixed-effects modeling workflows, while the custom
+  engine interface enables extension to specialized modeling
+  packages.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <title></title>
+  <ref id="ref-cran">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Colling</surname><given-names>Gilles</given-names></name>
+      </person-group>
+      <source>Corrselect: Correlation-based variable subset selection</source>
+      <year iso-8601-date="2025">2025</year>
+      <uri>https://CRAN.R-project.org/package=corrselect</uri>
+      <pub-id pub-id-type="doi">10.32614/CRAN.package.corrselect</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-Bron1973">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Bron</surname><given-names>Coen</given-names></name>
+        <name><surname>Kerbosch</surname><given-names>Joep</given-names></name>
+      </person-group>
+      <article-title>Algorithm 457: Finding all cliques of an undirected graph</article-title>
+      <source>Communications of the ACM</source>
+      <year iso-8601-date="1973">1973</year>
+      <volume>16</volume>
+      <issue>9</issue>
+      <pub-id pub-id-type="doi">10.1145/362342.362367</pub-id>
+      <fpage>575</fpage>
+      <lpage>577</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Dormann2013">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Dormann</surname><given-names>Carsten F.</given-names></name>
+        <name><surname>Elith</surname><given-names>Jane</given-names></name>
+        <name><surname>Bacher</surname><given-names>Sven</given-names></name>
+        <name><surname>al.</surname></name>
+      </person-group>
+      <article-title>Collinearity: A review of methods to deal with it and a simulation study evaluating their performance</article-title>
+      <source>Ecography</source>
+      <year iso-8601-date="2013">2013</year>
+      <volume>36</volume>
+      <issue>1</issue>
+      <pub-id pub-id-type="doi">10.1111/j.1600-0587.2012.07348.x</pub-id>
+      <fpage>27</fpage>
+      <lpage>46</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Szekely2007">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Székely</surname><given-names>Gábor J.</given-names></name>
+        <name><surname>Rizzo</surname><given-names>Maria L.</given-names></name>
+        <name><surname>Bakirov</surname><given-names>N. K.</given-names></name>
+      </person-group>
+      <article-title>Measuring and testing dependence by correlation of distances</article-title>
+      <source>The Annals of Statistics</source>
+      <year iso-8601-date="2007">2007</year>
+      <volume>35</volume>
+      <issue>6</issue>
+      <pub-id pub-id-type="doi">10.1214/009053607000000505</pub-id>
+      <fpage>2769</fpage>
+      <lpage>2794</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Szekely2009">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Székely</surname><given-names>Gábor J.</given-names></name>
+        <name><surname>Rizzo</surname><given-names>Maria L.</given-names></name>
+      </person-group>
+      <article-title>Brownian distance covariance</article-title>
+      <source>The Annals of Applied Statistics</source>
+      <year iso-8601-date="2009">2009</year>
+      <volume>3</volume>
+      <issue>4</issue>
+      <pub-id pub-id-type="doi">10.1214/09-AOAS312</pub-id>
+      <fpage>1236</fpage>
+      <lpage>1265</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Reshef2011">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Reshef</surname><given-names>David N.</given-names></name>
+        <name><surname>Reshef</surname><given-names>Yakir A.</given-names></name>
+        <name><surname>Finucane</surname><given-names>Hilary K.</given-names></name>
+        <name><surname>al.</surname></name>
+      </person-group>
+      <article-title>Detecting novel associations in large data sets</article-title>
+      <source>Science</source>
+      <year iso-8601-date="2011">2011</year>
+      <volume>334</volume>
+      <issue>6062</issue>
+      <pub-id pub-id-type="doi">10.1126/science.1205438</pub-id>
+      <fpage>1518</fpage>
+      <lpage>1524</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Langfelder2008">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Langfelder</surname><given-names>Peter</given-names></name>
+        <name><surname>Horvath</surname><given-names>Steve</given-names></name>
+      </person-group>
+      <article-title>WGCNA: An R package for weighted correlation network analysis</article-title>
+      <source>BMC Bioinformatics</source>
+      <year iso-8601-date="2008">2008</year>
+      <volume>9</volume>
+      <issue>1</issue>
+      <pub-id pub-id-type="doi">10.1186/1471-2105-9-559</pub-id>
+      <fpage>559</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-ZouHastie2005">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Zou</surname><given-names>Hui</given-names></name>
+        <name><surname>Hastie</surname><given-names>Trevor</given-names></name>
+      </person-group>
+      <article-title>Regularization and variable selection via the elastic net</article-title>
+      <source>Journal of the Royal Statistical Society: Series B</source>
+      <year iso-8601-date="2005">2005</year>
+      <volume>67</volume>
+      <issue>2</issue>
+      <pub-id pub-id-type="doi">10.1111/j.1467-9868.2005.00503.x</pub-id>
+      <fpage>301</fpage>
+      <lpage>320</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Witten2009">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Witten</surname><given-names>Daniela M.</given-names></name>
+        <name><surname>Tibshirani</surname><given-names>Robert</given-names></name>
+        <name><surname>Hastie</surname><given-names>Trevor</given-names></name>
+      </person-group>
+      <article-title>A penalized matrix decomposition, with applications to sparse principal components and canonical correlation analysis</article-title>
+      <source>Biostatistics</source>
+      <year iso-8601-date="2009">2009</year>
+      <volume>10</volume>
+      <issue>3</issue>
+      <pub-id pub-id-type="doi">10.1093/biostatistics/kxp008</pub-id>
+      <fpage>515</fpage>
+      <lpage>534</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Eppstein2010">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Eppstein</surname><given-names>David</given-names></name>
+        <name><surname>Löffler</surname><given-names>Maarten</given-names></name>
+        <name><surname>Strash</surname><given-names>Darren</given-names></name>
+      </person-group>
+      <article-title>Listing all maximal cliques in sparse graphs in near-optimal time</article-title>
+      <source>Algorithms and computation (ISAAC 2010)</source>
+      <publisher-name>Springer</publisher-name>
+      <year iso-8601-date="2010">2010</year>
+      <volume>6506</volume>
+      <pub-id pub-id-type="doi">10.1007/978-3-642-17517-6_36</pub-id>
+      <fpage>403</fpage>
+      <lpage>414</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-igraph">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Csardi</surname><given-names>Gábor</given-names></name>
+        <name><surname>Nepusz</surname><given-names>Tamás</given-names></name>
+      </person-group>
+      <article-title>The igraph software package for complex network research</article-title>
+      <source>InterJournal, Complex Systems</source>
+      <year iso-8601-date="2006">2006</year>
+      <volume>1695</volume>
+      <issue>5</issue>
+      <uri>https://igraph.org</uri>
+      <fpage>1</fpage>
+      <lpage>9</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-YuLiu2003">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Yu</surname><given-names>Lei</given-names></name>
+        <name><surname>Liu</surname><given-names>Huan</given-names></name>
+      </person-group>
+      <article-title>Feature selection for high-dimensional data: A fast correlation-based filter solution</article-title>
+      <source>Proceedings of the 20th international conference on machine learning (ICML-03)</source>
+      <publisher-name>AAAI Press</publisher-name>
+      <year iso-8601-date="2003">2003</year>
+      <fpage>856</fpage>
+      <lpage>863</lpage>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
