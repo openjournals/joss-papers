@@ -1,0 +1,903 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">8502</article-id>
+<article-id pub-id-type="doi">10.21105/joss.08502</article-id>
+<title-group>
+<article-title>SerializableSimpy: Parallel and Serializable
+Discrete-Event Simulation in Python</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0002-3525-5033</contrib-id>
+<name>
+<surname>Pochelu</surname>
+<given-names>Pierrick</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>HPC Platform, University of Luxembourg,
+Luxembourg</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2025-05-06">
+<day>6</day>
+<month>5</month>
+<year>2025</year>
+</pub-date>
+<volume>11</volume>
+<issue>118</issue>
+<fpage>8502</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2026</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>python</kwd>
+<kwd>discrete-event-simulation</kwd>
+<kwd>parallel-computing</kwd>
+<kwd>distributed-computing</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p><bold>SerializableSimpy</bold> is a Python framework for building
+  discrete-event simulations (DES). DES modeling and analysis are useful
+  in time-sensitive applications, such as manufacturing, logistics, and
+  distributed systems. The framework provides core DES building blocks,
+  including logical processes (LPs) and event causality. It also
+  includes components for state and synchronization, such as stores,
+  resources, and priority queues. Users focus on business logic, not the
+  event-processing engine. After modeling the system, users can start,
+  pause, and resume.</p>
+  <p>SerializableSimpy is inspired by SimPy
+  (<xref alt="Zinoviev, 2024" rid="ref-simpy2024" ref-type="bibr">Zinoviev,
+  2024</xref>) but replaces its generator‑based execution engine with a
+  serializable design that enables checkpoint/restart and parallel or
+  distributed runs
+  (<xref alt="Fujimoto, 2017" rid="ref-fuji" ref-type="bibr">Fujimoto,
+  2017</xref>). It preserves familiar modeling abstractions while
+  focusing on reproducibility and scaling. Unlike SimPy, which relies on
+  non-serializable generator code
+  (<xref alt="Vassalotti, 2009" rid="ref-yield" ref-type="bibr">Vassalotti,
+  2009</xref>), SerializableSimpy implements context switches between
+  LPs using standard Python function calls, with an event queue of
+  Python callables. In other words, code that would use
+  <italic>yield</italic> in SimPy is replaced with functions that finish
+  using <italic>return</italic>.</p>
+  <p>This design enables:</p>
+  <list list-type="bullet">
+    <list-item>
+      <p><bold>Effortless checkpointing and full recovery</bold> of
+      simulation state, including LPs and event queues, using standard
+      serialization tools such as pickle
+      (<xref alt="Python Software Foundation, 2023b" rid="ref-pickle" ref-type="bibr">Python
+      Software Foundation, 2023b</xref>). It requires no serialization
+      logic from users.</p>
+    </list-item>
+    <list-item>
+      <p><bold>Parallel Discrete-Event Simulation</bold>
+      (<xref alt="Fujimoto, 2017" rid="ref-fuji" ref-type="bibr">Fujimoto,
+      2017</xref>) using <monospace>multiprocessing</monospace>
+      (<xref alt="Python Software Foundation, 2023a" rid="ref-multiprocessing" ref-type="bibr">Python
+      Software Foundation, 2023a</xref>) or
+      <monospace>mpi4py</monospace>
+      (<xref alt="Dalcin et al., 2011" rid="ref-mpi4py" ref-type="bibr">Dalcin
+      et al., 2011</xref>), with support for inter-process event
+      exchange through shared memory or message passing.</p>
+    </list-item>
+  </list>
+  <p>SerializableSimpy reuses familiar SimPy abstractions where
+  possible, while offering a fundamentally different execution engine.
+  It is not a drop-in replacement; it is designed for users who require
+  reproducibility, parallel performance scaling, or integration into
+  networked systems.</p>
+  <p>The package includes tutorials, reproduces selected official SimPy
+  examples, and provides performance comparisons with other DES
+  frameworks.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of Need</title>
+  <p>SimPy is widely adopted in both academia and industry due to its
+  simplicity and expressiveness. However, its reliance on Python
+  generators makes it unsuitable for simulations requiring state
+  checkpointing, multiprocessing, or execution across machines in a
+  computer network. This limits its use in modern digital twin
+  workflows, especially in large-scale applications.</p>
+  <p>SerializableSimpy addresses this need by providing a fully
+  serializable DES framework that offers an API similar to SimPy but
+  avoids generators internally. By replacing generator-based flow
+  control with callback-based logic, SerializableSimpy enables features
+  such as:</p>
+  <list list-type="bullet">
+    <list-item>
+      <p>Running simulations in parallel with inter-process
+      communication</p>
+    </list-item>
+    <list-item>
+      <p>Event portability across networked systems</p>
+    </list-item>
+    <list-item>
+      <p>State checkpointing of the simulation environment (and its
+      internal event queue) using serialization</p>
+    </list-item>
+  </list>
+</sec>
+<sec id="state-of-the-pdes-field">
+  <title>State of the PDES Field</title>
+  <p>Over the years, a number of open-source parallel discrete-event
+  simulation (PDES) frameworks have been developed to efficiently model
+  systems and processes involving very large numbers of events. While
+  they differ in scope and design, they share a common goal: to provide
+  software developers and scientists with building blocks for
+  constructing efficient simulators. It is important to note that these
+  frameworks are not simulators themselves, but rather foundational
+  components for composing and processing events.</p>
+  <p>The table below provides an overview of selected general-purpose
+  PDES tools, focusing on their implementation languages, most recent
+  known activity, and the core parallelization or decomposition
+  algorithms they employ for event processing. This comparison is
+  intended to contextualize SerializableSimpy’s contributions within the
+  broader landscape of discrete-event simulation for large-scale
+  systems.</p>
+  <p>The selected PDES frameworks are:</p>
+  <list list-type="bullet">
+    <list-item>
+      <p>Root-sim
+      (<xref alt="Pellegrini, 2021" rid="ref-rootsim" ref-type="bibr">Pellegrini,
+      2021</xref>;
+      <xref alt="Vitali et al., 2012" rid="ref-rootsimU003A2012" ref-type="bibr">Vitali
+      et al., 2012</xref>)</p>
+    </list-item>
+    <list-item>
+      <p>ROSS
+      (<xref alt="Carothers et al., 2022" rid="ref-ross" ref-type="bibr">Carothers
+      et al., 2022</xref>;
+      <xref alt="Gonsiorowski, 2016" rid="ref-rossU003A2016" ref-type="bibr">Gonsiorowski,
+      2016</xref>)</p>
+    </list-item>
+    <list-item>
+      <p>Simian
+      (<xref alt="Santhi et al., 2015" rid="ref-siminanU003A2015" ref-type="bibr">Santhi
+      et al., 2015</xref>;
+      <xref alt="Seshadri &amp; others, 2023" rid="ref-simian" ref-type="bibr">Seshadri
+      &amp; others, 2023</xref>)</p>
+    </list-item>
+    <list-item>
+      <p>SimX
+      (<xref alt="Los Alamos National Security, LLC, 2014" rid="ref-simx" ref-type="bibr">Los
+      Alamos National Security, LLC, 2014</xref>;
+      <xref alt="Thulasidasan et al., 2014" rid="ref-simxU003A2014" ref-type="bibr">Thulasidasan
+      et al., 2014</xref>)</p>
+    </list-item>
+    <list-item>
+      <p>SST-core
+      (<xref alt="SST Team, 2024" rid="ref-sstcore" ref-type="bibr">SST
+      Team, 2024</xref>)</p>
+    </list-item>
+    <list-item>
+      <p>xSim
+      (<xref alt="Böhm &amp; Engelmann, 2011" rid="ref-xsimU003A2021" ref-type="bibr">Böhm
+      &amp; Engelmann, 2011</xref>;
+      <xref alt="Poshtkohi, 2024" rid="ref-xsim" ref-type="bibr">Poshtkohi,
+      2024</xref>)</p>
+    </list-item>
+    <list-item>
+      <p>Warped2
+      (<xref alt="Warped2 Team, 2020" rid="ref-warped2" ref-type="bibr">Warped2
+      Team, 2020</xref>)</p>
+    </list-item>
+    <list-item>
+      <p>Simulus
+      (<xref alt="Liu, 2020" rid="ref-simulusU003A2020" ref-type="bibr">Liu,
+      2020</xref>;
+      <xref alt="Simulus Team, 2019" rid="ref-simulus" ref-type="bibr">Simulus
+      Team, 2019</xref>)</p>
+    </list-item>
+    <list-item>
+      <p>PowerDEVS
+      (<xref alt="Bergero &amp; Kofman, 2011" rid="ref-Bergero2011PowerDEVSAT" ref-type="bibr">Bergero
+      &amp; Kofman, 2011</xref>;
+      <xref alt="Power-devs Team, n.d." rid="ref-powerdev" ref-type="bibr">Power-devs
+      Team, n.d.</xref>)</p>
+    </list-item>
+    <list-item>
+      <p>Simpy
+      (<xref alt="SimPy team, n.d." rid="ref-simpy" ref-type="bibr">SimPy
+      team, n.d.</xref>;
+      <xref alt="Zinoviev, 2024" rid="ref-simpy2024" ref-type="bibr">Zinoviev,
+      2024</xref>)</p>
+    </list-item>
+    <list-item>
+      <p>SerializableSimpy
+      (<xref alt="Pochelu, 2025" rid="ref-SS" ref-type="bibr">Pochelu,
+      2025</xref>)</p>
+    </list-item>
+  </list>
+  <p>Although SimPy is not primarily intended for parallel simulation,
+  it is included in the table because of its popularity, expressiveness,
+  and simplicity. It remains a widely used framework for rapid
+  prototyping and is often the framework of choice for computationally
+  less demanding simulations.</p>
+  <table-wrap>
+    <table>
+      <colgroup>
+        <col width="17%" />
+        <col width="19%" />
+        <col width="64%" />
+      </colgroup>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Language</th>
+          <th>Parallel Algorithms</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>ROOT-sim</td>
+          <td>C</td>
+          <td>Optimistic, anti-messages, DyMeLoR memory manager
+          (<xref alt="Pellegrini et al., 2009" rid="ref-dymelorU003A2009" ref-type="bibr">Pellegrini
+          et al., 2009</xref>;
+          <xref alt="Toccaceli &amp; Quaglia, 2008" rid="ref-dymelorU003A2008" ref-type="bibr">Toccaceli
+          &amp; Quaglia, 2008</xref>)</td>
+        </tr>
+        <tr>
+          <td>___________________________________________________________</td>
+          <td></td>
+          <td></td>
+        </tr>
+        <tr>
+          <td>ROSS</td>
+          <td>C</td>
+          <td>Optimistic &amp; conservative, LZA compression</td>
+        </tr>
+        <tr>
+          <td>___________________________________________________________</td>
+          <td></td>
+          <td></td>
+        </tr>
+        <tr>
+          <td>Simian</td>
+          <td>Lua, Python, JS</td>
+          <td>Conservative, some optimistic support, GPU, Greenlet
+          (<xref alt="Greenlet Team, 2024" rid="ref-greenlet" ref-type="bibr">Greenlet
+          Team, 2024</xref>)</td>
+        </tr>
+        <tr>
+          <td>___________________________________________________________</td>
+          <td></td>
+          <td></td>
+        </tr>
+        <tr>
+          <td>SimX</td>
+          <td>C++, Python</td>
+          <td>Conservative, Greenlet
+          (<xref alt="Greenlet Team, 2024" rid="ref-greenlet" ref-type="bibr">Greenlet
+          Team, 2024</xref>)</td>
+        </tr>
+        <tr>
+          <td>___________________________________________________________</td>
+          <td></td>
+          <td></td>
+        </tr>
+        <tr>
+          <td>SST-core</td>
+          <td>C++</td>
+          <td>Conservative, threading, graph-based LP organization</td>
+        </tr>
+        <tr>
+          <td>___________________________________________________________</td>
+          <td></td>
+          <td></td>
+        </tr>
+        <tr>
+          <td>xSim</td>
+          <td>C, Fortran</td>
+          <td>Optimistic w/o rollback; METIS, topological sort, Tarjan
+          (<xref alt="Tarjan, 1972" rid="ref-tarjanU003A1972" ref-type="bibr">Tarjan,
+          1972</xref>)</td>
+        </tr>
+        <tr>
+          <td>___________________________________________________________</td>
+          <td></td>
+          <td></td>
+        </tr>
+        <tr>
+          <td>Warped2</td>
+          <td>C++</td>
+          <td>Optimistic, Ladder Queue
+          (<xref alt="Tang et al., 2005" rid="ref-ladderU003A2005" ref-type="bibr">Tang
+          et al., 2005</xref>), METIS</td>
+        </tr>
+        <tr>
+          <td>___________________________________________________________</td>
+          <td></td>
+          <td></td>
+        </tr>
+        <tr>
+          <td>Simulus</td>
+          <td>Python</td>
+          <td>YAWNS sync protocol
+          (<xref alt="Nicol, 1993" rid="ref-yawnsU003A1993" ref-type="bibr">Nicol,
+          1993</xref>), Greenlet
+          (<xref alt="Greenlet Team, 2024" rid="ref-greenlet" ref-type="bibr">Greenlet
+          Team, 2024</xref>)</td>
+        </tr>
+        <tr>
+          <td>___________________________________________________________</td>
+          <td></td>
+          <td></td>
+        </tr>
+        <tr>
+          <td>PowerDEVS</td>
+          <td>C++</td>
+          <td>Conservative, hierarchical model construction, real-time
+          target</td>
+        </tr>
+        <tr>
+          <td>___________________________________________________________</td>
+          <td></td>
+          <td></td>
+        </tr>
+        <tr>
+          <td>Simpy</td>
+          <td>Python</td>
+          <td>N/A</td>
+        </tr>
+        <tr>
+          <td>___________________________________________________________</td>
+          <td></td>
+          <td></td>
+        </tr>
+        <tr>
+          <td>SerializableSimpy</td>
+          <td>Python</td>
+          <td>Conservative</td>
+        </tr>
+      </tbody>
+    </table>
+  </table-wrap>
+  <p>Experimental highlights (token-ring benchmark):</p>
+  <list list-type="bullet">
+    <list-item>
+      <p><bold>Familiar, rich API:</bold> 19 classes at publication
+      time, inspired by SimPy’s 35 classes; other frameworks include
+      Simian (7 classes) and Simulus (15 classes)</p>
+    </list-item>
+    <list-item>
+      <p><bold>Compact event semantics for scale:</bold> ~1M events in
+      the benchmark vs ~4M for SimPy, ~1M for Simian, ~2M for Simulus —
+      fewer queue operations overall</p>
+    </list-item>
+    <list-item>
+      <p><bold>Fastest runtime:</bold> best initialization and main-loop
+      times, driven by fewer event operations and efficient
+      <monospace>heapq</monospace>-based priority queues</p>
+    </list-item>
+    <list-item>
+      <p><bold>Parallel-ready:</bold> supports multiprocessing and MPI
+      backends</p>
+    </list-item>
+  </list>
+  <p>Detailed scripts and results:
+  <ext-link ext-link-type="uri" xlink:href="https://gitlab.com/uniluxembourg/hpc/research/cadom/serializable-simpy/-/blob/main/application/pdes_compare/README.md">https://gitlab.com/uniluxembourg/hpc/research/cadom/serializable-simpy/-/blob/main/application/pdes_compare/README.md</ext-link></p>
+  <p>Although Simian and SimX also provide conservative PDES kernels
+  accessible from Python, SerializableSimpy’s key differentiator is that
+  it targets not only scalability but also end-to-end performance, while
+  equipping users with a richer, SimPy-inspired set of modeling
+  classes.</p>
+</sec>
+<sec id="past-and-ongoing-research-use">
+  <title>Past and Ongoing Research Use</title>
+  <p>SerializableSimpy was developed as part of a research collaboration
+  between the University of Luxembourg and the Goodyear Company. It is
+  currently being integrated into workflows for decomposed, large-scale
+  discrete-event manufacturing simulations, enabling execution through
+  parallel logical processes on multi-core or networked environments.
+  Its simple Python API and minimal software dependencies facilitate
+  rapid prototyping and experimentation. These lightweight dependencies
+  are compatible with Python Just-In-Time (JIT) compilers and have been
+  tested with Bolz et al.
+  (<xref alt="2009" rid="ref-pypy" ref-type="bibr">2009</xref>),
+  enhancing performance for many multi-core and distributed
+  workloads.</p>
+  <p>While SerializableSimpy provides examples and tools to facilitate
+  parallel execution with minimal user effort, users are still required
+  to manually decompose simulations and assign tasks to processing
+  cores. To reduce this burden, ongoing research explores graph-based
+  decomposition techniques
+  (<xref alt="Karypis &amp; Kumar, 1998" rid="ref-metis" ref-type="bibr">Karypis
+  &amp; Kumar, 1998</xref>), with the goal of automating partitioning
+  and enhancing scalability, evaluated on large-scale manufacturing
+  simulations.</p>
+</sec>
+<sec id="acknowledgment">
+  <title>Acknowledgment</title>
+  <p>The contributors to SerializableSimpy thank Goodyear and the
+  University of Luxembourg for their valuable collaboration and
+  discussions. This work was supported by the Luxembourg National
+  Research Fund and the Ministry of Economy (MECO) under grant number
+  17941664. The contributors also thank the EuroHPC Joint Undertaking
+  and LuxProvide for granting access to the MeluXina supercomputer.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <title></title>
+  <ref id="ref-SS">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Pochelu</surname><given-names>Pierrick</given-names></name>
+      </person-group>
+      <article-title>Serializable-simpy</article-title>
+      <source>GitLab repository</source>
+      <publisher-name>GitLab</publisher-name>
+      <year iso-8601-date="2025">2025</year>
+      <uri>https://gitlab.com/uniluxembourg/hpc/research/cadom/serializable-simpy</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-simpy2024">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Zinoviev</surname><given-names>Dmitry</given-names></name>
+      </person-group>
+      <article-title>Discrete event simulation: It’s easy with SimPy!</article-title>
+      <year iso-8601-date="2024">2024</year>
+      <uri>https://arxiv.org/abs/2405.01562</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-simpy">
+    <element-citation>
+      <person-group person-group-type="author">
+        <string-name>SimPy team</string-name>
+      </person-group>
+      <article-title>SimPy</article-title>
+      <source>GitLab repository</source>
+      <publisher-name>GitLab</publisher-name>
+      <uri>https://gitlab.com/team-simpy/simpy/</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-yield">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Vassalotti</surname><given-names>Alexandre</given-names></name>
+      </person-group>
+      <article-title>Why you cannot pickle generators</article-title>
+      <year iso-8601-date="2009">2009</year>
+      <uri>https://peadrop.com/blog/2009/12/29/why-you-cannot-pickle-generators/</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-pypy">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Bolz</surname><given-names>Carl Friedrich</given-names></name>
+        <name><surname>Cuni</surname><given-names>Antonio</given-names></name>
+        <name><surname>Fijalkowski</surname><given-names>Maciej</given-names></name>
+        <name><surname>Rigo</surname><given-names>Armin</given-names></name>
+      </person-group>
+      <article-title>Tracing the meta-level: PyPy’s tracing JIT compiler</article-title>
+      <source>Proceedings of the 4th workshop on the implementation, compilation, optimization of object-oriented languages and programming systems</source>
+      <publisher-name>Association for Computing Machinery</publisher-name>
+      <publisher-loc>New York, NY, USA</publisher-loc>
+      <year iso-8601-date="2009">2009</year>
+      <isbn>9781605585413</isbn>
+      <uri>https://doi.org/10.1145/1565824.1565827</uri>
+      <pub-id pub-id-type="doi">10.1145/1565824.1565827</pub-id>
+      <fpage>18</fpage>
+      <lpage>25</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-mpi4py">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Dalcin</surname><given-names>Lisandro D.</given-names></name>
+        <name><surname>Paz</surname><given-names>Rodrigo R.</given-names></name>
+        <name><surname>Kler</surname><given-names>Pablo A.</given-names></name>
+        <name><surname>Cosimo</surname><given-names>Alejandro</given-names></name>
+      </person-group>
+      <article-title>Parallel distributed computing using Python</article-title>
+      <source>Advances in Water Resources</source>
+      <year iso-8601-date="2011">2011</year>
+      <volume>34</volume>
+      <issue>9</issue>
+      <issn>0309-1708</issn>
+      <uri>https://www.sciencedirect.com/science/article/pii/S0309170811000777</uri>
+      <pub-id pub-id-type="doi">10.1016/j.advwatres.2011.04.013</pub-id>
+      <fpage>1124</fpage>
+      <lpage>1139</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-multiprocessing">
+    <element-citation>
+      <person-group person-group-type="author">
+        <string-name>Python Software Foundation</string-name>
+      </person-group>
+      <article-title>Multiprocessing — process-based parallelism</article-title>
+      <year iso-8601-date="2023">2023</year>
+      <uri>https://docs.python.org/3/library/multiprocessing.html</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-pickle">
+    <element-citation>
+      <person-group person-group-type="author">
+        <string-name>Python Software Foundation</string-name>
+      </person-group>
+      <article-title>Pickle — Python object serialization</article-title>
+      <year iso-8601-date="2023">2023</year>
+      <uri>https://docs.python.org/3/library/pickle.html</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-fuji">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Fujimoto</surname><given-names>Richard M.</given-names></name>
+      </person-group>
+      <article-title>Parallel discrete event simulation: The making of a field</article-title>
+      <source>Proceedings of the 2017 winter simulation conference</source>
+      <person-group person-group-type="editor">
+        <name><surname>Chan</surname><given-names>W. K. V.</given-names></name>
+        <name><surname>D’Ambrogio</surname><given-names>A.</given-names></name>
+        <name><surname>Zacharewicz</surname><given-names>G.</given-names></name>
+        <name><surname>Mustafee</surname><given-names>N.</given-names></name>
+        <name><surname>Wainer</surname><given-names>G.</given-names></name>
+        <name><surname>Page</surname><given-names>E.</given-names></name>
+      </person-group>
+      <publisher-name>IEEE Press</publisher-name>
+      <year iso-8601-date="2017">2017</year>
+      <pub-id pub-id-type="doi">10.1109/WSC.2017.8247783</pub-id>
+      <fpage>262</fpage>
+      <lpage>276</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-metis">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Karypis</surname><given-names>G.</given-names></name>
+        <name><surname>Kumar</surname><given-names>V.</given-names></name>
+      </person-group>
+      <article-title>METIS: A software package for partitioning unstructured graphs, partitioning meshes, and computing fill-reducing orderings of sparse matrices</article-title>
+      <source>University of Minnesota</source>
+      <year iso-8601-date="1998">1998</year>
+      <volume>102</volume>
+      <uri>https://conservancy.umn.edu/items/2f610239-590c-45c0-bcd6-321036aaad56</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-rootsimU003A2012">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Vitali</surname><given-names>Roberto</given-names></name>
+        <name><surname>Pellegrini</surname><given-names>Alessandro</given-names></name>
+        <name><surname>Cerasuolo</surname><given-names>Gionata</given-names></name>
+      </person-group>
+      <article-title>Cache-aware memory manager for optimistic simulations</article-title>
+      <source>Proceedings of SIMUTools 2012 - 5th international conference on simulation tools and techniques</source>
+      <year iso-8601-date="2012-03">2012</year><month>03</month>
+      <pub-id pub-id-type="doi">10.4108/icst.simutools.2012.247766</pub-id>
+      <fpage></fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-rootsim">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Pellegrini</surname><given-names>Alessandro</given-names></name>
+      </person-group>
+      <article-title>ROOT-Sim: The ROme OpTimistic Simulator</article-title>
+      <source>GitHub repository</source>
+      <publisher-name>GitHub</publisher-name>
+      <year iso-8601-date="2021">2021</year>
+      <uri>https://root-sim.github.io/core/</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-dymelorU003A2008">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Toccaceli</surname><given-names>Roberto</given-names></name>
+        <name><surname>Quaglia</surname><given-names>Francesco</given-names></name>
+      </person-group>
+      <article-title>DyMeLoR: Dynamic memory logger and restorer library for optimistic simulation objects with generic memory layout</article-title>
+      <source>2008 22nd workshop on principles of advanced and distributed simulation</source>
+      <year iso-8601-date="2008">2008</year>
+      <volume></volume>
+      <pub-id pub-id-type="doi">10.1109/PADS.2008.23</pub-id>
+      <fpage>163</fpage>
+      <lpage>172</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-dymelorU003A2009">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Pellegrini</surname><given-names>Alessandro</given-names></name>
+        <name><surname>Vitali</surname><given-names>Roberto</given-names></name>
+        <name><surname>Quaglia</surname><given-names>Francesco</given-names></name>
+      </person-group>
+      <article-title>Di-DyMeLoR: Logging only dirty chunks for efficient management of dynamic memory based optimistic simulation objects</article-title>
+      <source>2009 ACM/IEEE/SCS 23rd workshop on principles of advanced and distributed simulation</source>
+      <year iso-8601-date="2009">2009</year>
+      <volume></volume>
+      <pub-id pub-id-type="doi">10.1109/PADS.2009.24</pub-id>
+      <fpage>45</fpage>
+      <lpage>53</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-ross">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Carothers</surname><given-names>Christopher D.</given-names></name>
+        <name><surname>Perumalla</surname><given-names>Kalyan S.</given-names></name>
+        <name><surname>Fujimoto</surname><given-names>Richard M.</given-names></name>
+      </person-group>
+      <article-title>Rensselaer’s optimistic simulation system</article-title>
+      <year iso-8601-date="2022">2022</year>
+      <uri>https://ross-org.github.io/</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-rossU003A2016">
+    <element-citation publication-type="thesis">
+      <person-group person-group-type="author">
+        <name><surname>Gonsiorowski</surname><given-names>Elsa</given-names></name>
+      </person-group>
+      <article-title>Enabling extreme-scale circuit modeling using massively parallel discrete-event simulations</article-title>
+      <publisher-name>Rensselaer Polytechnic Institute</publisher-name>
+      <publisher-loc>Troy, NY</publisher-loc>
+      <year iso-8601-date="2016-05">2016</year><month>05</month>
+      <uri>https://hdl.handle.net/20.500.13015/1686</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-siminanU003A2015">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Santhi</surname><given-names>Nandakishore</given-names></name>
+        <name><surname>Eidenbenz</surname><given-names>Stephan</given-names></name>
+        <name><surname>Liu</surname><given-names>Jason</given-names></name>
+      </person-group>
+      <article-title>The simian concept: Parallel discrete event simulation with interpreted languages and just-in-time compilation</article-title>
+      <source>2015 winter simulation conference (WSC)</source>
+      <year iso-8601-date="2015">2015</year>
+      <volume></volume>
+      <pub-id pub-id-type="doi">10.1109/WSC.2015.7408405</pub-id>
+      <fpage>3013</fpage>
+      <lpage>3024</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-simian">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Seshadri</surname><given-names>Pujyam</given-names></name>
+        <name><surname>others</surname></name>
+      </person-group>
+      <article-title>Simian: A fast parallel discrete event simulation engine</article-title>
+      <source>GitHub repository</source>
+      <publisher-name>GitHub</publisher-name>
+      <year iso-8601-date="2023">2023</year>
+      <uri>https://github.com/pujyam/simian</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-simxU003A2014">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Thulasidasan</surname><given-names>Sunil</given-names></name>
+        <name><surname>Kroc</surname><given-names>Lukas</given-names></name>
+        <name><surname>Eidenbenz</surname><given-names>Stephan</given-names></name>
+      </person-group>
+      <article-title>Developing parallel, discrete event simulations in Python - first results and user experiences with the SimX library</article-title>
+      <source>2014 4th international conference on simulation and modeling methodologies, technologies and applications (SIMULTECH)</source>
+      <year iso-8601-date="2014">2014</year>
+      <volume></volume>
+      <pub-id pub-id-type="doi">10.5220/0005042701880194</pub-id>
+      <fpage>188</fpage>
+      <lpage>194</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-simx">
+    <element-citation>
+      <person-group person-group-type="author">
+        <string-name>Los Alamos National Security, LLC</string-name>
+      </person-group>
+      <article-title>SimX: Parallel discrete-event simulation library with Python frontend and C++ backend</article-title>
+      <source>GitHub repository</source>
+      <publisher-name>GitHub</publisher-name>
+      <year iso-8601-date="2014">2014</year>
+      <uri>https://github.com/sim-x/simx</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-greenlet">
+    <element-citation>
+      <person-group person-group-type="author">
+        <string-name>Greenlet Team</string-name>
+      </person-group>
+      <article-title>Greenlet documentation</article-title>
+      <year iso-8601-date="2024">2024</year>
+      <uri>https://greenlet.readthedocs.io/en/latest/</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-sstcore">
+    <element-citation>
+      <person-group person-group-type="author">
+        <string-name>SST Team</string-name>
+      </person-group>
+      <article-title>SST core: Structural simulation toolkit parallel discrete event core and services</article-title>
+      <source>GitHub repository</source>
+      <publisher-name>GitHub</publisher-name>
+      <year iso-8601-date="2024">2024</year>
+      <uri>https://github.com/sstsimulator/sst-core</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-xsimU003A2021">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Böhm</surname><given-names>Swen</given-names></name>
+        <name><surname>Engelmann</surname><given-names>Christian</given-names></name>
+      </person-group>
+      <article-title>xSim: The extreme-scale simulator</article-title>
+      <source>2011 international conference on high performance computing &amp; simulation</source>
+      <year iso-8601-date="2011">2011</year>
+      <volume></volume>
+      <pub-id pub-id-type="doi">10.1109/HPCSim.2011.5999835</pub-id>
+      <fpage>280</fpage>
+      <lpage>286</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-xsim">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Poshtkohi</surname><given-names>Alireza</given-names></name>
+      </person-group>
+      <article-title>Pdes: Parallel discrete event simulation framework</article-title>
+      <source>GitHub repository</source>
+      <publisher-name>GitHub</publisher-name>
+      <year iso-8601-date="2024">2024</year>
+      <uri>https://github.com/poshtkohi/pdes</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-warped2">
+    <element-citation>
+      <person-group person-group-type="author">
+        <string-name>Warped2 Team</string-name>
+      </person-group>
+      <article-title>Warped2: warped simulation kernel</article-title>
+      <source>GitHub repository</source>
+      <publisher-name>GitHub</publisher-name>
+      <year iso-8601-date="2020">2020</year>
+      <uri>https://github.com/wilseypa/warped2/</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-ladderU003A2005">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Tang</surname><given-names>Wai Teng</given-names></name>
+        <name><surname>Goh</surname><given-names>Rick Siow Mong</given-names></name>
+        <name><surname>Thng</surname><given-names>Ian Li-Jin</given-names></name>
+      </person-group>
+      <article-title>Ladder queue: An O(1) priority queue structure for large-scale discrete event simulation</article-title>
+      <source>ACM Trans. Model. Comput. Simul.</source>
+      <publisher-name>Association for Computing Machinery</publisher-name>
+      <publisher-loc>New York, NY, USA</publisher-loc>
+      <year iso-8601-date="2005-07">2005</year><month>07</month>
+      <volume>15</volume>
+      <issue>3</issue>
+      <issn>1049-3301</issn>
+      <uri>https://doi.org/10.1145/1103323.1103324</uri>
+      <pub-id pub-id-type="doi">10.1145/1103323.1103324</pub-id>
+      <fpage>175</fpage>
+      <lpage>204</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-simulus">
+    <element-citation>
+      <person-group person-group-type="author">
+        <string-name>Simulus Team</string-name>
+      </person-group>
+      <article-title>Simulus - a discrete-event simulator in Python</article-title>
+      <source>GitHub repository</source>
+      <publisher-name>GitHub</publisher-name>
+      <year iso-8601-date="2019">2019</year>
+      <uri>https://github.com/liuxfiu/simulus</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-simulusU003A2020">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Liu</surname><given-names>Jason</given-names></name>
+      </person-group>
+      <article-title>Simulus: Easy breezy simulation in Python</article-title>
+      <source>2020 winter simulation conference (WSC)</source>
+      <year iso-8601-date="2020">2020</year>
+      <volume></volume>
+      <pub-id pub-id-type="doi">10.1109/WSC48552.2020.9383886</pub-id>
+      <fpage>2329</fpage>
+      <lpage>2340</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-yawnsU003A1993">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Nicol</surname><given-names>David M.</given-names></name>
+      </person-group>
+      <article-title>The cost of conservative synchronization in parallel discrete event simulations</article-title>
+      <source>J. ACM</source>
+      <publisher-name>Association for Computing Machinery</publisher-name>
+      <publisher-loc>New York, NY, USA</publisher-loc>
+      <year iso-8601-date="1993-04">1993</year><month>04</month>
+      <volume>40</volume>
+      <issue>2</issue>
+      <issn>0004-5411</issn>
+      <uri>https://doi.org/10.1145/151261.151266</uri>
+      <pub-id pub-id-type="doi">10.1145/151261.151266</pub-id>
+      <fpage>304</fpage>
+      <lpage>333</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Bergero2011PowerDEVSAT">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Bergero</surname><given-names>Federico</given-names></name>
+        <name><surname>Kofman</surname><given-names>Ernesto</given-names></name>
+      </person-group>
+      <article-title>PowerDEVS: A tool for hybrid system modeling and real-time simulation</article-title>
+      <source>SIMULATION</source>
+      <year iso-8601-date="2011">2011</year>
+      <volume>87</volume>
+      <uri>https://api.semanticscholar.org/CorpusID:15790985</uri>
+      <pub-id pub-id-type="doi">10.1177/0037549710368029</pub-id>
+      <fpage>113 </fpage>
+      <lpage> 132</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-powerdev">
+    <element-citation>
+      <person-group person-group-type="author">
+        <string-name>Power-devs Team</string-name>
+      </person-group>
+      <article-title>CIFASIS/power-devs: PowerDEVS is an integrated tool for hybrid systems modeling and simulation based on the DEVS formalism.</article-title>
+      <uri>https://github.com/CIFASIS/power-devs</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-tarjanU003A1972">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Tarjan</surname><given-names>Robert</given-names></name>
+      </person-group>
+      <article-title>Depth-first search and linear graph algorithms</article-title>
+      <source>SIAM Journal on Computing</source>
+      <year iso-8601-date="1972">1972</year>
+      <volume>1</volume>
+      <issue>2</issue>
+      <uri> https://doi.org/10.1137/0201010 </uri>
+      <pub-id pub-id-type="doi">10.1137/0201010</pub-id>
+      <fpage>146</fpage>
+      <lpage>160</lpage>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
