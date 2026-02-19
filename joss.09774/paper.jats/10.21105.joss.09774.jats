@@ -1,0 +1,568 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">9774</article-id>
+<article-id pub-id-type="doi">10.21105/joss.09774</article-id>
+<title-group>
+<article-title>perbase: A performant per-base sequencing metrics toolkit
+with accurate handling of complex alignments</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0009-0002-0915-9459</contrib-id>
+<name>
+<surname>Stadick</surname>
+<given-names>Seth</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Bio-Rad Laboratories</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2026-01-20">
+<day>20</day>
+<month>1</month>
+<year>2026</year>
+</pub-date>
+<volume>11</volume>
+<issue>118</issue>
+<fpage>9774</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2026</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>rust</kwd>
+<kwd>bioinformatics</kwd>
+<kwd>genomics</kwd>
+<kwd>sequencing</kwd>
+<kwd>depth</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p><monospace>perbase</monospace> is a command-line toolkit for
+  calculating per-base sequencing metrics from alignment files
+  (BAM/CRAM). The primary tool, <monospace>base-depth</monospace>,
+  provides comprehensive nucleotide-level information including depth,
+  base composition, insertions, deletions, and quality metrics at each
+  genomic position. Built with Rust’s concurrency system,
+  <monospace>perbase</monospace> delivers performant processing of
+  high-throughput sequencing data while maintaining correctness in
+  complex genomic contexts such as overlapping mate pairs, deletions,
+  and reference skips.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p>Per-base sequencing metrics are fundamental to genomic analyses,
+  from variant calling to coverage assessment. Existing tools like
+  <monospace>sambamba depth</monospace>
+  (<xref alt="Tarasov et al., 2015" rid="ref-Tarasov2015" ref-type="bibr">Tarasov
+  et al., 2015</xref>), <monospace>samtools depth</monospace>
+  (<xref alt="Li et al., 2009" rid="ref-Li2009" ref-type="bibr">Li et
+  al., 2009</xref>), and <monospace>bam-readcount</monospace>
+  (<xref alt="Khanna et al., 2022" rid="ref-Khanna2022" ref-type="bibr">Khanna
+  et al., 2022</xref>) provide similar functionality but may differ in
+  their handling of specific alignment features. As sequencing datasets
+  grow larger, there is a need for tools that combine performance with
+  correct handling of edge cases.</p>
+  <p>For instance, tools differ in how they calculate depth:
+  <monospace>perbase</monospace> counts deletions (D in CIGAR) toward
+  depth while <monospace>bam-readcount</monospace> does not;
+  <monospace>perbase</monospace> correctly excludes reference skips (N
+  in CIGAR) from depth while <monospace>sambamba</monospace> includes
+  them. These distinctions matter for downstream analyses where accurate
+  depth representation affects variant calling and coverage
+  assessment.</p>
+</sec>
+<sec id="software-design">
+  <title>Software Design</title>
+  <p><monospace>perbase</monospace> is implemented in Rust and uses a
+  multi-threaded architecture where genomic regions are processed in
+  parallel. The toolkit automatically scales with available CPU cores
+  while maintaining bounded memory usage through configurable chunk
+  sizes and message passing buffers.</p>
+  <sec id="core-features-of-base-depth">
+    <title>Core Features of base-depth</title>
+    <p>The <monospace>base-depth</monospace> tool walks over every
+    position in the BAM/CRAM file and calculates:</p>
+    <list list-type="bullet">
+      <list-item>
+        <p><bold>Depth</bold>: Total count of the nucleotides plus
+        deletions at each position</p>
+      </list-item>
+      <list-item>
+        <p><bold>Base composition</bold>: Individual counts for A, C, G,
+        T, N, and IUPAC ambiguity codes (R, Y, S, W, K, M)</p>
+      </list-item>
+      <list-item>
+        <p><bold>Insertions</bold>: Count of insertions starting to the
+        right of each position</p>
+      </list-item>
+      <list-item>
+        <p><bold>Deletions</bold>: Count of deletions covering each
+        position (included in depth)</p>
+      </list-item>
+      <list-item>
+        <p><bold>Reference skips</bold>: Count of reference skip
+        operations (not included in depth)</p>
+      </list-item>
+      <list-item>
+        <p><bold>Failed reads</bold>: Count of reads failing
+        user-specified filters at each position</p>
+      </list-item>
+      <list-item>
+        <p><bold>Quality filtering</bold>: Bases below a minimum quality
+        threshold are counted as N</p>
+      </list-item>
+      <list-item>
+        <p><bold>Near max depth flag</bold>: Identifies positions within
+        1% of the specified maximum depth</p>
+      </list-item>
+    </list>
+    <sec id="mate-pair-overlap-resolution">
+      <title>Mate-Pair Overlap Resolution</title>
+      <p>When the <monospace>--mate-fix</monospace> flag is enabled,
+      <monospace>perbase base-depth</monospace> resolves overlapping
+      mate pairs to prevent double-counting while preserving the
+      highest-confidence base calls. The tool offers nine different
+      resolution strategies, selectable via
+      <monospace>--mate-resolution-strategy</monospace>:</p>
+      <p><bold>Quality-based strategies:</bold> -
+      <bold>BaseQualMapQualFirstInPair</bold>: Prioritizes base quality,
+      then MAPQ, then first mate -
+      <bold>MapQualBaseQualFirstInPair</bold>: Prioritizes MAPQ, then
+      base quality, then first mate - <bold>Original</bold> (default):
+      Simple MAPQ-based selection, choosing first mate for ties</p>
+      <p><bold>Ambiguity-preserving strategies:</bold> -
+      <bold>BaseQualMapQualIUPAC</bold>: Base quality prioritized,
+      returns IUPAC codes for ties - <bold>MapQualBaseQualIUPAC</bold>:
+      MAPQ prioritized, returns IUPAC codes for ties -
+      <bold>IUPAC</bold>: Ignores quality scores, always returns IUPAC
+      codes for different bases</p>
+      <p><bold>Conservative strategies:</bold> -
+      <bold>BaseQualMapQualN</bold>: Base quality prioritized, returns N
+      for ties if bases are ambiguous - <bold>MapQualBaseQualN</bold>:
+      MAPQ prioritized, returns N for ties if bases are ambiguous -
+      <bold>N</bold>: Most conservative, returns N for any base
+      differences</p>
+      <p>All strategies first check user-based read filters. If one mate
+      fails filters, the other is chosen. If both fail, the first mate
+      is chosen by default. For reads that are deletions, reference
+      skips, or lack a base call, all strategies fall back to the
+      Original strategy (MAPQ → first in pair).</p>
+      <p>When IUPAC strategies encounter different bases, they return
+      standardized ambiguity codes: R (puRine: A/G), Y (pYrimidine:
+      C/T), S (Strong: G/C), W (Weak: A/T), K (Keto: G/T), M (aMino:
+      A/C). Identical bases return themselves (e.g., A+A→A), and any
+      other combinations return N.</p>
+      <p>These strategies provide fine-grained control over overlap
+      resolution, allowing users to optimize for their specific analysis
+      requirements: use BaseQual strategies when base quality is most
+      reliable, MapQual strategies in repetitive regions where mapping
+      confidence matters more, IUPAC variants to preserve ambiguity
+      information for downstream analysis, N variants for conservative
+      base calling, and FirstInPair variants for deterministic results
+      without ambiguity codes.</p>
+    </sec>
+    <sec id="output-format">
+      <title>Output Format</title>
+      <p>The tool produces a tab-separated output with the following
+      columns:</p>
+      <table-wrap>
+        <table>
+          <colgroup>
+            <col width="38%" />
+            <col width="62%" />
+          </colgroup>
+          <thead>
+            <tr>
+              <th>Column</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>REF</td>
+              <td>Reference sequence name</td>
+            </tr>
+            <tr>
+              <td>POS</td>
+              <td>Position on the reference sequence</td>
+            </tr>
+            <tr>
+              <td>REF_BASE</td>
+              <td>Reference base at the position (if reference
+              supplied)</td>
+            </tr>
+            <tr>
+              <td>DEPTH</td>
+              <td>Total depth: SUM(A, C, G, T, N, R, Y, S, W, K, M,
+              DEL)</td>
+            </tr>
+            <tr>
+              <td>A, C, G, T, N</td>
+              <td>Count of each standard nucleotide</td>
+            </tr>
+            <tr>
+              <td>R, Y, S, W, K, M</td>
+              <td>Count of IUPAC ambiguity codes (when using IUPAC
+              strategies)</td>
+            </tr>
+            <tr>
+              <td>INS</td>
+              <td>Insertions starting after this position</td>
+            </tr>
+            <tr>
+              <td>DEL</td>
+              <td>Deletions covering this position</td>
+            </tr>
+            <tr>
+              <td>REF_SKIP</td>
+              <td>Reference skips covering this position</td>
+            </tr>
+            <tr>
+              <td>FAIL</td>
+              <td>Reads failing filters at this position</td>
+            </tr>
+            <tr>
+              <td>NEAR_MAX_DEPTH</td>
+              <td>Flag if position is within 1% of max depth</td>
+            </tr>
+          </tbody>
+        </table>
+      </table-wrap>
+    </sec>
+  </sec>
+  <sec id="additional-tools">
+    <title>Additional Tools</title>
+    <p><bold>only-depth</bold>: Provides rapid depth-only calculations.
+    The design, inspired by <monospace>mosdepth</monospace>
+    (<xref alt="Pedersen &amp; Quinlan, 2018" rid="ref-Pedersen2018" ref-type="bibr">Pedersen
+    &amp; Quinlan, 2018</xref>), merges adjacent positions with
+    identical depth to reduce output size. A
+    <monospace>--fast-mode</monospace> option calculates depth using
+    only read start/stop positions for maximum speed.</p>
+    <p><bold>merge-adjacent</bold>: A utility for merging adjacent
+    intervals with the same depth value, useful for creating compact
+    coverage representations.</p>
+  </sec>
+</sec>
+<sec id="performance-evaluation">
+  <title>Performance Evaluation</title>
+  <p>To demonstrate performance, we benchmark
+  <monospace>base-depth</monospace> against
+  <monospace>sambamba</monospace>
+  (<xref alt="Tarasov et al., 2015" rid="ref-Tarasov2015" ref-type="bibr">Tarasov
+  et al., 2015</xref>) on a 30X whole genome sequencing dataset (HG00157
+  from the 1000 Genomes Project
+  (<xref alt="The 1000 Genomes Project Consortium, 2015" rid="ref-1000GenomesConsortium2015" ref-type="bibr">The
+  1000 Genomes Project Consortium, 2015</xref>),
+  (<xref alt="Byrska-Bishop et al., 2022" rid="ref-Byrska2022" ref-type="bibr">Byrska-Bishop
+  et al., 2022</xref>)). The benchmark script processes the full genome
+  and measures runtime and memory usage using hyperfine
+  (<xref alt="Peter, 2023" rid="ref-Peter2023" ref-type="bibr">Peter,
+  2023</xref>), a command-line benchmarking tool that performs multiple
+  runs and provides statistical analysis. Benchmarks were performed on a
+  system with an AMD Ryzen 9 3950X 16-Core Processor (32 threads) and 64
+  GB of RAM. Both tools used 32 threads for processing.</p>
+  <p>The following commands were used for benchmarking:</p>
+  <code language="bash"># Standard mode
+perbase base-depth -t 32 -o output.tsv input.bam
+sambamba depth base -t 32 -F &quot;&quot; -o output.tsv input.bam
+
+# Mate-fix mode
+perbase base-depth -t 32 -m -o output.tsv input.bam
+sambamba depth base -t 32 -F &quot;&quot; -m -o output.tsv input.bam</code>
+  <fig>
+    <caption><p>Performance comparison between perbase and sambamba
+    showing runtime in minutes for both standard and mate-fix modes.
+    perbase demonstrates 3.0x faster performance in standard mode and
+    2.1x faster performance in mate-fix mode (using
+    BaseQualMapQualFirstInPair strategy).</p></caption>
+    <graphic mimetype="image" mime-subtype="png" xlink:href="benchmark_comparison.png" />
+  </fig>
+  <p>The results show that <monospace>perbase</monospace> significantly
+  outperforms <monospace>sambamba</monospace> in both standard and
+  mate-fix modes, with speed improvements of 3.0x and 2.1x respectively.
+  Performance across the nine mate-fix resolution strategies is
+  remarkably consistent, with all methods completing within a 0.5-minute
+  range (47.7-48.2 minutes), indicating that the algorithmic complexity
+  of different resolution strategies has minimal impact on overall
+  runtime.</p>
+  <table-wrap>
+    <table>
+      <thead>
+        <tr>
+          <th>Mate-fix Strategy</th>
+          <th>Runtime (minutes)</th>
+          <th>Relative to Fastest</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>BaseQualMapQualFirstInPair</td>
+          <td>47.7</td>
+          <td>1.00x</td>
+        </tr>
+        <tr>
+          <td>N</td>
+          <td>47.7</td>
+          <td>1.00x</td>
+        </tr>
+        <tr>
+          <td>Original</td>
+          <td>47.7</td>
+          <td>1.00x</td>
+        </tr>
+        <tr>
+          <td>BaseQualMapQualN</td>
+          <td>47.8</td>
+          <td>1.00x</td>
+        </tr>
+        <tr>
+          <td>MapQualBaseQualN</td>
+          <td>47.9</td>
+          <td>1.00x</td>
+        </tr>
+        <tr>
+          <td>IUPAC</td>
+          <td>48.0</td>
+          <td>1.01x</td>
+        </tr>
+        <tr>
+          <td>BaseQualMapQualIUPAC</td>
+          <td>48.0</td>
+          <td>1.01x</td>
+        </tr>
+        <tr>
+          <td>MapQualBaseQualIUPAC</td>
+          <td>48.2</td>
+          <td>1.01x</td>
+        </tr>
+        <tr>
+          <td>MapQualBaseQualFirstInPair</td>
+          <td>48.2</td>
+          <td>1.01x</td>
+        </tr>
+      </tbody>
+    </table>
+  </table-wrap>
+  <p>This performance advantage is achieved through efficient
+  parallelization and optimized memory access patterns.</p>
+</sec>
+<sec id="research-impact-statement">
+  <title>Research Impact Statement</title>
+  <p><monospace>perbase</monospace> has accumulated over 49,000
+  downloads from Bioconda and serves as a foundational dependency for
+  downstream tools including pbr, which integrates perbase pileups with
+  lua expressions. Community engagement is demonstrated through external
+  issue reports and feature requests. The repository includes
+  reproducible benchmark scripts and uses standardized 1000 Genomes
+  Project test data to facilitate independent validation.</p>
+</sec>
+<sec id="ai-usage-disclosure">
+  <title>AI usage disclosure</title>
+  <p>AI tools were used during development: GitHub Copilot for code
+  review suggestions, and Claude Code for some issue triage, some test
+  writing, and manuscript proofreading. All outputs were reviewed and
+  validated by the author, who made all core design and architectural
+  decisions.</p>
+</sec>
+<sec id="availability-and-installation">
+  <title>Availability and Installation</title>
+  <p><monospace>perbase</monospace> is available through multiple
+  channels: - Conda:
+  <monospace>conda install -c bioconda perbase</monospace> - Cargo:
+  <monospace>cargo install perbase</monospace> - Pre-compiled binaries
+  from GitHub releases: https://github.com/sstadick/perbase/releases</p>
+  <p>Source code is available at https://github.com/sstadick/perbase
+  under the MIT license.</p>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>We acknowledge the Rust bioinformatics community and the authors of
+  key dependencies including rust-htslib.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <title></title>
+  <ref id="ref-Khanna2022">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Khanna</surname><given-names>Aditya</given-names></name>
+        <name><surname>Larson</surname><given-names>Dan E.</given-names></name>
+        <name><surname>Srivatsan</surname><given-names>Sridhar</given-names></name>
+        <name><surname>Mosior</surname><given-names>Matt</given-names></name>
+        <name><surname>Abbott</surname><given-names>Travis E.</given-names></name>
+        <name><surname>Kiwala</surname><given-names>Susanna</given-names></name>
+        <name><surname>Ley</surname><given-names>Timothy J.</given-names></name>
+        <name><surname>Duncavage</surname><given-names>Eric J.</given-names></name>
+        <name><surname>Walter</surname><given-names>Matthew J.</given-names></name>
+        <name><surname>Walker</surname><given-names>Jason R.</given-names></name>
+        <name><surname>Miller</surname><given-names>Christopher A.</given-names></name>
+        <name><surname>McMichael</surname><given-names>Joshua F.</given-names></name>
+        <name><surname>Griffith</surname><given-names>Obi L.</given-names></name>
+        <name><surname>Griffith</surname><given-names>Malachi</given-names></name>
+      </person-group>
+      <article-title>Bam-readcount - rapid generation of basepair-resolution sequence metrics</article-title>
+      <source>Journal of Open Source Software</source>
+      <year iso-8601-date="2022">2022</year>
+      <volume>7</volume>
+      <issue>69</issue>
+      <pub-id pub-id-type="doi">10.21105/joss.03722</pub-id>
+      <fpage>3722</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Li2009">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Li</surname><given-names>Heng</given-names></name>
+        <name><surname>Handsaker</surname><given-names>Bob</given-names></name>
+        <name><surname>Wysoker</surname><given-names>Alec</given-names></name>
+        <name><surname>Fennell</surname><given-names>Tim</given-names></name>
+        <name><surname>Ruan</surname><given-names>Jue</given-names></name>
+        <name><surname>Homer</surname><given-names>Nils</given-names></name>
+        <name><surname>Marth</surname><given-names>Gabor</given-names></name>
+        <name><surname>Abecasis</surname><given-names>Goncalo</given-names></name>
+        <name><surname>Durbin</surname><given-names>Richard</given-names></name>
+        <string-name>1000 Genome Project Data Processing Subgroup</string-name>
+      </person-group>
+      <article-title>The sequence alignment/map format and SAMtools</article-title>
+      <source>Bioinformatics</source>
+      <year iso-8601-date="2009">2009</year>
+      <volume>25</volume>
+      <issue>16</issue>
+      <pub-id pub-id-type="doi">10.1093/bioinformatics/btp352</pub-id>
+      <fpage>2078</fpage>
+      <lpage>2079</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Tarasov2015">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Tarasov</surname><given-names>Artem</given-names></name>
+        <name><surname>Vilella</surname><given-names>Albert J.</given-names></name>
+        <name><surname>Cuppen</surname><given-names>Edwin</given-names></name>
+        <name><surname>Nijman</surname><given-names>Isaac J.</given-names></name>
+        <name><surname>Prins</surname><given-names>Pjotr</given-names></name>
+      </person-group>
+      <article-title>Sambamba: Fast processing of NGS alignment formats</article-title>
+      <source>Bioinformatics</source>
+      <year iso-8601-date="2015">2015</year>
+      <volume>31</volume>
+      <issue>12</issue>
+      <pub-id pub-id-type="doi">10.1093/bioinformatics/btv098</pub-id>
+      <fpage>2032</fpage>
+      <lpage>2034</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Byrska2022">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Byrska-Bishop</surname><given-names>Marta</given-names></name>
+        <name><surname>Evani</surname><given-names>Uday S.</given-names></name>
+        <name><surname>Zhao</surname><given-names>Xuefang</given-names></name>
+        <name><surname>Basile</surname><given-names>Anna O.</given-names></name>
+        <name><surname>Abel</surname><given-names>Haley J.</given-names></name>
+        <name><surname>Regier</surname><given-names>Allison A.</given-names></name>
+        <name><surname>Corvelo</surname><given-names>Andr�</given-names></name>
+        <name><surname>Clarke</surname><given-names>Wayne E.</given-names></name>
+        <name><surname>Musunuri</surname><given-names>Rajeeva</given-names></name>
+        <name><surname>Nagulapalli</surname><given-names>Kshithija</given-names></name>
+        <name><surname>Fairley</surname><given-names>Susan</given-names></name>
+        <name><surname>Runnels</surname><given-names>Alexi</given-names></name>
+        <name><surname>Winterkorn</surname><given-names>Lara</given-names></name>
+        <name><surname>Lowy</surname><given-names>Ernesto</given-names></name>
+        <string-name>The 1000 Genomes Project Consortium</string-name>
+        <name><surname>Flicek</surname><given-names>Paul</given-names></name>
+        <name><surname>Germer</surname><given-names>Soren</given-names></name>
+        <name><surname>Brand</surname><given-names>Harrison</given-names></name>
+        <name><surname>Hall</surname><given-names>Ira M.</given-names></name>
+        <name><surname>Talkowski</surname><given-names>Michael E.</given-names></name>
+        <name><surname>Narzisi</surname><given-names>Giuseppe</given-names></name>
+        <name><surname>Zody</surname><given-names>Michael C.</given-names></name>
+      </person-group>
+      <article-title>High-coverage whole-genome sequencing of the expanded 1000 genomes project cohort including 602 trios</article-title>
+      <source>Cell</source>
+      <year iso-8601-date="2022">2022</year>
+      <volume>185</volume>
+      <issue>18</issue>
+      <pub-id pub-id-type="doi">10.1016/j.cell.2022.08.004</pub-id>
+      <fpage>3426</fpage>
+      <lpage>3440.e19</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Pedersen2018">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Pedersen</surname><given-names>Brent S.</given-names></name>
+        <name><surname>Quinlan</surname><given-names>Aaron R.</given-names></name>
+      </person-group>
+      <article-title>Mosdepth: Quick coverage calculation for genomes and exomes</article-title>
+      <source>Bioinformatics</source>
+      <year iso-8601-date="2018">2018</year>
+      <volume>34</volume>
+      <issue>5</issue>
+      <pub-id pub-id-type="doi">10.1093/bioinformatics/btx699</pub-id>
+      <fpage>867</fpage>
+      <lpage>868</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-1000GenomesConsortium2015">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <string-name>The 1000 Genomes Project Consortium</string-name>
+      </person-group>
+      <article-title>A global reference for human genetic variation</article-title>
+      <source>Nature</source>
+      <year iso-8601-date="2015">2015</year>
+      <volume>526</volume>
+      <issue>7571</issue>
+      <pub-id pub-id-type="doi">10.1038/nature15393</pub-id>
+      <fpage>68</fpage>
+      <lpage>74</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Peter2023">
+    <element-citation publication-type="software">
+      <person-group person-group-type="author">
+        <name><surname>Peter</surname><given-names>David</given-names></name>
+      </person-group>
+      <article-title>Hyperfine: A command-line benchmarking tool</article-title>
+      <year iso-8601-date="2023">2023</year>
+      <uri>https://github.com/sharkdp/hyperfine</uri>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
