@@ -1,0 +1,710 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">9616</article-id>
+<article-id pub-id-type="doi">10.21105/joss.09616</article-id>
+<title-group>
+<article-title>ParallelKDE.jl: A Package for Highly Parallel Kernel
+Density Estimation</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0009-0006-1282-4850</contrib-id>
+<name>
+<surname>Martinez</surname>
+<given-names>Christian Sustay</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0001-5163-2663</contrib-id>
+<name>
+<surname>Zacharias</surname>
+<given-names>Martin</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<contrib contrib-type="author" corresp="yes">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0002-6227-5443</contrib-id>
+<name>
+<surname>Quoika</surname>
+<given-names>Patrick K.</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+<xref ref-type="corresp" rid="cor-1"><sup>*</sup></xref>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Center for Functional Protein Assemblies, School of Natural
+Sciences, Technical University of Munich, Ernst-Otto-Fischer-Str. 8,
+Garching 85748, Germany</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<author-notes>
+<corresp id="cor-1">* E-mail: <email></email></corresp>
+</author-notes>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2025-11-05">
+<day>5</day>
+<month>11</month>
+<year>2025</year>
+</pub-date>
+<volume>11</volume>
+<issue>118</issue>
+<fpage>9616</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2026</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>Julia</kwd>
+<kwd>kernel density estimation</kwd>
+<kwd>parallel algorithms</kwd>
+<kwd>Python</kwd>
+<kwd>data science</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p>Kernel density estimation (KDE) is a valuable tool in exploratory
+  analysis, simulation, and probabilistic modeling across the sciences.
+  However, its susceptibility to the curse of dimensionality can make
+  routine KDE prohibitively slow on large, high-dimensional datasets. A
+  central problem in KDE is the choice of the bandwidth of the kernels,
+  which is oftentimes solved by applying an empiric rule-of-thumb (ROT).
+  Furthermore, estimation of non-normal distributions is sometimes
+  approached through non-constant bandwidths—so called adaptive
+  bandwith—which adds an additional layer of complication. For
+  additional background on KDE and bandwidth selection, see Silverman
+  (<xref alt="1986" rid="ref-silverman_density_1986" ref-type="bibr">1986</xref>),
+  Scott
+  (<xref alt="1992" rid="ref-scott_multivariate_1992" ref-type="bibr">1992</xref>),
+  Wand &amp; Jones
+  (<xref alt="1995" rid="ref-wand_kernel_1995" ref-type="bibr">1995</xref>)
+  and Jones et al.
+  (<xref alt="1996" rid="ref-jones_brief_1996" ref-type="bibr">1996</xref>).</p>
+  <p><monospace>ParallelKDE.jl</monospace> provides a fast, open-source
+  KDE toolkit in Julia
+  (<xref alt="Bezanson et al., 2017" rid="ref-bezanson_julia_2017" ref-type="bibr">Bezanson
+  et al., 2017</xref>) that provides extensible infrastructure to
+  support a variety of methods with serial, multi-threaded and GPU
+  implementations. The package includes (i) a highly parallel
+  implementation of established KDE rules-of-thumb (ROTs) as well as
+  (ii) an implementation of GradePro, a new algorithm described in
+  (<xref alt="Sustay Martinez et al., 2025" rid="ref-sustay_martinez_novel_2025" ref-type="bibr">Sustay
+  Martinez et al., 2025</xref>), engineered here for serial, threaded,
+  and CUDA backends. A lightweight Python wrapper,
+  <monospace>ParallelKDEpy</monospace> exposes the same functionality to
+  Python workflows. Our goal is to make robust density estimation
+  practical for large sample sizes of moderate dimensionality through
+  careful parallelization of, mainly, grid-based KDE estimators.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p>Many researchers rely on Python implementations of KDE. Popular
+  examples include SciPy’s <monospace>gaussian_kde</monospace>
+  (<xref alt="SciPy developers, 2025" rid="ref-scipy_developers_scipystatsgaussian_kde_2025" ref-type="bibr">SciPy
+  developers, 2025</xref>;
+  <xref alt="Virtanen et al., 2020" rid="ref-virtanen_scipy_2020" ref-type="bibr">Virtanen
+  et al., 2020</xref>) with automatic bandwidth selection via ROTs;
+  scikit-learn’s <monospace>KernelDensity</monospace>
+  (<xref alt="Pedregosa et al., 2011" rid="ref-pedregosa_scikit-learn_2011" ref-type="bibr">Pedregosa
+  et al., 2011</xref>;
+  <xref alt="Scikit-learn developers, 2025" rid="ref-scikit-learn_developers_kerneldensity_2025" ref-type="bibr">Scikit-learn
+  developers, 2025</xref>), which also supports ROTs; statsmodels’
+  (<xref alt="Seabold &amp; Perktold, 2010" rid="ref-seabold_statsmodels_2010" ref-type="bibr">Seabold
+  &amp; Perktold, 2010</xref>) <monospace>KDEUnivariate</monospace> and
+  <monospace>KDEMultivariate</monospace> estimators with ROTs and
+  cross-validated bandwidths
+  (<xref alt="Statsmodels Developers, 2024" rid="ref-statsmodels_developers_statsmodelsnonparametrickernel_densitykdemultivariate_2024" ref-type="bibr">Statsmodels
+  Developers, 2024</xref>); KDEpy’s
+  (<xref alt="Odland, 2018" rid="ref-odland_tommyodkdepy_2018" ref-type="bibr">Odland,
+  2018</xref>) <monospace>FFTKDE</monospace> with ROTs and plug-in rules
+  (<xref alt="Sheather &amp; Jones, 1991" rid="ref-sheather_reliable_1991" ref-type="bibr">Sheather
+  &amp; Jones, 1991</xref>); and X-Entropy
+  (<xref alt="Kraml et al., 2021" rid="ref-kraml_x-entropy_2021" ref-type="bibr">Kraml
+  et al., 2021</xref>), which implements a plug-in rule. While mature
+  and widely used, these tools are CPU-centric and can become slow as
+  data grow in size and dimension, especially if many evaluations are
+  needed in downstream tasks.</p>
+  <p><monospace>ParallelKDE.jl</monospace> addresses this gap with:</p>
+  <list list-type="order">
+    <list-item>
+      <p>A unified device interface so that the estimations can be
+      executed on serial, threads (via Julia’s
+      <monospace>Threads.@threads</monospace>), or GPU (e.g. via
+      <monospace>CUDA.jl</monospace>) without changing user code;</p>
+    </list-item>
+    <list-item>
+      <p>Parallelized calculation of FFT-based KDE with ROTs and
+      GradePro;</p>
+    </list-item>
+    <list-item>
+      <p>A reproducible benchmark comparing against SciPy, scikit-learn,
+      statsmodels and KDEpy under matched estimation tasks.</p>
+    </list-item>
+  </list>
+</sec>
+<sec id="performance-benchmarks">
+  <title>Performance benchmarks</title>
+  <p>To demonstrate that our approach—moving density estimation to
+  parallel execution or parallel hardware—produces marked acceleration
+  compared with standard CPU-based libraries, we performed an extensive
+  benchmark. We decided to carry it out in Python, since the most
+  popular KDE tools are provided for that ecosystem. To ensure
+  consistent interface across methods, we ran all experiments through
+  our lightweight wrapper <monospace>ParallelKDEpy</monospace>.
+  Naturally, our tool can conveniently be used directly in Julia, too.
+  We evaluated different methods on synthetic data drawn from 1D and 2D
+  standard normal distributions, generated with SciPy. For compatibility
+  with the existing Python tools, we executed CPU baselines
+  single-threaded; in addition, we benchmarked our CUDA implementation
+  to exemplify the acceleration achievable through parallel execution.
+  To reproduce the benchmark, please refer to the corresponding section
+  in the <monospace>README.md</monospace>.</p>
+  <p>The results are shown in
+  <xref alt="[fig:benchmark_samples]" rid="figU003Abenchmark_samples">[fig:benchmark_samples]</xref>
+  and
+  <xref alt="[fig:benchmark_grids]" rid="figU003Abenchmark_grids">[fig:benchmark_grids]</xref>.
+  Our implementations in <monospace>ParallelKDE</monospace> are
+  particularly fast for high-resolution grids and/or large datasets.
+  Additionally, our novel method, GradePro, achieves high accuracy on
+  diverse distributions. While the CPU version is slower than several 1D
+  baselines and comparable in 2D, its performance is still competitive
+  and the extra computation yields better accuracy. In CUDA, the
+  method’s parallelism is exposed, making it faster and produces
+  superior scaling with problem size. A detailed introduction of
+  GradePro along with an extensive investigation of its accuracy is
+  provided in Sustay Martinez et al.
+  (<xref alt="2025" rid="ref-sustay_martinez_novel_2025" ref-type="bibr">2025</xref>).</p>
+  <p>Further comparison of GradePro with other methods is in progress.
+  In the future, we aim to provide general recommendations for users on
+  the optimal choice of bandwidth selection methods for different
+  use-cases. Here, we focus on the software engineering aspects, which
+  enable our fast implementation.</p>
+  <fig>
+    <caption><p>Benchmark of common KDE packages and their
+    estimators—rule-of-thumb (ROT), plug-in, and GradePro—along with
+    estimators in ParallelKDE at different sample sizes. The estimations
+    were performed on data drawn from a standard normal distribution. In
+    1D, 100 and 100,000 samples were used with a grid of 500 points. In
+    2D, 1,000 and 1,000,000 samples were used with a grid of 100 points
+    per dimension. Reported runtimes are averages over 10 repetitions.
+    Hardware: Intel Core i7-6700 (single-threaded) and NVIDIA GTX
+    1080.<styled-content id="figU003Abenchmark_samples"></styled-content></p></caption>
+    <graphic mimetype="application" mime-subtype="pdf" xlink:href="./benchmark_samples.pdf" />
+  </fig>
+  <fig>
+    <caption><p>Benchmark of common KDE packages and their estimators
+    along with estimators in ParallelKDE at different grid sizes. The
+    estimations were performed on data drawn from a standard normal
+    distribution. In 1D, 100 and 2,500 grid points were used with 10,000
+    samples. In 2D, 33 and 300 grid points per dimension were used with
+    100,000 samples. Reported runtimes are averages over 10 repetitions.
+    Hardware: Intel Core i7-6700 (single-threaded) and NVIDIA GTX
+    1080.<styled-content id="figU003Abenchmark_grids"></styled-content></p></caption>
+    <graphic mimetype="application" mime-subtype="pdf" xlink:href="./benchmark_grids.pdf" />
+  </fig>
+</sec>
+<sec id="functionality">
+  <title>Functionality</title>
+  <p><bold>Design and architecture.</bold>
+  <monospace>ParallelKDE.jl</monospace> is organized around a minimal
+  device interface that isolates parallelism from algorithmic logic. We
+  ship three backends:</p>
+  <list list-type="bullet">
+    <list-item>
+      <p>Serial CPU for portability and determinism;</p>
+    </list-item>
+    <list-item>
+      <p>Threaded CPU using Julia’s built-in multithreading;</p>
+    </list-item>
+    <list-item>
+      <p>CUDA GPU via <monospace>CUDA.jl</monospace>
+      (<xref alt="Besard, Foket, et al., 2019" rid="ref-besard_effective_2019" ref-type="bibr">Besard,
+      Foket, et al., 2019</xref>;
+      <xref alt="Besard, Churavy, et al., 2019" rid="ref-besard_rapid_2019" ref-type="bibr">Besard,
+      Churavy, et al., 2019</xref>).</p>
+    </list-item>
+  </list>
+  <p><bold>Implemented methods.</bold> The package includes (a) KDE with
+  parallel ROTs, namely Scott and Silverman, for rapid baselines and (b)
+  GradePro, engineered to perform rapid adaptive KDE in multiple
+  dimensions. This implementation effectively performs independent
+  grid-point-wise density estimation using FFT
+  (<xref alt="Frigo &amp; Johnson, 2005" rid="ref-frigo_design_2005" ref-type="bibr">Frigo
+  &amp; Johnson, 2005</xref>). Throughout the routines, the necessary
+  memory is reduced by reusing allocated memory, without damaging
+  performance. The serial version serves as a reference; the threaded
+  version parallelizes routines applied over the bootstrap re-samples
+  (which are required by the method); the CUDA routines provide
+  parallelization at each estimated grid-point. Each implemented method
+  naturally exposes all its parameters up to the user. Convenient
+  defaults are set where reasonable.
+  <xref alt="[fig:flowchart]" rid="figU003Aflowchart">[fig:flowchart]</xref>
+  shows a flowchart of the implemented algorithm.</p>
+  <p><bold>Reproducibility and testing.</bold> We include timing
+  benchmarks to illustrate the speed gains obtained from parallelizable
+  KDE algorithms.</p>
+  <p><bold>Python wrapper.</bold> The companion package
+  <monospace>ParallelKDEpy</monospace> provides, with the help of
+  <monospace>PythonCall.jl</monospace>
+  (<xref alt="Rowley, 2022" rid="ref-rowley_pythoncalljl_2022" ref-type="bibr">Rowley,
+  2022</xref>), Python bindings to
+  <monospace>ParallelKDE.jl</monospace>, offering identical estimators
+  and device selection for seamless integration in Python-based
+  workflows.</p>
+  <fig id="figU003Aflowchart">
+    <caption><p>Flowchart of the parallelizable point-wise density
+    estimation algorithm.</p></caption>
+    <graphic mimetype="application" mime-subtype="pdf" xlink:href="parallelkde_flowchart.pdf" />
+  </fig>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>We thank the Deutsche Forschungsgemeinschaft (DFG, German Research
+  Foundation)—Project number DFG-INST 95/1610-1 FUGG—for funding this
+  research.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <title></title>
+  <ref id="ref-sheather_reliable_1991">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Sheather</surname><given-names>S. J.</given-names></name>
+        <name><surname>Jones</surname><given-names>M. C.</given-names></name>
+      </person-group>
+      <article-title>A Reliable Data-Based Bandwidth Selection Method for Kernel Density Estimation</article-title>
+      <source>Journal of the Royal Statistical Society Series B: Statistical Methodology</source>
+      <year iso-8601-date="1991-07">1991</year><month>07</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2025-07-11">2025</year><month>07</month><day>11</day></date-in-citation>
+      <volume>53</volume>
+      <issue>3</issue>
+      <issn>1369-7412</issn>
+      <pub-id pub-id-type="doi">10.1111/j.2517-6161.1991.tb01857.x</pub-id>
+      <fpage>683</fpage>
+      <lpage>690</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-wand_kernel_1995">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Wand</surname><given-names>Matt P.</given-names></name>
+        <name><surname>Jones</surname><given-names>M. C.</given-names></name>
+      </person-group>
+      <source>Kernel smoothing</source>
+      <publisher-name>Chapman &amp; Hall</publisher-name>
+      <publisher-loc>London</publisher-loc>
+      <year iso-8601-date="1995">1995</year>
+      <edition>1. ed</edition>
+      <isbn>978-0-429-17059-1</isbn>
+    </element-citation>
+  </ref>
+  <ref id="ref-kraml_x-entropy_2021">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Kraml</surname><given-names>Johannes</given-names></name>
+        <name><surname>Hofer</surname><given-names>Florian</given-names></name>
+        <name><surname>Quoika</surname><given-names>Patrick K.</given-names></name>
+        <name><surname>Kamenik</surname><given-names>Anna S.</given-names></name>
+        <name><surname>Liedl</surname><given-names>Klaus R.</given-names></name>
+      </person-group>
+      <article-title>X-Entropy: A Parallelized Kernel Density Estimator with Automated Bandwidth Selection to Calculate Entropy</article-title>
+      <source>Journal of Chemical Information and Modeling</source>
+      <year iso-8601-date="2021-04">2021</year><month>04</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2025-10-24">2025</year><month>10</month><day>24</day></date-in-citation>
+      <volume>61</volume>
+      <issue>4</issue>
+      <issn>1549-9596</issn>
+      <uri>https://pubs.acs.org/doi/10.1021/acs.jcim.0c01375</uri>
+      <pub-id pub-id-type="doi">10.1021/acs.jcim.0c01375</pub-id>
+      <fpage>1533</fpage>
+      <lpage>1538</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-sustay_martinez_novel_2025">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Sustay Martinez</surname><given-names>Christian</given-names></name>
+        <name><surname>Quoika</surname><given-names>Patrick K.</given-names></name>
+        <name><surname>Zacharias</surname><given-names>Martin</given-names></name>
+      </person-group>
+      <article-title>Novel Rapid Approach for Adaptive Gaussian Kernel Density Estimation: Gridpoint-wise Propagation of Anisotropic Diffusion Equation</article-title>
+      <source>Researchsquare</source>
+      <year iso-8601-date="2025">2025</year>
+      <pub-id pub-id-type="doi">10.21203/rs.3.rs-8038701/v1</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-statsmodels_developers_statsmodelsnonparametrickernel_densitykdemultivariate_2024">
+    <element-citation>
+      <person-group person-group-type="author">
+        <string-name>Statsmodels Developers</string-name>
+      </person-group>
+      <article-title>Statsmodels v0.14.4 Documentation</article-title>
+      <year iso-8601-date="2024">2024</year>
+      <uri>https://www.statsmodels.org/stable/generated/statsmodels.nonparametric.kernel_density.KDEMultivariate.html</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-scipy_developers_scipystatsgaussian_kde_2025">
+    <element-citation>
+      <person-group person-group-type="author">
+        <string-name>SciPy developers</string-name>
+      </person-group>
+      <article-title>Scipy.stats.gaussian_kde - SciPy v1.16.2 Documentation</article-title>
+      <year iso-8601-date="2025">2025</year>
+      <uri>https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.gaussian_kde.html</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-scikit-learn_developers_kerneldensity_2025">
+    <element-citation>
+      <person-group person-group-type="author">
+        <string-name>Scikit-learn developers</string-name>
+      </person-group>
+      <article-title>KernelDensity - scikit-learn 1.7.2 Documentation</article-title>
+      <year iso-8601-date="2025">2025</year>
+      <uri>https://scikit-learn.org/stable/modules/generated/sklearn.neighbors.KernelDensity.html#sklearn.neighbors.KernelDensity</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-odland_tommyodkdepy_2018">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Odland</surname><given-names>Tommy</given-names></name>
+      </person-group>
+      <article-title>Tommyod/KDEpy: Kernel Density Estimation in Python</article-title>
+      <year iso-8601-date="2018-12">2018</year><month>12</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2025-10-09">2025</year><month>10</month><day>09</day></date-in-citation>
+      <uri>https://zenodo.org/record/2392268</uri>
+      <pub-id pub-id-type="doi">10.5281/ZENODO.2392268</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-seabold_statsmodels_2010">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Seabold</surname><given-names>Skipper</given-names></name>
+        <name><surname>Perktold</surname><given-names>Josef</given-names></name>
+      </person-group>
+      <article-title>Statsmodels: Econometric and statistical modeling with python</article-title>
+      <source>Proceedings of the 9th Python in Science Conference</source>
+      <year iso-8601-date="2010">2010</year>
+      <pub-id pub-id-type="doi">10.25080/majora-92bf1922-011</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-pedregosa_scikit-learn_2011">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Pedregosa</surname><given-names>Fabian</given-names></name>
+        <name><surname>Varoquaux</surname><given-names>Gaël</given-names></name>
+        <name><surname>Gramfort</surname><given-names>Alexandre</given-names></name>
+        <name><surname>Michel</surname><given-names>Vincent</given-names></name>
+        <name><surname>Thirion</surname><given-names>Bertrand</given-names></name>
+        <name><surname>Grisel</surname><given-names>Olivier</given-names></name>
+        <name><surname>Blondel</surname><given-names>Mathieu</given-names></name>
+        <name><surname>Prettenhofer</surname><given-names>Peter</given-names></name>
+        <name><surname>Weiss</surname><given-names>Ron</given-names></name>
+        <name><surname>Dubourg</surname><given-names>Vincent</given-names></name>
+        <name><surname>Vanderplas</surname><given-names>Jake</given-names></name>
+        <name><surname>Passos</surname><given-names>Alexandre</given-names></name>
+        <name><surname>Cournapeau</surname><given-names>David</given-names></name>
+        <name><surname>Brucher</surname><given-names>Matthieu</given-names></name>
+        <name><surname>Perrot</surname><given-names>Matthieu</given-names></name>
+        <name><surname>Duchesnay</surname><given-names>Édouard</given-names></name>
+      </person-group>
+      <article-title>Scikit-learn: Machine Learning in Python</article-title>
+      <source>Journal of Machine Learning Research</source>
+      <year iso-8601-date="2011">2011</year>
+      <volume>12</volume>
+      <issue>85</issue>
+      <uri>http://jmlr.org/papers/v12/pedregosa11a.html</uri>
+      <fpage>2825</fpage>
+      <lpage>2830</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-virtanen_scipy_2020">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Virtanen</surname><given-names>Pauli</given-names></name>
+        <name><surname>Gommers</surname><given-names>Ralf</given-names></name>
+        <name><surname>Oliphant</surname><given-names>Travis E.</given-names></name>
+        <name><surname>Haberland</surname><given-names>Matt</given-names></name>
+        <name><surname>Reddy</surname><given-names>Tyler</given-names></name>
+        <name><surname>Cournapeau</surname><given-names>David</given-names></name>
+        <name><surname>Burovski</surname><given-names>Evgeni</given-names></name>
+        <name><surname>Peterson</surname><given-names>Pearu</given-names></name>
+        <name><surname>Weckesser</surname><given-names>Warren</given-names></name>
+        <name><surname>Bright</surname><given-names>Jonathan</given-names></name>
+        <name><surname>Van Der Walt</surname><given-names>Stéfan J.</given-names></name>
+        <name><surname>Brett</surname><given-names>Matthew</given-names></name>
+        <name><surname>Wilson</surname><given-names>Joshua</given-names></name>
+        <name><surname>Millman</surname><given-names>K. Jarrod</given-names></name>
+        <name><surname>Mayorov</surname><given-names>Nikolay</given-names></name>
+        <name><surname>Nelson</surname><given-names>Andrew R. J.</given-names></name>
+        <name><surname>Jones</surname><given-names>Eric</given-names></name>
+        <name><surname>Kern</surname><given-names>Robert</given-names></name>
+        <name><surname>Larson</surname><given-names>Eric</given-names></name>
+        <name><surname>Carey</surname><given-names>C J</given-names></name>
+        <name><surname>Polat</surname><given-names>İlhan</given-names></name>
+        <name><surname>Feng</surname><given-names>Yu</given-names></name>
+        <name><surname>Moore</surname><given-names>Eric W.</given-names></name>
+        <name><surname>VanderPlas</surname><given-names>Jake</given-names></name>
+        <name><surname>Laxalde</surname><given-names>Denis</given-names></name>
+        <name><surname>Perktold</surname><given-names>Josef</given-names></name>
+        <name><surname>Cimrman</surname><given-names>Robert</given-names></name>
+        <name><surname>Henriksen</surname><given-names>Ian</given-names></name>
+        <name><surname>Quintero</surname><given-names>E. A.</given-names></name>
+        <name><surname>Harris</surname><given-names>Charles R.</given-names></name>
+        <name><surname>Archibald</surname><given-names>Anne M.</given-names></name>
+        <name><surname>Ribeiro</surname><given-names>Antônio H.</given-names></name>
+        <name><surname>Pedregosa</surname><given-names>Fabian</given-names></name>
+        <name><surname>Van Mulbregt</surname><given-names>Paul</given-names></name>
+        <string-name>SciPy 1.0 Contributors</string-name>
+        <name><surname>Vijaykumar</surname><given-names>Aditya</given-names></name>
+        <name><surname>Bardelli</surname><given-names>Alessandro Pietro</given-names></name>
+        <name><surname>Rothberg</surname><given-names>Alex</given-names></name>
+        <name><surname>Hilboll</surname><given-names>Andreas</given-names></name>
+        <name><surname>Kloeckner</surname><given-names>Andreas</given-names></name>
+        <name><surname>Scopatz</surname><given-names>Anthony</given-names></name>
+        <name><surname>Lee</surname><given-names>Antony</given-names></name>
+        <name><surname>Rokem</surname><given-names>Ariel</given-names></name>
+        <name><surname>Woods</surname><given-names>C. Nathan</given-names></name>
+        <name><surname>Fulton</surname><given-names>Chad</given-names></name>
+        <name><surname>Masson</surname><given-names>Charles</given-names></name>
+        <name><surname>Häggström</surname><given-names>Christian</given-names></name>
+        <name><surname>Fitzgerald</surname><given-names>Clark</given-names></name>
+        <name><surname>Nicholson</surname><given-names>David A.</given-names></name>
+        <name><surname>Hagen</surname><given-names>David R.</given-names></name>
+        <name><surname>Pasechnik</surname><given-names>Dmitrii V.</given-names></name>
+        <name><surname>Olivetti</surname><given-names>Emanuele</given-names></name>
+        <name><surname>Martin</surname><given-names>Eric</given-names></name>
+        <name><surname>Wieser</surname><given-names>Eric</given-names></name>
+        <name><surname>Silva</surname><given-names>Fabrice</given-names></name>
+        <name><surname>Lenders</surname><given-names>Felix</given-names></name>
+        <name><surname>Wilhelm</surname><given-names>Florian</given-names></name>
+        <name><surname>Young</surname><given-names>G.</given-names></name>
+        <name><surname>Price</surname><given-names>Gavin A.</given-names></name>
+        <name><surname>Ingold</surname><given-names>Gert-Ludwig</given-names></name>
+        <name><surname>Allen</surname><given-names>Gregory E.</given-names></name>
+        <name><surname>Lee</surname><given-names>Gregory R.</given-names></name>
+        <name><surname>Audren</surname><given-names>Hervé</given-names></name>
+        <name><surname>Probst</surname><given-names>Irvin</given-names></name>
+        <name><surname>Dietrich</surname><given-names>Jörg P.</given-names></name>
+        <name><surname>Silterra</surname><given-names>Jacob</given-names></name>
+        <name><surname>Webber</surname><given-names>James T</given-names></name>
+        <name><surname>Slavič</surname><given-names>Janko</given-names></name>
+        <name><surname>Nothman</surname><given-names>Joel</given-names></name>
+        <name><surname>Buchner</surname><given-names>Johannes</given-names></name>
+        <name><surname>Kulick</surname><given-names>Johannes</given-names></name>
+        <name><surname>Schönberger</surname><given-names>Johannes L.</given-names></name>
+        <name><surname>De Miranda Cardoso</surname><given-names>José Vinícius</given-names></name>
+        <name><surname>Reimer</surname><given-names>Joscha</given-names></name>
+        <name><surname>Harrington</surname><given-names>Joseph</given-names></name>
+        <name><surname>Rodríguez</surname><given-names>Juan Luis Cano</given-names></name>
+        <name><surname>Nunez-Iglesias</surname><given-names>Juan</given-names></name>
+        <name><surname>Kuczynski</surname><given-names>Justin</given-names></name>
+        <name><surname>Tritz</surname><given-names>Kevin</given-names></name>
+        <name><surname>Thoma</surname><given-names>Martin</given-names></name>
+        <name><surname>Newville</surname><given-names>Matthew</given-names></name>
+        <name><surname>Kümmerer</surname><given-names>Matthias</given-names></name>
+        <name><surname>Bolingbroke</surname><given-names>Maximilian</given-names></name>
+        <name><surname>Tartre</surname><given-names>Michael</given-names></name>
+        <name><surname>Pak</surname><given-names>Mikhail</given-names></name>
+        <name><surname>Smith</surname><given-names>Nathaniel J.</given-names></name>
+        <name><surname>Nowaczyk</surname><given-names>Nikolai</given-names></name>
+        <name><surname>Shebanov</surname><given-names>Nikolay</given-names></name>
+        <name><surname>Pavlyk</surname><given-names>Oleksandr</given-names></name>
+        <name><surname>Brodtkorb</surname><given-names>Per A.</given-names></name>
+        <name><surname>Lee</surname><given-names>Perry</given-names></name>
+        <name><surname>McGibbon</surname><given-names>Robert T.</given-names></name>
+        <name><surname>Feldbauer</surname><given-names>Roman</given-names></name>
+        <name><surname>Lewis</surname><given-names>Sam</given-names></name>
+        <name><surname>Tygier</surname><given-names>Sam</given-names></name>
+        <name><surname>Sievert</surname><given-names>Scott</given-names></name>
+        <name><surname>Vigna</surname><given-names>Sebastiano</given-names></name>
+        <name><surname>Peterson</surname><given-names>Stefan</given-names></name>
+        <name><surname>More</surname><given-names>Surhud</given-names></name>
+        <name><surname>Pudlik</surname><given-names>Tadeusz</given-names></name>
+        <name><surname>Oshima</surname><given-names>Takuya</given-names></name>
+        <name><surname>Pingel</surname><given-names>Thomas J.</given-names></name>
+        <name><surname>Robitaille</surname><given-names>Thomas P.</given-names></name>
+        <name><surname>Spura</surname><given-names>Thomas</given-names></name>
+        <name><surname>Jones</surname><given-names>Thouis R.</given-names></name>
+        <name><surname>Cera</surname><given-names>Tim</given-names></name>
+        <name><surname>Leslie</surname><given-names>Tim</given-names></name>
+        <name><surname>Zito</surname><given-names>Tiziano</given-names></name>
+        <name><surname>Krauss</surname><given-names>Tom</given-names></name>
+        <name><surname>Upadhyay</surname><given-names>Utkarsh</given-names></name>
+        <name><surname>Halchenko</surname><given-names>Yaroslav O.</given-names></name>
+        <name><surname>Vázquez-Baeza</surname><given-names>Yoshiki</given-names></name>
+      </person-group>
+      <article-title>SciPy 1.0: Fundamental algorithms for scientific computing in Python</article-title>
+      <source>Nature Methods</source>
+      <year iso-8601-date="2020-03">2020</year><month>03</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2025-10-09">2025</year><month>10</month><day>09</day></date-in-citation>
+      <volume>17</volume>
+      <issue>3</issue>
+      <issn>1548-7091</issn>
+      <uri>https://www.nature.com/articles/s41592-019-0686-2</uri>
+      <pub-id pub-id-type="doi">10.1038/s41592-019-0686-2</pub-id>
+      <fpage>261</fpage>
+      <lpage>272</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-jones_brief_1996">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Jones</surname><given-names>M. C.</given-names></name>
+        <name><surname>Marron</surname><given-names>J. S.</given-names></name>
+        <name><surname>Sheather</surname><given-names>S. J.</given-names></name>
+      </person-group>
+      <article-title>A Brief Survey of Bandwidth Selection for Density Estimation</article-title>
+      <source>Journal of the American Statistical Association</source>
+      <year iso-8601-date="1996-03">1996</year><month>03</month>
+      <volume>91</volume>
+      <issue>433</issue>
+      <issn>0162-1459</issn>
+      <pub-id pub-id-type="doi">10.1080/01621459.1996.10476701</pub-id>
+      <fpage>401</fpage>
+      <lpage>407</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-silverman_density_1986">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Silverman</surname><given-names>B. W.</given-names></name>
+      </person-group>
+      <source>Density estimation for statistics and data analysis</source>
+      <publisher-name>Chapman; Hall</publisher-name>
+      <publisher-loc>London ; New York</publisher-loc>
+      <year iso-8601-date="1986">1986</year>
+      <isbn>978-0-412-24620-3</isbn>
+    </element-citation>
+  </ref>
+  <ref id="ref-scott_multivariate_1992">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Scott</surname><given-names>David W.</given-names></name>
+      </person-group>
+      <source>Multivariate Density Estimation: Theory, Practice, and Visualization</source>
+      <publisher-name>Wiley</publisher-name>
+      <year iso-8601-date="1992-08">1992</year><month>08</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2025-07-16">2025</year><month>07</month><day>16</day></date-in-citation>
+      <edition>1</edition>
+      <isbn>978-0-470-31684-9</isbn>
+      <pub-id pub-id-type="doi">10.1002/9780470316849</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-bezanson_julia_2017">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Bezanson</surname><given-names>Jeff</given-names></name>
+        <name><surname>Edelman</surname><given-names>Alan</given-names></name>
+        <name><surname>Karpinski</surname><given-names>Stefan</given-names></name>
+        <name><surname>Shah</surname><given-names>Viral B.</given-names></name>
+      </person-group>
+      <article-title>Julia: A Fresh Approach to Numerical Computing</article-title>
+      <source>SIAM Review</source>
+      <year iso-8601-date="2017-01">2017</year><month>01</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2025-07-23">2025</year><month>07</month><day>23</day></date-in-citation>
+      <volume>59</volume>
+      <issue>1</issue>
+      <issn>0036-1445</issn>
+      <pub-id pub-id-type="doi">10.1137/141000671</pub-id>
+      <fpage>65</fpage>
+      <lpage>98</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-besard_effective_2019">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Besard</surname><given-names>Tim</given-names></name>
+        <name><surname>Foket</surname><given-names>Christophe</given-names></name>
+        <name><surname>De Sutter</surname><given-names>Bjorn</given-names></name>
+      </person-group>
+      <article-title>Effective Extensible Programming: Unleashing Julia on GPUs</article-title>
+      <source>IEEE Transactions on Parallel and Distributed Systems</source>
+      <year iso-8601-date="2019-04">2019</year><month>04</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2025-07-23">2025</year><month>07</month><day>23</day></date-in-citation>
+      <volume>30</volume>
+      <issue>4</issue>
+      <issn>1045-9219</issn>
+      <pub-id pub-id-type="doi">10.1109/tpds.2018.2872064</pub-id>
+      <fpage>827</fpage>
+      <lpage>841</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-besard_rapid_2019">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Besard</surname><given-names>Tim</given-names></name>
+        <name><surname>Churavy</surname><given-names>Valentin</given-names></name>
+        <name><surname>Edelman</surname><given-names>Alan</given-names></name>
+        <name><surname>Sutter</surname><given-names>Bjorn De</given-names></name>
+      </person-group>
+      <article-title>Rapid software prototyping for heterogeneous and distributed platforms</article-title>
+      <source>Advances in Engineering Software</source>
+      <year iso-8601-date="2019-06">2019</year><month>06</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2025-07-23">2025</year><month>07</month><day>23</day></date-in-citation>
+      <volume>132</volume>
+      <issn>0965-9978</issn>
+      <pub-id pub-id-type="doi">10.1016/j.advengsoft.2019.02.002</pub-id>
+      <fpage>29</fpage>
+      <lpage>46</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-rowley_pythoncalljl_2022">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Rowley</surname><given-names>Christopher</given-names></name>
+      </person-group>
+      <article-title>PythonCall.jl: Python and Julia in harmony</article-title>
+      <year iso-8601-date="2022">2022</year>
+      <uri>https://github.com/JuliaPy/PythonCall.jl</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-frigo_design_2005">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Frigo</surname><given-names>M.</given-names></name>
+        <name><surname>Johnson</surname><given-names>S. G.</given-names></name>
+      </person-group>
+      <article-title>The Design and Implementation of FFTW3</article-title>
+      <source>Proceedings of the IEEE</source>
+      <year iso-8601-date="2005-02">2005</year><month>02</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2025-10-25">2025</year><month>10</month><day>25</day></date-in-citation>
+      <volume>93</volume>
+      <issue>2</issue>
+      <issn>0018-9219</issn>
+      <uri>http://ieeexplore.ieee.org/document/1386650/</uri>
+      <pub-id pub-id-type="doi">10.1109/JPROC.2004.840301</pub-id>
+      <fpage>216</fpage>
+      <lpage>231</lpage>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
