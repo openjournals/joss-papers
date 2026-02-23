@@ -1,0 +1,370 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">9441</article-id>
+<article-id pub-id-type="doi">10.21105/joss.09441</article-id>
+<title-group>
+<article-title>JAX-bandflux: differentiable supernovae SALT modelling
+for cosmological analysis on GPUs</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0003-4366-1119</contrib-id>
+<name>
+<surname>Leeney</surname>
+<given-names>Samuel Alan Kossoff</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+<xref ref-type="aff" rid="aff-2"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Astrophysics Group, Cavendish Laboratory, J. J. Thomson
+Avenue, Cambridge CB3 0HE, UK</institution>
+</institution-wrap>
+</aff>
+<aff id="aff-2">
+<institution-wrap>
+<institution>Kavli Institute for Cosmology, Madingley Road, Cambridge
+CB3 0HA, UK</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2025-04-09">
+<day>9</day>
+<month>4</month>
+<year>2025</year>
+</pub-date>
+<volume>11</volume>
+<issue>118</issue>
+<fpage>9441</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2026</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>Python</kwd>
+<kwd>astronomy</kwd>
+<kwd>supernovae</kwd>
+<kwd>cosmology</kwd>
+<kwd>JAX</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p><ext-link ext-link-type="uri" xlink:href="https://github.com/samleeney/JAX-bandflux">JAX-bandflux</ext-link>
+  is a JAX
+  (<xref alt="Bradbury et al., 2018" rid="ref-jax2018github" ref-type="bibr">Bradbury
+  et al., 2018</xref>) implementation of critical supernova modelling
+  functionality for cosmological analysis. The codebase implements key
+  components of the established library SNCosmo
+  (<xref alt="Barbary et al., 2016" rid="ref-barbary2016sncosmo" ref-type="bibr">Barbary
+  et al., 2016</xref>) in a differentiable framework, offering efficient
+  parallelisation and gradient-based optimisation capabilities through
+  GPU acceleration. The package facilitates differentiable computation
+  of supernova light curve measurements, supporting the inference of
+  SALT
+  (<xref alt="Kenworthy et al., 2021" rid="ref-kenworthy2021salt3" ref-type="bibr">Kenworthy
+  et al., 2021</xref>;
+  <xref alt="Pierel et al., 2022" rid="ref-pierel2022salt3" ref-type="bibr">Pierel
+  et al., 2022</xref>) parameters necessary for cosmological analysis.
+  When parameters are evaluated in batches on GPU (as is standard in
+  JAX-based samplers), the bandflux kernels deliver order-of-magnitude
+  speedups (<inline-formula><alternatives>
+  <tex-math><![CDATA[\approx 100 \times]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mo>≈</mml:mo><mml:mn>100</mml:mn><mml:mo>×</mml:mo></mml:mrow></mml:math></alternatives></inline-formula>
+  per parameter set compared with SNCosmo) while matching fluxes to
+  within 0.001%
+  (<xref alt="Leeney et al., 2025" rid="ref-leeney2025anomaly" ref-type="bibr">Leeney
+  et al., 2025</xref>), enabling fast evaluation of large, fused
+  likelihoods.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p>Accurate estimation of supernova flux is essential in cosmological
+  studies. These measurements are fundamental to the calibration of
+  standard candles and subsequent distance determinations, which are
+  used to answer cosmological questions (e.g., the rate of expansion of
+  the Universe). Existing packages such as SNCosmo
+  (<xref alt="Barbary et al., 2016" rid="ref-barbary2016sncosmo" ref-type="bibr">Barbary
+  et al., 2016</xref>) are widely used for analysing supernova data.
+  However, traditional implementations are not designed to run on GPUs
+  and they lack differentiability. A differentiable approach enables
+  efficient gradient propagation during parameter optimisation.
+  Additionally, JAX’s compilation model supports large-scale parallel
+  computations on modern hardware such as GPUs. This JAX implementation
+  addresses these requirements by providing differentiable,
+  parallelisable routines for SALT parameter extraction.</p>
+</sec>
+<sec id="implementation">
+  <title>Implementation</title>
+  <p>The package is structured into several modules and example scripts
+  that demonstrate various aspects of the supernova modelling workflow.
+  Two primary example scripts, <monospace>fmin_bfgs.py</monospace> and
+  <monospace>ns.py</monospace>, illustrate optimisation via L-BFGS-B and
+  nested sampling respectively. These scripts utilise core routines from
+  the JAX modules, following a structure similar to SNCosmo while
+  enabling differentiability and GPU acceleration. The central
+  computation is contained in the file <monospace>salt3.py</monospace>,
+  which implements the SALT3 model.</p>
+  <p>The SALT model is of the form: <disp-formula><alternatives>
+  <tex-math><![CDATA[
+  F(p, \lambda) = x_0 \left[ M_0(p, \lambda) + x_1 M_1(p, \lambda) + \ldots \right] \times \exp \left[ c \times CL(\lambda) \right]
+  ]]></tex-math>
+  <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>F</mml:mi><mml:mo stretchy="false" form="prefix">(</mml:mo><mml:mi>p</mml:mi><mml:mo>,</mml:mo><mml:mi>λ</mml:mi><mml:mo stretchy="false" form="postfix">)</mml:mo><mml:mo>=</mml:mo><mml:msub><mml:mi>x</mml:mi><mml:mn>0</mml:mn></mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">[</mml:mo><mml:msub><mml:mi>M</mml:mi><mml:mn>0</mml:mn></mml:msub><mml:mo stretchy="false" form="prefix">(</mml:mo><mml:mi>p</mml:mi><mml:mo>,</mml:mo><mml:mi>λ</mml:mi><mml:mo stretchy="false" form="postfix">)</mml:mo><mml:mo>+</mml:mo><mml:msub><mml:mi>x</mml:mi><mml:mn>1</mml:mn></mml:msub><mml:msub><mml:mi>M</mml:mi><mml:mn>1</mml:mn></mml:msub><mml:mo stretchy="false" form="prefix">(</mml:mo><mml:mi>p</mml:mi><mml:mo>,</mml:mo><mml:mi>λ</mml:mi><mml:mo stretchy="false" form="postfix">)</mml:mo><mml:mo>+</mml:mo><mml:mi>…</mml:mi><mml:mo stretchy="true" form="postfix">]</mml:mo></mml:mrow><mml:mo>×</mml:mo><mml:mi>exp</mml:mi><mml:mo>&#8289;</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">[</mml:mo><mml:mi>c</mml:mi><mml:mo>×</mml:mo><mml:mi>C</mml:mi><mml:mi>L</mml:mi><mml:mo stretchy="false" form="prefix">(</mml:mo><mml:mi>λ</mml:mi><mml:mo stretchy="false" form="postfix">)</mml:mo><mml:mo stretchy="true" form="postfix">]</mml:mo></mml:mrow></mml:mrow></mml:math></alternatives></disp-formula>
+  where free parameters are: <inline-formula><alternatives>
+  <tex-math><![CDATA[x_0]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>x</mml:mi><mml:mn>0</mml:mn></mml:msub></mml:math></alternatives></inline-formula>,
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[x_1]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>x</mml:mi><mml:mn>1</mml:mn></mml:msub></mml:math></alternatives></inline-formula>,
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[t_0]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>t</mml:mi><mml:mn>0</mml:mn></mml:msub></mml:math></alternatives></inline-formula>,
+  and <inline-formula><alternatives>
+  <tex-math><![CDATA[c]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>c</mml:mi></mml:math></alternatives></inline-formula>.
+  Model surface parameters are: <inline-formula><alternatives>
+  <tex-math><![CDATA[M_0(p, \lambda)]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>M</mml:mi><mml:mn>0</mml:mn></mml:msub><mml:mo stretchy="false" form="prefix">(</mml:mo><mml:mi>p</mml:mi><mml:mo>,</mml:mo><mml:mi>λ</mml:mi><mml:mo stretchy="false" form="postfix">)</mml:mo></mml:mrow></mml:math></alternatives></inline-formula>
+  and <inline-formula><alternatives>
+  <tex-math><![CDATA[M_1(p, \lambda)]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>M</mml:mi><mml:mn>1</mml:mn></mml:msub><mml:mo stretchy="false" form="prefix">(</mml:mo><mml:mi>p</mml:mi><mml:mo>,</mml:mo><mml:mi>λ</mml:mi><mml:mo stretchy="false" form="postfix">)</mml:mo></mml:mrow></mml:math></alternatives></inline-formula>
+  are functions that describe the underlying flux surfaces, and
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[p]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>p</mml:mi></mml:math></alternatives></inline-formula>
+  is a function of redshift and <inline-formula><alternatives>
+  <tex-math><![CDATA[t-2]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>t</mml:mi><mml:mo>−</mml:mo><mml:mn>2</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>.</p>
+  <p>The computation of the bandflux is achieved by integrating the
+  model flux across the applied bandpass filters. Combining multiple
+  bands, the bandflux is defined as: <disp-formula><alternatives>
+  <tex-math><![CDATA[
+  \text{bandflux} = \int_{\lambda_\text{min}}^{\lambda_\text{max}} F(\lambda) \cdot T(\lambda) \cdot \frac{\lambda}{hc} \, {\mathrm d}\lambda
+  ]]></tex-math>
+  <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mtext mathvariant="normal">bandflux</mml:mtext><mml:mo>=</mml:mo><mml:msubsup><mml:mo>∫</mml:mo><mml:msub><mml:mi>λ</mml:mi><mml:mtext mathvariant="normal">min</mml:mtext></mml:msub><mml:msub><mml:mi>λ</mml:mi><mml:mtext mathvariant="normal">max</mml:mtext></mml:msub></mml:msubsup><mml:mi>F</mml:mi><mml:mo stretchy="false" form="prefix">(</mml:mo><mml:mi>λ</mml:mi><mml:mo stretchy="false" form="postfix">)</mml:mo><mml:mo>⋅</mml:mo><mml:mi>T</mml:mi><mml:mo stretchy="false" form="prefix">(</mml:mo><mml:mi>λ</mml:mi><mml:mo stretchy="false" form="postfix">)</mml:mo><mml:mo>⋅</mml:mo><mml:mfrac><mml:mi>λ</mml:mi><mml:mrow><mml:mi>h</mml:mi><mml:mi>c</mml:mi></mml:mrow></mml:mfrac><mml:mspace width="0.167em"></mml:mspace><mml:mi mathvariant="normal">d</mml:mi><mml:mi>λ</mml:mi></mml:mrow></mml:math></alternatives></disp-formula>
+  Here, <inline-formula><alternatives>
+  <tex-math><![CDATA[T(\lambda)]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>T</mml:mi><mml:mo stretchy="false" form="prefix">(</mml:mo><mml:mi>λ</mml:mi><mml:mo stretchy="false" form="postfix">)</mml:mo></mml:mrow></mml:math></alternatives></inline-formula>
+  is the transmission function specific to the bandpass filter used;
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[h]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>h</mml:mi></mml:math></alternatives></inline-formula>
+  and <inline-formula><alternatives>
+  <tex-math><![CDATA[c]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>c</mml:mi></mml:math></alternatives></inline-formula>
+  are the Planck constant and the speed of light respectively.</p>
+  <p>Within <monospace>salt3.py</monospace>, the implementation computes
+  the rest-frame model flux by combining the base spectral surface
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[M_0(p, \lambda)]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>M</mml:mi><mml:mn>0</mml:mn></mml:msub><mml:mo stretchy="false" form="prefix">(</mml:mo><mml:mi>p</mml:mi><mml:mo>,</mml:mo><mml:mi>λ</mml:mi><mml:mo stretchy="false" form="postfix">)</mml:mo></mml:mrow></mml:math></alternatives></inline-formula>
+  with the stretch-modulated variation <inline-formula><alternatives>
+  <tex-math><![CDATA[M_1(p, \lambda)]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>M</mml:mi><mml:mn>1</mml:mn></mml:msub><mml:mo stretchy="false" form="prefix">(</mml:mo><mml:mi>p</mml:mi><mml:mo>,</mml:mo><mml:mi>λ</mml:mi><mml:mo stretchy="false" form="postfix">)</mml:mo></mml:mrow></mml:math></alternatives></inline-formula>,
+  each scaled by their respective SALT parameters. These operations
+  utilise JAX’s vectorised array manipulations, which are JIT-compiled
+  for efficient, parallel execution on GPUs. The resulting flux is
+  computed in a fully differentiable manner. The computed flux is then
+  multiplied by the instrument’s transmission function
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[T(\lambda)]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>T</mml:mi><mml:mo stretchy="false" form="prefix">(</mml:mo><mml:mi>λ</mml:mi><mml:mo stretchy="false" form="postfix">)</mml:mo></mml:mrow></mml:math></alternatives></inline-formula>
+  and by the wavelength factor <inline-formula><alternatives>
+  <tex-math><![CDATA[\lambda/(hc)]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>λ</mml:mi><mml:mi>/</mml:mi><mml:mo stretchy="false" form="prefix">(</mml:mo><mml:mi>h</mml:mi><mml:mi>c</mml:mi><mml:mo stretchy="false" form="postfix">)</mml:mo></mml:mrow></mml:math></alternatives></inline-formula>,
+  followed by trapezoidal integration along the wavelength dimension
+  using JAX’s numerical integration capabilities. These operations are
+  also JIT-compiled and can be parallelised across multiple data
+  instances via <monospace>vmap</monospace>.</p>
+  <p>The package includes comprehensive bandpass filter handling through
+  the <monospace>bandpasses.py</monospace> module, which provides a
+  <monospace>Bandpass</monospace> class to represent filter transmission
+  functions. A set of commonly used astronomical filters is
+  pre-integrated into the system, whilst additional custom bandpasses
+  can be registered as needed through functions such as
+  <monospace>register_bandpass</monospace> and
+  <monospace>load_bandpass_from_file</monospace>. The system also
+  facilitates the creation of bandpass objects from the Spanish Virtual
+  Observatory (SVO) filter service. For data handling, the
+  <monospace>data.py</monospace> module offers utilities for loading and
+  processing supernova observations from various formats, including
+  functions to handle redshift data and prepare it for model fitting.
+  The package currently supports both SALT3 and SALT3-NIR models through
+  dedicated interpolation routines found in
+  <monospace>salt3.py</monospace>.</p>
+  <p>This architecture allows gradient propagation through the entire
+  analysis pipeline, enabling techniques that benefit from JAX’s
+  differentiable, parallelisable programming paradigm. The
+  implementation maintains functional parity with SNCosmo whilst
+  providing an enhanced computational efficiency and scalability for
+  contemporary cosmological analyses.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <title></title>
+  <ref id="ref-barbary2016sncosmo">
+    <element-citation publication-type="software">
+      <person-group person-group-type="author">
+        <name><surname>Barbary</surname><given-names>Kyle</given-names></name>
+        <name><surname>Barclay</surname><given-names>Tom</given-names></name>
+        <name><surname>Biswas</surname><given-names>Rahul</given-names></name>
+        <name><surname>Craig</surname><given-names>Matt</given-names></name>
+        <name><surname>Feindt</surname><given-names>Ulrich</given-names></name>
+        <name><surname>Friesen</surname><given-names>Brian</given-names></name>
+        <name><surname>Goldstein</surname><given-names>Danny</given-names></name>
+        <name><surname>Jha</surname><given-names>Saurabh</given-names></name>
+        <name><surname>Rodney</surname><given-names>Steve</given-names></name>
+        <name><surname>Sofiatti</surname><given-names>Caroline</given-names></name>
+        <name><surname>Thomas</surname><given-names>Rollin C.</given-names></name>
+        <name><surname>Wood-Vasey</surname><given-names>Michael</given-names></name>
+      </person-group>
+      <article-title>SNCosmo: Python library for supernova cosmology</article-title>
+      <publisher-name>Astrophysics Source Code Library, record ascl:1611.017</publisher-name>
+      <year iso-8601-date="2016-11">2016</year><month>11</month>
+    </element-citation>
+  </ref>
+  <ref id="ref-jax2018github">
+    <element-citation publication-type="software">
+      <person-group person-group-type="author">
+        <name><surname>Bradbury</surname><given-names>James</given-names></name>
+        <name><surname>Frostig</surname><given-names>Roy</given-names></name>
+        <name><surname>Hawkins</surname><given-names>Peter</given-names></name>
+        <name><surname>Johnson</surname><given-names>Matthew James</given-names></name>
+        <name><surname>Leary</surname><given-names>Chris</given-names></name>
+        <name><surname>Maclaurin</surname><given-names>Dougal</given-names></name>
+        <name><surname>Necula</surname><given-names>George</given-names></name>
+        <name><surname>Paszke</surname><given-names>Adam</given-names></name>
+        <name><surname>VanderPlas</surname><given-names>Jake</given-names></name>
+        <name><surname>Wanderman-Milne</surname><given-names>Skye</given-names></name>
+        <name><surname>Zhang</surname><given-names>Qiao</given-names></name>
+      </person-group>
+      <article-title>JAX: Composable transformations of Python+NumPy programs</article-title>
+      <year iso-8601-date="2018">2018</year>
+      <uri>http://github.com/jax-ml/jax</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-kenworthy2021salt3">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Kenworthy</surname><given-names>W. D.</given-names></name>
+        <name><surname>Jones</surname><given-names>D. O.</given-names></name>
+        <name><surname>Dai</surname><given-names>M.</given-names></name>
+        <name><surname>Kessler</surname><given-names>R.</given-names></name>
+        <name><surname>Scolnic</surname><given-names>D.</given-names></name>
+        <name><surname>Brout</surname><given-names>D.</given-names></name>
+        <name><surname>Siebert</surname><given-names>M. R.</given-names></name>
+        <name><surname>Pierel</surname><given-names>J. D. R.</given-names></name>
+        <name><surname>Dettman</surname><given-names>K. G.</given-names></name>
+        <name><surname>Dimitriadis</surname><given-names>G.</given-names></name>
+        <name><surname>Foley</surname><given-names>R. J.</given-names></name>
+        <name><surname>Jha</surname><given-names>S. W.</given-names></name>
+        <name><surname>Pan</surname><given-names>Y.-C.</given-names></name>
+        <name><surname>Riess</surname><given-names>A.</given-names></name>
+        <name><surname>Rodney</surname><given-names>S.</given-names></name>
+        <name><surname>Rojas-Bravo</surname><given-names>C.</given-names></name>
+      </person-group>
+      <article-title>SALT3: An improved Type Ia supernova model for measuring cosmic distances</article-title>
+      <source></source>
+      <year iso-8601-date="2021-12">2021</year><month>12</month>
+      <volume>923</volume>
+      <issue>2</issue>
+      <uri>https://arxiv.org/abs/2104.07795</uri>
+      <pub-id pub-id-type="doi">10.3847/1538-4357/ac30d8</pub-id>
+      <fpage>265</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-pierel2022salt3">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Pierel</surname><given-names>J. D. R.</given-names></name>
+        <name><surname>Jones</surname><given-names>D. O.</given-names></name>
+        <name><surname>Kenworthy</surname><given-names>W. D.</given-names></name>
+        <name><surname>Dai</surname><given-names>M.</given-names></name>
+        <name><surname>Kessler</surname><given-names>R.</given-names></name>
+        <name><surname>Ashall</surname><given-names>C.</given-names></name>
+        <name><surname>Do</surname><given-names>A.</given-names></name>
+        <name><surname>Peterson</surname><given-names>E. R.</given-names></name>
+        <name><surname>Shappee</surname><given-names>B. J.</given-names></name>
+        <name><surname>Siebert</surname><given-names>M. R.</given-names></name>
+        <name><surname>Barna</surname><given-names>T.</given-names></name>
+        <name><surname>Brink</surname><given-names>T. G.</given-names></name>
+        <name><surname>Burke</surname><given-names>J.</given-names></name>
+        <name><surname>Calamida</surname><given-names>A.</given-names></name>
+        <name><surname>Camacho-Neves</surname><given-names>Y.</given-names></name>
+        <name><surname>de Jaeger</surname><given-names>T.</given-names></name>
+        <name><surname>Filippenko</surname><given-names>A. V.</given-names></name>
+        <name><surname>Foley</surname><given-names>R. J.</given-names></name>
+        <name><surname>Galbany</surname><given-names>L.</given-names></name>
+        <name><surname>Fox</surname><given-names>O. D.</given-names></name>
+        <name><surname>Gomez</surname><given-names>S.</given-names></name>
+        <name><surname>Hiramatsu</surname><given-names>D.</given-names></name>
+        <name><surname>Hounsell</surname><given-names>R.</given-names></name>
+        <name><surname>Howell</surname><given-names>D. A.</given-names></name>
+        <name><surname>Jha</surname><given-names>S. W.</given-names></name>
+        <name><surname>Kwok</surname><given-names>L. A.</given-names></name>
+        <name><surname>Pérez-Fournon</surname><given-names>I.</given-names></name>
+        <name><surname>Poidevin</surname><given-names>F.</given-names></name>
+        <name><surname>Rest</surname><given-names>A.</given-names></name>
+        <name><surname>Rubin</surname><given-names>D.</given-names></name>
+        <name><surname>Scolnic</surname><given-names>D. M.</given-names></name>
+        <name><surname>Shirley</surname><given-names>R.</given-names></name>
+        <name><surname>Strolger</surname><given-names>L. G.</given-names></name>
+        <name><surname>Tinyanont</surname><given-names>S.</given-names></name>
+        <name><surname>Wang</surname><given-names>Q.</given-names></name>
+      </person-group>
+      <article-title>SALT3-NIR: Taking the open-source Type Ia supernova model to longer wavelengths for next-generation cosmological measurements</article-title>
+      <source></source>
+      <year iso-8601-date="2022-11">2022</year><month>11</month>
+      <volume>939</volume>
+      <issue>1</issue>
+      <uri>https://arxiv.org/abs/2209.05594</uri>
+      <pub-id pub-id-type="doi">10.3847/1538-4357/ac93f9</pub-id>
+      <fpage>11</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-leeney2025anomaly">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Leeney</surname><given-names>S. A. K.</given-names></name>
+        <name><surname>Handley</surname><given-names>W. J.</given-names></name>
+        <name><surname>Bevins</surname><given-names>H. T. J.</given-names></name>
+        <name><surname>de Lera Acedo</surname><given-names>E.</given-names></name>
+      </person-group>
+      <article-title>Bayesian anomaly detection for Ia cosmology: Automating SALT3 data curation</article-title>
+      <source>arXiv preprint arXiv:2509.13394</source>
+      <year iso-8601-date="2025">2025</year>
+      <pub-id pub-id-type="doi">10.48550/arXiv.2509.13394</pub-id>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
