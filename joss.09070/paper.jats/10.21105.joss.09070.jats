@@ -1,0 +1,534 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">9070</article-id>
+<article-id pub-id-type="doi">10.21105/joss.09070</article-id>
+<title-group>
+<article-title>biodiscvr: Biomarker Discovery Using Composite Value
+Ratios</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0002-7612-5331</contrib-id>
+<name>
+<surname>Llorente-Saguer</surname>
+<given-names>Isaac</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<contrib contrib-type="author" corresp="yes">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0003-0203-3909</contrib-id>
+<name>
+<surname>Oxtoby</surname>
+<given-names>Neil P.</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+<xref ref-type="corresp" rid="cor-1"><sup>*</sup></xref>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>UCL Hawkes Institute and Department of Computer Science,
+University College London, United Kingdom</institution>
+<institution-id institution-id-type="ROR">02jx3x895</institution-id>
+</institution-wrap>
+</aff>
+</contrib-group>
+<author-notes>
+<corresp id="cor-1">* E-mail: <email></email></corresp>
+</author-notes>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2025-05-20">
+<day>20</day>
+<month>5</month>
+<year>2025</year>
+</pub-date>
+<volume>11</volume>
+<issue>118</issue>
+<fpage>9070</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2026</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>R</kwd>
+<kwd>biomarkers</kwd>
+<kwd>neuroimaging</kwd>
+<kwd>Alzheimer's disease</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p><bold>biodiscvr</bold> provides a framework for discovering and
+  evaluating optimised biomarkers defined as ratios of composite values
+  derived from feature sets (e.g., regional measurements from imaging
+  data). The conceptual approach is domain‑agnostic, but the current
+  implementation is tailored to Alzheimer’s disease (AD) research,
+  reflecting the motivating use cases that guided its development. As
+  such, several preprocessing utilities, expected variable names, and
+  default assumptions correspond to common AD datasets (e.g., cognitive
+  status groupings, amyloid/tau measures, and region‑of‑interest
+  conventions).</p>
+  <p>The core functionality utilises a Genetic Algorithm (GA) to search
+  the feature space for optimal numerator and denominator combinations
+  based on biomarker performance metrics calculated using linear
+  mixed‑effects models (Group Separation, Sample Size Estimates).</p>
+  <p>The framework allows users to define inclusion criteria (in
+  <monospace>config.yaml</monospace> or overriding workflow functions),
+  preprocess data, run the discovery workflow, perform regional ablation
+  analyses, and evaluate lists of biomarkers (including those discovered
+  by the algorithm) across multiple datasets. Although the current
+  release is AD‑focused, the architecture is designed to support future
+  extensions toward more domain‑agnostic workflows.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p>A <bold>composite value ratio (CVR)</bold>
+  (<xref alt="Saguer et al., 2022" rid="ref-saguer2022composite" ref-type="bibr">Saguer
+  et al., 2022</xref>) is defined as the ratio between two composite
+  aggregations of features. This concept is widely used in neuroimaging,
+  where shared confounding factors (such as global signal intensity or
+  individual variations in tracer pharmacokinetics) can partially cancel
+  out when using ratios, thereby revealing more robust biological
+  signals. Traditionally, these ratios (e.g., the Standardised Uptake
+  Value ratio in PET) are determined based on expert knowledge and
+  manual selection of target and reference regions.</p>
+  <p>While standard feature selection frameworks (e.g., those
+  implementing Lasso or Elastic Net regularisation) are effective for
+  identifying individual predictors in linear models, they are not
+  designed to explore the combinatorial and symbolic space of feature
+  groupings and ratios. Exhaustive search of all possible CVR
+  combinations is computationally unfeasible; for a typical neuroimaging
+  template with 100 regions (or features), the search space for possible
+  ratios exceeds <inline-formula><alternatives>
+  <tex-math><![CDATA[10^{46}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msup><mml:mn>10</mml:mn><mml:mn>46</mml:mn></mml:msup></mml:math></alternatives></inline-formula>
+  combinations. <monospace>biodiscvr</monospace> addresses this by
+  providing an automated exploratory framework to discover
+  high-performing CVRs tailored to specific clinical or research
+  objectives, such as maximising group separation or minimising sample
+  size requirements Llorente-Saguer &amp; Oxtoby
+  (<xref alt="2026" rid="ref-llorente2026enhanced" ref-type="bibr">2026</xref>).</p>
+  <p>A novel contribution of this implementation is the introduction of
+  <bold>multicohort regularisation</bold> (see Methods). Traditionally,
+  biomarker discovery is performed on single datasets or pooled data.
+  Pooling often requires intensive data harmonisation to mitigate batch
+  effects and can lead to models that overfit to the most prevalent data
+  structure. <monospace>biodiscvr</monospace> advances the CVR framework
+  by treating independent datasets as separate entities during
+  optimisation. By calculating a composite fitness (objective metric)
+  across these datasets without requiring data merging, the framework
+  prioritises biomarkers that perform consistently across diverse
+  populations. This approach ensures that the resulting biomarkers are
+  not only statistically significant but also robust and
+  generalisable.</p>
+  <p>The current implementation of biodiscvr leverages several
+  established R packages to manage its core components. The GA package
+  (<xref alt="Scrucca, 2016" rid="ref-scrucca2016some" ref-type="bibr">Scrucca,
+  2016</xref>) serves as the default exploratory engine. While the
+  genetic algorithm provides an efficient means of navigating the
+  high-dimensional feature space, the framework is designed to be
+  modular, allowing for the future integration of alternative
+  optimisation strategies. Statistical evaluation is conducted using
+  lme4
+  (<xref alt="Bates et al., 2015" rid="ref-lme4" ref-type="bibr">Bates
+  et al., 2015</xref>), which fits linear mixed-effects models to assess
+  the biomarkers, while lmmpower
+  (<xref alt="Iddi &amp; Donohue, 2022" rid="ref-longpower" ref-type="bibr">Iddi
+  &amp; Donohue, 2022</xref>) calculates the sample size requirements
+  for hypothetical clinical trials based on these models.</p>
+</sec>
+<sec id="software-architecture-and-workflow">
+  <title>Software Architecture and Workflow</title>
+  <p><monospace>biodiscvr</monospace> is implemented as a modular R
+  pipeline designed to handle the logistical and computational
+  complexities of multi-cohort biomarker discovery. The framework is
+  structured into four functional layers that manage the transition from
+  raw data to optimised, parsimonious biomarkers:</p>
+  <sec id="configuration-and-parameter-control">
+    <title>1. Configuration and Parameter Control</title>
+    <p>The workflow is entirely parameter-driven via a central
+    <monospace>config.yaml</monospace> file. This file defines the
+    search space (feature sets), statistical parameters (power, effect
+    size), and Genetic Algorithm (GA) constraints. This decoupling of
+    logic from parameters ensures that experiments are reproducible and
+    allows the same discovery engine to be applied to different disease
+    domains by simply modifying the configuration schema.</p>
+  </sec>
+  <sec id="data-harmonisation-layer">
+    <title>2. Data Harmonisation Layer</title>
+    <p>To facilitate multi-cohort analysis without data merging, the
+    package provides utilities for automated data preparation. The
+    <monospace>load_datasets()</monospace> and
+    <monospace>preprocess_data()</monospace> functions use
+    dictionary-based matching to resolve naming inconsistencies across
+    independent sites (e.g., mapping heterogeneous regional labels to a
+    standard template). This layer ensures that the discovery engine
+    operates on harmonised data structures while preserving the unique
+    statistical properties of each original cohort.</p>
+  </sec>
+  <sec id="the-discovery-engine">
+    <title>3. The Discovery Engine</title>
+    <p>The core discovery process is managed by
+    <monospace>run_experiments()</monospace>, which manages
+    single-cohort or multi-cohort optimisation runs. This function
+    interfaces with the <monospace>GA</monospace> package to navigate
+    the high-dimensional feature space. In each generation of the
+    search, candidate biomarkers are passed to an internal evaluation
+    loop that fits linear mixed-effects models (via
+    <monospace>lme4</monospace>) and calculates clinical utility metrics
+    (via <monospace>lmmpower</monospace>). The multicohort consensus
+    logic (see <italic>Methods</italic>) is then applied to aggregate
+    these metrics into a single fitness score.</p>
+  </sec>
+  <sec id="evaluation-and-parsimony-refinement">
+    <title>4. Evaluation and Parsimony Refinement</title>
+    <p>Beyond the initial discovery, the framework includes tools for
+    post-hoc validation and refinement. The
+    <monospace>run_ablation()</monospace> function performs a systematic
+    “feature removal” analysis on discovered biomarkers. This process
+    identifies the marginal contribution of each region to the overall
+    fitness, allowing the user to simplify complex feature sets into
+    more parsimonious biomarkers without a significant loss in
+    statistical power. Finally,
+    <monospace>evaluate_biomarkers()</monospace> allows for the
+    standardised testing of these results across independent “hold-out”
+    datasets to confirm generalisability.</p>
+  </sec>
+</sec>
+<sec id="methods">
+  <title>Methods</title>
+  <p>The core of <monospace>biodiscvr</monospace> is a heuristic search
+  for an optimal feature set (biomarker) that minimises an objective
+  function across <inline-formula><alternatives>
+  <tex-math><![CDATA[K]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>K</mml:mi></mml:math></alternatives></inline-formula>
+  independent cohorts. The framework treats biomarker discovery as a
+  multi-objective optimisation problem and transforms it into a
+  single-objective search via a consensus fitness function.</p>
+  <sec id="individual-cohort-metrics">
+    <title>Individual Cohort Metrics</title>
+    <p>For each cohort <inline-formula><alternatives>
+    <tex-math><![CDATA[i]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>i</mml:mi></mml:math></alternatives></inline-formula>,
+    the framework fits a linear mixed-effects model to the
+    log-transformed candidate biomarker
+    (<xref alt="Saguer et al., 2022" rid="ref-saguer2022composite" ref-type="bibr">Saguer
+    et al., 2022</xref>). The discovery process is guided by two primary
+    statistical metrics:</p>
+    <list list-type="order">
+      <list-item>
+        <p><bold>Sample Size (<inline-formula><alternatives>
+        <tex-math><![CDATA[N]]></tex-math>
+        <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>N</mml:mi></mml:math></alternatives></inline-formula>):</bold>
+        The estimated <inline-formula><alternatives>
+        <tex-math><![CDATA[N]]></tex-math>
+        <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>N</mml:mi></mml:math></alternatives></inline-formula>
+        required for a hypothetical clinical trial to detect a
+        predefined change. Parameters (e.g., 80% power, 20% effect size)
+        are defined in the <monospace>config.yaml</monospace> file.</p>
+      </list-item>
+      <list-item>
+        <p><bold>Group Separation (<inline-formula><alternatives>
+        <tex-math><![CDATA[t]]></tex-math>
+        <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>t</mml:mi></mml:math></alternatives></inline-formula>):</bold>
+        The <inline-formula><alternatives>
+        <tex-math><![CDATA[t]]></tex-math>
+        <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>t</mml:mi></mml:math></alternatives></inline-formula>-statistic
+        associated with the fixed effect of a binary group (e.g.,
+        amyloid status).</p>
+      </list-item>
+    </list>
+    <p>These are combined into a scalar fitness value
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[f_i = t/N]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>f</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mo>=</mml:mo><mml:mi>t</mml:mi><mml:mi>/</mml:mi><mml:mi>N</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>.
+    To avoid a state where the algorithm cannot improve sample size
+    without sacrificing group separation (Pareto frontier), the
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[t]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>t</mml:mi></mml:math></alternatives></inline-formula>-statistic
+    is truncated at a saturation point (defaulting to 2.6, or
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[p \approx 0.005]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>p</mml:mi><mml:mo>≈</mml:mo><mml:mn>0.005</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>).
+    This allows the optimiser to prioritise the reduction of
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[N]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>N</mml:mi></mml:math></alternatives></inline-formula>
+    once a sufficient threshold of statistical significance is
+    reached.</p>
+  </sec>
+  <sec id="multicohort-regularisation">
+    <title>Multicohort Regularisation</title>
+    <p>To identify biomarkers that generalise across populations without
+    merging datasets (thus avoiding batch effects),
+    <monospace>biodiscvr</monospace> treats the fitness scores from
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[K]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>K</mml:mi></mml:math></alternatives></inline-formula>
+    cohorts as a vector <inline-formula><alternatives>
+    <tex-math><![CDATA[\mathbf{F} = [f_1, f_2, \dots, f_K]]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>𝐅</mml:mi><mml:mo>=</mml:mo><mml:mo stretchy="false" form="prefix">[</mml:mo><mml:msub><mml:mi>f</mml:mi><mml:mn>1</mml:mn></mml:msub><mml:mo>,</mml:mo><mml:msub><mml:mi>f</mml:mi><mml:mn>2</mml:mn></mml:msub><mml:mo>,</mml:mo><mml:mi>…</mml:mi><mml:mo>,</mml:mo><mml:msub><mml:mi>f</mml:mi><mml:mi>K</mml:mi></mml:msub><mml:mo stretchy="false" form="postfix">]</mml:mo></mml:mrow></mml:math></alternatives></inline-formula>.
+    The global fitness <inline-formula><alternatives>
+    <tex-math><![CDATA[G]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>G</mml:mi></mml:math></alternatives></inline-formula>
+    is calculated using the product of absolute individual fitnesses, an
+    angular penalty, and a directional sign:</p>
+    <p><disp-formula><alternatives>
+    <tex-math><![CDATA[G = s \cdot \left( \prod_{i=1}^{K} |f_i| \right) \cdot \cos^2(\theta)]]></tex-math>
+    <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>G</mml:mi><mml:mo>=</mml:mo><mml:mi>s</mml:mi><mml:mo>⋅</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:munderover><mml:mo>∏</mml:mo><mml:mrow><mml:mi>i</mml:mi><mml:mo>=</mml:mo><mml:mn>1</mml:mn></mml:mrow><mml:mi>K</mml:mi></mml:munderover><mml:mo stretchy="false" form="prefix">|</mml:mo><mml:msub><mml:mi>f</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mo stretchy="false" form="prefix">|</mml:mo><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow><mml:mo>⋅</mml:mo><mml:msup><mml:mi>cos</mml:mi><mml:mo>&#8289;</mml:mo><mml:mn>2</mml:mn></mml:msup><mml:mo stretchy="false" form="prefix">(</mml:mo><mml:mi>θ</mml:mi><mml:mo stretchy="false" form="postfix">)</mml:mo></mml:mrow></mml:math></alternatives></disp-formula></p>
+    <p>Where <inline-formula><alternatives>
+    <tex-math><![CDATA[\theta]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>θ</mml:mi></mml:math></alternatives></inline-formula>
+    (<xref alt="Llorente-Saguer et al., 2025" rid="ref-llorente2025theta" ref-type="bibr">Llorente-Saguer
+    et al., 2025</xref>) is the angle between the fitness vector
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[\mathbf{F}]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>𝐅</mml:mi></mml:math></alternatives></inline-formula>
+    and a <bold>reference direction vector</bold>
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[\mathbf{R}]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>𝐑</mml:mi></mml:math></alternatives></inline-formula>,
+    and <inline-formula><alternatives>
+    <tex-math><![CDATA[s]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>s</mml:mi></mml:math></alternatives></inline-formula>
+    represents the directional consistency.</p>
+    <list list-type="bullet">
+      <list-item>
+        <p><bold>Product-based Aggregation:</bold> By using the product
+        of fitnesses rather than the sum, the framework ensures that a
+        biomarker must perform well across <italic>all</italic> cohorts.
+        A low performance in any single cohort will heavily penalise the
+        global score.</p>
+      </list-item>
+      <list-item>
+        <p><bold>Reference Direction (<inline-formula><alternatives>
+        <tex-math><![CDATA[\mathbf{R}]]></tex-math>
+        <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>𝐑</mml:mi></mml:math></alternatives></inline-formula>):</bold>
+        This vector represents the desired balance of performance across
+        cohorts. While it can be a vector of ones
+        <inline-formula><alternatives>
+        <tex-math><![CDATA[[1, 1, \dots, 1]]]></tex-math>
+        <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mo stretchy="false" form="prefix">[</mml:mo><mml:mn>1</mml:mn><mml:mo>,</mml:mo><mml:mn>1</mml:mn><mml:mo>,</mml:mo><mml:mi>…</mml:mi><mml:mo>,</mml:mo><mml:mn>1</mml:mn><mml:mo stretchy="false" form="postfix">]</mml:mo></mml:mrow></mml:math></alternatives></inline-formula>,
+        the framework defaults to the single best performance achieved
+        per cohort, defining an adaptable performance ceiling.</p>
+      </list-item>
+      <list-item>
+        <p><bold>Angular Penalty (<inline-formula><alternatives>
+        <tex-math><![CDATA[\cos^2\theta]]></tex-math>
+        <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msup><mml:mi>cos</mml:mi><mml:mo>&#8289;</mml:mo><mml:mn>2</mml:mn></mml:msup><mml:mi>θ</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>):</bold>
+        This term penalises candidate biomarkers with high angular
+        deviation from the reference, effectively enforcing consensus
+        across cohorts (i.e., avoiding overfitting to a subset of
+        cohorts).</p>
+      </list-item>
+      <list-item>
+        <p><bold>Directional Sign (<inline-formula><alternatives>
+        <tex-math><![CDATA[s]]></tex-math>
+        <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>s</mml:mi></mml:math></alternatives></inline-formula>):</bold>
+        To ensure biological validity, <inline-formula><alternatives>
+        <tex-math><![CDATA[s]]></tex-math>
+        <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>s</mml:mi></mml:math></alternatives></inline-formula>
+        is set to <inline-formula><alternatives>
+        <tex-math><![CDATA[1]]></tex-math>
+        <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mn>1</mml:mn></mml:math></alternatives></inline-formula>
+        only if all individual cohort fitnesses
+        <inline-formula><alternatives>
+        <tex-math><![CDATA[f_i]]></tex-math>
+        <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>f</mml:mi><mml:mi>i</mml:mi></mml:msub></mml:math></alternatives></inline-formula>
+        are positive. If any <inline-formula><alternatives>
+        <tex-math><![CDATA[f_i < 0]]></tex-math>
+        <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>f</mml:mi><mml:mi>i</mml:mi></mml:msub><mml:mo>&lt;</mml:mo><mml:mn>0</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>
+        (indicating a reversed effect direction),
+        <inline-formula><alternatives>
+        <tex-math><![CDATA[s]]></tex-math>
+        <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>s</mml:mi></mml:math></alternatives></inline-formula>
+        is set to <inline-formula><alternatives>
+        <tex-math><![CDATA[-1]]></tex-math>
+        <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>−</mml:mi><mml:mn>1</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>.</p>
+      </list-item>
+    </list>
+  </sec>
+  <sec id="optimisation-strategy">
+    <title>Optimisation Strategy</title>
+    <p>The framework navigates the combinatorial space of feature ratios
+    and groupings using an exploratory search algorithm, currently
+    implemented via a Genetic Algorithm. The use of the directional sign
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[s]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>s</mml:mi></mml:math></alternatives></inline-formula>
+    creates a “hard barrier” in the search space, guiding the algorithm
+    away from invalid solutions. This approach enables the discovery of
+    complex, multi-feature biomarkers that are robust across
+    heterogeneous datasets and would be computationally intractable to
+    identify via exhaustive search.</p>
+  </sec>
+</sec>
+<sec id="citations">
+  <title>Citations</title>
+  <p>This package builds upon the methodologies described in
+  (<xref alt="Llorente-Saguer &amp; Oxtoby, 2024" rid="ref-llorente2024" ref-type="bibr">Llorente-Saguer
+  &amp; Oxtoby, 2024</xref>), and later expanded on
+  (<xref alt="Llorente-Saguer &amp; Oxtoby, 2026" rid="ref-llorente2026enhanced" ref-type="bibr">Llorente-Saguer
+  &amp; Oxtoby, 2026</xref>). The multicohort analysis has been possible
+  thanks to theta
+  (<xref alt="Llorente-Saguer et al., 2025" rid="ref-llorente2025theta" ref-type="bibr">Llorente-Saguer
+  et al., 2025</xref>), a summary metric involving multiple
+  dimensions.</p>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>Thank you, David Pérez Suárez, for testing the package and
+  providing feedback. We acknowledge funding from a UKRI Future Leaders
+  Fellowship (MR/S03546X/1, MR/X024288/1).</p>
+  <p>The current implementation relies on the following R packages: (GA
+  (<xref alt="Scrucca, 2016" rid="ref-scrucca2016some" ref-type="bibr">Scrucca,
+  2016</xref>), lme4
+  (<xref alt="Bates et al., 2015" rid="ref-lme4" ref-type="bibr">Bates
+  et al., 2015</xref>), lmmpower
+  (<xref alt="Iddi &amp; Donohue, 2022" rid="ref-longpower" ref-type="bibr">Iddi
+  &amp; Donohue, 2022</xref>)).</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <title></title>
+  <ref id="ref-llorente2024">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Llorente-Saguer</surname><given-names>Isaac</given-names></name>
+        <name><surname>Oxtoby</surname><given-names>Neil P</given-names></name>
+      </person-group>
+      <article-title>A data-driven framework for biomarker discovery applied to optimizing modern clinical and preclinical trials on alzheimer’s disease</article-title>
+      <source>Brain Communications</source>
+      <publisher-name>Oxford University Press UK</publisher-name>
+      <year iso-8601-date="2024">2024</year>
+      <volume>6</volume>
+      <issue>6</issue>
+      <pub-id pub-id-type="doi">10.1093/braincomms/fcae438</pub-id>
+      <fpage>fcae438</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-saguer2022composite">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Saguer</surname><given-names>Isaac Llorente</given-names></name>
+        <name><surname>Busche</surname><given-names>Marc A</given-names></name>
+        <name><surname>Oxtoby</surname><given-names>Neil P</given-names></name>
+      </person-group>
+      <article-title>Composite SUVR: A new method for boosting alzheimer’s disease monitoring and diagnostic performance, applied to tau PET</article-title>
+      <source>Alzheimer’s &amp; Dementia</source>
+      <publisher-name>Wiley Online Library</publisher-name>
+      <year iso-8601-date="2022">2022</year>
+      <volume>18</volume>
+      <pub-id pub-id-type="doi">10.1002/alz.063177</pub-id>
+      <fpage>e063177</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-scrucca2016some">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Scrucca</surname><given-names>Luca</given-names></name>
+      </person-group>
+      <article-title>On some extensions to GA package: Hybrid optimisation, parallelisation and islands evolution</article-title>
+      <source>arXiv preprint arXiv:1605.01931</source>
+      <year iso-8601-date="2016">2016</year>
+      <pub-id pub-id-type="doi">10.48550/arXiv.1605.01931</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-lme4">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Bates</surname><given-names>Douglas</given-names></name>
+        <name><surname>Mächler</surname><given-names>Martin</given-names></name>
+        <name><surname>Bolker</surname><given-names>Ben</given-names></name>
+        <name><surname>Walker</surname><given-names>Steve</given-names></name>
+      </person-group>
+      <article-title>Fitting linear mixed-effects models using lme4</article-title>
+      <source>Journal of Statistical Software</source>
+      <year iso-8601-date="2015">2015</year>
+      <volume>67</volume>
+      <issue>1</issue>
+      <pub-id pub-id-type="doi">10.18637/jss.v067.i01</pub-id>
+      <fpage>1</fpage>
+      <lpage>48</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-longpower">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Iddi</surname><given-names>Samuel</given-names></name>
+        <name><surname>Donohue</surname><given-names>Michael C.</given-names></name>
+      </person-group>
+      <article-title>Power and sample size for longitudinal models in r-the longpower package and shiny app</article-title>
+      <source>R Journal</source>
+      <publisher-name>R Foundation for Statistical Computing</publisher-name>
+      <year iso-8601-date="2022">2022</year>
+      <volume>14</volume>
+      <issue>1</issue>
+      <pub-id pub-id-type="doi">10.32614/RJ-2022-022</pub-id>
+      <fpage>264</fpage>
+      <lpage>281</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-llorente2026enhanced">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Llorente-Saguer</surname><given-names>Isaac</given-names></name>
+        <name><surname>Oxtoby</surname><given-names>Neil P</given-names></name>
+      </person-group>
+      <article-title>Enhanced monitoring of alzheimer’s disease brain atrophy using composite value ratios of volumes</article-title>
+      <source>Brain Communications</source>
+      <publisher-name>Oxford University Press UK</publisher-name>
+      <year iso-8601-date="2026">2026</year>
+      <volume>8</volume>
+      <issue>1</issue>
+      <pub-id pub-id-type="doi">10.1093/braincomms/fcaf497</pub-id>
+      <fpage>fcaf497</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-llorente2025theta">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Llorente-Saguer</surname><given-names>Isaac</given-names></name>
+        <name><surname>Arber</surname><given-names>Charles</given-names></name>
+        <name><surname>Oxtoby</surname><given-names>Neil P</given-names></name>
+      </person-group>
+      <article-title>Theta, a multidimensional ratio biomarker applied to five amyloid beta peptides for investigations in familial alzheimer’s disease</article-title>
+      <source>medRxiv</source>
+      <publisher-name>Cold Spring Harbor Laboratory Press</publisher-name>
+      <year iso-8601-date="2025">2025</year>
+      <pub-id pub-id-type="doi">10.1101/2025.08.06.25333131</pub-id>
+      <fpage>2025</fpage>
+      <lpage>08</lpage>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
