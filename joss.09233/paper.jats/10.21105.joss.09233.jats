@@ -1,0 +1,720 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">9233</article-id>
+<article-id pub-id-type="doi">10.21105/joss.09233</article-id>
+<title-group>
+<article-title>pythonradex: a fast Python re-implementation of RADEX
+with extended functionality</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author" corresp="yes">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0002-2700-9676</contrib-id>
+<name>
+<surname>Cataldi</surname>
+<given-names>Gianni</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+<xref ref-type="corresp" rid="cor-1"><sup>*</sup></xref>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>National Astronomical Observatory of Japan, 2-21-1 Osawa,
+Mitaka, Tokyo 181-8588, Japan</institution>
+<institution-id institution-id-type="ROR">052rrw050</institution-id>
+</institution-wrap>
+</aff>
+</contrib-group>
+<author-notes>
+<corresp id="cor-1">* E-mail: <email></email></corresp>
+</author-notes>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2025-03-04">
+<day>4</day>
+<month>3</month>
+<year>2025</year>
+</pub-date>
+<volume>11</volume>
+<issue>118</issue>
+<fpage>9233</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2026</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>Python</kwd>
+<kwd>astronomy</kwd>
+<kwd>astrophysics</kwd>
+<kwd>radiative transfer</kwd>
+<kwd>non-LTE</kwd>
+<kwd>escape probability</kwd>
+<kwd>line emission</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p>A common task in astronomical research is to estimate the physical
+  parameters (temperature, mass, density etc.) of a gas by using
+  observed line emission. This often requires a calculation of how the
+  radiation propagates via emission and absorption (“radiative
+  transfer”). In radio and infrared astronomy, the Fortran code
+  <monospace>RADEX</monospace>
+  (<xref alt="van der Tak et al., 2007" rid="ref-vanderTak2007" ref-type="bibr">van
+  der Tak et al., 2007</xref>) is a popular tool to solve the non-LTE
+  radiative transfer of a uniform medium in a simplified geometry. I
+  present a Python re-implementation of <monospace>RADEX</monospace>:
+  <monospace>pythonradex</monospace>. Written in Python, it provides an
+  easy and intuitive user interface, improved performance as well as
+  additional functionality not included in <monospace>RADEX</monospace>
+  (continuum effects and overlapping lines).</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p>Modern astronomical facilities such as the Atacama Large
+  Millimeter/submillimeter Array (ALMA) or the James Webb Space
+  Telescope (JWST) are providing a wealth of line emission data at radio
+  and infrared wavelengths. These data are crucial to constrain the
+  physical and chemical properties of various astrophysical
+  environments.</p>
+  <p>To interpret such data, a radiative transfer calculation is
+  typically used (see
+  <xref alt="Rybicki &amp; Lightman, 1985" rid="ref-Rybicki1985" ref-type="bibr">Rybicki
+  &amp; Lightman, 1985</xref>, for an introduction to radiative
+  transfer). For a given set of input parameters describing the source
+  (temperature, density, geometry, etc.), one calculates the amount of
+  radiation reaching the telescope. The input parameters are then
+  adjusted such that the predicted flux matches the observations.</p>
+  <p>If the medium is dense enough, local thermodynamic equilibrium
+  (LTE) can be assumed. This considerably simplifies the radiative
+  transfer calculation. A non-LTE calculation is considerably more
+  complex and computationally expensive because the fractional
+  population of the molecular energy levels needs to be solved for
+  numerically (e.g.
+  <xref alt="van der Tak et al., 2007" rid="ref-vanderTak2007" ref-type="bibr">van
+  der Tak et al., 2007</xref>). Typically, an iterative approach is
+  used: from a first guess of the level populations, the radiation field
+  is calculated. This radiation field is then used to solve for updated
+  level populations. The iterations continue until convergence is
+  reached.</p>
+  <p>Various codes are available to solve the radiative transfer. Codes
+  solving the radiative transfer in 3D are used for detailed
+  calculations of sources with well-known geometries. Examples include
+  <monospace>RADMC-3D</monospace>
+  (<xref alt="Dullemond et al., 2012" rid="ref-Dullemond2012" ref-type="bibr">Dullemond
+  et al., 2012</xref>) and <monospace>LIME</monospace>
+  (<xref alt="Brinch &amp; Hogerheijde, 2010" rid="ref-Brinch2010" ref-type="bibr">Brinch
+  &amp; Hogerheijde, 2010</xref>). However, a full 3D calculation is
+  often too computationally expensive if a large parameter space needs
+  to be explored, in particular in non-LTE. 1D codes that quickly
+  provide an approximate solution are a commonly used alternative. In
+  this respect, the 1D non-LTE code <monospace>RADEX</monospace>
+  (<xref alt="van der Tak et al., 2007" rid="ref-vanderTak2007" ref-type="bibr">van
+  der Tak et al., 2007</xref>) has gained considerable popularity: as of
+  February 10, 2026, the paper presenting <monospace>RADEX</monospace>
+  (<xref alt="van der Tak et al., 2007" rid="ref-vanderTak2007" ref-type="bibr">van
+  der Tak et al., 2007</xref>) has 1463 citations. The Fortran code
+  <monospace>RADEX</monospace> solves the radiative transfer of a
+  uniform medium using an escape probability formalism.</p>
+  <p>The Python programming language is now widely used in astronomy.
+  Still, no Python version of <monospace>RADEX</monospace> is available,
+  although some Python wrappers such as
+  <monospace>SpectralRadex</monospace>
+  (<xref alt="Holdship et al., 2023" rid="ref-SpectralRadex" ref-type="bibr">Holdship
+  et al., 2023</xref>) or <monospace>ndradex</monospace>
+  (<xref alt="Taniguchi, 2019" rid="ref-ndradex" ref-type="bibr">Taniguchi,
+  2019</xref>), and even a Julia version (<monospace>Jadex</monospace>,
+  <xref alt="Svoboda, 2022" rid="ref-jadex" ref-type="bibr">Svoboda,
+  2022</xref>), exist. Furthermore, <monospace>RADEX</monospace> cannot
+  take into account the effects of an internal continuum field
+  (typically arising from dust that is mixed with the gas), nor
+  cross-excitation effects arising when transitions overlap in
+  frequency. The <monospace>pythonradex</monospace> code addresses these
+  concerns.</p>
+</sec>
+<sec id="implementation">
+  <title>Implementation</title>
+  <p><monospace>pythonradex</monospace> is written in Python and
+  implements the accelerated lambda iteration (ALI) scheme presented by
+  Rybicki &amp; Hummer
+  (<xref alt="1992" rid="ref-Rybicki1992" ref-type="bibr">1992</xref>).
+  Like <monospace>RADEX</monospace>, an escape probability equation is
+  used to calculate the radiation field for a given level population.
+  This allows solving the radiative transfer iteratively. To speed up
+  the convergence, Ng acceleration
+  (<xref alt="Ng, 1974" rid="ref-Ng1974" ref-type="bibr">Ng,
+  1974</xref>) is employed. To improve performance, critical parts of
+  the code are just-in-time compiled using Numba
+  (<xref alt="Lam et al., 2015" rid="ref-Lam2015" ref-type="bibr">Lam et
+  al., 2015</xref>).</p>
+  <p><monospace>pythonradex</monospace> supports four geometries: two
+  static geometries (slab and sphere), and two large-velocity-gradient
+  (LVG) geometries (again slab and sphere). In the LVG approximation, it
+  is assumed that all regions of the source are Doppler shifted with
+  respect to each other due to a velocity gradient. This means that all
+  photons escape the source, unless absorbed locally (i.e. close to the
+  emission location, e.g.
+  <xref alt="Elitzur, 1992" rid="ref-Elitzur1992" ref-type="bibr">Elitzur,
+  1992</xref>).</p>
+  <p>Currently, effects of internal continuum and overlapping lines can
+  only be included for the static geometries. Another limitation is that
+  only a single molecule can be considered at a time. Thus, solving the
+  radiative transfer of overlapping lines of different molecules is not
+  supported yet. Also, treating overlapping lines adds considerable
+  computational cost because averages over line profiles need to be
+  calculated.</p>
+  <p>Like <monospace>RADEX</monospace>,
+  <monospace>pythonradex</monospace> needs a file in LAMDA-format as
+  input to read the molecular data. Such files can for example be
+  downloaded from the LAMDA
+  (<xref alt="Schöier et al., 2005" rid="ref-Schoier2005" ref-type="bibr">Schöier
+  et al., 2005</xref>) or EMAA
+  (<xref alt="EMAA, 2021" rid="ref-EMAA" ref-type="bibr"><italic>EMAA</italic>,
+  2021</xref>) databases.</p>
+</sec>
+<sec id="benchmarking">
+  <title>Benchmarking</title>
+  <p><monospace>pythonradex</monospace> was benchmarked against
+  <monospace>RADEX</monospace> for a number of example problems,
+  generally with excellent agreement (see
+  <xref alt="[fig:pythonradex_vs_radex]" rid="figU003Apythonradex_vs_radex">[fig:pythonradex_vs_radex]</xref>
+  for an example). To test the treatment of overlapping lines,
+  <monospace>pythonradex</monospace> was tested against the
+  <monospace>MOLPOP-CEP</monospace> code
+  (<xref alt="Asensio Ramos &amp; Elitzur, 2018" rid="ref-AsensioRamos2018" ref-type="bibr">Asensio
+  Ramos &amp; Elitzur, 2018</xref>), again showing good agreement, as
+  illustrated in
+  <xref alt="[fig:HCN_spectrum]" rid="figU003AHCN_spectrum">[fig:HCN_spectrum]</xref>.</p>
+</sec>
+<sec id="performance-advantage">
+  <title>Performance advantage</title>
+  <p>Both <monospace>pythonradex</monospace> and
+  <monospace>RADEX</monospace> are single-threaded. To compare their
+  performance, we consider the calculation of a grid of models over a
+  parameter space spanning 20 values in each of kinetic temperature,
+  column density and H<inline-formula><alternatives>
+  <tex-math><![CDATA[_2]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi></mml:mi><mml:mn>2</mml:mn></mml:msub></mml:math></alternatives></inline-formula>
+  density (i.e. a total of 8000 models). We consider a few different
+  molecules: C (small number of levels and transitions), SO (large
+  number of levels and transitions) as well as CO and
+  HCO<inline-formula><alternatives>
+  <tex-math><![CDATA[^+]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msup><mml:mi></mml:mi><mml:mo>+</mml:mo></mml:msup></mml:math></alternatives></inline-formula>
+  (intermediate). On a laptop with i7-7700HQ cores running on Ubuntu
+  22.04, <monospace>pythonradex</monospace> computed the model grid
+  faster than <monospace>RADEX</monospace> by factors of approximately
+  1.5 (C), 6 (SO), 7 (CO) and 3 (HCO<inline-formula><alternatives>
+  <tex-math><![CDATA[^+]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msup><mml:mi></mml:mi><mml:mo>+</mml:mo></mml:msup></mml:math></alternatives></inline-formula>).
+  Running the same test on the Multi-wavelength Data Analysis System
+  (MDAS) operated by the National Astronomical Observatory of Japan
+  (Rocky Linux 8.9 with AMD EPYC 7543 CPUs) resulted in an even larger
+  performance advantage: <monospace>pythonradex</monospace> calculated
+  the grid faster by factors of 13 (C), 10 (SO), 13 (CO) and 12
+  (HCO<inline-formula><alternatives>
+  <tex-math><![CDATA[^+]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msup><mml:mi></mml:mi><mml:mo>+</mml:mo></mml:msup></mml:math></alternatives></inline-formula>)<xref ref-type="fn" rid="fn1">1</xref>.</p>
+  <fig>
+    <caption><p>The ratio of CO 2-1 excitation temperature (left column)
+    and optical depth (right column) computed with
+    <monospace>pythonradex</monospace> and <monospace>RADEX</monospace>
+    for a static sphere. Each panel shows a parameter space of
+    H<inline-formula><alternatives>
+    <tex-math><![CDATA[_2]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi></mml:mi><mml:mn>2</mml:mn></mml:msub></mml:math></alternatives></inline-formula>
+    density and column density for a fixed kinetic temperature. Values
+    exceeding the colorbar range are shown in black with the
+    corresponding value in white
+    text.<styled-content id="figU003Apythonradex_vs_radex"></styled-content></p></caption>
+    <graphic mimetype="application" mime-subtype="pdf" xlink:href="pythonradex_vs_radex.pdf" />
+  </fig>
+  <fig>
+    <caption><p>Spectrum of HCN around 177.3 GHz computed with
+    <monospace>pythonradex</monospace> and
+    <monospace>MOLPOP-CEP</monospace> for a static slab. Good agreement
+    is found when treating line overlap. Interestingly, the spectra
+    differ somewhat when ignoring overlap. The positions and widths of
+    the individual hyperfine components are illustrated by the black
+    dotted
+    lines.<styled-content id="figU003AHCN_spectrum"></styled-content></p></caption>
+    <graphic mimetype="application" mime-subtype="pdf" xlink:href="HCN_spec.pdf" />
+  </fig>
+</sec>
+<sec id="additional-differences-between-radex-and-pythonradex">
+  <title>Additional differences between <monospace>RADEX</monospace> and
+  <monospace>pythonradex</monospace></title>
+  <sec id="output-flux">
+    <title>Output flux</title>
+    <p><monospace>RADEX</monospace> computes line fluxes based on a
+    “background subtracted” intensity given by
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[(B_\nu(T_\mathrm{ex})-I_\mathrm{bg})(1-e^{-\tau})]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mo stretchy="false" form="prefix">(</mml:mo><mml:msub><mml:mi>B</mml:mi><mml:mi>ν</mml:mi></mml:msub><mml:mo stretchy="false" form="prefix">(</mml:mo><mml:msub><mml:mi>T</mml:mi><mml:mrow><mml:mi mathvariant="normal">e</mml:mi><mml:mi mathvariant="normal">x</mml:mi></mml:mrow></mml:msub><mml:mo stretchy="false" form="postfix">)</mml:mo><mml:mo>−</mml:mo><mml:msub><mml:mi>I</mml:mi><mml:mrow><mml:mi mathvariant="normal">b</mml:mi><mml:mi mathvariant="normal">g</mml:mi></mml:mrow></mml:msub><mml:mo stretchy="false" form="postfix">)</mml:mo><mml:mo stretchy="false" form="prefix">(</mml:mo><mml:mn>1</mml:mn><mml:mo>−</mml:mo><mml:msup><mml:mi>e</mml:mi><mml:mrow><mml:mi>−</mml:mi><mml:mi>τ</mml:mi></mml:mrow></mml:msup><mml:mo stretchy="false" form="postfix">)</mml:mo></mml:mrow></mml:math></alternatives></inline-formula>,
+    where <inline-formula><alternatives>
+    <tex-math><![CDATA[B_\nu]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>B</mml:mi><mml:mi>ν</mml:mi></mml:msub></mml:math></alternatives></inline-formula>
+    is the Planck function, <inline-formula><alternatives>
+    <tex-math><![CDATA[T_\mathrm{ex}]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>T</mml:mi><mml:mrow><mml:mi mathvariant="normal">e</mml:mi><mml:mi mathvariant="normal">x</mml:mi></mml:mrow></mml:msub></mml:math></alternatives></inline-formula>
+    the excitation temperature, <inline-formula><alternatives>
+    <tex-math><![CDATA[I_\mathrm{bg}]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>I</mml:mi><mml:mrow><mml:mi mathvariant="normal">b</mml:mi><mml:mi mathvariant="normal">g</mml:mi></mml:mrow></mml:msub></mml:math></alternatives></inline-formula>
+    the external background and <inline-formula><alternatives>
+    <tex-math><![CDATA[\tau]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>τ</mml:mi></mml:math></alternatives></inline-formula>
+    the (frequency-dependent) optical depth. This may or may not be the
+    right quantity to be compared to observations. For example, it is
+    not appropriate when considering data from interferometers like
+    ALMA. <monospace>pythonradex</monospace> does not apply any
+    observational correction, giving the user the flexibility to decide
+    how to compare the computed fluxes to observations.</p>
+  </sec>
+  <sec id="flux-for-spherical-geometry">
+    <title>Flux for spherical geometry</title>
+    <p>To calculate line fluxes, <monospace>pythonradex</monospace> uses
+    different formulae depending on the geometry (see the
+    <ext-link ext-link-type="uri" xlink:href="https://pythonradex.readthedocs.io/en/latest/index.html"><monospace>pythonradex</monospace>
+    documentation</ext-link> for more details). On the other hand,
+    <monospace>RADEX</monospace> always uses the formula for a slab.
+    <xref alt="[fig:flux_comparison_sphere]" rid="figU003Aflux_comparison_sphere">[fig:flux_comparison_sphere]</xref>
+    illustrates the consequences. For a static sphere, by using the slab
+    formula, the flux is overestimated by a factor
+    1.5<xref ref-type="fn" rid="fn2">2</xref> in the optically thin
+    limit. In the optically thick case, only the surface of the static
+    sphere is visible, so the different formulae give the same result.
+    On the other hand, for the LVG sphere, the difference is always a
+    factor 1.5 regardless of optical depth. This is a consequence of the
+    LVG assumption that photons always escape unless absorbed locally.
+    By computing the optically thin flux
+    directly<xref ref-type="fn" rid="fn3">3</xref>, it can be confirmed
+    that the formulae used by <monospace>pythonradex</monospace> are
+    correct.</p>
+    <fig>
+      <caption><p>For the two spherical geometries, fluxes using the
+      slab formula (as done by <monospace>RADEX</monospace>) and
+      formulae appropriate for a sphere (as done by
+      <monospace>pythonradex</monospace>) were calculated. The figure
+      shows the ratio of the fluxes as function of optical
+      depth.<styled-content id="figU003Aflux_comparison_sphere"></styled-content></p></caption>
+      <graphic mimetype="application" mime-subtype="pdf" xlink:href="flux_comparison_spherical_geometries.pdf" />
+    </fig>
+  </sec>
+</sec>
+<sec id="dependencies">
+  <title>Dependencies</title>
+  <p><monospace>pythonradex</monospace> depends on the following
+  packages:</p>
+  <list list-type="bullet">
+    <list-item>
+      <p>NumPy
+      (<xref alt="Harris et al., 2020" rid="ref-Harris2020" ref-type="bibr">Harris
+      et al., 2020</xref>)</p>
+    </list-item>
+    <list-item>
+      <p>SciPy
+      (<xref alt="Virtanen et al., 2020" rid="ref-Virtanen2020" ref-type="bibr">Virtanen
+      et al., 2020</xref>)</p>
+    </list-item>
+    <list-item>
+      <p>Numba
+      (<xref alt="Lam et al., 2015" rid="ref-Lam2015" ref-type="bibr">Lam
+      et al., 2015</xref>)</p>
+    </list-item>
+  </list>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>I thank
+  <ext-link ext-link-type="uri" xlink:href="https://github.com/andresmegias">@andresmegias</ext-link>
+  and
+  <ext-link ext-link-type="uri" xlink:href="https://github.com/GijsVermarien">@GijsVermarien</ext-link>
+  for their thorough review which led to important improvements of the
+  code and documentation. I would also like to thank Simon Bruderer for
+  his helpful clarifications about the ALI method, Andrés Asensio Ramos
+  for helpful discussions about the LVG approximation and the
+  <monospace>MOLPOP-CEP</monospace> code, and
+  <ext-link ext-link-type="uri" xlink:href="https://github.com/pscicluna">@pscicluna</ext-link>
+  for helpful comments on the code and paper draft. Performance testing
+  was in part carried out on the Multi-wavelength Data Analysis System
+  operated by the Astronomy Data Center (ADC), National Astronomical
+  Observatory of Japan.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <title></title>
+  <ref id="ref-vanderTak2007">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>van der Tak</surname><given-names>F. F. S.</given-names></name>
+        <name><surname>Black</surname><given-names>J. H.</given-names></name>
+        <name><surname>Schöier</surname><given-names>F. L.</given-names></name>
+        <name><surname>Jansen</surname><given-names>D. J.</given-names></name>
+        <name><surname>van Dishoeck</surname><given-names>E. F.</given-names></name>
+      </person-group>
+      <article-title>A computer program for fast non-LTE analysis of interstellar line spectra. With diagnostic plots to interpret observed line intensity ratios</article-title>
+      <source>Astronomy and Astrophysics</source>
+      <year iso-8601-date="2007-06">2007</year><month>06</month>
+      <volume>468</volume>
+      <issue>2</issue>
+      <uri>https://ui.adsabs.harvard.edu/abs/2007A&amp;A...468..627V</uri>
+      <pub-id pub-id-type="doi">10.1051/0004-6361:20066820</pub-id>
+      <fpage>627</fpage>
+      <lpage>635</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Rybicki1985">
+    <element-citation publication-type="chapter">
+      <person-group person-group-type="author">
+        <name><surname>Rybicki</surname><given-names>G. B.</given-names></name>
+        <name><surname>Lightman</surname><given-names>A. P.</given-names></name>
+      </person-group>
+      <article-title>Fundamentals of radiative transfer</article-title>
+      <source>Radiative processes in astrophysics</source>
+      <publisher-name>John Wiley &amp; Sons, Ltd</publisher-name>
+      <year iso-8601-date="1985">1985</year>
+      <isbn>9783527618170</isbn>
+      <uri>https://onlinelibrary.wiley.com/doi/abs/10.1002/9783527618170.ch1</uri>
+      <pub-id pub-id-type="doi">10.1002/9783527618170.ch1</pub-id>
+      <fpage>1</fpage>
+      <lpage>50</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Dullemond2012">
+    <element-citation publication-type="software">
+      <person-group person-group-type="author">
+        <name><surname>Dullemond</surname><given-names>C. P.</given-names></name>
+        <name><surname>Juhasz</surname><given-names>A.</given-names></name>
+        <name><surname>Pohl</surname><given-names>A.</given-names></name>
+        <name><surname>Sereshti</surname><given-names>F.</given-names></name>
+        <name><surname>Shetty</surname><given-names>R.</given-names></name>
+        <name><surname>Peters</surname><given-names>T.</given-names></name>
+        <name><surname>Commercon</surname><given-names>B.</given-names></name>
+        <name><surname>Flock</surname><given-names>M.</given-names></name>
+      </person-group>
+      <article-title>RADMC-3D: A multi-purpose radiative transfer tool</article-title>
+      <publisher-name>Astrophysics Source Code Library, record ascl:1202.015</publisher-name>
+      <year iso-8601-date="2012-02">2012</year><month>02</month>
+      <uri>https://ui.adsabs.harvard.edu/abs/2012ascl.soft02015D</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-Brinch2010">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Brinch</surname><given-names>C.</given-names></name>
+        <name><surname>Hogerheijde</surname><given-names>M. R.</given-names></name>
+      </person-group>
+      <article-title>LIME - a flexible, non-LTE line excitation and radiation transfer method for millimeter and far-infrared wavelengths</article-title>
+      <source>Astronomy and Astrophysics</source>
+      <year iso-8601-date="2010-11">2010</year><month>11</month>
+      <volume>523</volume>
+      <uri>https://ui.adsabs.harvard.edu/abs/2010A&amp;A...523A..25B</uri>
+      <pub-id pub-id-type="doi">10.1051/0004-6361/201015333</pub-id>
+      <fpage>A25</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-ndradex">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Taniguchi</surname><given-names>Akio</given-names></name>
+      </person-group>
+      <article-title>ndRADEX</article-title>
+      <source>GitHub repository</source>
+      <publisher-name>GitHub</publisher-name>
+      <year iso-8601-date="2019">2019</year>
+      <uri>https://github.com/astropenguin/ndradex</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-jadex">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Svoboda</surname><given-names>Brian</given-names></name>
+      </person-group>
+      <article-title>Jadex</article-title>
+      <source>GitHub repository</source>
+      <publisher-name>GitHub</publisher-name>
+      <year iso-8601-date="2022">2022</year>
+      <uri>https://github.com/autocorr/Jadex.jl</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-SpectralRadex">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Holdship</surname><given-names>Jon</given-names></name>
+        <name><surname>Vermariën</surname><given-names>Gijs</given-names></name>
+        <name><surname>Keil</surname><given-names>Marcus</given-names></name>
+        <name><surname>James</surname><given-names>Tomas</given-names></name>
+      </person-group>
+      <article-title>SpectralRadex</article-title>
+      <source>GitHub repository</source>
+      <publisher-name>GitHub</publisher-name>
+      <year iso-8601-date="2023">2023</year>
+      <uri>https://github.com/uclchem/SpectralRadex</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-AsensioRamos2018">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Asensio Ramos</surname><given-names>Andrés</given-names></name>
+        <name><surname>Elitzur</surname><given-names>Moshe</given-names></name>
+      </person-group>
+      <article-title>MOLPOP-CEP: An exact, fast code for multi-level systems</article-title>
+      <source>Astronomy and Astrophysics</source>
+      <year iso-8601-date="2018-09">2018</year><month>09</month>
+      <volume>616</volume>
+      <uri>https://ui.adsabs.harvard.edu/abs/2018A&amp;A...616A.131A</uri>
+      <pub-id pub-id-type="doi">10.1051/0004-6361/201731943</pub-id>
+      <fpage>A131</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Rybicki1992">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Rybicki</surname><given-names>G. B.</given-names></name>
+        <name><surname>Hummer</surname><given-names>D. G.</given-names></name>
+      </person-group>
+      <article-title>An accelerated lambda iteration method for multilevel radiative transfer. II. Overlapping transitions with full continuum.</article-title>
+      <source>Astronomy and Astrophysics</source>
+      <year iso-8601-date="1992-08">1992</year><month>08</month>
+      <volume>262</volume>
+      <uri>https://ui.adsabs.harvard.edu/abs/1992A&amp;A...262..209R</uri>
+      <fpage>209</fpage>
+      <lpage>215</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Ng1974">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Ng</surname><given-names>K. -C.</given-names></name>
+      </person-group>
+      <article-title>Hypernetted chain solutions for the classical one-component plasma up to \Gamma=7000</article-title>
+      <source>Journal of Chemical Physics</source>
+      <year iso-8601-date="1974-10">1974</year><month>10</month>
+      <volume>61</volume>
+      <issue>7</issue>
+      <uri>https://ui.adsabs.harvard.edu/abs/1974JChPh..61.2680N</uri>
+      <pub-id pub-id-type="doi">10.1063/1.1682399</pub-id>
+      <fpage>2680</fpage>
+      <lpage>2689</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Lam2015">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Lam</surname><given-names>Siu Kwan</given-names></name>
+        <name><surname>Pitrou</surname><given-names>Antoine</given-names></name>
+        <name><surname>Seibert</surname><given-names>Stanley</given-names></name>
+      </person-group>
+      <article-title>Numba: A LLVM-based Python JIT compiler</article-title>
+      <source>Proceedings of the second workshop on the LLVM compiler infrastructure in HPC</source>
+      <publisher-name>Association for Computing Machinery</publisher-name>
+      <publisher-loc>New York, NY, USA</publisher-loc>
+      <year iso-8601-date="2015">2015</year>
+      <isbn>9781450340052</isbn>
+      <uri>https://doi.org/10.1145/2833157.2833162</uri>
+      <pub-id pub-id-type="doi">10.1145/2833157.2833162</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-Virtanen2020">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Virtanen</surname><given-names>Pauli</given-names></name>
+        <name><surname>Gommers</surname><given-names>Ralf</given-names></name>
+        <name><surname>Oliphant</surname><given-names>Travis E.</given-names></name>
+        <name><surname>Haberland</surname><given-names>Matt</given-names></name>
+        <name><surname>Reddy</surname><given-names>Tyler</given-names></name>
+        <name><surname>Cournapeau</surname><given-names>David</given-names></name>
+        <name><surname>Burovski</surname><given-names>Evgeni</given-names></name>
+        <name><surname>Peterson</surname><given-names>Pearu</given-names></name>
+        <name><surname>Weckesser</surname><given-names>Warren</given-names></name>
+        <name><surname>Bright</surname><given-names>Jonathan</given-names></name>
+        <name><surname>van der Walt</surname><given-names>Stéfan J.</given-names></name>
+        <name><surname>Brett</surname><given-names>Matthew</given-names></name>
+        <name><surname>Wilson</surname><given-names>Joshua</given-names></name>
+        <name><surname>Millman</surname><given-names>K. Jarrod</given-names></name>
+        <name><surname>Mayorov</surname><given-names>Nikolay</given-names></name>
+        <name><surname>Nelson</surname><given-names>Andrew R. J.</given-names></name>
+        <name><surname>Jones</surname><given-names>Eric</given-names></name>
+        <name><surname>Kern</surname><given-names>Robert</given-names></name>
+        <name><surname>Larson</surname><given-names>Eric</given-names></name>
+        <name><surname>Carey</surname><given-names>C J</given-names></name>
+        <name><surname>Polat</surname><given-names>İlhan</given-names></name>
+        <name><surname>Feng</surname><given-names>Yu</given-names></name>
+        <name><surname>Moore</surname><given-names>Eric W.</given-names></name>
+        <name><surname>VanderPlas</surname><given-names>Jake</given-names></name>
+        <name><surname>Laxalde</surname><given-names>Denis</given-names></name>
+        <name><surname>Perktold</surname><given-names>Josef</given-names></name>
+        <name><surname>Cimrman</surname><given-names>Robert</given-names></name>
+        <name><surname>Henriksen</surname><given-names>Ian</given-names></name>
+        <name><surname>Quintero</surname><given-names>E. A.</given-names></name>
+        <name><surname>Harris</surname><given-names>Charles R.</given-names></name>
+        <name><surname>Archibald</surname><given-names>Anne M.</given-names></name>
+        <name><surname>Ribeiro</surname><given-names>Antônio H.</given-names></name>
+        <name><surname>Pedregosa</surname><given-names>Fabian</given-names></name>
+        <name><surname>van Mulbregt</surname><given-names>Paul</given-names></name>
+        <string-name>SciPy 1.0 Contributors</string-name>
+      </person-group>
+      <article-title>SciPy 1.0: Fundamental algorithms for scientific computing in Python</article-title>
+      <source>Nature Methods</source>
+      <year iso-8601-date="2020">2020</year>
+      <volume>17</volume>
+      <pub-id pub-id-type="doi">10.1038/s41592-019-0686-2</pub-id>
+      <fpage>261</fpage>
+      <lpage>272</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Harris2020">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Harris</surname><given-names>Charles R.</given-names></name>
+        <name><surname>Millman</surname><given-names>K. Jarrod</given-names></name>
+        <name><surname>Walt</surname><given-names>Stéfan J. van der</given-names></name>
+        <name><surname>Gommers</surname><given-names>Ralf</given-names></name>
+        <name><surname>Virtanen</surname><given-names>Pauli</given-names></name>
+        <name><surname>Cournapeau</surname><given-names>David</given-names></name>
+        <name><surname>Wieser</surname><given-names>Eric</given-names></name>
+        <name><surname>Taylor</surname><given-names>Julian</given-names></name>
+        <name><surname>Berg</surname><given-names>Sebastian</given-names></name>
+        <name><surname>Smith</surname><given-names>Nathaniel J.</given-names></name>
+        <name><surname>Kern</surname><given-names>Robert</given-names></name>
+        <name><surname>Picus</surname><given-names>Matti</given-names></name>
+        <name><surname>Hoyer</surname><given-names>Stephan</given-names></name>
+        <name><surname>Kerkwijk</surname><given-names>Marten H. van</given-names></name>
+        <name><surname>Brett</surname><given-names>Matthew</given-names></name>
+        <name><surname>Haldane</surname><given-names>Allan</given-names></name>
+        <name><surname>Río</surname><given-names>Jaime Fernández del</given-names></name>
+        <name><surname>Wiebe</surname><given-names>Mark</given-names></name>
+        <name><surname>Peterson</surname><given-names>Pearu</given-names></name>
+        <name><surname>Gérard-Marchant</surname><given-names>Pierre</given-names></name>
+        <name><surname>Sheppard</surname><given-names>Kevin</given-names></name>
+        <name><surname>Reddy</surname><given-names>Tyler</given-names></name>
+        <name><surname>Weckesser</surname><given-names>Warren</given-names></name>
+        <name><surname>Abbasi</surname><given-names>Hameer</given-names></name>
+        <name><surname>Gohlke</surname><given-names>Christoph</given-names></name>
+        <name><surname>Oliphant</surname><given-names>Travis E.</given-names></name>
+      </person-group>
+      <article-title>Array programming with NumPy</article-title>
+      <source>Nature</source>
+      <publisher-name>Springer Science; Business Media LLC</publisher-name>
+      <year iso-8601-date="2020-09">2020</year><month>09</month>
+      <volume>585</volume>
+      <issue>7825</issue>
+      <uri>https://doi.org/10.1038/s41586-020-2649-2</uri>
+      <pub-id pub-id-type="doi">10.1038/s41586-020-2649-2</pub-id>
+      <fpage>357</fpage>
+      <lpage>362</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Elitzur1992">
+    <element-citation publication-type="chapter">
+      <person-group person-group-type="author">
+        <name><surname>Elitzur</surname><given-names>Moshe</given-names></name>
+      </person-group>
+      <article-title>Basic background concepts</article-title>
+      <source>Astronomical masers</source>
+      <publisher-name>Springer Netherlands</publisher-name>
+      <publisher-loc>Dordrecht</publisher-loc>
+      <year iso-8601-date="1992">1992</year>
+      <isbn>978-94-011-2394-5</isbn>
+      <uri>https://doi.org/10.1007/978-94-011-2394-5_2</uri>
+      <pub-id pub-id-type="doi">10.1007/978-94-011-2394-5_2</pub-id>
+      <fpage>4</fpage>
+      <lpage>46</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Schoier2005">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Schöier</surname><given-names>F. L.</given-names></name>
+        <name><surname>van der Tak</surname><given-names>F. F. S.</given-names></name>
+        <name><surname>van Dishoeck</surname><given-names>E. F.</given-names></name>
+        <name><surname>Black</surname><given-names>J. H.</given-names></name>
+      </person-group>
+      <article-title>An atomic and molecular database for analysis of submillimetre line observations</article-title>
+      <source>Astronomy and Astrophysics</source>
+      <year iso-8601-date="2005-03">2005</year><month>03</month>
+      <volume>432</volume>
+      <issue>1</issue>
+      <uri>https://arxiv.org/abs/astro-ph/0411110</uri>
+      <pub-id pub-id-type="doi">10.1051/0004-6361:20041729</pub-id>
+      <fpage>369</fpage>
+      <lpage>379</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-EMAA">
+    <element-citation>
+      <article-title>EMAA</article-title>
+      <publisher-name>UGA, CNRS, CNRS-INSU, OSUG</publisher-name>
+      <year iso-8601-date="2021">2021</year>
+      <uri>https://emaa.osug.fr/</uri>
+      <pub-id pub-id-type="doi">10.17178/EMAA</pub-id>
+    </element-citation>
+  </ref>
+</ref-list>
+<fn-group>
+  <fn id="fn1">
+    <label>1</label><p><monospace>Jadex</monospace>
+    (<xref alt="Svoboda, 2022" rid="ref-jadex" ref-type="bibr">Svoboda,
+    2022</xref>) claims a performance advantage of a factor ~110 over
+    <monospace>RADEX</monospace>.</p>
+  </fn>
+  <fn id="fn2">
+    <label>2</label><p>The factor 1.5 corresponds to the volume ratio of
+    a “spherical slab” (i.e. a cylinder) to a sphere.</p>
+  </fn>
+  <fn id="fn3">
+    <label>3</label><p>In units of W/m<inline-formula><alternatives>
+    <tex-math><![CDATA[^2]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msup><mml:mi></mml:mi><mml:mn>2</mml:mn></mml:msup></mml:math></alternatives></inline-formula>,
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[F_\mathrm{thin} = V_\mathrm{sphere}n_2A_{21}\Delta E \frac{1}{4\pi d^2}]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>F</mml:mi><mml:mrow><mml:mi mathvariant="normal">t</mml:mi><mml:mi mathvariant="normal">h</mml:mi><mml:mi mathvariant="normal">i</mml:mi><mml:mi mathvariant="normal">n</mml:mi></mml:mrow></mml:msub><mml:mo>=</mml:mo><mml:msub><mml:mi>V</mml:mi><mml:mrow><mml:mi mathvariant="normal">s</mml:mi><mml:mi mathvariant="normal">p</mml:mi><mml:mi mathvariant="normal">h</mml:mi><mml:mi mathvariant="normal">e</mml:mi><mml:mi mathvariant="normal">r</mml:mi><mml:mi mathvariant="normal">e</mml:mi></mml:mrow></mml:msub><mml:msub><mml:mi>n</mml:mi><mml:mn>2</mml:mn></mml:msub><mml:msub><mml:mi>A</mml:mi><mml:mn>21</mml:mn></mml:msub><mml:mi mathvariant="normal">Δ</mml:mi><mml:mi>E</mml:mi><mml:mfrac><mml:mn>1</mml:mn><mml:mrow><mml:mn>4</mml:mn><mml:mi>π</mml:mi><mml:msup><mml:mi>d</mml:mi><mml:mn>2</mml:mn></mml:msup></mml:mrow></mml:mfrac></mml:mrow></mml:math></alternatives></inline-formula>
+    with <inline-formula><alternatives>
+    <tex-math><![CDATA[V_\mathrm{sphere}=\frac{4}{3}R^3\pi]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>V</mml:mi><mml:mrow><mml:mi mathvariant="normal">s</mml:mi><mml:mi mathvariant="normal">p</mml:mi><mml:mi mathvariant="normal">h</mml:mi><mml:mi mathvariant="normal">e</mml:mi><mml:mi mathvariant="normal">r</mml:mi><mml:mi mathvariant="normal">e</mml:mi></mml:mrow></mml:msub><mml:mo>=</mml:mo><mml:mfrac><mml:mn>4</mml:mn><mml:mn>3</mml:mn></mml:mfrac><mml:msup><mml:mi>R</mml:mi><mml:mn>3</mml:mn></mml:msup><mml:mi>π</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>
+    the volume of the sphere, <inline-formula><alternatives>
+    <tex-math><![CDATA[n]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>n</mml:mi></mml:math></alternatives></inline-formula>
+    the number density, <inline-formula><alternatives>
+    <tex-math><![CDATA[x_2]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>x</mml:mi><mml:mn>2</mml:mn></mml:msub></mml:math></alternatives></inline-formula>
+    the fractional level population of the upper level,
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[A_{21}]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>A</mml:mi><mml:mn>21</mml:mn></mml:msub></mml:math></alternatives></inline-formula>
+    the Einstein coefficient, <inline-formula><alternatives>
+    <tex-math><![CDATA[\Delta E]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi mathvariant="normal">Δ</mml:mi><mml:mi>E</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>
+    the energy of the transition and <inline-formula><alternatives>
+    <tex-math><![CDATA[d]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>d</mml:mi></mml:math></alternatives></inline-formula>
+    the distance.</p>
+  </fn>
+</fn-group>
+</back>
+</article>
