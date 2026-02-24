@@ -1,0 +1,632 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">9410</article-id>
+<article-id pub-id-type="doi">10.21105/joss.09410</article-id>
+<title-group>
+<article-title>traversability_generator3d: A C++ library for 3D
+traversability estimation from MLS maps</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0009-0008-1199-3489</contrib-id>
+<name>
+<surname>Lodhi</surname>
+<given-names>Muhammad Haider Khan</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0009-0005-6467-0286</contrib-id>
+<name>
+<surname>Hertzberg</surname>
+<given-names>Christoph</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<contrib contrib-type="author">
+<name>
+<surname>Böckmann</surname>
+<given-names>Arne</given-names>
+</name>
+<xref ref-type="aff" rid="aff-2"/>
+</contrib>
+<contrib contrib-type="author">
+<name>
+<surname>Machowinski</surname>
+<given-names>Janosch</given-names>
+</name>
+<xref ref-type="aff" rid="aff-2"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Robotics Innovation Center, German Research Center for
+Artificial Intelligence (DFKI), Bremen, Germany</institution>
+</institution-wrap>
+</aff>
+<aff id="aff-2">
+<institution-wrap>
+<institution>Cellumation GmbH</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2025-09-22">
+<day>22</day>
+<month>9</month>
+<year>2025</year>
+</pub-date>
+<volume>11</volume>
+<issue>118</issue>
+<fpage>9410</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2026</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>robotics</kwd>
+<kwd>traversability</kwd>
+<kwd>3D mapping</kwd>
+<kwd>terrain analysis</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p><monospace>traversability_generator3d</monospace> is a C++ library
+  that converts Multi-Level Surface (MLS)
+  (<xref alt="Triebel et al., 2006" rid="ref-triebel2006multilevel" ref-type="bibr">Triebel
+  et al., 2006</xref>) maps into 3D traversability maps. Unlike
+  traditional 2D elevation-based maps, MLS preserves multiple surface
+  hypotheses per cell, making it well-suited for environments with
+  rubble, vegetation, bridges, or overlapping terrain layers. The
+  library builds on the MLS representation to provide robot-specific
+  traversability analysis, where each grid cell is enriched with slope,
+  step height, plane fitting results, allowed motion orientations, and
+  optional soil semantics. The result is a
+  <monospace>TraversabilityMap3d</monospace> suitable for autonomous
+  navigation. It is designed for real-world robotic applications
+  including construction robotics, disaster response, search-and-rescue,
+  and planetary exploration, where terrain is uneven, uncertain, and
+  multi-layered.</p>
+  <p><monospace>traversability_generator3d</monospace> was originally
+  developed as part of ugv_nav4d
+  (<xref alt="Böckmann et al., 2024" rid="ref-Bockmann_ugv_nav4d" ref-type="bibr">Böckmann
+  et al., 2024</xref>) and later separated into a stand-alone library to
+  facilitate independent use and broader applicability.</p>
+  <fig>
+    <caption><p>Comparison between the original Multi-Level Surface
+    (MLS) map (left) and the generated TraversabilityMap3d (right). The
+    MLS encodes the underlying 3D terrain structure, whereas the
+    TraversabilityMap3d highlights navigable and non-navigable regions
+    for path planning.</p></caption>
+    <graphic mimetype="image" mime-subtype="png" xlink:href="combined_map.png" />
+  </fig>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p>Safe and efficient navigation requires robots to distinguish where
+  they can move from where they cannot. This is especially critical for
+  outdoor field robots, walking excavators, and planetary rovers that
+  face slopes, steps, loose soil, or debris. Existing approaches often
+  use 2.5D elevation maps
+  (<xref alt="Fankhauser et al., 2018" rid="ref-fankhauser2018probabilistic" ref-type="bibr">Fankhauser
+  et al., 2018</xref>) that store only one surface per XY cell, losing
+  critical information when multiple layers overlap, voxel/octree maps
+  (<xref alt="Hornung et al., 2013" rid="ref-hornung2013octomap" ref-type="bibr">Hornung
+  et al., 2013</xref>) preserve 3D structure but are memory-intensive
+  and less tailored for traversability, and purely semantic approaches
+  (<xref alt="Cramer et al., 2018" rid="ref-cramer2018traversability" ref-type="bibr">Cramer
+  et al., 2018</xref>;
+  <xref alt="Wiesmann et al., 2021" rid="ref-wiesmann2021traversability" ref-type="bibr">Wiesmann
+  et al., 2021</xref>) that classify terrain appearance but often
+  neglect physical constraints like slope or robot footprint.</p>
+  <p><monospace>traversability_generator3d</monospace> addresses these
+  limitations by:</p>
+  <list list-type="bullet">
+    <list-item>
+      <p>Taking MLS as input, retaining multi-level terrain
+      structure.</p>
+    </list-item>
+    <list-item>
+      <p>Performing plane fitting and slope analysis per patch, allowing
+      orientation-dependent motion constraints.</p>
+    </list-item>
+    <list-item>
+      <p>Checking step height and body collisions with robot-specific
+      geometry (AABB/OBB checks).</p>
+    </list-item>
+    <list-item>
+      <p>Supporting soil-aware traversability, where semantic labels
+      (sand, gravel, rocks, concrete) are integrated with
+      uncertainty.</p>
+    </list-item>
+    <list-item>
+      <p>Producing a 3D traversability map with rich node types that
+      planners can use directly.</p>
+    </list-item>
+  </list>
+  <sec id="input">
+    <title>Input</title>
+    <p>The library consumes Multi-Level Surface (MLS) maps, which store
+    multiple surface hypotheses per grid cell. This allows the library
+    to reason about environments with overlapping structures
+    (e.g. bridges, rubble, vegetation), unlike simpler 2.5D elevation
+    maps.</p>
+  </sec>
+  <sec id="processing-pipeline">
+    <title>Processing pipeline</title>
+    <p>The traversability generation proceeds in several stages:</p>
+    <fig>
+      <caption><p>Traversability generation pipeline showing plane
+      fitting, step height checks, orientation limits, footprint
+      inflation, soil integration, and map expansion.</p></caption>
+      <graphic mimetype="image" mime-subtype="png" xlink:href="pipeline.png" />
+    </fig>
+    <list list-type="order">
+      <list-item>
+        <p>Plane fitting and slope estimation</p>
+        <list list-type="bullet">
+          <list-item>
+            <p>Local surface patches are extracted from the MLS and
+            fitted with planes using RANSAC (via PCL).</p>
+          </list-item>
+          <list-item>
+            <p>Each patch’s slope angle and slope direction are computed
+            from the fitted plane normal.</p>
+          </list-item>
+        </list>
+      </list-item>
+      <list-item>
+        <p>Step height evaluation</p>
+        <list list-type="bullet">
+          <list-item>
+            <p>Both axis-aligned (AABB) and oriented bounding box (OBB)
+            checks are performed to test whether nearby patches exceed
+            the robot’s configured maximum step height.</p>
+          </list-item>
+          <list-item>
+            <p>This ensures that steps or discontinuities larger than
+            the robot’s physical capability are marked as obstacles.</p>
+          </list-item>
+        </list>
+      </list-item>
+      <list-item>
+        <p>Orientation-dependent traversability</p>
+        <list list-type="bullet">
+          <list-item>
+            <p>On steep slopes, the library restricts the allowed
+            orientations of motion (incline limiting).</p>
+          </list-item>
+          <list-item>
+            <p>For example, forward uphill/downhill motion may be
+            permitted.</p>
+          </list-item>
+        </list>
+      </list-item>
+      <list-item>
+        <p>Footprint-aware obstacle inflation</p>
+        <list list-type="bullet">
+          <list-item>
+            <p>Obstacles and frontiers are grown outward by the robot’s
+            footprint radius.</p>
+          </list-item>
+          <list-item>
+            <p>This guarantees that planned paths account for the full
+            robot body, not just its center point.</p>
+          </list-item>
+        </list>
+      </list-item>
+      <list-item>
+        <p>Soil-aware traversability</p>
+        <list list-type="bullet">
+          <list-item>
+            <p>In addition to geometry, the library maintains a parallel
+            <monospace>TraversabilityMap3d&lt;SoilNode*&gt;</monospace>
+            to model soil types.</p>
+          </list-item>
+          <list-item>
+            <p>Soil samples (sand, gravel, rocks, concrete) can be
+            injected with associated uncertainty.</p>
+          </list-item>
+          <list-item>
+            <p>A Gaussian propagation mechanism distributes soil
+            probabilities spatially, and costs are updated
+            accordingly.</p>
+          </list-item>
+          <list-item>
+            <p>Certain soils may be forbidden entirely (e.g., robots not
+            allowed to enter sand), in which case nodes are
+            automatically converted to obstacles.</p>
+          </list-item>
+        </list>
+      </list-item>
+      <list-item>
+        <p>Map expansion</p>
+        <list list-type="bullet">
+          <list-item>
+            <p>The library grows the traversability map outward from
+            user-defined start nodes.</p>
+          </list-item>
+          <list-item>
+            <p>Unknown areas are classified as
+            <monospace>FRONTIER</monospace> nodes, guiding
+            exploration.</p>
+          </list-item>
+          <list-item>
+            <p>Expansion can be bounded by distance to restrict
+            computation to a region of interest.</p>
+          </list-item>
+        </list>
+      </list-item>
+    </list>
+  </sec>
+  <sec id="output">
+    <title>Output</title>
+    <p>The result is a <monospace>TraversabilityMap3d</monospace>
+    structure with two layers:</p>
+    <list list-type="bullet">
+      <list-item>
+        <p>Geometric traversability (<monospace>TravGenNode</monospace>)
+        containing slope, plane, step height, allowed orientations,
+        cost, and node type.</p>
+      </list-item>
+      <list-item>
+        <p>Soil traversability (<monospace>SoilNode</monospace>)
+        containing soil type probabilities and semantic costs.</p>
+      </list-item>
+    </list>
+  </sec>
+</sec>
+<sec id="traversability-node-types">
+  <title>Traversability node types</title>
+  <p>Each cell in the <monospace>TraversabilityMap3d</monospace> is
+  represented as a <monospace>TravGenNode</monospace> with geometric,
+  semantic, and cost attributes.
+  Nodes are categorized as:</p>
+  <list list-type="bullet">
+    <list-item>
+      <p><monospace>TRAVERSABLE</monospace>: patches where the robot can
+      safely move.</p>
+    </list-item>
+    <list-item>
+      <p><monospace>OBSTACLE</monospace>: unsafe regions due to
+      excessive slope, step height, body collisions, or forbidden
+      soil.</p>
+    </list-item>
+    <list-item>
+      <p><monospace>FRONTIER</monospace>: expansion boundaries between
+      known and unknown areas.</p>
+    </list-item>
+    <list-item>
+      <p><monospace>INFLATED_OBSTACLE</monospace>: obstacles grown
+      outward to include robot footprint.</p>
+    </list-item>
+    <list-item>
+      <p><monospace>INFLATED_FRONTIER</monospace>: expanded frontiers
+      with safety margins.</p>
+    </list-item>
+    <list-item>
+      <p><monospace>UNKNOWN</monospace>: regions with insufficient or
+      missing MLS data.</p>
+    </list-item>
+    <list-item>
+      <p><monospace>UNSET</monospace>: unclassified nodes during
+      initialization.</p>
+    </list-item>
+  </list>
+  <fig>
+    <caption><p>Traversability map with semantic node
+    classifications.</p></caption>
+    <graphic mimetype="image" mime-subtype="png" xlink:href="traversability_map_nodes.png" />
+  </fig>
+  <p>This classification enables downstream planners to reason not only
+  about safe/unsafe areas but also about uncertainty and exploration
+  frontiers.</p>
+</sec>
+<sec id="soil-aware-traversability">
+  <title>Soil-aware traversability</title>
+  <p>In addition to geometry,
+  <monospace>traversability_generator3d</monospace> models soil
+  composition. Each <monospace>SoilNode</monospace> stores probability
+  distributions over soil types. By default, costs are adapted as
+  follows:</p>
+  <list list-type="bullet">
+    <list-item>
+      <p><monospace>Concrete</monospace>: low cost (preferred).</p>
+    </list-item>
+    <list-item>
+      <p><monospace>Sand/Gravel</monospace>: higher cost (risky
+      terrain).</p>
+    </list-item>
+    <list-item>
+      <p><monospace>Rocks</monospace>: costly or forbidden depending on
+      configuration.</p>
+    </list-item>
+    <list-item>
+      <p><monospace>Unknown soil</monospace>: assigned maximum cost.</p>
+    </list-item>
+  </list>
+  <fig>
+    <caption><p>Map layers for terrain assessment. Left: Soil map with
+    sand (yellow), gravel (green), and unknown (light blue). Right:
+    Corresponding traversability map, where sand is treated as obstacle
+    (red).</p></caption>
+    <graphic mimetype="image" mime-subtype="png" xlink:href="soilmap.png" />
+  </fig>
+  <p>Through configuration, users can forbid traversal on certain soils,
+  automatically converting affected nodes to obstacles. This enables
+  integration of perceptual information (e.g. from ground-penetrating
+  radar, visual classifiers, or tactile sensors) with geometric terrain
+  reasoning.</p>
+</sec>
+<sec id="field-tests">
+  <title>Field Tests</title>
+  <p>The <monospace>traversability_generator3d</monospace> library has
+  been used extensively in research projects for almost a decade. It has
+  supported autonomous navigation in several projects, including
+  <ext-link ext-link-type="uri" xlink:href="https://robotik.dfki-bremen.de/de/forschung/projekte/entern">Entern</ext-link>
+  (<xref alt="Schwendner et al., 2015" rid="ref-schwendner2015entern" ref-type="bibr">Schwendner
+  et al., 2015</xref>),
+  <ext-link ext-link-type="uri" xlink:href="https://robotik.dfki-bremen.de/de/forschung/projekte/ant">ANT</ext-link>
+  (<xref alt="Dettmann et al., 2022" rid="ref-dettmann2022towards" ref-type="bibr">Dettmann
+  et al., 2022</xref>),
+  <ext-link ext-link-type="uri" xlink:href="https://robotik.dfki-bremen.de/de/forschung/projekte/vipe">VIPE</ext-link>
+  (<xref alt="Dettmann et al., 2018" rid="ref-dettmann2018exploration" ref-type="bibr">Dettmann
+  et al., 2018</xref>),
+  <ext-link ext-link-type="uri" xlink:href="https://robotik.dfki-bremen.de/de/forschung/projekte/kimmi-sf">KiMMI-SF</ext-link>,
+  <ext-link ext-link-type="uri" xlink:href="https://robotik.dfki-bremen.de/de/forschung/projekte/hise">HiSE</ext-link>,
+  <ext-link ext-link-type="uri" xlink:href="https://robotik.dfki-bremen.de/de/forschung/projekte/persim">PerSim</ext-link>,
+  <ext-link ext-link-type="uri" xlink:href="https://robotik.dfki-bremen.de/de/forschung/projekte/corob-x">CoRob-X</ext-link>
+  (<xref alt="Domı́nguez et al., 2025" rid="ref-dominguez2025cooperative" ref-type="bibr">Domı́nguez
+  et al., 2025</xref>),
+  <ext-link ext-link-type="uri" xlink:href="https://robotik.dfki-bremen.de/de/forschung/projekte/robdekon-ii">Robdekon2</ext-link>,
+  and
+  <ext-link ext-link-type="uri" xlink:href="https://robotik.dfki-bremen.de/de/forschung/projekte/nostrandamust">NoStrandAMust</ext-link>.</p>
+  <p>As a versatile component for terrain assessment, it has also been
+  applied on a wide range of terrestrial robots at the DFKI Robotics
+  Innovation Center (RIC), such as
+  <ext-link ext-link-type="uri" xlink:href="https://robotik.dfki-bremen.de/de/forschung/robotersysteme/arter">Arter</ext-link>,
+  <ext-link ext-link-type="uri" xlink:href="https://robotik.dfki-bremen.de/de/forschung/robotersysteme/artemis">Artemis</ext-link>,
+  <ext-link ext-link-type="uri" xlink:href="https://robotik.dfki-bremen.de/de/forschung/robotersysteme/coyote-iii">Coyote-III</ext-link>,
+  <ext-link ext-link-type="uri" xlink:href="https://robotik.dfki-bremen.de/de/forschung/robotersysteme/crex">Crex</ext-link>,
+  <ext-link ext-link-type="uri" xlink:href="https://robotik.dfki-bremen.de/de/forschung/robotersysteme/charlie">Charlie</ext-link>,
+  <ext-link ext-link-type="uri" xlink:href="https://robotik.dfki-bremen.de/de/forschung/robotersysteme/hunterse">Hunter-SE</ext-link>,
+  <ext-link ext-link-type="uri" xlink:href="https://robotik.dfki-bremen.de/de/forschung/robotersysteme/sherpatt">SherpaTT</ext-link>,
+  and
+  <ext-link ext-link-type="uri" xlink:href="https://robotik.dfki-bremen.de/de/forschung/robotersysteme/asguard-iv">Asguard-IV</ext-link>.</p>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>The <monospace>traversability_generator3d</monospace> library was
+  initiated and is being developed at the Robotics Innovation Center of
+  the German Research Center for Artificial Intelligence (DFKI) in
+  Bremen, in close collaboration with the Robotics Group of the
+  University of Bremen. Its development began within the framework of
+  the Entern project (grant no. 50RA1406) and has since been further
+  advanced in the context of Robdekon2 (grant no. 13N16537) and
+  NoStrandAMust (grant no. 50RA2122). The work has been supported by the
+  German Aerospace Center (DLR) with funding from the German Federal
+  Ministry for Economic Affairs and Climate Action (BMWK) as well as by
+  the German Federal Ministry of Education and Research (BMBF).</p>
+  <p>We would also like to acknowledge the contributors of the
+  <monospace>traversability_generator3d</monospace> repository,
+  including the developers visible on the project’s GitHub contributors
+  page, for their valuable efforts and dedication.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <title></title>
+  <ref id="ref-triebel2006multilevel">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Triebel</surname><given-names>Rudolph</given-names></name>
+        <name><surname>Pfaff</surname><given-names>Patrick</given-names></name>
+        <name><surname>Burgard</surname><given-names>Wolfram</given-names></name>
+      </person-group>
+      <article-title>Multi-level surface maps for outdoor terrain mapping and loop closing</article-title>
+      <source>2006 IEEE/RSJ international conference on intelligent robots and systems</source>
+      <publisher-name>IEEE</publisher-name>
+      <year iso-8601-date="2006">2006</year>
+      <pub-id pub-id-type="doi">10.1109/iros.2006.282632</pub-id>
+      <fpage>2276</fpage>
+      <lpage>2282</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Bockmann_ugv_nav4d">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Böckmann</surname><given-names>Arne</given-names></name>
+        <name><surname>Machowinski</surname><given-names>Janosch</given-names></name>
+        <name><surname>Lodhi</surname><given-names>Muhammad Haider Khan</given-names></name>
+      </person-group>
+      <article-title>ugv_nav4d: Advanced Multi-Surface Navigation for Unmanned Ground Vehicles Using 4D Path Planning Techniques</article-title>
+      <source>Journal of Open Source Software</source>
+      <year iso-8601-date="2024-12">2024</year><month>12</month>
+      <volume>9</volume>
+      <issue>104</issue>
+      <uri>https://joss.theoj.org/papers/10.21105/joss.06983</uri>
+      <pub-id pub-id-type="doi">10.21105/joss.06983</pub-id>
+      <fpage>6983</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-hornung2013octomap">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Hornung</surname><given-names>Armin</given-names></name>
+        <name><surname>Wurm</surname><given-names>Kai M</given-names></name>
+        <name><surname>Bennewitz</surname><given-names>Maren</given-names></name>
+        <name><surname>Stachniss</surname><given-names>Cyrill</given-names></name>
+        <name><surname>Burgard</surname><given-names>Wolfram</given-names></name>
+      </person-group>
+      <article-title>OctoMap: An efficient probabilistic 3D mapping framework based on octrees</article-title>
+      <source>Autonomous Robots</source>
+      <publisher-name>Springer</publisher-name>
+      <year iso-8601-date="2013">2013</year>
+      <volume>34</volume>
+      <issue>3</issue>
+      <pub-id pub-id-type="doi">10.1007/s10514-012-9321-0</pub-id>
+      <fpage>189</fpage>
+      <lpage>206</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-fankhauser2018probabilistic">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Fankhauser</surname><given-names>Péter</given-names></name>
+        <name><surname>Bloesch</surname><given-names>Michael</given-names></name>
+        <name><surname>Rodriguez</surname><given-names>Daniel</given-names></name>
+        <name><surname>Kaestner</surname><given-names>Markus</given-names></name>
+        <name><surname>Hutter</surname><given-names>Marco</given-names></name>
+        <name><surname>Siegwart</surname><given-names>Roland</given-names></name>
+      </person-group>
+      <article-title>Probabilistic terrain mapping for mobile robots with uncertain localization</article-title>
+      <source>2018 IEEE international conference on robotics and automation (ICRA)</source>
+      <publisher-name>IEEE</publisher-name>
+      <year iso-8601-date="2018">2018</year>
+      <pub-id pub-id-type="doi">10.1109/lra.2018.2849506</pub-id>
+      <fpage>1875</fpage>
+      <lpage>1882</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-cramer2018traversability">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Cramer</surname><given-names>Daniel</given-names></name>
+        <name><surname>Schulz</surname><given-names>Hans</given-names></name>
+        <name><surname>Behnke</surname><given-names>Sven</given-names></name>
+      </person-group>
+      <article-title>Traversability analysis for mobile robots in outdoor environments: A survey</article-title>
+      <source>2018 IEEE/RSJ international conference on intelligent robots and systems (IROS)</source>
+      <publisher-name>IEEE</publisher-name>
+      <year iso-8601-date="2018">2018</year>
+      <fpage>7624</fpage>
+      <lpage>7631</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-wiesmann2021traversability">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Wiesmann</surname><given-names>Louis</given-names></name>
+        <name><surname>Furrer</surname><given-names>Fadri</given-names></name>
+        <name><surname>Siegwart</surname><given-names>Roland</given-names></name>
+        <name><surname>Cadena</surname><given-names>Cesar</given-names></name>
+      </person-group>
+      <article-title>Traversability estimation for mobile robots in natural environments: A survey</article-title>
+      <source>Frontiers in Robotics and AI</source>
+      <publisher-name>Frontiers</publisher-name>
+      <year iso-8601-date="2021">2021</year>
+      <volume>8</volume>
+    </element-citation>
+  </ref>
+  <ref id="ref-schwendner2015entern">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Schwendner</surname><given-names>Jakob</given-names></name>
+        <name><surname>Carrió</surname><given-names>JH</given-names></name>
+        <name><surname>Domı́nguez</surname><given-names>R</given-names></name>
+        <name><surname>Plan-thaber</surname><given-names>Steffen</given-names></name>
+        <name><surname>Yoo</surname><given-names>Yong-Ho</given-names></name>
+        <name><surname>Asadi</surname><given-names>Behnam</given-names></name>
+        <name><surname>Machowinski</surname><given-names>Janosch</given-names></name>
+        <name><surname>Rauch</surname><given-names>Christian</given-names></name>
+        <name><surname>Kirchner</surname><given-names>Frank</given-names></name>
+      </person-group>
+      <article-title>Entern: Environment modelling and navigation for robotic space-exploration</article-title>
+      <source>Symposium on advanced space technologies in robotics and automation (ASTRA),(ASTRA), noordwijk, in proceedings ASTRA</source>
+      <year iso-8601-date="2015">2015</year>
+    </element-citation>
+  </ref>
+  <ref id="ref-dettmann2022towards">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Dettmann</surname><given-names>Alexander</given-names></name>
+        <name><surname>Planthaber</surname><given-names>Steffen</given-names></name>
+        <name><surname>Bargsten</surname><given-names>Vinzenz</given-names></name>
+        <name><surname>Dominguez</surname><given-names>Raul</given-names></name>
+        <name><surname>Cerilli</surname><given-names>Gianluca</given-names></name>
+        <name><surname>Marchitto</surname><given-names>Marco</given-names></name>
+        <name><surname>Fink</surname><given-names>Geoff</given-names></name>
+        <name><surname>Focchi</surname><given-names>Michele</given-names></name>
+        <name><surname>Barasuol</surname><given-names>Victor</given-names></name>
+        <name><surname>Semini</surname><given-names>Claudio</given-names></name>
+        <name><surname>others</surname></name>
+      </person-group>
+      <article-title>Towards a generic navigation and locomotion control system for legged space exploration</article-title>
+      <source>16th symposium on advanced space technologies in robotics and automation (ASTRA 2022)</source>
+      <year iso-8601-date="2022">2022</year>
+    </element-citation>
+  </ref>
+  <ref id="ref-dettmann2018exploration">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Dettmann</surname><given-names>Alexander</given-names></name>
+        <name><surname>Kuehn</surname><given-names>Daniel</given-names></name>
+        <name><surname>Van Opdenbosch</surname><given-names>Dominik</given-names></name>
+        <name><surname>Stark</surname><given-names>Tobias</given-names></name>
+        <name><surname>Peters</surname><given-names>Heiner</given-names></name>
+        <name><surname>Natarajan</surname><given-names>Sankaranarayanan</given-names></name>
+        <name><surname>Kasperski</surname><given-names>Sebastian</given-names></name>
+        <name><surname>Boeckmann</surname><given-names>Arne</given-names></name>
+        <name><surname>Garcea</surname><given-names>Adrian</given-names></name>
+        <name><surname>Steinbach</surname><given-names>Eckehard</given-names></name>
+        <name><surname>others</surname></name>
+      </person-group>
+      <article-title>Exploration in inaccessible terrain using visual and proprioceptive data</article-title>
+      <source>International symposium on artificial intelligence, robotics and automation in space (i-SAIRAS), madrid, spain</source>
+      <year iso-8601-date="2018">2018</year>
+    </element-citation>
+  </ref>
+  <ref id="ref-dominguez2025cooperative">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Domı́nguez</surname><given-names>Raúl</given-names></name>
+        <name><surname>Pérez-del-Pulgar</surname><given-names>Carlos</given-names></name>
+        <name><surname>Paz-Delgado</surname><given-names>Gonzalo J</given-names></name>
+        <name><surname>Polisano</surname><given-names>Fabio</given-names></name>
+        <name><surname>Babel</surname><given-names>Jonathan</given-names></name>
+        <name><surname>Germa</surname><given-names>Thierry</given-names></name>
+        <name><surname>Dragomir</surname><given-names>Iulia</given-names></name>
+        <name><surname>Ciarletti</surname><given-names>Valérie</given-names></name>
+        <name><surname>Berthet</surname><given-names>Anne-Claire</given-names></name>
+        <name><surname>Danter</surname><given-names>Leon Cedric</given-names></name>
+        <name><surname>others</surname></name>
+      </person-group>
+      <article-title>Cooperative robotic exploration of a planetary skylight surface and lava cave</article-title>
+      <source>Science Robotics</source>
+      <publisher-name>American Association for the Advancement of Science</publisher-name>
+      <year iso-8601-date="2025">2025</year>
+      <volume>10</volume>
+      <issue>105</issue>
+      <pub-id pub-id-type="doi">10.1126/scirobotics.adj9699</pub-id>
+      <fpage>eadj9699</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
