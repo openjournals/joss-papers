@@ -1,0 +1,410 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">8958</article-id>
+<article-id pub-id-type="doi">10.21105/joss.08958</article-id>
+<title-group>
+<article-title>better_launch: A better replacement for the ROS2 launch
+system</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0003-2262-2989</contrib-id>
+<name>
+<surname>Dahn</surname>
+<given-names>Nikolas</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>German Research Center for Artificial Intelligence,
+Germany</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2025-08-01">
+<day>1</day>
+<month>8</month>
+<year>2025</year>
+</pub-date>
+<volume>11</volume>
+<issue>118</issue>
+<fpage>8958</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2026</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>ROS2</kwd>
+<kwd>launch</kwd>
+<kwd>Python</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p>Today, most robots use middleware in order to manage and connect
+  the various pieces of software they need for fulfilling their tasks.
+  Over the last years, the most popular middleware - the Robot Operating
+  System (ROS) - has received a complete overhaul and been released as
+  ROS2. However, the reception so far has been mixed. While the code
+  base has seen several important improvements, this reinvention has
+  also come with severe downgrades in terms of user friendliness and
+  usability. One of the biggest and most exposed offenders is the launch
+  system, responsible for orchestrating the startup and execution of the
+  robot’s software components. The software presented in this paper -
+  <italic>better_launch</italic> - is a complete replacement for the
+  ROS2 launch system and solves several technical and usability issues.
+  It is lightweight, intuitive, convenient, fully documented, and comes
+  with many examples.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p>On one hand, being able to write launch files in Python is a nice
+  feature that does away with many of the limitations of the old ROS1
+  xml launch files. On the other hand, the current implementation tries
+  to use Python as a declarative language, forcing users to dance around
+  unintuitive constructs as none of the values and nodes exist yet at
+  the time of execution. Aside from its wordiness and significant
+  challenge to new users, it comes with several anti patterns and
+  technical issues, too:</p>
+  <list list-type="bullet">
+    <list-item>
+      <p>execution order of actions is non-deterministic</p>
+    </list-item>
+    <list-item>
+      <p>dynamic code execution (e.g., passing code as a string for
+      later execution)</p>
+    </list-item>
+    <list-item>
+      <p>resists linting as many arguments have to be passed as
+      strings</p>
+    </list-item>
+    <list-item>
+      <p>resists automated code analysis as actions don’t have a unified
+      way of exposing internals</p>
+    </list-item>
+    <list-item>
+      <p>frequent zombie processes</p>
+    </list-item>
+    <list-item>
+      <p>convoluted and obscure internals</p>
+    </list-item>
+  </list>
+  <p>There are, of course, good reasons for the way the launch system
+  has been implemented, at least on a superficial level. According to
+  the design document
+  (<xref alt="Woodall, 2019" rid="ref-ros2_launch_design" ref-type="bibr">Woodall,
+  2019</xref>), the intent is to treat launch files as “a description of
+  what will happen” without executing anything. This is so that tools
+  can “visualize and modify the launch description”. The recently
+  released LaunchMap
+  (<xref alt="Mahna &amp; Costa Silva, 2025" rid="ref-launchmap" ref-type="bibr">Mahna
+  &amp; Costa Silva, 2025</xref>) is able to do just that. However,
+  given that users may define their own launch actions without a common
+  way of inspecting them, it could be argued that even this use case is
+  not well supported right now. There is also no good argument why the
+  same couldn’t be achieved using, e.g., Python’s inspect module and/or
+  a non-declarative syntax.</p>
+</sec>
+<sec id="existing-remedies">
+  <title>Existing Remedies</title>
+  <p>The issues in user friendliness have led to the emergence of
+  several packages that simplify writing launch files, e.g.,
+  Simple_launch
+  (<xref alt="Kermorgant et al., 2020" rid="ref-simple_launch" ref-type="bibr">Kermorgant
+  et al., 2020</xref>) and Launch-generator
+  (<xref alt="Sakaguchi, 2023" rid="ref-launch_generator" ref-type="bibr">Sakaguchi,
+  2023</xref>), while other packages like the popular
+  Generate_parameter_library
+  (<xref alt="PickNikRobotics, 2022" rid="ref-generate_parameter_library" ref-type="bibr">PickNikRobotics,
+  2022</xref>) are dedicated to particular aspects of the launch
+  process. However, in the end they all face the same issues mentioned
+  above, as they just represent different ways of generating the launch
+  descriptions.</p>
+</sec>
+<sec id="better_launch">
+  <title>better_launch</title>
+  <p>In order to actually resolve these issues, I have written
+  <italic>better_launch</italic>, a complete and self-contained
+  replacement for the ROS2 launch system with no dependencies on the
+  existing facilities. Getting started with
+  <italic>better_launch</italic> is easy as it is well-documented and
+  comes with examples for various common use cases. It enables
+  developers to write simple and intuitive launch files using regular
+  Pythonic syntax (see example below). Crucially, it addresses the above
+  issues as follows:</p>
+  <list list-type="bullet">
+    <list-item>
+      <p>Any actions taken in the launch files are executed immediately,
+      allowing direct and meaningful interactions with nodes, topics,
+      and services as the launch process develops. This allows, e.g.,
+      adjusting one node’s parameters based on another node’s published
+      topics.</p>
+    </list-item>
+    <list-item>
+      <p>Arguments to the launch file are “declared” in the form of
+      function arguments that are passed as natural types, enabling
+      common Python syntax like if-else.</p>
+    </list-item>
+    <list-item>
+      <p><italic>better_launch</italic> launch files are fully
+      compatible with the ROS2 launch system. This means they can be
+      started through <monospace>ros2 launch</monospace>, include
+      regular ROS2 launch files, and even get included from regular ROS2
+      launch files.</p>
+    </list-item>
+    <list-item>
+      <p>The entire launch logic is contained within a single, fully
+      documented package, which includes examples. Convenience functions
+      exist for various common tasks like starting a
+      <monospace>joint_state_publisher</monospace> or bridging Gazebo
+      topics.</p>
+    </list-item>
+    <list-item>
+      <p><italic>better_launch</italic> comes with a replacement for
+      <monospace>ros2 launch</monospace> called
+      <monospace>bl</monospace>, which is faster than its counterpart
+      and provides additional features. For example,
+      <monospace>bl</monospace> enables auto completion for launch
+      parameters and uses the launch function’s docstring to generate
+      <monospace>--help</monospace> text.</p>
+    </list-item>
+    <list-item>
+      <p>To improve usability, <italic>better_launch</italic> reformats
+      and colors terminal output by default.</p>
+    </list-item>
+    <list-item>
+      <p>Unless killed with SIGKILL, <italic>better_launch</italic> will
+      not leave zombie processes behind.</p>
+    </list-item>
+    <list-item>
+      <p><italic>better_launch</italic> provides an optional and
+      unobtrusive <bold>terminal UI</bold>, reminiscent of Rosmon
+      (<xref alt="Schwarz &amp; others, 2015" rid="ref-rosmon" ref-type="bibr">Schwarz
+      &amp; others, 2015</xref>), which can be used for stopping and
+      restarting nodes, triggering life cycle transitions, listing a
+      node’s subscribed topics, dynamically adjusting the logging level,
+      and more.</p>
+    </list-item>
+  </list>
+  <fig>
+    <caption><p>Screenshot of the TUI</p></caption>
+    <graphic mimetype="image" mime-subtype="png" xlink:href="../media/tui.png" />
+  </fig>
+  <p>We consider <italic>better_launch</italic> mature enough for
+  general use in research applications, with performance similar or
+  better than <monospace>ros2 launch</monospace> (benchmarks in repo)
+  (<xref alt="Bloomberg Engineering, 2025" rid="ref-memray" ref-type="bibr">Bloomberg
+  Engineering, 2025</xref>;
+  <xref alt="Frederickson, 2025" rid="ref-py-spy" ref-type="bibr">Frederickson,
+  2025</xref>;
+  <xref alt="Rodola, 2025" rid="ref-psutil" ref-type="bibr">Rodola,
+  2025</xref>). It is under active development and can be downloaded for
+  free from
+  <ext-link ext-link-type="uri" xlink:href="https://github.com/dfki-ric/better_launch">https://github.com/dfki-ric/better_launch</ext-link>.
+  We hope that <italic>better_launch</italic> will advance the state of
+  ROS2 in a meaningful way.</p>
+</sec>
+<sec id="example">
+  <title>Example</title>
+  <p>The ROS2 tutorials provide an example
+  (<xref alt="Open Robotics, 2025" rid="ref-ros2_substitution_example" ref-type="bibr">Open
+  Robotics, 2025</xref>) for running a turtlebot simulation. This launch
+  file creates a node, then calls one of its services and updates a
+  parameter. Ironically, due to the asynchronous execution, the
+  parameter update usually fails because the node has not come up yet.
+  <italic>better_launch</italic> does not have this issue, and can in
+  addition express the same launch file with only 28 instead of 73 lines
+  - including documentation!</p>
+  <code language="python">#!/usr/bin/env python3
+from better_launch import BetterLaunch, launch_this
+
+@launch_this
+def great_atuin(
+    turtlesim_ns: str = &quot;turtlesim1&quot;, 
+    use_provided_red: bool = True, 
+    new_background_r: int = 200,
+):
+    &quot;&quot;&quot; This docstring will also be used to create text for --help!&quot;&quot;&quot;
+    bl = BetterLaunch()
+
+    with bl.group(turtlesim_ns):
+        turtle_node = bl.node(
+            package=&quot;turtlesim&quot;,
+            executable=&quot;turtlesim_node&quot;,
+            name=&quot;sim&quot;,
+            params={&quot;background_r&quot;: 120},
+        )
+
+    bl.call_service(
+        topic=f&quot;/{turtlesim_ns}/spawn&quot;,
+        service_type=&quot;turtlesim/srv/Spawn&quot;,
+        request_args={&quot;x&quot;: 2.0, &quot;y&quot;: 2.0, &quot;theta&quot;: 0.2},
+    )
+
+    if use_provided_red:
+        turtle_node.is_ros2_connected(timeout=None)
+        turtle_node.set_live_params({&quot;background_r&quot;: new_background_r})</code>
+</sec>
+<sec id="ai-usage-disclosure">
+  <title>AI usage disclosure</title>
+  <p>No generative AI tools were used in the development of this
+  software, the writing of this manuscript, or the preparation of
+  supporting materials.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <title></title>
+  <ref id="ref-ros2_launch_design">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Woodall</surname><given-names>William</given-names></name>
+      </person-group>
+      <article-title>ROS 2 launch system</article-title>
+      <source>ROS 2 Design</source>
+      <publisher-name>Open Source Robotics Foundation</publisher-name>
+      <year iso-8601-date="2019">2019</year>
+      <uri>https://design.ros2.org/articles/roslaunch.html</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-launchmap">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Mahna</surname><given-names>Sakshay</given-names></name>
+        <name><surname>Costa Silva</surname><given-names>Luana Priscila da</given-names></name>
+      </person-group>
+      <article-title>LaunchMap – visualize your ROS 2 launch files</article-title>
+      <source>GitHub repository</source>
+      <publisher-name>GitHub</publisher-name>
+      <year iso-8601-date="2025">2025</year>
+      <uri>https://github.com/Kodo-Robotics/launchmap</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-simple_launch">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Kermorgant</surname><given-names>Olivier</given-names></name>
+        <name><surname>Wen</surname><given-names>Haowei</given-names></name>
+        <name><surname>Pocedulić</surname><given-names>Viktor</given-names></name>
+      </person-group>
+      <article-title>simple_launch</article-title>
+      <source>GitHub repository</source>
+      <publisher-name>GitHub</publisher-name>
+      <year iso-8601-date="2020">2020</year>
+      <uri>https://github.com/oKermorgant/simple_launch</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-launch_generator">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Sakaguchi</surname><given-names>Tatsuro</given-names></name>
+      </person-group>
+      <article-title>launch-generator</article-title>
+      <source>GitHub repository</source>
+      <publisher-name>GitHub</publisher-name>
+      <year iso-8601-date="2023">2023</year>
+      <uri>https://github.com/Tacha-S/launch_generator</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-generate_parameter_library">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>PickNikRobotics</surname></name>
+      </person-group>
+      <article-title>generate_parameter_library</article-title>
+      <source>GitHub repository</source>
+      <publisher-name>GitHub</publisher-name>
+      <year iso-8601-date="2022">2022</year>
+      <uri>https://github.com/PickNikRobotics/generate_parameter_library</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-rosmon">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Schwarz</surname><given-names>Max</given-names></name>
+        <name><surname>others</surname></name>
+      </person-group>
+      <article-title>rosmon</article-title>
+      <source>GitHub repository</source>
+      <publisher-name>GitHub</publisher-name>
+      <year iso-8601-date="2015">2015</year>
+      <uri>https://github.com/xqms/rosmon</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-ros2_substitution_example">
+    <element-citation>
+      <person-group person-group-type="author">
+        <string-name>Open Robotics</string-name>
+      </person-group>
+      <article-title>Using substitutions</article-title>
+      <source>ROS 2 Tutorials</source>
+      <publisher-name>Open Robotics</publisher-name>
+      <year iso-8601-date="2025">2025</year>
+      <uri>https://docs.ros.org/en/jazzy/Tutorials/Intermediate/Launch/Using-Substitutions.html</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-py-spy">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Frederickson</surname><given-names>Ben</given-names></name>
+      </person-group>
+      <article-title>py-spy</article-title>
+      <source>Github repository</source>
+      <publisher-name>Github</publisher-name>
+      <year iso-8601-date="2025">2025</year>
+      <uri>https://github.com/benfred/py-spy</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-memray">
+    <element-citation>
+      <person-group person-group-type="author">
+        <string-name>Bloomberg Engineering</string-name>
+      </person-group>
+      <article-title>Memray</article-title>
+      <source>Github repository</source>
+      <publisher-name>Github</publisher-name>
+      <year iso-8601-date="2025">2025</year>
+      <uri>https://github.com/bloomberg/memray</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-psutil">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Rodola</surname><given-names>Giampaolo</given-names></name>
+      </person-group>
+      <article-title>psutil</article-title>
+      <source>Github repository</source>
+      <publisher-name>Github</publisher-name>
+      <year iso-8601-date="2025">2025</year>
+      <uri>https://github.com/giampaolo/psutil</uri>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
