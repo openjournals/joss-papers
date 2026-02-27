@@ -1,0 +1,1080 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">9329</article-id>
+<article-id pub-id-type="doi">10.21105/joss.09329</article-id>
+<title-group>
+<article-title>graph-pes: graph-based machine-learning models for
+potential-energy surfaces</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0009-0006-7377-7146</contrib-id>
+<name>
+<surname>Gardner</surname>
+<given-names>John L. A.</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0001-6873-0278</contrib-id>
+<name>
+<surname>Deringer</surname>
+<given-names>Volker L.</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Department of Chemistry, University of Oxford, Oxford,
+United Kingdom</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2025-01-08">
+<day>8</day>
+<month>1</month>
+<year>2025</year>
+</pub-date>
+<volume>11</volume>
+<issue>118</issue>
+<fpage>9329</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2026</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>Python</kwd>
+<kwd>machine learning</kwd>
+<kwd>graphs</kwd>
+<kwd>interatomic potentials</kwd>
+<kwd>force fields</kwd>
+<kwd>molecular dynamics</kwd>
+<kwd>chemistry</kwd>
+<kwd>materials science</kwd>
+<kwd>foundation models</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p>We present <monospace>graph-pes</monospace>, an open-source toolkit
+  for accelerating the development, training, and deployment of
+  machine-learned interatomic potential (MLIP) models that act on graph
+  representations of atomic structures. The toolkit comprises three
+  components:</p>
+  <list list-type="order">
+    <list-item>
+      <p><bold>The <monospace>graph_pes</monospace> Python
+      package</bold>: a modular framework containing all functionality
+      required to build, train, and evaluate graph-based MLIPs. The
+      package includes a mature data pipeline for converting atomic
+      structures into graph representations
+      (<monospace>AtomicGraph</monospace>s), a fully featured base class
+      for MLIP implementations (<monospace>GraphPESModel</monospace>),
+      and a suite of common data manipulation routines and model
+      building blocks.</p>
+    </list-item>
+    <list-item>
+      <p><bold>The <monospace>graph-pes-train</monospace> command-line
+      interface</bold> (CLI): a convenience tool for training
+      graph-based MLIPs on datasets of labelled atomic structures
+      directly from the command line. The tool is compatible with any
+      <monospace>GraphPESModel</monospace> (i.e., those defined in
+      <monospace>graph-pes</monospace>, user-designed ones, and
+      foundation models) and is designed to be easily extensible via
+      custom loss functions, optimisers, datasets, and more.</p>
+    </list-item>
+    <list-item>
+      <p><bold>Molecular-dynamics drivers</bold> that allow any
+      <monospace>GraphPESModel</monospace> to be used in GPU-accelerated
+      MD simulations. We currently provide a
+      <monospace>pair style</monospace> for LAMMPS
+      (<xref alt="Thompson et al., 2022" rid="ref-Thompson-22-02" ref-type="bibr">Thompson
+      et al., 2022</xref>), a <monospace>GraphPESCalculator</monospace>
+      for <monospace>ASE</monospace>
+      (<xref alt="Larsen et al., 2017" rid="ref-Larsen-17-06" ref-type="bibr">Larsen
+      et al., 2017</xref>), and an integration with the
+      <monospace>torch-sim</monospace> package
+      (<xref alt="Cohen et al., 2025" rid="ref-torch-sim" ref-type="bibr">Cohen
+      et al., 2025</xref>).</p>
+    </list-item>
+  </list>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p>In recent years, machine-learned PES models have become central
+  tools for computational chemistry and materials science
+  (<xref alt="Deringer et al., 2019" rid="ref-Deringer-19-11" ref-type="bibr">Deringer
+  et al., 2019</xref>). These models are trained on labels generated by
+  quantum-mechanical methods, but scale much more favourably with system
+  size, making it possible to simulate the dynamics of large systems
+  over extended timescales.</p>
+  <p>Many flavours of MLIPs exist, and with them have arisen a variety
+  of software packages, each typically tailored to training specific
+  architectures (see below). Given their unique specialisations, these
+  individual implementations do not normally conform to a common
+  interface, making it difficult for practitioners to migrate training
+  and validation pipelines between different architectures.</p>
+  <fig>
+    <caption><p>Schematic overview of the functionality of
+    <monospace>graph-pes</monospace>. The core components are
+    highlighted in colour. Red: The <monospace>AtomicGraph</monospace>
+    class is used to represent atomic structures and incorporates the
+    notion of locality via a neighbour list. Blue: The
+    <monospace>GraphPESModel</monospace> class is the general base class
+    for all <monospace>graph-pes</monospace> models. Green:
+    <monospace>graph-pes</monospace> includes a CLI for easy training,
+    and interfaces to multiple external simulation tools for evaluating
+    MLIPs.</p></caption>
+    <graphic mimetype="image" mime-subtype="png" xlink:href="./overview.png" />
+  </fig>
+  <p>The <monospace>graph-pes</monospace> package provides a
+  <bold>unified interface and framework</bold> for defining, training,
+  and working with graph-based MLIP models, complementing existing
+  software in the field (see “Related work” section below). This reduces
+  the barrier to entry for researchers wanting to implement new MLIP
+  architectures, and allows practitioners to easily explore different
+  MLIP architectures: training scripts require as little as one line of
+  code to swap between model architectures, while validation scripts can
+  be written in an architecture-agnostic manner, with
+  <monospace>LAMMPS</monospace> input scripts,
+  <monospace>ASE</monospace> calculators, and
+  <monospace>torch-sim</monospace> simulations requiring no changes
+  other than pointing to a different model file.</p>
+</sec>
+<sec id="related-work">
+  <title>Related work</title>
+  <p><monospace>graph-pes</monospace> is beginning to drive projects
+  within our research group, and we hope that it will be useful to many
+  others. In recent work, we have described the use of
+  <monospace>graph-pes</monospace> for fitting NequIP models to datasets
+  created using <monospace>autoplex</monospace>
+  (<xref alt="Liu et al., 2025" rid="ref-Liu-25-08" ref-type="bibr">Liu
+  et al., 2025</xref>), for assessing zero-shot performance of different
+  graph-network MLIPs
+  (<xref alt="Ben Mahmoud et al., 2025" rid="ref-Mahmoud-25-02" ref-type="bibr">Ben
+  Mahmoud et al., 2025</xref>), and for distilling atomistic foundation
+  models
+  (<xref alt="Gardner et al., 2025" rid="ref-Gardner-25-06" ref-type="bibr">Gardner
+  et al., 2025</xref>).</p>
+  <p>A number of existing packages offer training and validation
+  pipelines for particular ML-PES architectures, including
+  <monospace>schnetpack</monospace>
+  (<xref alt="Schütt et al., 2019" rid="ref-schutt2019schnetpack" ref-type="bibr">Schütt
+  et al., 2019</xref>,
+  <xref alt="2023" rid="ref-schutt2023schnetpack" ref-type="bibr">2023</xref>),
+  <monospace>deepmd-kit</monospace>
+  (<xref alt="Wang et al., 2018" rid="ref-Wang-18-07" ref-type="bibr">Wang
+  et al., 2018</xref>;
+  <xref alt="Zeng et al., 2023" rid="ref-Zeng-23-08" ref-type="bibr">Zeng
+  et al., 2023</xref>), <monospace>nequip</monospace>
+  (<xref alt="Batzner et al., 2022" rid="ref-Batzner-22-05" ref-type="bibr">Batzner
+  et al., 2022</xref>), <monospace>mace-torch</monospace>
+  (<xref alt="Batatia et al., 2022" rid="ref-Batatia-22-10" ref-type="bibr">Batatia
+  et al., 2022</xref>), <monospace>torchmd-net</monospace>
+  (<xref alt="Pelaez et al., 2024" rid="ref-TorchMDNet" ref-type="bibr">Pelaez
+  et al., 2024</xref>), and <monospace>fairchem</monospace>
+  (<xref alt="Shuaibi et al., 2025" rid="ref-fairchem" ref-type="bibr">Shuaibi
+  et al., 2025</xref>). These frameworks focus on their associated model
+  families and do not share a common interface for training. While
+  <monospace>MatterTune</monospace>
+  (<xref alt="Kong et al., 2025" rid="ref-Kong-25-04" ref-type="bibr">Kong
+  et al., 2025</xref>) offers a unified interface for foundation model
+  fine-tuning, it does not easily support training arbitrary models from
+  scratch. In contrast to these, <monospace>graph-pes</monospace> is a
+  general, model-agnostic framework, designed to enable exact
+  side-by-side comparisons, easy implementation of arbitrary new
+  architectures, and standardized training and evaluation workflows.</p>
+</sec>
+<sec id="features-and-implementation">
+  <title>Features and implementation</title>
+  <sec id="representing-atomic-structures-with-graphs">
+    <title>Representing atomic structures with graphs</title>
+    <p>Graphs are a natural way to represent atomic structure, with
+    nodes representing atoms and edges defining a local neighbourhood
+    for each atom. The <monospace>AtomicGraph</monospace> class
+    therefore serves as the base data structure in
+    <monospace>graph-pes</monospace>, storing atomic positions, chemical
+    identities, unit cell vectors (where applicable), and an edge list.
+    Writing performant code for graph operations can be challenging;
+    <monospace>graph-pes</monospace> therefore provides optimised
+    implementations for accessing derived properties and performing
+    common operations on both single and batched graph instances. This
+    simplifies the implementation of new MLIP models and ensures forward
+    passes remain readable. Full API details are available in the
+    project documentation.</p>
+  </sec>
+  <sec id="model-implementations">
+    <title>Model implementations</title>
+    <p>All MLIP models in <monospace>graph-pes</monospace> are
+    implemented as subclasses of the
+    <monospace>GraphPESModel</monospace> base class. Implementations
+    need only define a forward pass that returns a local energy for each
+    atom or a total energy for the structure; the framework handles the
+    calculation of forces and stress tensors in a conservative manner
+    via automatic differentiation. We also support models that return
+    direct force and stress tensor predictions (e.g.,
+    <monospace>TensorNet</monospace> or <monospace>orb-v3-*</monospace>
+    with their optional direct force readout heads).</p>
+    <p>Building on the <monospace>GraphPESModel</monospace> class, we
+    provide independent re-implementations of popular MLIP
+    architectures, including <monospace>PaiNN</monospace>
+    (<xref alt="Schütt et al., 2021" rid="ref-Schutt-21-06" ref-type="bibr">Schütt
+    et al., 2021</xref>), <monospace>EDDP</monospace>
+    (<xref alt="Pickard, 2022" rid="ref-Pickard-22-07" ref-type="bibr">Pickard,
+    2022</xref>), <monospace>NequIP</monospace>
+    (<xref alt="Batzner et al., 2022" rid="ref-Batzner-22-05" ref-type="bibr">Batzner
+    et al., 2022</xref>), <monospace>MACE</monospace>
+    (<xref alt="Batatia et al., 2022" rid="ref-Batatia-22-10" ref-type="bibr">Batatia
+    et al., 2022</xref>), and <monospace>TensorNet</monospace>
+    (<xref alt="Simeon &amp; de Fabritiis, 2023" rid="ref-Simeon-23-06" ref-type="bibr">Simeon
+    &amp; de Fabritiis, 2023</xref>). We use building blocks provided by
+    <monospace>e3nn</monospace>
+    (<xref alt="Geiger &amp; Smidt, 2022" rid="ref-Geiger-22-07" ref-type="bibr">Geiger
+    &amp; Smidt, 2022</xref>) to implement models that act on spherical
+    tensor decompositions.</p>
+    <p>Furthermore, we provide an <monospace>AdditionModel</monospace>
+    implementation, which makes predictions as a sum over independent
+    models. This allows <monospace>graph-pes</monospace> to add offset
+    energies (<monospace>EnergyOffset</monospace>) and pair-repulsion
+    terms (<monospace>LennardJones</monospace>,
+    <monospace>Morse</monospace>, and
+    <monospace>ZBLCoreRepulsion</monospace>) to any model
+    implementation, as well as the creation and use of model
+    ensembles.</p>
+  </sec>
+  <sec id="training-and-validation">
+    <title>Training and validation</title>
+    <p>We provide the <monospace>graph-pes-train</monospace> CLI tool
+    for training any <monospace>GraphPESModel</monospace> on datasets of
+    labelled atomic structures. As well as training from scratch, we
+    also support the fine-tuning of existing models on new datasets,
+    facilitating a variety of strategies, including synthetic
+    pre-training
+    (<xref alt="Gardner et al., 2024" rid="ref-Gardner-24-01" ref-type="bibr">Gardner
+    et al., 2024</xref>), foundation model fine-tuning (see below), and
+    frozen transfer learning
+    (<xref alt="Radova et al., 2025" rid="ref-Radova-25-02" ref-type="bibr">Radova
+    et al., 2025</xref>).</p>
+    <p>Under the hood, <monospace>graph-pes-train</monospace> builds
+    upon the <monospace>PyTorch Lightning</monospace>
+    (<xref alt="Falcon &amp; The PyTorch Lightning team, 2019" rid="ref-Lightning" ref-type="bibr">Falcon
+    &amp; The PyTorch Lightning team, 2019</xref>) training loop,
+    allowing the user to configure a variety of common training features
+    and callbacks. We also support the use of arbitrary, user-defined
+    components, including custom loss functions, model architectures,
+    optimisers, and datasets.</p>
+    <p>Because all models conform to the same interface, all training
+    features can be used with any model architecture. Similarly, all
+    downstream model uses can be written in an architecture-agnostic
+    manner, allowing for MD, relaxations, and other scripts to be
+    written once, and then used with any MLIP architecture,
+    <italic>e.g.</italic> for extended validation beyond simple error
+    metrics
+    (<xref alt="Morrow et al., 2023" rid="ref-Morrow-23-03" ref-type="bibr">Morrow
+    et al., 2023</xref>).</p>
+  </sec>
+  <sec id="easy-access-to-foundation-models">
+    <title>Easy access to foundation models</title>
+    <p>A recent area of research is the development of “foundational”
+    MLIPs that can describe the potential-energy surface of a wide range
+    of systems. <monospace>graph-pes</monospace> integrates directly
+    with the <monospace>mace-torch</monospace>,
+    <monospace>mattersim</monospace>, and
+    <monospace>orb-models</monospace> packages to provide access to,
+    among others, the <monospace>MACE-MP</monospace>
+    (<xref alt="Batatia et al., 2025" rid="ref-Batatia-25-11" ref-type="bibr">Batatia
+    et al., 2025</xref>), <monospace>MatterSim</monospace>
+    (<xref alt="Yang et al., 2024" rid="ref-Yang-24-05" ref-type="bibr">Yang
+    et al., 2024</xref>), <monospace>orb-v2</monospace>
+    (<xref alt="Neumann et al., 2024" rid="ref-Neumann-24-10" ref-type="bibr">Neumann
+    et al., 2024</xref>), <monospace>MACE-OFF</monospace>
+    (<xref alt="Kovács et al., 2025" rid="ref-Kovacs-25-01" ref-type="bibr">Kovács
+    et al., 2025</xref>), <monospace>Egret-v1</monospace>
+    (<xref alt="Mann et al., 2025" rid="ref-Mann-25-05" ref-type="bibr">Mann
+    et al., 2025</xref>), and <monospace>orb-v3</monospace>
+    (<xref alt="Rhodes et al., 2025" rid="ref-Rhodes-25-04" ref-type="bibr">Rhodes
+    et al., 2025</xref>) families of models. Each of these integrations
+    generates <monospace>GraphPESModels</monospace> that are directly
+    compatible with all relevant <monospace>graph-pes</monospace>
+    features.</p>
+  </sec>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>We thank Zoé Faure Beaulieu, Krystian Gierczak, and Daniel Thomas
+  du Toit for early testing and feedback. J.L.A.G. acknowledges a UKRI
+  Linacre - The EPA Cephalosporin Scholarship, support from an EPSRC DTP
+  award [grant number EP/T517811/1], and from the Department of
+  Chemistry, University of Oxford. This work was supported by UK
+  Research and Innovation [grant number EP/X016188/1].</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <title></title>
+  <ref id="ref-Liu-25-08">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Liu</surname><given-names>Yuanbin</given-names></name>
+        <name><surname>Morrow</surname><given-names>Joe D.</given-names></name>
+        <name><surname>Ertural</surname><given-names>Christina</given-names></name>
+        <name><surname>Fragapane</surname><given-names>Natascia L.</given-names></name>
+        <name><surname>Gardner</surname><given-names>John L. A.</given-names></name>
+        <name><surname>Naik</surname><given-names>Aakash A.</given-names></name>
+        <name><surname>Zhou</surname><given-names>Yuxing</given-names></name>
+        <name><surname>George</surname><given-names>Janine</given-names></name>
+        <name><surname>Deringer</surname><given-names>Volker L.</given-names></name>
+      </person-group>
+      <article-title>An automated framework for exploring and learning potential-energy surfaces</article-title>
+      <source>Nature Communications</source>
+      <year iso-8601-date="2025">2025</year>
+      <volume>16</volume>
+      <issue>1</issue>
+      <pub-id pub-id-type="doi">10.1038/s41467-025-62510-6</pub-id>
+      <fpage>7666</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Geiger-22-07">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Geiger</surname><given-names>Mario</given-names></name>
+        <name><surname>Smidt</surname><given-names>Tess</given-names></name>
+      </person-group>
+      <article-title>E3nn: Euclidean Neural Networks</article-title>
+      <year iso-8601-date="2022">2022</year>
+      <pub-id pub-id-type="doi">10.48550/arXiv.2207.09453</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-Batzner-22-05">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Batzner</surname><given-names>Simon</given-names></name>
+        <name><surname>Musaelian</surname><given-names>Albert</given-names></name>
+        <name><surname>Sun</surname><given-names>Lixin</given-names></name>
+        <name><surname>Geiger</surname><given-names>Mario</given-names></name>
+        <name><surname>Mailoa</surname><given-names>Jonathan P.</given-names></name>
+        <name><surname>Kornbluth</surname><given-names>Mordechai</given-names></name>
+        <name><surname>Molinari</surname><given-names>Nicola</given-names></name>
+        <name><surname>Smidt</surname><given-names>Tess E.</given-names></name>
+        <name><surname>Kozinsky</surname><given-names>Boris</given-names></name>
+      </person-group>
+      <article-title>E(3)-equivariant graph neural networks for data-efficient and accurate interatomic potentials</article-title>
+      <source>Nature Communications</source>
+      <year iso-8601-date="2022">2022</year>
+      <volume>13</volume>
+      <issue>1</issue>
+      <pub-id pub-id-type="doi">10.1038/s41467-022-29939-5</pub-id>
+      <fpage>2453</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Batatia-22-10">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Batatia</surname><given-names>Ilyes</given-names></name>
+        <name><surname>Kovacs</surname><given-names>David Peter</given-names></name>
+        <name><surname>Simm</surname><given-names>Gregor N. C.</given-names></name>
+        <name><surname>Ortner</surname><given-names>Christoph</given-names></name>
+        <name><surname>Csanyi</surname><given-names>Gabor</given-names></name>
+      </person-group>
+      <article-title>MACE: Higher Order Equivariant Message Passing Neural Networks for Fast and Accurate Force Fields</article-title>
+      <source>Advances in Neural Information Processing Systems</source>
+      <year iso-8601-date="2022-10">2022</year><month>10</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2025-06-22">2025</year><month>06</month><day>22</day></date-in-citation>
+    </element-citation>
+  </ref>
+  <ref id="ref-Thompson-22-02">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Thompson</surname><given-names>Aidan P.</given-names></name>
+        <name><surname>Aktulga</surname><given-names>H. Metin</given-names></name>
+        <name><surname>Berger</surname><given-names>Richard</given-names></name>
+        <name><surname>Bolintineanu</surname><given-names>Dan S.</given-names></name>
+        <name><surname>Brown</surname><given-names>W. Michael</given-names></name>
+        <name><surname>Crozier</surname><given-names>Paul S.</given-names></name>
+        <name><surname>in ’t Veld</surname><given-names>Pieter J.</given-names></name>
+        <name><surname>Kohlmeyer</surname><given-names>Axel</given-names></name>
+        <name><surname>Moore</surname><given-names>Stan G.</given-names></name>
+        <name><surname>Nguyen</surname><given-names>Trung Dac</given-names></name>
+        <name><surname>Shan</surname><given-names>Ray</given-names></name>
+        <name><surname>Stevens</surname><given-names>Mark J.</given-names></name>
+        <name><surname>Tranchida</surname><given-names>Julien</given-names></name>
+        <name><surname>Trott</surname><given-names>Christian</given-names></name>
+        <name><surname>Plimpton</surname><given-names>Steven J.</given-names></name>
+      </person-group>
+      <article-title>LAMMPS - a flexible simulation tool for particle-based materials modeling at the atomic, meso, and continuum scales</article-title>
+      <source>Computer Physics Communications</source>
+      <year iso-8601-date="2022">2022</year>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2022-11-08">2022</year><month>11</month><day>08</day></date-in-citation>
+      <volume>271</volume>
+      <pub-id pub-id-type="doi">10.1016/j.cpc.2021.108171</pub-id>
+      <fpage>108171</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Simeon-23-06">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Simeon</surname><given-names>Guillem</given-names></name>
+        <name><surname>de Fabritiis</surname><given-names>Gianni</given-names></name>
+      </person-group>
+      <article-title>TensorNet: Cartesian Tensor Representations for Efficient Learning of Molecular Potentials</article-title>
+      <year iso-8601-date="2023">2023</year>
+      <uri>https://arxiv.org/abs/2306.06482</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-Schutt-21-06">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Schütt</surname><given-names>Kristof T.</given-names></name>
+        <name><surname>Unke</surname><given-names>Oliver T.</given-names></name>
+        <name><surname>Gastegger</surname><given-names>Michael</given-names></name>
+      </person-group>
+      <article-title>Equivariant message passing for the prediction of tensorial properties and molecular spectra</article-title>
+      <year iso-8601-date="2021">2021</year>
+      <uri>https://arxiv.org/abs/2102.03150</uri>
+      <pub-id pub-id-type="doi">10.48550/arXiv.2102.03150</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-Wang-18-07">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Wang</surname><given-names>Han</given-names></name>
+        <name><surname>Zhang</surname><given-names>Linfeng</given-names></name>
+        <name><surname>Han</surname><given-names>Jiequn</given-names></name>
+        <name><surname>E</surname><given-names>Weinan</given-names></name>
+      </person-group>
+      <article-title>DeePMD-kit: A deep learning package for many-body potential energy representation and molecular dynamics</article-title>
+      <source>Computer Physics Communications</source>
+      <year iso-8601-date="2018">2018</year>
+      <volume>228</volume>
+      <pub-id pub-id-type="doi">10.1016/j.cpc.2018.03.016</pub-id>
+      <fpage>178</fpage>
+      <lpage>184</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Zeng-23-08">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Zeng</surname><given-names>Jinzhe</given-names></name>
+        <name><surname>Zhang</surname><given-names>Duo</given-names></name>
+        <name><surname>Lu</surname><given-names>Denghui</given-names></name>
+        <name><surname>Mo</surname><given-names>Pinghui</given-names></name>
+        <name><surname>Li</surname><given-names>Zeyu</given-names></name>
+        <name><surname>Chen</surname><given-names>Yixiao</given-names></name>
+        <name><surname>Rynik</surname><given-names>Marián</given-names></name>
+        <name><surname>Huang</surname><given-names>Li’ang</given-names></name>
+        <name><surname>Li</surname><given-names>Ziyao</given-names></name>
+        <name><surname>Shi</surname><given-names>Shaochen</given-names></name>
+        <name><surname>Wang</surname><given-names>Yingze</given-names></name>
+        <name><surname>Ye</surname><given-names>Haotian</given-names></name>
+        <name><surname>Tuo</surname><given-names>Ping</given-names></name>
+        <name><surname>Yang</surname><given-names>Jiabin</given-names></name>
+        <name><surname>Ding</surname><given-names>Ye</given-names></name>
+        <name><surname>Li</surname><given-names>Yifan</given-names></name>
+        <name><surname>Tisi</surname><given-names>Davide</given-names></name>
+        <name><surname>Zeng</surname><given-names>Qiyu</given-names></name>
+        <name><surname>Bao</surname><given-names>Han</given-names></name>
+        <name><surname>Xia</surname><given-names>Yu</given-names></name>
+        <name><surname>Huang</surname><given-names>Jiameng</given-names></name>
+        <name><surname>Muraoka</surname><given-names>Koki</given-names></name>
+        <name><surname>Wang</surname><given-names>Yibo</given-names></name>
+        <name><surname>Chang</surname><given-names>Junhan</given-names></name>
+        <name><surname>Yuan</surname><given-names>Fengbo</given-names></name>
+        <name><surname>Bore</surname><given-names>Sigbjørn Løland</given-names></name>
+        <name><surname>Cai</surname><given-names>Chun</given-names></name>
+        <name><surname>Lin</surname><given-names>Yinnian</given-names></name>
+        <name><surname>Wang</surname><given-names>Bo</given-names></name>
+        <name><surname>Xu</surname><given-names>Jiayan</given-names></name>
+        <name><surname>Zhu</surname><given-names>Jia-Xin</given-names></name>
+        <name><surname>Luo</surname><given-names>Chenxing</given-names></name>
+        <name><surname>Zhang</surname><given-names>Yuzhi</given-names></name>
+        <name><surname>Goodall</surname><given-names>Rhys E. A.</given-names></name>
+        <name><surname>Liang</surname><given-names>Wenshuo</given-names></name>
+        <name><surname>Singh</surname><given-names>Anurag Kumar</given-names></name>
+        <name><surname>Yao</surname><given-names>Sikai</given-names></name>
+        <name><surname>Zhang</surname><given-names>Jingchao</given-names></name>
+        <name><surname>Wentzcovitch</surname><given-names>Renata</given-names></name>
+        <name><surname>Han</surname><given-names>Jiequn</given-names></name>
+        <name><surname>Liu</surname><given-names>Jie</given-names></name>
+        <name><surname>Jia</surname><given-names>Weile</given-names></name>
+        <name><surname>York</surname><given-names>Darrin M.</given-names></name>
+        <name><surname>E</surname><given-names>Weinan</given-names></name>
+        <name><surname>Car</surname><given-names>Roberto</given-names></name>
+        <name><surname>Zhang</surname><given-names>Linfeng</given-names></name>
+        <name><surname>Wang</surname><given-names>Han</given-names></name>
+      </person-group>
+      <article-title>DeePMD-kit v2: A software package for deep potential models</article-title>
+      <source>The Journal of Chemical Physics</source>
+      <year iso-8601-date="2023">2023</year>
+      <volume>159</volume>
+      <issue>5</issue>
+      <pub-id pub-id-type="doi">10.1063/5.0155600</pub-id>
+      <fpage>054801</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-TorchMDNet">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Pelaez</surname><given-names>Raul P.</given-names></name>
+        <name><surname>Simeon</surname><given-names>Guillem</given-names></name>
+        <name><surname>Galvelis</surname><given-names>Raimondas</given-names></name>
+        <name><surname>Mirarchi</surname><given-names>Antonio</given-names></name>
+        <name><surname>Eastman</surname><given-names>Peter</given-names></name>
+        <name><surname>Doerr</surname><given-names>Stefan</given-names></name>
+        <name><surname>Thölke</surname><given-names>Philipp</given-names></name>
+        <name><surname>Markland</surname><given-names>Thomas E.</given-names></name>
+        <name><surname>De Fabritiis</surname><given-names>Gianni</given-names></name>
+      </person-group>
+      <article-title>TorchMD-Net 2.0: Fast Neural Network Potentials for Molecular Simulations</article-title>
+      <source>Journal of Chemical Theory and Computation</source>
+      <year iso-8601-date="2024-05">2024</year><month>05</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2025-06-24">2025</year><month>06</month><day>24</day></date-in-citation>
+      <volume>20</volume>
+      <issue>10</issue>
+      <pub-id pub-id-type="doi">10.1021/acs.jctc.4c00253</pub-id>
+      <fpage>4076</fpage>
+      <lpage>4087</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-schutt2023schnetpack">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Schütt</surname><given-names>Kristof T.</given-names></name>
+        <name><surname>Hessmann</surname><given-names>Stefaan S. P.</given-names></name>
+        <name><surname>Gebauer</surname><given-names>Niklas W. A.</given-names></name>
+        <name><surname>Lederer</surname><given-names>Jonas</given-names></name>
+        <name><surname>Gastegger</surname><given-names>Michael</given-names></name>
+      </person-group>
+      <article-title>SchNetPack 2.0: A neural network toolbox for atomistic machine learning</article-title>
+      <source>The Journal of Chemical Physics</source>
+      <year iso-8601-date="2023-04">2023</year><month>04</month>
+      <volume>158</volume>
+      <issue>14</issue>
+      <issn>0021-9606</issn>
+      <uri>https://doi.org/10.1063/5.0138367</uri>
+      <pub-id pub-id-type="doi">10.1063/5.0138367</pub-id>
+      <fpage>144801</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-schutt2019schnetpack">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Schütt</surname><given-names>Kristof T.</given-names></name>
+        <name><surname>Kessel</surname><given-names>Pan</given-names></name>
+        <name><surname>Gastegger</surname><given-names>Michael</given-names></name>
+        <name><surname>Nicoli</surname><given-names>Kim A.</given-names></name>
+        <name><surname>Tkatchenko</surname><given-names>Alexandre</given-names></name>
+        <name><surname>Müller</surname><given-names>Klaus-Robert</given-names></name>
+      </person-group>
+      <article-title>SchNetPack: A Deep Learning Toolbox For Atomistic Systems</article-title>
+      <source>Journal of Chemical Theory and Computation</source>
+      <year iso-8601-date="2019">2019</year>
+      <volume>15</volume>
+      <issue>1</issue>
+      <uri>https://doi.org/10.1021/acs.jctc.8b00908</uri>
+      <pub-id pub-id-type="doi">10.1021/acs.jctc.8b00908</pub-id>
+      <fpage>448</fpage>
+      <lpage>455</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Lightning">
+    <element-citation publication-type="software">
+      <person-group person-group-type="author">
+        <name><surname>Falcon</surname><given-names>William</given-names></name>
+        <string-name>The PyTorch Lightning team</string-name>
+      </person-group>
+      <article-title>PyTorch Lightning</article-title>
+      <year iso-8601-date="2019">2019</year>
+      <uri>https://github.com/Lightning-AI/lightning</uri>
+      <pub-id pub-id-type="doi">10.5281/zenodo.3828935</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-torch-sim">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Cohen</surname><given-names>Orion</given-names></name>
+        <name><surname>Riebesell</surname><given-names>Janosh</given-names></name>
+        <name><surname>Goodall</surname><given-names>Rhys</given-names></name>
+        <name><surname>Kolluru</surname><given-names>Adeesh</given-names></name>
+        <name><surname>Falletta</surname><given-names>Stefano</given-names></name>
+        <name><surname>Krause</surname><given-names>Joseph</given-names></name>
+        <name><surname>Colindres</surname><given-names>Jorge</given-names></name>
+        <name><surname>Ceder</surname><given-names>Gerbrand</given-names></name>
+        <name><surname>Gangan</surname><given-names>Abhijeet S</given-names></name>
+      </person-group>
+      <article-title>TorchSim: An efficient atomistic simulation engine in PyTorch</article-title>
+      <source>AI for Science</source>
+      <year iso-8601-date="2025">2025</year>
+      <volume>1</volume>
+      <issue>2</issue>
+      <pub-id pub-id-type="doi">10.1088/3050-287X/ae1799</pub-id>
+      <fpage>025003</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Larsen-17-06">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Larsen</surname><given-names>Ask Hjorth</given-names></name>
+        <name><surname>Mortensen</surname><given-names>Jens Jørgen</given-names></name>
+        <name><surname>Blomqvist</surname><given-names>Jakob</given-names></name>
+        <name><surname>Castelli</surname><given-names>Ivano E.</given-names></name>
+        <name><surname>Christensen</surname><given-names>Rune</given-names></name>
+        <name><surname>Dułak</surname><given-names>Marcin</given-names></name>
+        <name><surname>Friis</surname><given-names>Jesper</given-names></name>
+        <name><surname>Groves</surname><given-names>Michael N.</given-names></name>
+        <name><surname>Hammer</surname><given-names>Bjørk</given-names></name>
+        <name><surname>Hargus</surname><given-names>Cory</given-names></name>
+        <name><surname>Hermes</surname><given-names>Eric D.</given-names></name>
+        <name><surname>Jennings</surname><given-names>Paul C.</given-names></name>
+        <name><surname>Jensen</surname><given-names>Peter Bjerre</given-names></name>
+        <name><surname>Kermode</surname><given-names>James</given-names></name>
+        <name><surname>Kitchin</surname><given-names>John R.</given-names></name>
+        <name><surname>Kolsbjerg</surname><given-names>Esben Leonhard</given-names></name>
+        <name><surname>Kubal</surname><given-names>Joseph</given-names></name>
+        <name><surname>Kaasbjerg</surname><given-names>Kristen</given-names></name>
+        <name><surname>Lysgaard</surname><given-names>Steen</given-names></name>
+        <name><surname>Maronsson</surname><given-names>Jón Bergmann</given-names></name>
+        <name><surname>Maxson</surname><given-names>Tristan</given-names></name>
+        <name><surname>Olsen</surname><given-names>Thomas</given-names></name>
+        <name><surname>Pastewka</surname><given-names>Lars</given-names></name>
+        <name><surname>Peterson</surname><given-names>Andrew</given-names></name>
+        <name><surname>Rostgaard</surname><given-names>Carsten</given-names></name>
+        <name><surname>Schiøtz</surname><given-names>Jakob</given-names></name>
+        <name><surname>Schütt</surname><given-names>Ole</given-names></name>
+        <name><surname>Strange</surname><given-names>Mikkel</given-names></name>
+        <name><surname>Thygesen</surname><given-names>Kristian S.</given-names></name>
+        <name><surname>Vegge</surname><given-names>Tejs</given-names></name>
+        <name><surname>Vilhelmsen</surname><given-names>Lasse</given-names></name>
+        <name><surname>Walter</surname><given-names>Michael</given-names></name>
+        <name><surname>Zeng</surname><given-names>Zhenhua</given-names></name>
+        <name><surname>Jacobsen</surname><given-names>Karsten W.</given-names></name>
+      </person-group>
+      <article-title>The atomic simulation environment—a Python library for working with atoms</article-title>
+      <source>Journal of Physics: Condensed Matter</source>
+      <year iso-8601-date="2017-06">2017</year><month>06</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2022-11-08">2022</year><month>11</month><day>08</day></date-in-citation>
+      <volume>29</volume>
+      <issue>27</issue>
+      <pub-id pub-id-type="doi">10.1088/1361-648X/aa680e</pub-id>
+      <fpage>273002</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Kovacs-25-01">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Kovács</surname><given-names>Dávid Péter</given-names></name>
+        <name><surname>Moore</surname><given-names>J. Harry</given-names></name>
+        <name><surname>Browning</surname><given-names>Nicholas J.</given-names></name>
+        <name><surname>Batatia</surname><given-names>Ilyes</given-names></name>
+        <name><surname>Horton</surname><given-names>Joshua T.</given-names></name>
+        <name><surname>Pu</surname><given-names>Yixuan</given-names></name>
+        <name><surname>Kapil</surname><given-names>Venkat</given-names></name>
+        <name><surname>Witt</surname><given-names>William C.</given-names></name>
+        <name><surname>Magdău</surname><given-names>Ioan-Bogdan</given-names></name>
+        <name><surname>Cole</surname><given-names>Daniel J.</given-names></name>
+        <name><surname>Csányi</surname><given-names>Gábor</given-names></name>
+      </person-group>
+      <article-title>MACE-OFF: Transferable Short Range Machine Learning Force Fields for Organic Molecules</article-title>
+      <year iso-8601-date="2025-01">2025</year><month>01</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2025-01-30">2025</year><month>01</month><day>30</day></date-in-citation>
+      <uri>https://arxiv.org/abs/2312.15211</uri>
+      <pub-id pub-id-type="doi">10.48550/arXiv.2312.15211</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-Batatia-25-11">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Batatia</surname><given-names>Ilyes</given-names></name>
+        <name><surname>Benner</surname><given-names>Philipp</given-names></name>
+        <name><surname>Chiang</surname><given-names>Yuan</given-names></name>
+        <name><surname>Elena</surname><given-names>Alin M.</given-names></name>
+        <name><surname>Kovács</surname><given-names>Dávid P.</given-names></name>
+        <name><surname>Riebesell</surname><given-names>Janosh</given-names></name>
+        <name><surname>Advincula</surname><given-names>Xavier R.</given-names></name>
+        <name><surname>Asta</surname><given-names>Mark</given-names></name>
+        <name><surname>Avaylon</surname><given-names>Matthew</given-names></name>
+        <name><surname>Baldwin</surname><given-names>William J.</given-names></name>
+        <name><surname>Berger</surname><given-names>Fabian</given-names></name>
+        <name><surname>Bernstein</surname><given-names>Noam</given-names></name>
+        <name><surname>Bhowmik</surname><given-names>Arghya</given-names></name>
+        <name><surname>Bigi</surname><given-names>Filippo</given-names></name>
+        <name><surname>Blau</surname><given-names>Samuel M.</given-names></name>
+        <name><surname>Cărare</surname><given-names>Vlad</given-names></name>
+        <name><surname>Ceriotti</surname><given-names>Michele</given-names></name>
+        <name><surname>Chong</surname><given-names>Sanggyu</given-names></name>
+        <name><surname>Darby</surname><given-names>James P.</given-names></name>
+        <name><surname>De</surname><given-names>Sandip</given-names></name>
+        <name><surname>Della Pia</surname><given-names>Flaviano</given-names></name>
+        <name><surname>Deringer</surname><given-names>Volker L.</given-names></name>
+        <name><surname>Elijošius</surname><given-names>Rokas</given-names></name>
+        <name><surname>El-Machachi</surname><given-names>Zakariya</given-names></name>
+        <name><surname>Fako</surname><given-names>Edvin</given-names></name>
+        <name><surname>Falcioni</surname><given-names>Fabio</given-names></name>
+        <name><surname>Ferrari</surname><given-names>Andrea C.</given-names></name>
+        <name><surname>Gardner</surname><given-names>John L. A.</given-names></name>
+        <name><surname>Gawkowski</surname><given-names>Mikołaj J.</given-names></name>
+        <name><surname>Genreith-Schriever</surname><given-names>Annalena</given-names></name>
+        <name><surname>George</surname><given-names>Janine</given-names></name>
+        <name><surname>Goodall</surname><given-names>Rhys E. A.</given-names></name>
+        <name><surname>Grandel</surname><given-names>Jonas</given-names></name>
+        <name><surname>Grey</surname><given-names>Clare P.</given-names></name>
+        <name><surname>Grigorev</surname><given-names>Petr</given-names></name>
+        <name><surname>Han</surname><given-names>Shuang</given-names></name>
+        <name><surname>Handley</surname><given-names>Will</given-names></name>
+        <name><surname>Heenen</surname><given-names>Hendrik H.</given-names></name>
+        <name><surname>Hermansson</surname><given-names>Kersti</given-names></name>
+        <name><surname>Ho</surname><given-names>Cheuk Hin</given-names></name>
+        <name><surname>Hofmann</surname><given-names>Stephan</given-names></name>
+        <name><surname>Holm</surname><given-names>Christian</given-names></name>
+        <name><surname>Jaafar</surname><given-names>Jad</given-names></name>
+        <name><surname>Jakob</surname><given-names>Konstantin S.</given-names></name>
+        <name><surname>Jung</surname><given-names>Hyunwook</given-names></name>
+        <name><surname>Kapil</surname><given-names>Venkat</given-names></name>
+        <name><surname>Kaplan</surname><given-names>Aaron D.</given-names></name>
+        <name><surname>Karimitari</surname><given-names>Nima</given-names></name>
+        <name><surname>Kermode</surname><given-names>James R.</given-names></name>
+        <name><surname>Kourtis</surname><given-names>Panagiotis</given-names></name>
+        <name><surname>Kroupa</surname><given-names>Namu</given-names></name>
+        <name><surname>Kullgren</surname><given-names>Jolla</given-names></name>
+        <name><surname>Kuner</surname><given-names>Matthew C.</given-names></name>
+        <name><surname>Kuryla</surname><given-names>Domantas</given-names></name>
+        <name><surname>Liepuoniute</surname><given-names>Guoda</given-names></name>
+        <name><surname>Lin</surname><given-names>Chen</given-names></name>
+        <name><surname>Margraf</surname><given-names>Johannes T.</given-names></name>
+        <name><surname>Magdău</surname><given-names>Ioan-Bogdan</given-names></name>
+        <name><surname>Michaelides</surname><given-names>Angelos</given-names></name>
+        <name><surname>Moore</surname><given-names>J. Harry</given-names></name>
+        <name><surname>Naik</surname><given-names>Aakash A.</given-names></name>
+        <name><surname>Niblett</surname><given-names>Samuel P.</given-names></name>
+        <name><surname>Norwood</surname><given-names>Sam Walton</given-names></name>
+        <name><surname>O’Neill</surname><given-names>Niamh</given-names></name>
+        <name><surname>Ortner</surname><given-names>Christoph</given-names></name>
+        <name><surname>Persson</surname><given-names>Kristin A.</given-names></name>
+        <name><surname>Reuter</surname><given-names>Karsten</given-names></name>
+        <name><surname>Rosen</surname><given-names>Andrew S.</given-names></name>
+        <name><surname>Rosset</surname><given-names>Louise A. M.</given-names></name>
+        <name><surname>Schaaf</surname><given-names>Lars L.</given-names></name>
+        <name><surname>Schran</surname><given-names>Christoph</given-names></name>
+        <name><surname>Shi</surname><given-names>Benjamin X.</given-names></name>
+        <name><surname>Sivonxay</surname><given-names>Eric</given-names></name>
+        <name><surname>Stenczel</surname><given-names>Tamás K.</given-names></name>
+        <name><surname>Sutton</surname><given-names>Christopher</given-names></name>
+        <name><surname>Svahn</surname><given-names>Viktor</given-names></name>
+        <name><surname>Swinburne</surname><given-names>Thomas D.</given-names></name>
+        <name><surname>Tilly</surname><given-names>Jules</given-names></name>
+        <name><surname>van der Oord</surname><given-names>Cas</given-names></name>
+        <name><surname>Vargas</surname><given-names>Santiago</given-names></name>
+        <name><surname>Varga-Umbrich</surname><given-names>Eszter</given-names></name>
+        <name><surname>Vegge</surname><given-names>Tejs</given-names></name>
+        <name><surname>Vondrák</surname><given-names>Martin</given-names></name>
+        <name><surname>Wang</surname><given-names>Yangshuai</given-names></name>
+        <name><surname>Witt</surname><given-names>William C.</given-names></name>
+        <name><surname>Wolf</surname><given-names>Thomas</given-names></name>
+        <name><surname>Zills</surname><given-names>Fabian</given-names></name>
+        <name><surname>Csányi</surname><given-names>Gábor</given-names></name>
+      </person-group>
+      <article-title>A foundation model for atomistic materials chemistry</article-title>
+      <source>The Journal of Chemical Physics</source>
+      <year iso-8601-date="2025">2025</year>
+      <volume>163</volume>
+      <issue>18</issue>
+      <pub-id pub-id-type="doi">10.1063/5.0297006</pub-id>
+      <fpage>184110</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Mann-25-05">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Mann</surname><given-names>Elias L.</given-names></name>
+        <name><surname>Wagen</surname><given-names>Corin C.</given-names></name>
+        <name><surname>Vandezande</surname><given-names>Jonathon E.</given-names></name>
+        <name><surname>Wagen</surname><given-names>Arien M.</given-names></name>
+        <name><surname>Schneider</surname><given-names>Spencer C.</given-names></name>
+      </person-group>
+      <article-title>Egret-1: Pretrained Neural Network Potentials For Efficient and Accurate Bioorganic Simulation</article-title>
+      <year iso-8601-date="2025-05">2025</year><month>05</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2025-05-13">2025</year><month>05</month><day>13</day></date-in-citation>
+      <uri>https://arxiv.org/abs/2504.20955</uri>
+      <pub-id pub-id-type="doi">10.48550/arXiv.2504.20955</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-Yang-24-05">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Yang</surname><given-names>Han</given-names></name>
+        <name><surname>Hu</surname><given-names>Chenxi</given-names></name>
+        <name><surname>Zhou</surname><given-names>Yichi</given-names></name>
+        <name><surname>Liu</surname><given-names>Xixian</given-names></name>
+        <name><surname>Shi</surname><given-names>Yu</given-names></name>
+        <name><surname>Li</surname><given-names>Jielan</given-names></name>
+        <name><surname>Li</surname><given-names>Guanzhi</given-names></name>
+        <name><surname>Chen</surname><given-names>Zekun</given-names></name>
+        <name><surname>Chen</surname><given-names>Shuizhou</given-names></name>
+        <name><surname>Zeni</surname><given-names>Claudio</given-names></name>
+        <name><surname>Horton</surname><given-names>Matthew</given-names></name>
+        <name><surname>Pinsler</surname><given-names>Robert</given-names></name>
+        <name><surname>Fowler</surname><given-names>Andrew</given-names></name>
+        <name><surname>Zügner</surname><given-names>Daniel</given-names></name>
+        <name><surname>Xie</surname><given-names>Tian</given-names></name>
+        <name><surname>Smith</surname><given-names>Jake</given-names></name>
+        <name><surname>Sun</surname><given-names>Lixin</given-names></name>
+        <name><surname>Wang</surname><given-names>Qian</given-names></name>
+        <name><surname>Kong</surname><given-names>Lingyu</given-names></name>
+        <name><surname>Liu</surname><given-names>Chang</given-names></name>
+        <name><surname>Hao</surname><given-names>Hongxia</given-names></name>
+        <name><surname>Lu</surname><given-names>Ziheng</given-names></name>
+      </person-group>
+      <article-title>MatterSim: A Deep Learning Atomistic Model Across Elements, Temperatures and Pressures</article-title>
+      <year iso-8601-date="2024-05">2024</year><month>05</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2024-11-28">2024</year><month>11</month><day>28</day></date-in-citation>
+      <uri>https://arxiv.org/abs/2405.04967</uri>
+      <pub-id pub-id-type="doi">10.48550/arXiv.2405.04967</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-Neumann-24-10">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Neumann</surname><given-names>Mark</given-names></name>
+        <name><surname>Gin</surname><given-names>James</given-names></name>
+        <name><surname>Rhodes</surname><given-names>Benjamin</given-names></name>
+        <name><surname>Bennett</surname><given-names>Steven</given-names></name>
+        <name><surname>Li</surname><given-names>Zhiyi</given-names></name>
+        <name><surname>Choubisa</surname><given-names>Hitarth</given-names></name>
+        <name><surname>Hussey</surname><given-names>Arthur</given-names></name>
+        <name><surname>Godwin</surname><given-names>Jonathan</given-names></name>
+      </person-group>
+      <article-title>Orb: A Fast, Scalable Neural Network Potential</article-title>
+      <year iso-8601-date="2024-10">2024</year><month>10</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2025-01-30">2025</year><month>01</month><day>30</day></date-in-citation>
+      <uri>https://arxiv.org/abs/2410.22570</uri>
+      <pub-id pub-id-type="doi">10.48550/arXiv.2410.22570</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-Rhodes-25-04">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Rhodes</surname><given-names>Benjamin</given-names></name>
+        <name><surname>Vandenhaute</surname><given-names>Sander</given-names></name>
+        <name><surname>Šimkus</surname><given-names>Vaidotas</given-names></name>
+        <name><surname>Gin</surname><given-names>James</given-names></name>
+        <name><surname>Godwin</surname><given-names>Jonathan</given-names></name>
+        <name><surname>Duignan</surname><given-names>Tim</given-names></name>
+        <name><surname>Neumann</surname><given-names>Mark</given-names></name>
+      </person-group>
+      <article-title>Orb-v3: Atomistic simulation at scale</article-title>
+      <year iso-8601-date="2025-04">2025</year><month>04</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2025-04-15">2025</year><month>04</month><day>15</day></date-in-citation>
+      <uri>https://arxiv.org/abs/2504.06231</uri>
+      <pub-id pub-id-type="doi">10.48550/arXiv.2504.06231</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-Mahmoud-25-02">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Ben Mahmoud</surname><given-names>Chiheb</given-names></name>
+        <name><surname>El-Machachi</surname><given-names>Zakariya</given-names></name>
+        <name><surname>Gierczak</surname><given-names>Krystian A.</given-names></name>
+        <name><surname>Gardner</surname><given-names>John L. A.</given-names></name>
+        <name><surname>Deringer</surname><given-names>Volker L.</given-names></name>
+      </person-group>
+      <article-title>Assessing zero-shot generalisation behaviour in graph-neural-network interatomic potentials</article-title>
+      <year iso-8601-date="2025-02">2025</year><month>02</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2025-03-04">2025</year><month>03</month><day>04</day></date-in-citation>
+      <uri>https://arxiv.org/abs/2502.21317</uri>
+      <pub-id pub-id-type="doi">10.48550/arXiv.2502.21317</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-Pickard-22-07">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Pickard</surname><given-names>Chris J.</given-names></name>
+      </person-group>
+      <article-title>Ephemeral data derived potentials for random structure search</article-title>
+      <source>Physical Review B</source>
+      <year iso-8601-date="2022-07">2022</year><month>07</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2025-01-30">2025</year><month>01</month><day>30</day></date-in-citation>
+      <volume>106</volume>
+      <issue>1</issue>
+      <pub-id pub-id-type="doi">10.1103/PhysRevB.106.014102</pub-id>
+      <fpage>014102</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Deringer-19-11">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Deringer</surname><given-names>Volker L.</given-names></name>
+        <name><surname>Caro</surname><given-names>Miguel A.</given-names></name>
+        <name><surname>Csányi</surname><given-names>Gábor</given-names></name>
+      </person-group>
+      <article-title>Machine Learning Interatomic Potentials as Emerging Tools for Materials Science</article-title>
+      <source>Advanced Materials</source>
+      <year iso-8601-date="2019-11">2019</year><month>11</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2025-06-04">2025</year><month>06</month><day>04</day></date-in-citation>
+      <volume>31</volume>
+      <issue>46</issue>
+      <pub-id pub-id-type="doi">10.1002/adma.201902765</pub-id>
+      <fpage>1902765</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Gardner-24-01">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Gardner</surname><given-names>John L. A.</given-names></name>
+        <name><surname>Baker</surname><given-names>Kathryn T.</given-names></name>
+        <name><surname>Deringer</surname><given-names>Volker L.</given-names></name>
+      </person-group>
+      <article-title>Synthetic pre-training for neural-network interatomic potentials</article-title>
+      <source>Machine Learning: Science and Technology</source>
+      <year iso-8601-date="2024-01">2024</year><month>01</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2024-12-03">2024</year><month>12</month><day>03</day></date-in-citation>
+      <volume>5</volume>
+      <issue>1</issue>
+      <pub-id pub-id-type="doi">10.1088/2632-2153/ad1626</pub-id>
+      <fpage>015003</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Morrow-23-03">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Morrow</surname><given-names>Joe D.</given-names></name>
+        <name><surname>Gardner</surname><given-names>John L. A.</given-names></name>
+        <name><surname>Deringer</surname><given-names>Volker L.</given-names></name>
+      </person-group>
+      <article-title>How to validate machine-learned interatomic potentials</article-title>
+      <source>The Journal of Chemical Physics</source>
+      <year iso-8601-date="2023-03">2023</year><month>03</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2023-03-27">2023</year><month>03</month><day>27</day></date-in-citation>
+      <volume>158</volume>
+      <issue>12</issue>
+      <pub-id pub-id-type="doi">10.1063/5.0139611</pub-id>
+      <fpage>121501</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-fairchem">
+    <element-citation publication-type="software">
+      <person-group person-group-type="author">
+        <name><surname>Shuaibi</surname><given-names>Muhammed</given-names></name>
+        <name><surname>Das</surname><given-names>Abhishek</given-names></name>
+        <name><surname>Sriram</surname><given-names>Anuroop</given-names></name>
+        <name><surname>Misko</surname></name>
+        <name><surname>Barroso-Luque</surname><given-names>Luis</given-names></name>
+        <name><surname>Gao</surname><given-names>Ray</given-names></name>
+        <name><surname>Goyal</surname><given-names>Siddharth</given-names></name>
+        <name><surname>Ulissi</surname><given-names>Zachary</given-names></name>
+        <name><surname>Wood</surname><given-names>Brandon</given-names></name>
+        <name><surname>Xie</surname><given-names>Tian</given-names></name>
+        <name><surname>Yoon</surname><given-names>Junwoong</given-names></name>
+        <name><surname>Wander</surname><given-names>Brook</given-names></name>
+        <name><surname>Kolluru</surname><given-names>Adeesh</given-names></name>
+        <name><surname>Barnes</surname><given-names>Richard</given-names></name>
+        <name><surname>Sunshine</surname><given-names>Ethan</given-names></name>
+        <name><surname>Tran</surname><given-names>Kevin</given-names></name>
+        <name><surname>Xiang</surname></name>
+        <name><surname>Levine</surname><given-names>Daniel</given-names></name>
+        <name><surname>Shoghi</surname><given-names>Nima</given-names></name>
+        <name><surname>Chair</surname><given-names>Ilias</given-names></name>
+        <name><surname>Lan</surname><given-names>Janice</given-names></name>
+        <name><surname>Tian</surname><given-names>Kaylee</given-names></name>
+        <name><surname>Musielewicz</surname><given-names>Joseph</given-names></name>
+        <name><surname>Hu</surname><given-names>Weihua</given-names></name>
+        <name><surname>Michel</surname><given-names>Kyle</given-names></name>
+      </person-group>
+      <article-title>FAIRChem</article-title>
+      <year iso-8601-date="2025">2025</year>
+      <uri>https://github.com/facebookresearch/fairchem</uri>
+      <pub-id pub-id-type="doi">10.5281/zenodo.15587498</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-Kong-25-04">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Kong</surname><given-names>Lingyu</given-names></name>
+        <name><surname>Shoghi</surname><given-names>Nima</given-names></name>
+        <name><surname>Hu</surname><given-names>Guoxiang</given-names></name>
+        <name><surname>Li</surname><given-names>Pan</given-names></name>
+        <name><surname>Fung</surname><given-names>Victor</given-names></name>
+      </person-group>
+      <article-title>MatterTune: An Integrated, User-Friendly Platform for Fine-Tuning Atomistic Foundation Models to Accelerate Materials Simulation and Discovery</article-title>
+      <year iso-8601-date="2025-04">2025</year><month>04</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2025-04-16">2025</year><month>04</month><day>16</day></date-in-citation>
+      <uri>https://arxiv.org/abs/2504.10655</uri>
+      <pub-id pub-id-type="doi">10.48550/arXiv.2504.10655</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-Radova-25-02">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Radova</surname><given-names>Mariia</given-names></name>
+        <name><surname>Stark</surname><given-names>Wojciech G.</given-names></name>
+        <name><surname>Allen</surname><given-names>Connor S.</given-names></name>
+        <name><surname>Maurer</surname><given-names>Reinhard J.</given-names></name>
+        <name><surname>Bartók</surname><given-names>Albert P.</given-names></name>
+      </person-group>
+      <article-title>Fine-tuning foundation models of materials interatomic potentials with frozen transfer learning</article-title>
+      <year iso-8601-date="2025-02">2025</year><month>02</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2025-03-03">2025</year><month>03</month><day>03</day></date-in-citation>
+      <uri>https://arxiv.org/abs/2502.15582</uri>
+      <pub-id pub-id-type="doi">10.48550/arXiv.2502.15582</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-Gardner-25-06">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Gardner</surname><given-names>John L. A.</given-names></name>
+        <name><surname>Toit</surname><given-names>Daniel F. Thomas du</given-names></name>
+        <name><surname>Ben Mahmoud</surname><given-names>Chiheb</given-names></name>
+        <name><surname>Beaulieu</surname><given-names>Zoé Faure</given-names></name>
+        <name><surname>Juraskova</surname><given-names>Veronika</given-names></name>
+        <name><surname>Paşca</surname><given-names>Laura-Bianca</given-names></name>
+        <name><surname>Rosset</surname><given-names>Louise A. M.</given-names></name>
+        <name><surname>Duarte</surname><given-names>Fernanda</given-names></name>
+        <name><surname>Martelli</surname><given-names>Fausto</given-names></name>
+        <name><surname>Pickard</surname><given-names>Chris J.</given-names></name>
+        <name><surname>Deringer</surname><given-names>Volker L.</given-names></name>
+      </person-group>
+      <article-title>Distillation of atomistic foundation models across architectures and chemical domains</article-title>
+      <year iso-8601-date="2025-06">2025</year><month>06</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2025-06-13">2025</year><month>06</month><day>13</day></date-in-citation>
+      <uri>https://arxiv.org/abs/2506.10956</uri>
+      <pub-id pub-id-type="doi">10.48550/arXiv.2506.10956</pub-id>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
