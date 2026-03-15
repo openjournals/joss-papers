@@ -1,0 +1,606 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">8634</article-id>
+<article-id pub-id-type="doi">10.21105/joss.08634</article-id>
+<title-group>
+<article-title>PileupCaller: A command-line tool to sample genotypes
+from low-coverage sequencing data of ancient DNA</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0002-1017-9150</contrib-id>
+<name>
+<surname>Schiffels</surname>
+<given-names>Stephan</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Max Planck Institute for Evolutionary Anthropology,
+Leipzig, Germany</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2024-11-14">
+<day>14</day>
+<month>11</month>
+<year>2024</year>
+</pub-date>
+<volume>11</volume>
+<issue>119</issue>
+<fpage>8634</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2026</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>Ancient DNA</kwd>
+<kwd>Genome Sequencing</kwd>
+<kwd>Bioinformatics</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p>Next generation sequencing data is ubiquitous in medical and
+  biological sciences. It has also become the primary tool in
+  archaeogenetics, where ancient DNA is extracted from archaeological
+  organic (often human skeletal) material, processed into DNA sequencing
+  libraries and then sequenced
+  (<xref alt="Orlando et al., 2021" rid="ref-Orlando2021" ref-type="bibr">Orlando
+  et al., 2021</xref>). As a testimony to the rapid and accellerating
+  growth of the field, we today have close to ten thousand published
+  ancient human genomes available in the public record
+  (<xref alt="Mallick et al., 2024" rid="ref-Mallick2024" ref-type="bibr">Mallick
+  et al., 2024</xref>;
+  <xref alt="Schmid et al., 2024" rid="ref-Schmid2024" ref-type="bibr">Schmid
+  et al., 2024</xref>), and many smaller datasets of other organisms. A
+  key step in processing raw sequencing data is the estimation of
+  genotypes at specific variable positions along the genome. Such
+  positions are often pre-selected because they are informative about
+  ancestry or of particular biological relevance
+  (<xref alt="Haak et al., 2015" rid="ref-Haak2015" ref-type="bibr">Haak
+  et al., 2015</xref>;
+  <xref alt="Mathieson et al., 2015" rid="ref-Mathieson2015" ref-type="bibr">Mathieson
+  et al., 2015</xref>;
+  <xref alt="Rohland et al., 2022" rid="ref-Rohland2022" ref-type="bibr">Rohland
+  et al., 2022</xref>). While established tools exist for this task for
+  high-quality modern sequencing data
+  (<xref alt="Danecek et al., 2021" rid="ref-samtools" ref-type="bibr">Danecek
+  et al., 2021</xref>;
+  <xref alt="Van der Auwera &amp; O’Connor, 2020" rid="ref-gatk" ref-type="bibr">Van
+  der Auwera &amp; O’Connor, 2020</xref>), these are often not
+  appropriate for ancient DNA, which has often too low
+  sequencing-coverage and a higher error rate due to post-mortem DNA
+  damage. PileupCaller is a command-line tool written in Haskell, which
+  randomly samples genotypes from raw alignment data at predefined
+  bi-allelic positions. Several modes can be selected, geared towards
+  specific input data features and research questions.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p>Present-day DNA, for example from medical studies results in raw
+  sequencing data with relatively low per-base error rates and
+  sequencing-coverages of at least several multiples of 1 (for example
+  (<xref alt="1000 Genomes Project Consortium et al., 2015" rid="ref-1000_Genomes_Project_Consortium2015" ref-type="bibr">1000
+  Genomes Project Consortium et al., 2015</xref>)) but in fact up to
+  20-30x coverage. Dedicated tools to process such data include
+  samtools/bcftools
+  (<xref alt="Danecek et al., 2021" rid="ref-samtools" ref-type="bibr">Danecek
+  et al., 2021</xref>) and GATK
+  (<xref alt="Van der Auwera &amp; O’Connor, 2020" rid="ref-gatk" ref-type="bibr">Van
+  der Auwera &amp; O’Connor, 2020</xref>) among many other tools.
+  Ancient DNA seuqencing data often comes with substantially lower
+  coverage and substantially higher error rates. In terms of coverage,
+  most ancient genomes have genome-wide coverage often below 1x and in
+  fact very often even below 0.1x. Such low coverage means that any
+  given genomic site is more likely not covered by a sequencing read
+  than covered. At the same time, the low fraction of sites that is
+  actually covered has higher error rates than modern DNA, due to
+  ancient-DNA damage. These two factors violate the assumptions behind
+  statistical genotype callers like <monospace>bcftools call</monospace>
+  or <monospace>HaplotypeCaller</monospace> from GATK.</p>
+  <p>As is widely used practice in the field, very low-coverage ancient
+  DNA data is often “called”, simply by randomly selecting reads at a
+  given position of interest. PileupCaller is a command-line tool that
+  does exactly that, by reading in a list of SNP positions and a stream
+  of sequencing data, some optional filtering options, and then performs
+  random samples at every position of interest for multiple individuals.
+  Even before this paper, <monospace>pileupCaller</monospace> has been
+  widely used since its creation in 2017, mostly because of its simple
+  use and low-memory footprint thanks to streaming.</p>
+</sec>
+<sec id="usage-and-key-functionality">
+  <title>Usage and key functionality</title>
+  <p><monospace>pileupCaller</monospace> relies on the
+  <monospace>pileup</monospace> format defined in
+  (<xref alt="Danecek et al., 2021" rid="ref-samtools" ref-type="bibr">Danecek
+  et al., 2021</xref>). This format lists for each site the nucleotides
+  from all reads covering that site, including base-qualities. An
+  example pileup-file can be found in the
+  <ext-link ext-link-type="uri" xlink:href="">repository</ext-link>.
+  These files are rarely saved, but used as an intermediate format for
+  streaming, specifically from
+  <monospace>samtools mpileup</monospace>(). A typical usage command
+  line for <monospace>pileupCaller</monospace> could be:</p>
+  <code language="bash">    samtools mpileup -R -B -q30 -Q30 -f &lt;reference_genome.fasta&gt; \
+        Sample1.bam Sample2.bam Sample3.bam | \
+    pileupCaller --randomHaploid --sampleNames Sample1,Sample2,Sample3 \
+        --samplePopName MyPop -f &lt;Eigenstrat.snp&gt; \
+        -e &lt;My_output_prefix&gt;</code>
+  <p>Among the options passed to
+  <monospace>samtools mpileup</monospace>, we highlight the
+  <monospace>-B</monospace> flag, which switches off base-alignment
+  quality recalibration and is critical for avoiding reference bias with
+  low-coverage ancient DNA. A key input ingredient is the SNP list,
+  which needs to be given in Eigenstrat-format
+  (<xref alt="Price et al., 2006" rid="ref-Price2006" ref-type="bibr">Price
+  et al., 2006</xref>), defined in
+  (<xref alt="Mah et al., 2021" rid="ref-eigensoft_github" ref-type="bibr">Mah
+  et al., 2021</xref>). Example files for Pileup and
+  Eigenstrat-formatted data can be found under
+  <monospace>test/testDat</monospace> in the software repository. The
+  SNP file not only lists the positions of the variants that should be
+  called, but also the two possible alleles at each site. This is
+  important, as pileupCaller will ensure that only those two alleles are
+  called. Sites at which a third allele is called will be output as
+  missing.</p>
+  <p>In terms of output formats, pileupCaller currently supports
+  Eigenstrat, Plink (https://www.cog-genomics.org/plink/2.0/) and VCF
+  (<xref alt="Danecek et al., 2011" rid="ref-VCF" ref-type="bibr">Danecek
+  et al., 2011</xref>), with an option to additionally compress the
+  output in gzip-format. Command line options are documented inline via
+  <monospace>pileupCaller --help</monospace>.</p>
+  <p>PileupCaller is part of the “sequenceTools” package, which contains
+  multiple other minor scripts and command-line tools, with pileupCaller
+  being the central and most popular tool. The sequenceTools package
+  makes key use of the “sequence-formats” Haskell library
+  (<xref alt="Schiffels, 2025" rid="ref-sequence-formats" ref-type="bibr">Schiffels,
+  2025</xref>), which contains parsers for the Pileup-, the Plink-, the
+  Eigenstrat and the VCF-Format.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <title></title>
+  <ref id="ref-sequence-formats">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Schiffels</surname><given-names>Stephan</given-names></name>
+      </person-group>
+      <article-title>Sequence-formats</article-title>
+      <source>GitHub repository</source>
+      <publisher-name>GitHub</publisher-name>
+      <year iso-8601-date="2025">2025</year>
+      <uri>https://github.com/stschiff/sequence-formats</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-eigensoft_github">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Mah</surname><given-names>Matthew</given-names></name>
+        <name><surname>Patterson</surname><given-names>Nick</given-names></name>
+        <name><surname>Price</surname><given-names>Alkes</given-names></name>
+      </person-group>
+      <article-title>Eigensoft</article-title>
+      <source>GitHub repository</source>
+      <publisher-name>GitHub</publisher-name>
+      <year iso-8601-date="2021">2021</year>
+      <uri>https://github.com/DReichLab/EIG</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-VCF">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Danecek</surname><given-names>Petr</given-names></name>
+        <name><surname>Auton</surname><given-names>Adam</given-names></name>
+        <name><surname>Abecasis</surname><given-names>Goncalo</given-names></name>
+        <name><surname>Albers</surname><given-names>Cornelis A</given-names></name>
+        <name><surname>Banks</surname><given-names>Eric</given-names></name>
+        <name><surname>DePristo</surname><given-names>Mark A</given-names></name>
+        <name><surname>Handsaker</surname><given-names>Robert E</given-names></name>
+        <name><surname>Lunter</surname><given-names>Gerton</given-names></name>
+        <name><surname>Marth</surname><given-names>Gabor T</given-names></name>
+        <name><surname>Sherry</surname><given-names>Stephen T</given-names></name>
+        <name><surname>McVean</surname><given-names>Gilean</given-names></name>
+        <name><surname>Durbin</surname><given-names>Richard</given-names></name>
+        <string-name>1000 Genomes Project Analysis Group</string-name>
+      </person-group>
+      <article-title>The variant call format and VCFtools</article-title>
+      <source>Bioinformatics (Oxford, England)</source>
+      <publisher-name>Oxford University Press (OUP)</publisher-name>
+      <year iso-8601-date="2011">2011</year>
+      <volume>27</volume>
+      <issue>15</issue>
+      <issn>1367-4803</issn>
+      <uri>http://dx.doi.org/10.1093/bioinformatics/btr330</uri>
+      <pub-id pub-id-type="doi">10.1093/bioinformatics/btr330</pub-id>
+      <fpage>2156</fpage>
+      <lpage>2158</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Price2006">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Price</surname><given-names>Alkes L</given-names></name>
+        <name><surname>Patterson</surname><given-names>Nick J</given-names></name>
+        <name><surname>Plenge</surname><given-names>Robert M</given-names></name>
+        <name><surname>Weinblatt</surname><given-names>Michael E</given-names></name>
+        <name><surname>Shadick</surname><given-names>Nancy A</given-names></name>
+        <name><surname>Reich</surname><given-names>David E</given-names></name>
+      </person-group>
+      <article-title>Principal components analysis corrects for stratification in genome-wide association studies</article-title>
+      <source>Nature genetics</source>
+      <publisher-name>Nature Publishing Group</publisher-name>
+      <year iso-8601-date="2006">2006</year>
+      <volume>38</volume>
+      <issue>8</issue>
+      <issn>1061-4036</issn>
+      <uri>http://www.nature.com/doifinder/10.1038/ng1847</uri>
+      <fpage>904</fpage>
+      <lpage>909</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-1000_Genomes_Project_Consortium2015">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <string-name>1000 Genomes Project Consortium</string-name>
+        <string-name>Corresponding authors</string-name>
+        <string-name>Steering committee</string-name>
+        <string-name>Production group</string-name>
+        <string-name>Baylor College of Medicine</string-name>
+        <string-name>Coriell Institute for Medical Research</string-name>
+        <string-name>Max Planck Institute for Molecular Genetics</string-name>
+        <string-name>US National Institutes of Health</string-name>
+        <string-name>Analysis group</string-name>
+        <string-name>Affymetrix</string-name>
+        <string-name>Albert Einstein College of Medicine</string-name>
+        <string-name>Harvard University</string-name>
+        <string-name>Human Gene Mutation Database</string-name>
+        <string-name>Icahn School of Medicine at Mount Sinai</string-name>
+        <string-name>Massachusetts General Hospital</string-name>
+        <string-name>McGill University</string-name>
+        <string-name>New York Genome Center</string-name>
+        <string-name>Ontario Institute for Cancer Research</string-name>
+        <string-name>Pennsylvania State University</string-name>
+        <string-name>Rutgers Cancer Institute of New Jersey</string-name>
+        <string-name>Tel-Aviv University</string-name>
+        <string-name>Jackson Laboratory for Genomic Medicine</string-name>
+        <string-name>Thermo Fisher Scientific</string-name>
+        <name><surname>University of California</surname><given-names>San Francisco</given-names></name>
+        <string-name>University of Chicago</string-name>
+        <string-name>University College London</string-name>
+        <string-name>University of Geneva</string-name>
+        <string-name>University of Montréal</string-name>
+        <string-name>University of North Carolina at Chapel Hill</string-name>
+        <string-name>University of Puerto Rico</string-name>
+        <string-name>University of Texas Health Sciences Center at Houston</string-name>
+        <string-name>Structural variation group</string-name>
+        <string-name>BGI-Shenzhen</string-name>
+        <string-name>Bilkent University</string-name>
+        <string-name>Boston College</string-name>
+        <string-name>Cold Spring Harbor Laboratory</string-name>
+        <string-name>European Molecular Biology Laboratory</string-name>
+        <string-name>Leiden University Medical Center</string-name>
+        <string-name>Louisiana State University</string-name>
+        <string-name>McDonnell Genome Institute at Washington University</string-name>
+        <name><surname>University of California</surname><given-names>San Diego</given-names></name>
+        <string-name>University of Maryland School of Medicine</string-name>
+        <string-name>University of North Carolina at Charlotte</string-name>
+        <string-name>University of Oxford</string-name>
+        <string-name>University of Texas MD Anderson Cancer Center</string-name>
+        <string-name>University of Utah</string-name>
+        <string-name>University of Washington</string-name>
+        <string-name>Vanderbilt University School of Medicine</string-name>
+        <string-name>Weill Cornell Medical College</string-name>
+        <string-name>Wellcome Trust Sanger Institute</string-name>
+        <string-name>Exome group</string-name>
+        <string-name>Translational Genomics Research Institute</string-name>
+        <string-name>University of Michigan</string-name>
+        <string-name>Yale University</string-name>
+        <string-name>Functional interpretation group</string-name>
+        <string-name>Stanford University</string-name>
+        <string-name>Chromosome Y group</string-name>
+        <string-name>American Museum of Natural History</string-name>
+        <string-name>Arizona State University</string-name>
+        <string-name>Broad Institute of MIT and Harvard</string-name>
+        <string-name>Cornell University</string-name>
+        <string-name>European Molecular Biology Laboratory, European Bioinformatics Institute</string-name>
+        <string-name>University of Queensland</string-name>
+        <string-name>Virginia Bioinformatics Institute</string-name>
+        <string-name>Data coordination center group</string-name>
+        <string-name>Illumina</string-name>
+        <name><surname>University of California</surname><given-names>Santa Cruz</given-names></name>
+        <string-name>Samples and ELSI group</string-name>
+        <string-name>Sample collection</string-name>
+        <name><surname>Colombians in Medellı́n</surname><given-names>Colombia Clm</given-names></name>
+        <string-name>Finnish in Finland (FIN)</string-name>
+        <string-name>Iberian Populations in Spain (IBS)</string-name>
+        <string-name>Puerto Ricans in Puerto Rico (PUR)</string-name>
+        <string-name>African Caribbean in Barbados (ACB)</string-name>
+        <string-name>Esan in Nigeria (ESN)</string-name>
+        <string-name>Gambian in Western Division – Mandinka (GWD)</string-name>
+        <name><surname>Kinh in Ho Chi Minh City</surname><given-names>Vietnam (khv)</given-names></name>
+        <name><surname>Punjabi in Lahore</surname><given-names>Pakistan (pjl)</given-names></name>
+        <string-name>Scientific management</string-name>
+        <string-name>Writing group</string-name>
+        <string-name>National Eye Institute, NIH</string-name>
+        <string-name>British from England and Scotland (GBR)</string-name>
+        <string-name>Han Chinese South (CHS)</string-name>
+        <string-name>Bengali in Bangladesh (BEB)</string-name>
+        <name><surname>Chinese Dai in Xishuangbanna</surname><given-names>China (cdx)</given-names></name>
+        <string-name>Indian Telugu in the UK (ITU) and Sri Lankan Tamil in the UK (STU)</string-name>
+        <string-name>Mende in Sierra Leone (MSL)</string-name>
+        <name><surname>Peruvian in Lima</surname><given-names>Peru (pel)</given-names></name>
+      </person-group>
+      <article-title>A global reference for human genetic variation</article-title>
+      <source>Nature</source>
+      <publisher-name>Nature Publishing Group</publisher-name>
+      <year iso-8601-date="2015">2015</year>
+      <volume>526</volume>
+      <issue>7571</issue>
+      <issn>0028-0836</issn>
+      <uri>http://www.nature.com/doifinder/10.1038/nature15393</uri>
+      <fpage>68</fpage>
+      <lpage>74</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-gatk">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Van der Auwera</surname><given-names>Geraldine A</given-names></name>
+        <name><surname>O’Connor</surname><given-names>Brian D</given-names></name>
+      </person-group>
+      <source>Genomics in the cloud: Using docker, GATK, and WDL in terra</source>
+      <publisher-name>O’Reilly Media</publisher-name>
+      <year iso-8601-date="2020">2020</year>
+    </element-citation>
+  </ref>
+  <ref id="ref-samtools">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Danecek</surname><given-names>Petr</given-names></name>
+        <name><surname>Bonfield</surname><given-names>James K</given-names></name>
+        <name><surname>Liddle</surname><given-names>Jennifer</given-names></name>
+        <name><surname>Marshall</surname><given-names>John</given-names></name>
+        <name><surname>Ohan</surname><given-names>Valeriu</given-names></name>
+        <name><surname>Pollard</surname><given-names>Martin O</given-names></name>
+        <name><surname>Whitwham</surname><given-names>Andrew</given-names></name>
+        <name><surname>Keane</surname><given-names>Thomas</given-names></name>
+        <name><surname>McCarthy</surname><given-names>Shane A</given-names></name>
+        <name><surname>Davies</surname><given-names>Robert M</given-names></name>
+        <name><surname>Li</surname><given-names>Heng</given-names></name>
+      </person-group>
+      <article-title>Twelve years of SAMtools and BCFtools</article-title>
+      <source>GigaScience</source>
+      <year iso-8601-date="2021-02">2021</year><month>02</month>
+      <volume>10</volume>
+      <issue>2</issue>
+      <issn>2047-217X</issn>
+      <uri>https://doi.org/10.1093/gigascience/giab008</uri>
+      <pub-id pub-id-type="doi">10.1093/gigascience/giab008</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-Orlando2021">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Orlando</surname><given-names>Ludovic</given-names></name>
+        <name><surname>Allaby</surname><given-names>Robin</given-names></name>
+        <name><surname>Skoglund</surname><given-names>Pontus</given-names></name>
+        <name><surname>Der Sarkissian</surname><given-names>Clio</given-names></name>
+        <name><surname>Stockhammer</surname><given-names>Philipp W</given-names></name>
+        <name><surname>Ávila-Arcos</surname><given-names>Marı́a C</given-names></name>
+        <name><surname>Fu</surname><given-names>Qiaomei</given-names></name>
+        <name><surname>Krause</surname><given-names>Johannes</given-names></name>
+        <name><surname>Willerslev</surname><given-names>Eske</given-names></name>
+        <name><surname>Stone</surname><given-names>Anne C</given-names></name>
+        <name><surname>Warinner</surname><given-names>Christina</given-names></name>
+      </person-group>
+      <article-title>Ancient DNA analysis</article-title>
+      <source>Nature reviews. Methods primers</source>
+      <publisher-name>Springer Science; Business Media LLC</publisher-name>
+      <year iso-8601-date="2021">2021</year>
+      <volume>1</volume>
+      <issue>1</issue>
+      <issn>2662-8449</issn>
+      <uri>http://dx.doi.org/10.1038/s43586-020-00011-0</uri>
+      <pub-id pub-id-type="doi">10.1038/s43586-020-00011-0</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-Schmid2024">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Schmid</surname><given-names>Clemens</given-names></name>
+        <name><surname>Ghalichi</surname><given-names>Ayshin</given-names></name>
+        <name><surname>Lamnidis</surname><given-names>Thiseas C</given-names></name>
+        <name><surname>Mudiyanselage</surname><given-names>Dhananjaya B A</given-names></name>
+        <name><surname>Haak</surname><given-names>Wolfgang</given-names></name>
+        <name><surname>Schiffels</surname><given-names>Stephan</given-names></name>
+      </person-group>
+      <article-title>Poseidon – a framework for archaeogenetic human genotype data management</article-title>
+      <year iso-8601-date="2024">2024</year>
+      <uri>http://dx.doi.org/10.7554/elife.98317</uri>
+      <pub-id pub-id-type="doi">10.7554/elife.98317</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-Mallick2024">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Mallick</surname><given-names>Swapan</given-names></name>
+        <name><surname>Micco</surname><given-names>Adam</given-names></name>
+        <name><surname>Mah</surname><given-names>Matthew</given-names></name>
+        <name><surname>Ringbauer</surname><given-names>Harald</given-names></name>
+        <name><surname>Lazaridis</surname><given-names>Iosif</given-names></name>
+        <name><surname>Olalde</surname><given-names>Iñigo</given-names></name>
+        <name><surname>Patterson</surname><given-names>Nick</given-names></name>
+        <name><surname>Reich</surname><given-names>David</given-names></name>
+      </person-group>
+      <article-title>The allen ancient DNA resource (AADR) a curated compendium of ancient human genomes</article-title>
+      <source>Scientific Data</source>
+      <publisher-name>Nature Publishing Group</publisher-name>
+      <year iso-8601-date="2024">2024</year>
+      <volume>11</volume>
+      <issue>1</issue>
+      <issn>2052-4463</issn>
+      <uri>https://www.nature.com/articles/s41597-024-03031-7</uri>
+      <pub-id pub-id-type="doi">10.1038/s41597-024-03031-7</pub-id>
+      <fpage>1</fpage>
+      <lpage>10</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Haak2015">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Haak</surname><given-names>Wolfgang</given-names></name>
+        <name><surname>Lazaridis</surname><given-names>Iosif</given-names></name>
+        <name><surname>Patterson</surname><given-names>Nick</given-names></name>
+        <name><surname>Rohland</surname><given-names>Nadin</given-names></name>
+        <name><surname>Mallick</surname><given-names>Swapan</given-names></name>
+        <name><surname>Llamas</surname><given-names>Bastien</given-names></name>
+        <name><surname>Brandt</surname><given-names>Guido</given-names></name>
+        <name><surname>Nordenfelt</surname><given-names>Susanne</given-names></name>
+        <name><surname>Harney</surname><given-names>Eadaoin</given-names></name>
+        <name><surname>Stewardson</surname><given-names>Kristin</given-names></name>
+        <name><surname>Fu</surname><given-names>Qiaomei</given-names></name>
+        <name><surname>Mittnik</surname><given-names>Alissa</given-names></name>
+        <name><surname>Bánffy</surname><given-names>Eszter</given-names></name>
+        <name><surname>Economou</surname><given-names>Christos</given-names></name>
+        <name><surname>Francken</surname><given-names>Michael</given-names></name>
+        <name><surname>Friederich</surname><given-names>Susanne</given-names></name>
+        <name><surname>Pena</surname><given-names>Rafael Garrido</given-names></name>
+        <name><surname>Hallgren</surname><given-names>Fredrik</given-names></name>
+        <name><surname>Khartanovich</surname><given-names>Valery</given-names></name>
+        <name><surname>Khokhlov</surname><given-names>Aleksandr</given-names></name>
+        <name><surname>Kunst</surname><given-names>Michael</given-names></name>
+        <name><surname>Kuznetsov</surname><given-names>Pavel</given-names></name>
+        <name><surname>Meller</surname><given-names>Harald</given-names></name>
+        <name><surname>Mochalov</surname><given-names>Oleg</given-names></name>
+        <name><surname>Moiseyev</surname><given-names>Vayacheslav</given-names></name>
+        <name><surname>Nicklisch</surname><given-names>Nicole</given-names></name>
+        <name><surname>Pichler</surname><given-names>Sandra L</given-names></name>
+        <name><surname>Risch</surname><given-names>Roberto</given-names></name>
+        <name><surname>Rojo Guerra</surname><given-names>Manuel A</given-names></name>
+        <name><surname>Roth</surname><given-names>Christina</given-names></name>
+        <name><surname>Szécsényi-Nagy</surname><given-names>Anna</given-names></name>
+        <name><surname>Wahl</surname><given-names>Joachim</given-names></name>
+        <name><surname>Meyer</surname><given-names>Matthias</given-names></name>
+        <name><surname>Krause</surname><given-names>Johannes</given-names></name>
+        <name><surname>Brown</surname><given-names>Dorcas</given-names></name>
+        <name><surname>Anthony</surname><given-names>David</given-names></name>
+        <name><surname>Cooper</surname><given-names>Alan</given-names></name>
+        <name><surname>Alt</surname><given-names>Kurt Werner</given-names></name>
+        <name><surname>Reich</surname><given-names>David E</given-names></name>
+      </person-group>
+      <article-title>Massive migration from the steppe was a source for indo-european languages in europe</article-title>
+      <source>Nature</source>
+      <publisher-name>Nature Publishing Group</publisher-name>
+      <year iso-8601-date="2015">2015</year>
+      <volume>522</volume>
+      <issue>7555</issue>
+      <issn>0028-0836</issn>
+      <uri>http://www.nature.com/doifinder/10.1038/nature14317</uri>
+      <fpage>207</fpage>
+      <lpage>211</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Mathieson2015">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Mathieson</surname><given-names>Iain</given-names></name>
+        <name><surname>Lazaridis</surname><given-names>Iosif</given-names></name>
+        <name><surname>Rohland</surname><given-names>Nadin</given-names></name>
+        <name><surname>Mallick</surname><given-names>Swapan</given-names></name>
+        <name><surname>Patterson</surname><given-names>Nick</given-names></name>
+        <name><surname>Roodenberg</surname><given-names>Songül Alpaslan</given-names></name>
+        <name><surname>Harney</surname><given-names>Eadaoin</given-names></name>
+        <name><surname>Stewardson</surname><given-names>Kristin</given-names></name>
+        <name><surname>Fernandes</surname><given-names>Daniel</given-names></name>
+        <name><surname>Novak</surname><given-names>Mario</given-names></name>
+        <name><surname>Sirak</surname><given-names>Kendra</given-names></name>
+        <name><surname>Gamba</surname><given-names>Cristina</given-names></name>
+        <name><surname>Jones</surname><given-names>Eppie R</given-names></name>
+        <name><surname>Llamas</surname><given-names>Bastien</given-names></name>
+        <name><surname>Dryomov</surname><given-names>Stanislav</given-names></name>
+        <name><surname>Pickrell</surname><given-names>Joseph</given-names></name>
+        <name><surname>Arsuaga</surname><given-names>Juan Luis</given-names></name>
+        <name><surname>Castro</surname><given-names>José Marı́a Bermúdez de</given-names></name>
+        <name><surname>Carbonell</surname><given-names>Eudald</given-names></name>
+        <name><surname>Gerritsen</surname><given-names>Fokke</given-names></name>
+        <name><surname>Khokhlov</surname><given-names>Aleksandr</given-names></name>
+        <name><surname>Kuznetsov</surname><given-names>Pavel</given-names></name>
+        <name><surname>Lozano</surname><given-names>Marina</given-names></name>
+        <name><surname>Meller</surname><given-names>Harald</given-names></name>
+        <name><surname>Mochalov</surname><given-names>Oleg</given-names></name>
+        <name><surname>Moiseyev</surname><given-names>Vyacheslav</given-names></name>
+        <name><surname>Guerra</surname><given-names>Manuel A Rojo</given-names></name>
+        <name><surname>Roodenberg</surname><given-names>Jacob</given-names></name>
+        <name><surname>Vergès</surname><given-names>Josep Maria</given-names></name>
+        <name><surname>Krause</surname><given-names>Johannes</given-names></name>
+        <name><surname>Cooper</surname><given-names>Alan</given-names></name>
+        <name><surname>Alt</surname><given-names>Kurt W</given-names></name>
+        <name><surname>Brown</surname><given-names>Dorcas</given-names></name>
+        <name><surname>Anthony</surname><given-names>David</given-names></name>
+        <name><surname>Lalueza-Fox</surname><given-names>Carles</given-names></name>
+        <name><surname>Haak</surname><given-names>Wolfgang</given-names></name>
+        <name><surname>Pinhasi</surname><given-names>Ron</given-names></name>
+        <name><surname>Reich</surname><given-names>David E</given-names></name>
+      </person-group>
+      <article-title>Genome-wide patterns of selection in 230 ancient eurasians</article-title>
+      <source>Nature</source>
+      <publisher-name>Nature Publishing Group</publisher-name>
+      <year iso-8601-date="2015">2015</year>
+      <issn>0028-0836</issn>
+      <uri>http://www.nature.com/doifinder/10.1038/nature16152</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-Rohland2022">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Rohland</surname><given-names>Nadin</given-names></name>
+        <name><surname>Mallick</surname><given-names>Swapan</given-names></name>
+        <name><surname>Mah</surname><given-names>Matthew</given-names></name>
+        <name><surname>Maier</surname><given-names>Robert</given-names></name>
+        <name><surname>Patterson</surname><given-names>Nick</given-names></name>
+        <name><surname>Reich</surname><given-names>David</given-names></name>
+      </person-group>
+      <article-title>Three assays for in-solution enrichment of ancient human DNA at more than a million SNPs</article-title>
+      <source>Genome research</source>
+      <year iso-8601-date="2022">2022</year>
+      <volume>32</volume>
+      <issue>11-12</issue>
+      <issn>1088-9051</issn>
+      <uri>http://dx.doi.org/10.1101/gr.276728.122</uri>
+      <pub-id pub-id-type="doi">10.1101/gr.276728.122</pub-id>
+      <pub-id pub-id-type="pmid">36517229</pub-id>
+      <fpage>2068</fpage>
+      <lpage>2078</lpage>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
