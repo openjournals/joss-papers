@@ -1,0 +1,489 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">9775</article-id>
+<article-id pub-id-type="doi">10.21105/joss.09775</article-id>
+<title-group>
+<article-title>solve_nivp: A Python toolkit for integrating nonsmooth
+dynamical systems</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author">
+<name>
+<surname>Riley</surname>
+<given-names>David</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<contrib contrib-type="author">
+<name>
+<surname>Stefanou</surname>
+<given-names>Ioannis</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>IMSIA (UMR 9219), CNRS, EDF, CEA, ENSTA Paris, Institut
+Polytechnique de Paris, Palaiseau, France</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2025-10-17">
+<day>17</day>
+<month>10</month>
+<year>2025</year>
+</pub-date>
+<volume>11</volume>
+<issue>119</issue>
+<fpage>9775</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2026</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p><bold>solve_nivp</bold> is a Python library for time integration of
+  <italic>nonsmooth</italic> ODE/DAE models: systems with abrupt changes
+  such as impacts, switching, or inequality constraints. Such models are
+  widespread: frictional contact in mechanics, piecewise and switching
+  behaviour in circuits, sliding–mode control, and discontinuous rules
+  in finance and energy markets
+  (<xref alt="Acary &amp; Brogliato, 2008" rid="ref-acary2008numerical" ref-type="bibr">Acary
+  &amp; Brogliato, 2008</xref>;
+  <xref alt="Bernardo et al., 2008" rid="ref-bernardo2008piecewise" ref-type="bibr">Bernardo
+  et al., 2008</xref>;
+  <xref alt="Brogliato, 2016" rid="ref-brogliato2016nonsmooth" ref-type="bibr">Brogliato,
+  2016</xref>;
+  <xref alt="Gabriel et al., 2012" rid="ref-gabriel2012complementarity" ref-type="bibr">Gabriel
+  et al., 2012</xref>;
+  <xref alt="Shtessel et al., 2014" rid="ref-ShtesselEdwardsFridmanLevant2014" ref-type="bibr">Shtessel
+  et al., 2014</xref>;
+  <xref alt="Tramontana et al., 2010" rid="ref-Tramontana2010" ref-type="bibr">Tramontana
+  et al., 2010</xref>). Classical solvers, which assume smoothness,
+  often require heavy regularisation or very small steps due to the
+  inherent stiffness of these models. <bold>solve_nivp</bold> builds
+  nonsmooth rules directly into the implicit time-stepping scheme,
+  enabling users to encode constraints and advance the state robustly.
+  Documentation, examples, and tests accompany the code for reproducible
+  use.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p>Many models in mechanics, circuits, biology, control, and
+  quantitative markets exhibit discontinuities or set-valued relations
+  (ideal diodes, genetic switching, finance applications, stick–slip
+  friction, unilateral contact, switching, saturation). While nonsmooth
+  time-stepping schemes are well established
+  (<xref alt="Acary &amp; Brogliato, 2008" rid="ref-acary2008numerical" ref-type="bibr">Acary
+  &amp; Brogliato, 2008</xref>;
+  <xref alt="Stewart &amp; Trinkle, 1996" rid="ref-StewartTrinkle1996" ref-type="bibr">Stewart
+  &amp; Trinkle, 1996</xref>), practitioners working in Python often use
+  interfaces oriented to smooth right-hand sides and event detection. In
+  practice, this pushes users toward ad hoc regularisation or very small
+  time steps to cope with kinks and set-valued relations, thereby
+  increasing computational cost and complicating reproducibility.</p>
+  <p>Existing libraries such as <italic>Siconos</italic> provide C++
+  with a Python interface for complementarity-based and rigid-body
+  contact dynamics
+  (<xref alt="Acary et al., 2019" rid="ref-Siconos" ref-type="bibr">Acary
+  et al., 2019</xref>). At the other end of the spectrum,
+  general-purpose DAE solvers such as <italic>SUNDIALS/IDA</italic>
+  deliver robust variable-order BDF methods for smooth problems
+  (<xref alt="Hindmarsh et al., 2005" rid="ref-hindmarsh2005sundials" ref-type="bibr">Hindmarsh
+  et al., 2005</xref>). Between these options, there is a gap for a
+  lightweight, Python-native library that lets users encode nonsmooth
+  rules directly and couple them with implicit integrators and
+  globalisation strategies—without adopting a full multibody framework
+  or rewriting models in another language.</p>
+  <p><bold>solve_nivp</bold> addresses this need with a minimal
+  projector interface for expressing set-valued relations, together with
+  nonlinear solvers and implicit time-stepping tailored to
+  piecewise-smooth behaviour. The design targets research and
+  prototyping workflows common in computational mechanics and
+  mathematics, robotics, and control: small-to-moderate problem sizes,
+  clear separation of model and solver components, and emphasis on
+  reproducible examples and tests. By bringing projection-based
+  nonsmooth techniques into a familiar scientific Python workflow, the
+  package lowers the barrier to building, comparing, and sharing
+  nonsmooth models alongside existing tools.</p>
+</sec>
+<sec id="functionality-and-design">
+  <title>Functionality and design</title>
+  <p><bold>solve_nivp</bold> is organised around three interchangeable
+  components. Users encode the nonsmooth rule as a constraint (i.e., a
+  projection onto a convex set), choose a nonlinear solver, and select
+  an implicit integrator. The library wires these components and
+  integrates the ODE/DAE in time while enforcing the constraint at each
+  step, helping keep models readable and making it straightforward to
+  swap algorithms during experimentation.</p>
+  <p>Projectors are small classes exposing
+  <monospace>project()</monospace> and an optional generalised
+  derivative via <monospace>tangent_cone()</monospace>. The distribution
+  includes several built-in projection methods; users can add new ones
+  by implementing the same two methods. For the nonlinear step, the
+  package provides a semismooth Newton method
+  (<xref alt="Qi &amp; Sun, 1993" rid="ref-qi1993nonsmooth" ref-type="bibr">Qi
+  &amp; Sun, 1993</xref>) with Armijo line search
+  (<xref alt="Armijo, 1966" rid="ref-armijo1966minimization" ref-type="bibr">Armijo,
+  1966</xref>) and a variational-inequality fixed-point iteration
+  (<xref alt="Fortin &amp; Glowinski, 1983" rid="ref-FortinGlowinski1983" ref-type="bibr">Fortin
+  &amp; Glowinski, 1983</xref>;
+  <xref alt="Uzawa, 1958" rid="ref-Uzawa1958" ref-type="bibr">Uzawa,
+  1958</xref>), both aimed at nonsmooth problems and offering standard
+  tolerances, safeguards, and iteration diagnostics.</p>
+  <p>Time integration of the dynamical system is implicit and includes
+  the Backward Euler
+  (<xref alt="Hairer et al., 1993" rid="ref-hairer1993solving" ref-type="bibr">Hairer
+  et al., 1993</xref>), Trapezoidal
+  (<xref alt="Hairer et al., 1993" rid="ref-hairer1993solving" ref-type="bibr">Hairer
+  et al., 1993</xref>), and <inline-formula><alternatives>
+  <tex-math><![CDATA[\theta]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>θ</mml:mi></mml:math></alternatives></inline-formula>
+  methods
+  (<xref alt="Hairer et al., 1993" rid="ref-hairer1993solving" ref-type="bibr">Hairer
+  et al., 1993</xref>), as well as a composite scheme based on the Bathe
+  method
+  (<xref alt="Bathe &amp; Noh, 2012" rid="ref-bathe2012insight" ref-type="bibr">Bathe
+  &amp; Noh, 2012</xref>). An adaptive controller is available and can
+  exclude algebraic components from the local-error norm, which is
+  useful for mixed ODE/DAE models. An optional reinforcement-learning
+  add-on exposes the time integrator as an environment for learning
+  adaptive step-size policies. In a companion study
+  (<xref alt="Riley et al., 2025" rid="ref-Riley2025RLAdaptive" ref-type="bibr">Riley
+  et al., 2025</xref>), RL-based policies achieved substantial speedups
+  while maintaining accuracy, demonstrating the approach’s potential for
+  hard, nonsmooth problems. Linear-algebra routines operate on dense or
+  sparse arrays in the SciPy ecosystem
+  (<xref alt="Virtanen et al., 2020" rid="ref-virtanen2020scipy" ref-type="bibr">Virtanen
+  et al., 2020</xref>).</p>
+  <p>The public API exposes both a convenience entry point
+  (<monospace>solve_nivp</monospace>) and low-level building blocks
+  (projectors, solvers, integrators) to support rapid prototyping and
+  comparative studies. The repository includes examples and notebooks
+  demonstrating contact-rich mechanics and switching problems, together
+  with unit tests and Sphinx documentation, so users can reproduce
+  results with minimal setup.</p>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>The authors acknowledge support from the European Research Council
+  (ERC) under the European Union’s Horizon 2020 research and innovation
+  programme (Grant agreement no. 101087771, INJECT).</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <title></title>
+  <ref id="ref-brogliato2016nonsmooth">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Brogliato</surname><given-names>Bernard</given-names></name>
+      </person-group>
+      <source>Nonsmooth mechanics: Models, dynamics and control</source>
+      <publisher-name>Springer</publisher-name>
+      <publisher-loc>Cham</publisher-loc>
+      <year iso-8601-date="2016">2016</year>
+      <edition>3</edition>
+      <isbn>978-3-319-28662-4</isbn>
+      <pub-id pub-id-type="doi">10.1007/978-3-319-28664-8</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-acary2008numerical">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Acary</surname><given-names>Vincent</given-names></name>
+        <name><surname>Brogliato</surname><given-names>Bernard</given-names></name>
+      </person-group>
+      <source>Numerical methods for nonsmooth dynamical systems: Applications in mechanics and electronics</source>
+      <publisher-name>Springer</publisher-name>
+      <publisher-loc>Berlin, Heidelberg</publisher-loc>
+      <year iso-8601-date="2008">2008</year>
+      <volume>35</volume>
+      <isbn>978-3-540-75391-9</isbn>
+      <pub-id pub-id-type="doi">10.1007/978-3-540-75392-6</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-bernardo2008piecewise">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Bernardo</surname><given-names>Mario di</given-names></name>
+        <name><surname>Budd</surname><given-names>Christopher J.</given-names></name>
+        <name><surname>Champneys</surname><given-names>Alan R.</given-names></name>
+        <name><surname>Kowalczyk</surname><given-names>Piotr</given-names></name>
+      </person-group>
+      <source>Piecewise-smooth dynamical systems: Theory and applications</source>
+      <publisher-name>Springer</publisher-name>
+      <publisher-loc>London</publisher-loc>
+      <year iso-8601-date="2008">2008</year>
+      <volume>163</volume>
+      <isbn>978-1-84628-039-9</isbn>
+      <uri>doi.org/10.1007/978-1-84628-708-4</uri>
+      <pub-id pub-id-type="doi">10.1007/978-1-84628-708-4</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-ShtesselEdwardsFridmanLevant2014">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Shtessel</surname><given-names>Yuri</given-names></name>
+        <name><surname>Edwards</surname><given-names>Christopher</given-names></name>
+        <name><surname>Fridman</surname><given-names>Leonid</given-names></name>
+        <name><surname>Levant</surname><given-names>Arie</given-names></name>
+      </person-group>
+      <source>Sliding mode control and observation</source>
+      <publisher-name>Birkhäuser</publisher-name>
+      <publisher-loc>New York, NY</publisher-loc>
+      <year iso-8601-date="2014">2014</year>
+      <isbn>978-0-8176-4892-3</isbn>
+      <pub-id pub-id-type="doi">10.1007/978-0-8176-4893-0</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-Tramontana2010">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Tramontana</surname><given-names>Fabio</given-names></name>
+        <name><surname>Westerhoff</surname><given-names>Frank</given-names></name>
+        <name><surname>Gardini</surname><given-names>Laura</given-names></name>
+      </person-group>
+      <article-title>On the complicated price dynamics of a simple one-dimensional discontinuous financial market model with heterogeneous interacting traders</article-title>
+      <source>Journal of Economic Behavior &amp; Organization</source>
+      <year iso-8601-date="2010">2010</year>
+      <volume>74</volume>
+      <issue>3</issue>
+      <pub-id pub-id-type="doi">10.1016/j.jebo.2010.02.008</pub-id>
+      <fpage>187</fpage>
+      <lpage>205</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-gabriel2012complementarity">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Gabriel</surname><given-names>Steven A</given-names></name>
+        <name><surname>Conejo</surname><given-names>Antonio J</given-names></name>
+        <name><surname>Fuller</surname><given-names>J David</given-names></name>
+        <name><surname>Hobbs</surname><given-names>Benjamin F</given-names></name>
+        <name><surname>Ruiz</surname><given-names>Carlos</given-names></name>
+      </person-group>
+      <source>Complementarity modeling in energy markets</source>
+      <publisher-name>Springer Science &amp; Business Media</publisher-name>
+      <year iso-8601-date="2012">2012</year>
+      <volume>180</volume>
+    </element-citation>
+  </ref>
+  <ref id="ref-StewartTrinkle1996">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Stewart</surname><given-names>D. E.</given-names></name>
+        <name><surname>Trinkle</surname><given-names>J. C.</given-names></name>
+      </person-group>
+      <article-title>An implicit time-stepping scheme for rigid body dynamics with inelastic collisions and Coulomb friction</article-title>
+      <source>International Journal for Numerical Methods in Engineering</source>
+      <year iso-8601-date="1996">1996</year>
+      <volume>39</volume>
+      <issue>15</issue>
+      <pub-id pub-id-type="doi">10.1002/(SICI)1097-0207(19960815)39:15&lt;2673::AID-NME972&gt;3.0.CO;2-I</pub-id>
+      <fpage>2673</fpage>
+      <lpage>2691</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Siconos">
+    <element-citation publication-type="report">
+      <person-group person-group-type="author">
+        <name><surname>Acary</surname><given-names>Vincent</given-names></name>
+        <name><surname>Bonnefon</surname><given-names>Olivier</given-names></name>
+        <name><surname>Brémond</surname><given-names>Maurice</given-names></name>
+        <name><surname>Huber</surname><given-names>Olivier</given-names></name>
+        <name><surname>Pérignon</surname><given-names>Franck</given-names></name>
+        <name><surname>Sinclair</surname><given-names>Steven</given-names></name>
+      </person-group>
+      <article-title>An introduction to Siconos</article-title>
+      <publisher-name>Inria</publisher-name>
+      <year iso-8601-date="2019-11">2019</year><month>11</month>
+      <uri>https://hal.inria.fr/inria-00162911</uri>
+      <fpage>97</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-hindmarsh2005sundials">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Hindmarsh</surname><given-names>Alan C</given-names></name>
+        <name><surname>Brown</surname><given-names>Peter N</given-names></name>
+        <name><surname>Grant</surname><given-names>Keith E</given-names></name>
+        <name><surname>Lee</surname><given-names>Steven L</given-names></name>
+        <name><surname>Serban</surname><given-names>Radu</given-names></name>
+        <name><surname>Shumaker</surname><given-names>Dan E</given-names></name>
+        <name><surname>Woodward</surname><given-names>Carol S</given-names></name>
+      </person-group>
+      <article-title>SUNDIALS: Suite of nonlinear and differential/algebraic equation solvers</article-title>
+      <source>ACM Transactions on Mathematical Software (TOMS)</source>
+      <publisher-name>ACM New York, NY, USA</publisher-name>
+      <year iso-8601-date="2005">2005</year>
+      <volume>31</volume>
+      <issue>3</issue>
+      <fpage>363</fpage>
+      <lpage>396</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-virtanen2020scipy">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Virtanen</surname><given-names>Pauli</given-names></name>
+        <name><surname>Gommers</surname><given-names>Ralf</given-names></name>
+        <name><surname>Oliphant</surname><given-names>Travis E</given-names></name>
+        <name><surname>Haberland</surname><given-names>Matt</given-names></name>
+        <name><surname>Reddy</surname><given-names>Tyler</given-names></name>
+        <name><surname>Cournapeau</surname><given-names>David</given-names></name>
+        <name><surname>Burovski</surname><given-names>Evgeni</given-names></name>
+        <name><surname>Peterson</surname><given-names>Pearu</given-names></name>
+        <name><surname>Weckesser</surname><given-names>Warren</given-names></name>
+        <name><surname>Bright</surname><given-names>Jonathan</given-names></name>
+        <name><surname>others</surname></name>
+      </person-group>
+      <article-title>SciPy 1.0: Fundamental algorithms for scientific computing in Python</article-title>
+      <source>Nature methods</source>
+      <publisher-name>Nature Publishing Group US New York</publisher-name>
+      <year iso-8601-date="2020">2020</year>
+      <volume>17</volume>
+      <issue>3</issue>
+      <fpage>261</fpage>
+      <lpage>272</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Riley2025RLAdaptive">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Riley</surname><given-names>David</given-names></name>
+        <name><surname>Stathas</surname><given-names>Alexandros</given-names></name>
+        <name><surname>Gutiérrez-Oribio</surname><given-names>Diego</given-names></name>
+        <name><surname>Stefanou</surname><given-names>Ioannis</given-names></name>
+      </person-group>
+      <article-title>Reinforcement learning-based adaptive time-integration for nonsmooth dynamics</article-title>
+      <year iso-8601-date="2025">2025</year>
+      <uri>https://arxiv.org/abs/2501.08934</uri>
+      <pub-id pub-id-type="doi">10.48550/arXiv.2501.08934</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-qi1993nonsmooth">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Qi</surname><given-names>Liqun</given-names></name>
+        <name><surname>Sun</surname><given-names>Jie</given-names></name>
+      </person-group>
+      <article-title>A nonsmooth version of Newton’s method</article-title>
+      <source>Mathematical programming</source>
+      <publisher-name>Springer</publisher-name>
+      <year iso-8601-date="1993">1993</year>
+      <volume>58</volume>
+      <issue>1</issue>
+      <fpage>353</fpage>
+      <lpage>367</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-armijo1966minimization">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Armijo</surname><given-names>Larry</given-names></name>
+      </person-group>
+      <article-title>Minimization of functions having Lipschitz continuous first partial derivatives</article-title>
+      <source>Pacific Journal of mathematics</source>
+      <publisher-name>Mathematical Sciences Publishers</publisher-name>
+      <year iso-8601-date="1966">1966</year>
+      <volume>16</volume>
+      <issue>1</issue>
+      <pub-id pub-id-type="doi">10.2140/pjm.1966.16.1</pub-id>
+      <fpage>1</fpage>
+      <lpage>3</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Uzawa1958">
+    <element-citation publication-type="chapter">
+      <person-group person-group-type="author">
+        <name><surname>Uzawa</surname><given-names>Hirofumi</given-names></name>
+      </person-group>
+      <article-title>Iterative methods for concave programming</article-title>
+      <source>Studies in linear and nonlinear programming</source>
+      <person-group person-group-type="editor">
+        <name><surname>Arrow</surname><given-names>Kenneth J.</given-names></name>
+        <name><surname>Hurwicz</surname><given-names>Leonid</given-names></name>
+        <name><surname>Uzawa</surname><given-names>Hirofumi</given-names></name>
+      </person-group>
+      <publisher-name>Stanford University Press</publisher-name>
+      <publisher-loc>Stanford, CA</publisher-loc>
+      <year iso-8601-date="1958">1958</year>
+      <pub-id pub-id-type="doi">10.1017/cbo9780511664496.011</pub-id>
+      <fpage>154</fpage>
+      <lpage>165</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-FortinGlowinski1983">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Fortin</surname><given-names>Michel</given-names></name>
+        <name><surname>Glowinski</surname><given-names>Roland</given-names></name>
+      </person-group>
+      <source>Augmented Lagrangian methods: Applications to the numerical solution of boundary-value problems</source>
+      <publisher-name>North-Holland</publisher-name>
+      <publisher-loc>Amsterdam</publisher-loc>
+      <year iso-8601-date="1983">1983</year>
+    </element-citation>
+  </ref>
+  <ref id="ref-bathe2012insight">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Bathe</surname><given-names>Klaus-Jürgen</given-names></name>
+        <name><surname>Noh</surname><given-names>Gunwoo</given-names></name>
+      </person-group>
+      <article-title>Insight into an implicit time integration scheme for structural dynamics</article-title>
+      <source>Computers &amp; Structures</source>
+      <publisher-name>Elsevier</publisher-name>
+      <year iso-8601-date="2012">2012</year>
+      <volume>98</volume>
+      <pub-id pub-id-type="doi">10.1016/j.compstruc.2012.01.009</pub-id>
+      <fpage>1</fpage>
+      <lpage>6</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-hairer1993solving">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Hairer</surname><given-names>Ernst</given-names></name>
+        <name><surname>Nørsett</surname><given-names>Syvert Paul</given-names></name>
+        <name><surname>Wanner</surname><given-names>Gerhard</given-names></name>
+      </person-group>
+      <source>Solving ordinary differential equations I: Nonstiff problems</source>
+      <publisher-name>Springer</publisher-name>
+      <publisher-loc>Berlin, Heidelberg</publisher-loc>
+      <year iso-8601-date="1993">1993</year>
+      <volume>8</volume>
+      <pub-id pub-id-type="doi">10.1007/978-3-540-78862-1</pub-id>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
