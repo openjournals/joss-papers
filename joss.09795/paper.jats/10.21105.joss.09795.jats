@@ -1,0 +1,724 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">9795</article-id>
+<article-id pub-id-type="doi">10.21105/joss.09795</article-id>
+<title-group>
+<article-title>Discovering the SUPER in computing - dagster-slurm for
+reproducible research on HPC</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0001-6662-464X</contrib-id>
+<name>
+<surname>Picatto</surname>
+<given-names>Hernan</given-names>
+</name>
+<xref ref-type="aff" rid="aff-2"/>
+</contrib>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0009-0007-8093-7117</contrib-id>
+<name>
+<surname>Heß</surname>
+<given-names>Maximilian</given-names>
+</name>
+<xref ref-type="aff" rid="aff-2"/>
+</contrib>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0002-8684-1163</contrib-id>
+<name>
+<surname>Heiler</surname>
+<given-names>Georg</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+<xref ref-type="aff" rid="aff-2"/>
+</contrib>
+<contrib contrib-type="author">
+<name>
+<surname>Pfister</surname>
+<given-names>Martin</given-names>
+</name>
+<xref ref-type="aff" rid="aff-3"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Complexity Science Hub Vienna (CSH)</institution>
+</institution-wrap>
+</aff>
+<aff id="aff-2">
+<institution-wrap>
+<institution>Austrian Supply Chain Intelligence Institute
+(ASCII)</institution>
+</institution-wrap>
+</aff>
+<aff id="aff-3">
+<institution-wrap>
+<institution>AI Factory Austria</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<volume>11</volume>
+<issue>119</issue>
+<fpage>9795</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2026</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>Python</kwd>
+<kwd>dagster</kwd>
+<kwd>slurm</kwd>
+<kwd>reproducible-research</kwd>
+<kwd>RSE</kwd>
+<kwd>secops</kwd>
+<kwd>sops</kwd>
+<kwd>age</kwd>
+<kwd>pixi</kwd>
+<kwd>pixi-pack</kwd>
+<kwd>conda</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p>Dagster is a modern data orchestrator that emphasises
+  reproducibility, observability, and a strong developer experience
+  (<xref alt="Elementl, 2024b" rid="ref-dagster" ref-type="bibr">Elementl,
+  2024b</xref>). In parallel, most high-performance computing (HPC)
+  centres continue to rely on Slurm for batch scheduling and resource
+  governance
+  (<xref alt="Yoo et al., 2003" rid="ref-yoo2003slurm" ref-type="bibr">Yoo
+  et al., 2003</xref>). The two ecosystems rarely meet in practice:
+  Dagster projects often target cloud or single-node deployments, while
+  Slurm users maintain bespoke submission scripts with limited reuse or
+  visibility. This paper introduces <bold>dagster-slurm</bold>, an
+  open-source integration that allows the same Dagster assets to run
+  unchanged across laptops, CI pipelines, containerised Slurm clusters,
+  and Tier-0 supercomputers. The project packages dependencies with Pixi
+  (<xref alt="prefix.dev, 2024" rid="ref-pixi" ref-type="bibr">prefix.dev,
+  2024</xref>), submits workloads through Slurm using Dagster Pipes
+  (<xref alt="Elementl, 2024a" rid="ref-dagsterpipes" ref-type="bibr">Elementl,
+  2024a</xref>), and streams logs plus scheduler metrics back to the
+  Dagster UI.</p>
+  <p>The key contribution is a unified compute resource
+  (<monospace>ComputeResource</monospace>) that hides SSH transport
+  (including password-only jump hosts and OTP prompts), dependency
+  packaging, and queue configuration while still respecting Slurm’s
+  scheduling semantics. The project ships two production-ready execution
+  modes—<monospace>local</monospace> for laptop/CI development and
+  <monospace>slurm</monospace> for one-job-per-asset submissions—and two
+  stable launchers: Bash for script-based workloads and Ray for
+  multi-node distributed computing. Experimental support for Spark,
+  session-based allocation reuse, and heterogeneous jobs is under active
+  development.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of Need</title>
+  <p>Research software engineers (RSE) and data scientists increasingly
+  face cross-environment workflows. The 2022 edition of the Research
+  Software Engineering (RSE) International Survey reports that every
+  participating country now marks HPC as an important RSE skill
+  (<xref alt="Hettrick et al., 2022" rid="ref-hettrick_2022_7015772" ref-type="bibr">Hettrick
+  et al., 2022</xref>). Reproducibility challenges in HPC environments
+  are well documented, and Antunes &amp; Hill
+  (<xref alt="2024" rid="ref-ANTUNES2024100655" ref-type="bibr">2024</xref>)
+  provide comprehensive coverage of issues unique to HPC in their
+  survey. Courtès
+  (<xref alt="2022" rid="ref-Courtes9882991" ref-type="bibr">2022</xref>)
+  further examine the tension between reproducibility and performance,
+  demonstrating that these goals need not be mutually exclusive.</p>
+  <p>The 2024 Community Workshop on Practical Reproducibility in HPC
+  produced a comprehensive report highlighting cost-effective
+  reproducibility challenges and the need for tools that bridge
+  development and production environments
+  (<xref alt="Keahey et al., 2025" rid="ref-keahey_2025_15306610" ref-type="bibr">Keahey
+  et al., 2025</xref>). A rich ecosystem of Python-based HPC workflow
+  tools already exists. Parsl
+  (<xref alt="Babuji et al., 2019" rid="ref-parsl" ref-type="bibr">Babuji
+  et al., 2019</xref>) provides a parallel scripting library with
+  multi-site execution, dependency tracking, and SSH-based remote
+  submission. Executorlib
+  (<xref alt="Janssen et al., 2025" rid="ref-executorlib" ref-type="bibr">Janssen
+  et al., 2025</xref>) extends Python’s standard
+  <monospace>concurrent.futures.Executor</monospace> to HPC schedulers,
+  offering per-function resource control, local-to-cluster portability,
+  and support for heterogeneous workloads combining MPI and GPU
+  libraries. Jobflow
+  (<xref alt="Rosen et al., 2024" rid="ref-jobflow" ref-type="bibr">Rosen
+  et al., 2024</xref>) manages complex computational workflows with
+  decorator-based task definitions, and PSI/J
+  (<xref alt="Hategan-Marandiuc et al., 2023" rid="ref-psij" ref-type="bibr">Hategan-Marandiuc
+  et al., 2023</xref>) offers a portable submission interface across
+  schedulers. The Common Workflow Language community maintains an
+  extensive catalogue of further systems
+  (<xref alt="Common Workflow Language Community, 2024" rid="ref-cwl_wiki" ref-type="bibr">Common
+  Workflow Language Community, 2024</xref>). These frameworks provide
+  mature solutions for constructing and executing task graphs on HPC
+  resources, often including local execution modes for rapid
+  prototyping.</p>
+  <p>dagster-slurm does not aim to replace any of these tools; it
+  occupies a complementary niche. HPC workflow managers typically
+  orchestrate <italic>compute tasks</italic> within the HPC
+  ecosystem—submitting jobs, tracking task dependencies, and managing
+  scheduler resources on one or more clusters. These task-based
+  approaches work well for individual researchers and small teams who
+  define end-to-end pipelines in a single codebase. A data orchestrator
+  like Dagster operates at a different level: it models the dataflow as
+  a <italic>graph of persistent assets</italic> (datasets, models,
+  tables) rather than a graph of tasks to execute. This asset-based
+  paradigm makes the shared state of a data platform explicit—every
+  asset has a declared type, upstream dependencies, and freshness
+  expectations
+  (<xref alt="Elementl, 2024b" rid="ref-dagster" ref-type="bibr">Elementl,
+  2024b</xref>)—which streamlines collaboration when many contributors
+  work on the same dataflow graph, because changes to one asset’s logic
+  automatically propagate through the dependency structure without
+  requiring coordination across teams. Dagster manages the end-to-end
+  dataflow across heterogeneous, polyglot infrastructure—cloud object
+  stores, on-premise databases, container platforms, and HPC clusters
+  alike—while providing lineage tracking, a web UI for operational
+  monitoring, scheduling, and alerting. dagster-slurm bridges these two
+  worlds by extending Dagster’s control plane to Slurm-managed hardware.
+  This serves research teams whose pipelines span multiple compute
+  tiers: data ingestion and preprocessing on institutional servers or
+  cloud machines, GPU-intensive model training on an HPC partition, and
+  downstream analytics or publication steps elsewhere. Teams already
+  invested in Dagster for the non-HPC parts of their pipeline can reach
+  supercomputers without adopting a second orchestration framework, and
+  teams using HPC workflow managers for the compute-intensive stages can
+  wrap those invocations inside Dagster assets to gain lineage and
+  observability over the full dataflow. This lowers the entry barrier to
+  sovereign AI infrastructure: data engineering and machine-learning
+  teams without a traditional HPC background can leverage publicly
+  funded European supercomputers through the same tooling they already
+  use for cloud workloads, rather than having to acquire Slurm expertise
+  first. <bold>dagster-slurm</bold> was created to:</p>
+  <list list-type="bullet">
+    <list-item>
+      <p>Lower the barrier to sovereign HPC adoption. HPC environments
+      are complex; dagster-slurm provides the familiar Dagster developer
+      experience so that beginners can reach production supercomputers
+      without mastering Slurm scripting first.</p>
+    </list-item>
+    <list-item>
+      <p>Enable rapid local prototyping. The same asset code runs
+      locally without queues, eliminating long wait times during
+      development, and can be re-pointed to a different HPC cluster when
+      the primary system is congested.</p>
+    </list-item>
+    <list-item>
+      <p>Orchestrate across compute tiers. A typical scientific pipeline
+      does not run entirely on HPC GPUs—cheap preprocessing can happen
+      on a cloud VM while only the training step targets the
+      supercomputer. dagster-slurm keeps the full dataflow graph visible
+      and schedulable in one place.</p>
+    </list-item>
+    <list-item>
+      <p>Provide batteries-included environment packaging. Pixi and
+      pixi-pack produce reproducible, self-contained bundles deployable
+      in air-gapped HPC centres.</p>
+    </list-item>
+    <list-item>
+      <p>Surface structured observability. Slurm job IDs, CPU
+      efficiency, memory usage, and live log streams appear directly in
+      the Dagster UI, benefiting beginners navigating HPC for the first
+      time and experts managing production workloads alike.</p>
+    </list-item>
+    <list-item>
+      <p>Encourage research software engineering best practices as
+      outlined by Eisty et al.
+      (<xref alt="2025" rid="ref-eisty2025" ref-type="bibr">2025</xref>),
+      covering planning, testing, documentation, and maintenance across
+      the development lifecycle.</p>
+    </list-item>
+  </list>
+</sec>
+<sec id="system-overview">
+  <title>System Overview</title>
+  <p>The integration is composed of three layers:</p>
+  <list list-type="order">
+    <list-item>
+      <p><bold>Resource definitions</bold> –
+      <monospace>ComputeResource</monospace>,
+      <monospace>SlurmResource</monospace>,
+      <monospace>SlurmSessionResource</monospace>, and
+      <monospace>SSHConnectionResource</monospace> are Dagster
+      <monospace>ConfigurableResource</monospace> objects. They
+      encapsulate queue defaults, SSH authentication (including
+      ControlMaster fallback, password-based jump hosts, and interactive
+      OTP prompts), and execution modes.</p>
+    </list-item>
+    <list-item>
+      <p><bold>Launchers and Pipes clients</bold> – Launchers (Bash,
+      Ray) translate payloads into execution plans. The Slurm Pipes
+      client handles environment packaging (on demand or via
+      pre-deployed bundles), transfers scripts, triggers
+      <monospace>sbatch</monospace> or session jobs, and streams
+      logs/metrics back through Dagster Pipes
+      (<xref alt="Elementl, 2024a" rid="ref-dagsterpipes" ref-type="bibr">Elementl,
+      2024a</xref>). Custom launchers can be added by extending the
+      <monospace>ComputeLauncher</monospace> base class.</p>
+    </list-item>
+    <list-item>
+      <p><bold>Operational helpers</bold> – Environment deployment
+      scripts, heterogeneous job managers, metrics collectors, and SSH
+      pooling utilities target HPC constraints such as login-node
+      sandboxes, session allocations, and queue observability.</p>
+    </list-item>
+  </list>
+  <p>This layered approach keeps Dagster’s user code agnostic to the
+  underlying transport while retaining the full control plane visibility
+  of the orchestrator.</p>
+  <p>dagster-slurm builds on Dagster’s
+  <monospace>ConfigurableResource</monospace> and Pipes protocols rather
+  than on IOManagers. The system automatically transfers payload scripts
+  and execution environments (via pixi-pack and SCP) and streams
+  structured messages, metadata, and logs back through Dagster Pipes.
+  Data management is deliberately left to the user because I/O
+  strategies vary widely across HPC sites and use cases. In local
+  development mode, datasets are typically small and reside on the
+  developer’s machine, keeping the prototyping loop fast. In production,
+  data usually lives on shared parallel filesystems (GPFS, Lustre) or on
+  S3-compatible object stores co-located with the cluster. The
+  recommended pattern is a deployment-mode-aware path switch—for example
+  an environment variable or Dagster configuration value that resolves
+  to a local directory during development and to the shared filesystem
+  mount on the supercomputer—so that asset code remains unchanged across
+  tiers. This is intentional: HPC workloads typically operate on large
+  datasets where automatic serialization across network boundaries would
+  be impractical, and researchers retain full control over data locality
+  and I/O strategy.</p>
+  <p>As illustrated in Figure
+  <xref alt="[fig:architecture]" rid="figU003Aarchitecture">[fig:architecture]</xref>,
+  the same scalable job can follow multiple paths: direct local
+  execution for development, automated testing through CI/CD chains, or
+  production deployment to HPC clusters via SSH-accessible edge
+  nodes.</p>
+  <fig>
+    <caption><p>Architecture overview showing the progression from local
+    development to production HPC deployment. The workflow enables
+    researchers to code locally, test through CI/CD pipelines, and
+    deploy to Slurm-enabled clusters with minimal
+    changes.<styled-content id="figU003Aarchitecture"></styled-content></p></caption>
+    <graphic mimetype="image" mime-subtype="png" xlink:href="../slides/public/img/arch-overview.png" />
+  </fig>
+</sec>
+<sec id="minimal-usage-example">
+  <title>Minimal usage example</title>
+  <code language="python">import dagster as dg
+from dagster_slurm import (
+    ComputeResource,
+    ExecutionMode,
+    RayLauncher,
+    SlurmQueueConfig,
+    SlurmResource,
+    SSHConnectionResource,
+)
+
+ssh = SSHConnectionResource.from_env(prefix=&quot;SLURM_EDGE_NODE&quot;)
+slurm = SlurmResource(
+    ssh=ssh,
+    queue=SlurmQueueConfig(partition=&quot;batch&quot;,
+      time_limit=&quot;02:00:00&quot;, cpus=8, mem=&quot;32G&quot;),
+    remote_base=f&quot;/home/{ssh.user}/dagster_runs&quot;,
+)
+
+compute = ComputeResource(
+    mode=ExecutionMode.SLURM,
+    slurm=slurm,
+    default_launcher=RayLauncher(num_gpus_per_node=1),
+)
+
+@dg.asset(required_resource_keys={&quot;compute&quot;})
+def train_model(context: dg.AssetExecutionContext):
+    payload = dg.file_relative_path(__file__, &quot;../workloads/train.py&quot;)
+    completed = context.resources.compute.run(
+        context=context,
+        payload_path=payload,
+        resource_requirements={&quot;framework&quot;: &quot;ray&quot;, 
+          &quot;cpus&quot;: 32, &quot;gpus&quot;: 1, &quot;memory_gb&quot;: 120},
+        extra_env={&quot;EXPERIMENT&quot;: context.run.run_id},
+    )
+    yield from completed.get_results()</code>
+  <p>Local development simply swaps
+  <monospace>ExecutionMode.SLURM</monospace> for
+  <monospace>ExecutionMode.LOCAL</monospace>. The example project
+  bundled with the repository demonstrates this workflow, complete with
+  Dockerised Slurm nodes for integration testing. Session reuse and
+  heterogeneous jobs remain under active development; early adopters can
+  track progress in the repository milestones.</p>
+</sec>
+<sec id="evaluation">
+  <title>Evaluation</title>
+  <p>We validate the approach along three dimensions:</p>
+  <list list-type="bullet">
+    <list-item>
+      <p><bold>Reproducibility</bold> – Integration tests run inside
+      GitHub Actions using a containerised Slurm cluster. The pipeline
+      provisions the environment with Pixi, deploys it once via
+      <monospace>pixi run deploy-prod-docker</monospace>, and then runs
+      Dagster assets through all four execution modes. This continuous
+      integration approach aligns with emerging best practices for
+      reproducible HPC workflows
+      (<xref alt="Hayot-Sasson et al., 2025" rid="ref-hayotsasson2025address" ref-type="bibr">Hayot-Sasson
+      et al., 2025</xref>).</p>
+    </list-item>
+    <list-item>
+      <p><bold>HPC readiness</bold> – The project has been exercised on
+      academic clusters such as VSC-5 (Austria) and Leonardo (Italy).
+      SSH ControlMaster fallbacks, password-based jump hosts,
+      <monospace>.bashrc</monospace> hygiene, queue/QoS/reservation
+      overrides, and verification snippets
+      (<monospace>squeue</monospace>, <monospace>scontrol</monospace>)
+      are documented for both sites.</p>
+    </list-item>
+    <list-item>
+      <p><bold>Observability</bold> – Slurm job IDs, CPU efficiency,
+      memory, and node-hours are exposed as Dagster metadata entries,
+      while Ray clusters stream their stdout/stderr back through Pipes.
+      This enables conventional Dagster asset checks and alerting to
+      operate unchanged.</p>
+    </list-item>
+  </list>
+</sec>
+<sec id="impact-and-future-work">
+  <title>Impact and Future Work</title>
+  <p>dagster-slurm lowers the barrier for research teams to adopt modern
+  data orchestration on top of established HPC schedulers. By
+  eliminating duplicated scripts and surfacing rich observability, the
+  integration reduces operational toil and shortens iteration loops.
+  Future work focuses on:</p>
+  <list list-type="bullet">
+    <list-item>
+      <p>Deepening heterogeneous job support (automatic fusion of
+      dependent assets, richer allocation policies).</p>
+    </list-item>
+    <list-item>
+      <p>Maturing the Spark launcher from its current experimental state
+      to production readiness and adding support for further frameworks
+      (MPI, GPU-accelerated libraries).</p>
+    </list-item>
+    <list-item>
+      <p>Exploring pilot-job back ends (e.g., RADICAL-Pilot, QCG) for
+      finer-grained scheduling inside allocations, and non-interactive
+      OTP integrations for strict MFA environments.</p>
+    </list-item>
+  </list>
+  <p>Community contributions—issue reports, cluster-specific recipes,
+  and new launchers—are actively encouraged at
+  <ext-link ext-link-type="uri" xlink:href="https://github.com/ascii-supply-networks/dagster-slurm">https://github.com/ascii-supply-networks/dagster-slurm</ext-link>.
+  Questions and discussions are welcome on
+  <ext-link ext-link-type="uri" xlink:href="https://github.com/ascii-supply-networks/dagster-slurm/discussions">GitHub
+  Discussions</ext-link>.</p>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>We thank the operations teams at the Austrian Scientific Computing
+  (ASC) (VSC-5) and CINECA’s Leonardo supercomputer for early feedback,
+  and the Dagster community for discussions around orchestrating HPC
+  workloads. Funding and in-kind support were provided by the Complexity
+  Science Hub Vienna and the Austrian Supply Chain Intelligence
+  Institute. This work was completed in part at the EUROCC AI HACKATHON
+  2025, part of the Open Hackathons program. The authors would like to
+  acknowledge OpenACC-Standard.org for their support.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <title></title>
+  <ref id="ref-hettrick_2022_7015772">
+    <element-citation publication-type="software">
+      <person-group person-group-type="author">
+        <name><surname>Hettrick</surname><given-names>Simon</given-names></name>
+        <name><surname>Bast</surname><given-names>Radovan</given-names></name>
+        <name><surname>Crouch</surname><given-names>Steve</given-names></name>
+        <name><surname>Wyatt</surname><given-names>Claire</given-names></name>
+        <name><surname>Philippe</surname><given-names>Olivier</given-names></name>
+        <name><surname>Botzki</surname><given-names>Alex</given-names></name>
+        <name><surname>Carver</surname><given-names>Jeffrey</given-names></name>
+        <name><surname>Cosden</surname><given-names>Ian</given-names></name>
+        <name><surname>D’Andrea</surname><given-names>Florencia</given-names></name>
+        <name><surname>Dasgupta</surname><given-names>Abhishek</given-names></name>
+        <name><surname>Godoy</surname><given-names>William</given-names></name>
+        <name><surname>Gonzalez-Beltran</surname><given-names>Alejandra</given-names></name>
+        <name><surname>Hamster</surname><given-names>Ulf</given-names></name>
+        <name><surname>Henwood</surname><given-names>Scott</given-names></name>
+        <name><surname>Holmvall</surname><given-names>Patric</given-names></name>
+        <name><surname>Janosch</surname><given-names>Stephan</given-names></name>
+        <name><surname>Lestang</surname><given-names>Thibault</given-names></name>
+        <name><surname>May</surname><given-names>Nick</given-names></name>
+        <name><surname>Philips</surname><given-names>Johan</given-names></name>
+        <name><surname>Poonawala-Lohani</surname><given-names>Nooriyah</given-names></name>
+        <name><surname>Richmond</surname><given-names>Paul</given-names></name>
+        <name><surname>Sinha</surname><given-names>Manodeep</given-names></name>
+        <name><surname>Thiery</surname><given-names>Florian</given-names></name>
+        <name><surname>Werkhoven</surname><given-names>Ben</given-names></name>
+        <name><surname>Zhang</surname><given-names>Qian</given-names></name>
+      </person-group>
+      <article-title>International RSE survey 2022</article-title>
+      <publisher-name>Zenodo</publisher-name>
+      <year iso-8601-date="2022-08">2022</year><month>08</month>
+      <uri>https://doi.org/10.5281/zenodo.7015772</uri>
+      <pub-id pub-id-type="doi">10.5281/zenodo.7015772</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-dagster">
+    <element-citation publication-type="software">
+      <person-group person-group-type="author">
+        <name><surname>Elementl</surname><given-names>Inc.</given-names></name>
+      </person-group>
+      <article-title>Dagster: Data orchestration platform</article-title>
+      <year iso-8601-date="2024">2024</year>
+      <uri>https://dagster.io/</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-yoo2003slurm">
+    <element-citation publication-type="chapter">
+      <person-group person-group-type="author">
+        <name><surname>Yoo</surname><given-names>Andy B.</given-names></name>
+        <name><surname>Jette</surname><given-names>Morris A.</given-names></name>
+        <name><surname>Grondona</surname><given-names>Mark</given-names></name>
+      </person-group>
+      <article-title>SLURM: Simple Linux utility for resource management</article-title>
+      <source>Job scheduling strategies for parallel processing</source>
+      <person-group person-group-type="editor">
+        <name><surname>Feitelson</surname><given-names>Dror G.</given-names></name>
+        <name><surname>Rudolph</surname><given-names>Larry</given-names></name>
+        <name><surname>Schwiegelshohn</surname><given-names>Uwe</given-names></name>
+      </person-group>
+      <publisher-name>Springer</publisher-name>
+      <year iso-8601-date="2003">2003</year>
+      <volume>2862</volume>
+      <pub-id pub-id-type="doi">10.1007/10968987_3</pub-id>
+      <fpage>44</fpage>
+      <lpage>60</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-pixi">
+    <element-citation publication-type="software">
+      <person-group person-group-type="author">
+        <name><surname>prefix.dev</surname></name>
+      </person-group>
+      <article-title>Pixi: Reproducible package environments</article-title>
+      <year iso-8601-date="2024">2024</year>
+      <uri>https://github.com/prefix-dev/pixi</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-dagsterpipes">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Elementl</surname><given-names>Inc.</given-names></name>
+      </person-group>
+      <source>Dagster pipes documentation</source>
+      <year iso-8601-date="2024">2024</year>
+      <uri>https://docs.dagster.io/concepts/dagster-pipes/pipes-overview</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-ANTUNES2024100655">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Antunes</surname><given-names>Benjamin</given-names></name>
+        <name><surname>Hill</surname><given-names>David R. C.</given-names></name>
+      </person-group>
+      <article-title>Reproducibility, replicability and repeatability: A survey of reproducible research with a focus on high performance computing</article-title>
+      <source>Computer Science Review</source>
+      <year iso-8601-date="2024">2024</year>
+      <volume>53</volume>
+      <issn>1574-0137</issn>
+      <uri>https://www.sciencedirect.com/science/article/pii/S157401372400039X</uri>
+      <pub-id pub-id-type="doi">10.1016/j.cosrev.2024.100655</pub-id>
+      <fpage>100655</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Courtes9882991">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Courtès</surname><given-names>Ludovic</given-names></name>
+      </person-group>
+      <article-title>Reproducibility and performance: Why choose?</article-title>
+      <source>Computing in Science &amp; Engineering</source>
+      <year iso-8601-date="2022">2022</year>
+      <volume>24</volume>
+      <issue>3</issue>
+      <pub-id pub-id-type="doi">10.1109/MCSE.2022.3165626</pub-id>
+      <fpage>77</fpage>
+      <lpage>80</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-hayotsasson2025address">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Hayot-Sasson</surname><given-names>Valérie</given-names></name>
+        <name><surname>Hudson</surname><given-names>Nathaniel</given-names></name>
+        <name><surname>Bauer</surname><given-names>André</given-names></name>
+        <name><surname>Gonthier</surname><given-names>Maxime</given-names></name>
+        <name><surname>Foster</surname><given-names>Ian</given-names></name>
+        <name><surname>Chard</surname><given-names>Kyle</given-names></name>
+      </person-group>
+      <article-title>Addressing reproducibility challenges in HPC with continuous integration</article-title>
+      <year iso-8601-date="2025">2025</year>
+      <uri>https://arxiv.org/abs/2508.21289</uri>
+      <pub-id pub-id-type="doi">10.48550/arXiv.2508.21289</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-keahey_2025_15306610">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Keahey</surname><given-names>Kate</given-names></name>
+        <name><surname>Richardson</surname><given-names>Marc</given-names></name>
+        <name><surname>Tolosana Calasanz</surname><given-names>Rafael</given-names></name>
+        <name><surname>Hunold</surname><given-names>Sascha</given-names></name>
+        <name><surname>Lofstead</surname><given-names>Jay</given-names></name>
+        <name><surname>Malik</surname><given-names>Tanu</given-names></name>
+        <name><surname>Perez</surname><given-names>Christian</given-names></name>
+      </person-group>
+      <article-title>Report on challenges of practical reproducibility for systems and HPC computer science</article-title>
+      <publisher-name>Zenodo</publisher-name>
+      <year iso-8601-date="2025-04">2025</year><month>04</month>
+      <uri>https://doi.org/10.5281/zenodo.15306610</uri>
+      <pub-id pub-id-type="doi">10.5281/zenodo.15306610</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-eisty2025">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Eisty</surname><given-names>Nasir U.</given-names></name>
+        <name><surname>Bernholdt</surname><given-names>David E.</given-names></name>
+        <name><surname>Koufos</surname><given-names>Alex</given-names></name>
+        <name><surname>Luet</surname><given-names>David J.</given-names></name>
+        <name><surname>Mundt</surname><given-names>Miranda</given-names></name>
+      </person-group>
+      <article-title>Ten essential guidelines for building high-quality research software</article-title>
+      <year iso-8601-date="2025">2025</year>
+      <uri>https://arxiv.org/abs/2507.16166</uri>
+      <pub-id pub-id-type="doi">10.48550/arXiv.2507.16166</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-parsl">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Babuji</surname><given-names>Yadu</given-names></name>
+        <name><surname>Woodard</surname><given-names>Anna</given-names></name>
+        <name><surname>Li</surname><given-names>Zhuozhao</given-names></name>
+        <name><surname>Katz</surname><given-names>Daniel S.</given-names></name>
+        <name><surname>Clifford</surname><given-names>Ben</given-names></name>
+        <name><surname>Kumar</surname><given-names>Rohan</given-names></name>
+        <name><surname>Lacinski</surname><given-names>Lukasz</given-names></name>
+        <name><surname>Chard</surname><given-names>Ryan</given-names></name>
+        <name><surname>Wozniak</surname><given-names>Justin M.</given-names></name>
+        <name><surname>Foster</surname><given-names>Ian</given-names></name>
+        <name><surname>Wilde</surname><given-names>Michael</given-names></name>
+        <name><surname>Chard</surname><given-names>Kyle</given-names></name>
+      </person-group>
+      <article-title>Parsl: Pervasive parallel programming in Python</article-title>
+      <source>Proceedings of the 28th international symposium on high-performance parallel and distributed computing</source>
+      <publisher-name>ACM</publisher-name>
+      <year iso-8601-date="2019">2019</year>
+      <pub-id pub-id-type="doi">10.1145/3307681.3325400</pub-id>
+      <fpage>25</fpage>
+      <lpage>36</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-executorlib">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Janssen</surname><given-names>Jan</given-names></name>
+        <name><surname>Taylor</surname><given-names>Michael Gilbert</given-names></name>
+        <name><surname>Yang</surname><given-names>Ping</given-names></name>
+        <name><surname>Neugebauer</surname><given-names>Joerg</given-names></name>
+        <name><surname>Perez</surname><given-names>Danny</given-names></name>
+      </person-group>
+      <article-title>Executorlib – up-scaling Python workflows for hierarchical heterogeneous high-performance computing</article-title>
+      <source>Journal of Open Source Software</source>
+      <year iso-8601-date="2025">2025</year>
+      <volume>10</volume>
+      <issue>108</issue>
+      <pub-id pub-id-type="doi">10.21105/joss.07782</pub-id>
+      <fpage>7782</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-jobflow">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Rosen</surname><given-names>Andrew S.</given-names></name>
+        <name><surname>Gallant</surname><given-names>Max</given-names></name>
+        <name><surname>George</surname><given-names>Janine</given-names></name>
+        <name><surname>Riebesell</surname><given-names>Janosh</given-names></name>
+        <name><surname>Saez</surname><given-names>Hrushikesh</given-names></name>
+        <name><surname>Ganose</surname><given-names>Alex M.</given-names></name>
+        <name><surname>Jain</surname><given-names>Anubhav</given-names></name>
+      </person-group>
+      <article-title>Jobflow: Computational workflows made simple</article-title>
+      <source>Journal of Open Source Software</source>
+      <year iso-8601-date="2024">2024</year>
+      <volume>9</volume>
+      <issue>93</issue>
+      <pub-id pub-id-type="doi">10.21105/joss.05995</pub-id>
+      <fpage>5995</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-psij">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Hategan-Marandiuc</surname><given-names>Mihael</given-names></name>
+        <name><surname>Merzky</surname><given-names>Andre</given-names></name>
+        <name><surname>Collier</surname><given-names>Nicholson</given-names></name>
+        <name><surname>Maheshwari</surname><given-names>Ketan</given-names></name>
+        <name><surname>Ozik</surname><given-names>Jonathan</given-names></name>
+        <name><surname>Turilli</surname><given-names>Matteo</given-names></name>
+        <name><surname>Wilke</surname><given-names>Andreas</given-names></name>
+        <name><surname>Wozniak</surname><given-names>Justin M.</given-names></name>
+        <name><surname>Chard</surname><given-names>Kyle</given-names></name>
+        <name><surname>Foster</surname><given-names>Ian</given-names></name>
+        <name><surname>Ferreira da Silva</surname><given-names>Rafael</given-names></name>
+        <name><surname>Jha</surname><given-names>Shantenu</given-names></name>
+        <name><surname>Laney</surname><given-names>Daniel</given-names></name>
+      </person-group>
+      <article-title>PSI/J: A portable interface for submitting, monitoring, and managing jobs</article-title>
+      <source>2023 IEEE 19th international conference on e-science (e-science)</source>
+      <publisher-name>IEEE</publisher-name>
+      <year iso-8601-date="2023">2023</year>
+      <pub-id pub-id-type="doi">10.1109/e-Science58273.2023.10254912</pub-id>
+      <fpage>1</fpage>
+      <lpage>10</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-cwl_wiki">
+    <element-citation>
+      <person-group person-group-type="author">
+        <string-name>Common Workflow Language Community</string-name>
+      </person-group>
+      <article-title>Existing workflow systems</article-title>
+      <year iso-8601-date="2024">2024</year>
+      <uri>https://s.apache.org/existing-workflow-systems</uri>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
