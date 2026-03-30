@@ -1,0 +1,1091 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">9886</article-id>
+<article-id pub-id-type="doi">10.21105/joss.09886</article-id>
+<title-group>
+<article-title>OMEinsumContractionOrders: A Julia package for tensor
+network contraction order optimization</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author" equal-contrib="yes">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0003-1635-2679</contrib-id>
+<name>
+<surname>Liu</surname>
+<given-names>Jin-Guo</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<contrib contrib-type="author" equal-contrib="yes">
+<name>
+<surname>Gao</surname>
+<given-names>Xuanzhao</given-names>
+</name>
+<xref ref-type="aff" rid="aff-2"/>
+</contrib>
+<contrib contrib-type="author" equal-contrib="yes">
+<name>
+<surname>Samuelson</surname>
+<given-names>Richard</given-names>
+</name>
+<xref ref-type="aff" rid="aff-3"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Hong Kong University of Science and Technology
+(Guangzhou)</institution>
+</institution-wrap>
+</aff>
+<aff id="aff-2">
+<institution-wrap>
+<institution>Center of Computational Mathematics, Flatiron
+Institute</institution>
+</institution-wrap>
+</aff>
+<aff id="aff-3">
+<institution-wrap>
+<institution>University of Florida</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2025-10-19">
+<day>19</day>
+<month>10</month>
+<year>2025</year>
+</pub-date>
+<volume>11</volume>
+<issue>119</issue>
+<fpage>9886</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2026</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>Julia</kwd>
+<kwd>tensor networks</kwd>
+<kwd>contraction order optimization</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p><monospace>OMEinsumContractionOrders</monospace> (One More Einsum
+  Contraction Orders, or OMECO) is a Julia package
+  (<xref alt="Bezanson et al., 2012" rid="ref-bezanson2012julia" ref-type="bibr">Bezanson
+  et al., 2012</xref>) that implements state-of-the-art algorithms for
+  optimizing tensor network contraction orders. OMECO is designed to
+  search for near-optimal contraction orders for exact tensor network
+  contraction, and provides a comprehensive suite of optimization
+  algorithms for tensor network contraction orders, including greedy
+  heuristics, simulated annealing, and tree width solvers. In this
+  paper, we present the key features of OMECO, its integration with the
+  Julia ecosystem, and performance benchmarks.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of Need</title>
+  <p>A <italic>tensor network</italic> is a mathematical structure that
+  represents multilinear transformations as hypergraphs. Arrays—called
+  <italic>tensors</italic>—correspond to nodes, and shared indices
+  correspond to hyperedges. To <italic>contract</italic> a tensor
+  network is to evaluate the transformation on a collection of tensors
+  by performing a sequence of pairwise bilinear operations. The
+  computational cost—both running time and memory usage—depends
+  critically on the order in which these operations are performed. A
+  specific choice of ordering is called a <italic>contraction
+  order</italic>, and the problem of finding an efficient ordering is
+  called <italic>contraction order optimization</italic>.</p>
+  <p>Notably, this optimization task is analogous to compilation: a
+  scheduler compiles a tensor network specification into an executable
+  plan that can be evaluated efficiently. It is important to distinguish
+  the <italic>optimization time</italic> (how long the scheduler runs)
+  from the <italic>contraction complexity</italic> (the time and memory
+  required to execute the resulting plan). An effective scheduler must
+  balance these competing objectives—spending sufficient time to find a
+  high-quality contraction order while remaining computationally
+  tractable itself.</p>
+  <p>The tensor network framework has remarkable universality across
+  diverse domains: <italic>einsum</italic> notation
+  (<xref alt="Harris et al., 2020" rid="ref-Harris2020" ref-type="bibr">Harris
+  et al., 2020</xref>) in numerical computing, <italic>factor
+  graphs</italic>
+  (<xref alt="Bishop, 2006" rid="ref-Bishop2006" ref-type="bibr">Bishop,
+  2006</xref>) in probabilistic inference, <italic>sum-product
+  networks</italic> in machine learning, and <italic>junction
+  trees</italic>
+  (<xref alt="Villescas et al., 2023" rid="ref-Villescas2023" ref-type="bibr">Villescas
+  et al., 2023</xref>) in graphical models. Applications span quantum
+  circuit simulation
+  (<xref alt="Markov &amp; Shi, 2008" rid="ref-Markov2008" ref-type="bibr">Markov
+  &amp; Shi, 2008</xref>), quantum error correction
+  (<xref alt="Piveteau et al., 2024" rid="ref-Piveteau2024" ref-type="bibr">Piveteau
+  et al., 2024</xref>), neural network compression
+  (<xref alt="Qing et al., 2025" rid="ref-Qing2024" ref-type="bibr">Qing
+  et al., 2025</xref>), strongly correlated quantum materials
+  (<xref alt="Haegeman et al., 2016" rid="ref-Haegeman2016" ref-type="bibr">Haegeman
+  et al., 2016</xref>), and combinatorial optimization
+  (<xref alt="J.-G. Liu et al., 2023" rid="ref-Liu2023" ref-type="bibr">J.-G.
+  Liu et al., 2023</xref>).</p>
+  <p>A contraction order can be represented as a binary tree where
+  leaves correspond to input tensors and internal nodes represent
+  intermediate results. The optimization objective balances multiple
+  complexity measures through the cost function:
+  <disp-formula><alternatives>
+  <tex-math><![CDATA[
+  \mathcal{L} = w_\text{t} \cdot \text{tc} + w_\text{s} \cdot \max(0, \text{sc} - \text{sc}_{\textrm{target}}) + w_\text{rw} \cdot \text{rwc},
+  ]]></tex-math>
+  <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>ℒ</mml:mi><mml:mo>=</mml:mo><mml:msub><mml:mi>w</mml:mi><mml:mtext mathvariant="normal">t</mml:mtext></mml:msub><mml:mo>⋅</mml:mo><mml:mtext mathvariant="normal">tc</mml:mtext><mml:mo>+</mml:mo><mml:msub><mml:mi>w</mml:mi><mml:mtext mathvariant="normal">s</mml:mtext></mml:msub><mml:mo>⋅</mml:mo><mml:mi>max</mml:mi><mml:mo>&#8289;</mml:mo><mml:mo stretchy="false" form="prefix">(</mml:mo><mml:mn>0</mml:mn><mml:mo>,</mml:mo><mml:mtext mathvariant="normal">sc</mml:mtext><mml:mo>−</mml:mo><mml:msub><mml:mtext mathvariant="normal">sc</mml:mtext><mml:mtext mathvariant="normal">target</mml:mtext></mml:msub><mml:mo stretchy="false" form="postfix">)</mml:mo><mml:mo>+</mml:mo><mml:msub><mml:mi>w</mml:mi><mml:mtext mathvariant="normal">rw</mml:mtext></mml:msub><mml:mo>⋅</mml:mo><mml:mtext mathvariant="normal">rwc</mml:mtext><mml:mo>,</mml:mo></mml:mrow></mml:math></alternatives></disp-formula>
+  where <inline-formula><alternatives>
+  <tex-math><![CDATA[w_\text{t}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>w</mml:mi><mml:mtext mathvariant="normal">t</mml:mtext></mml:msub></mml:math></alternatives></inline-formula>,
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[w_\text{s}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>w</mml:mi><mml:mtext mathvariant="normal">s</mml:mtext></mml:msub></mml:math></alternatives></inline-formula>,
+  and <inline-formula><alternatives>
+  <tex-math><![CDATA[w_\text{rw}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>w</mml:mi><mml:mtext mathvariant="normal">rw</mml:mtext></mml:msub></mml:math></alternatives></inline-formula>
+  represent weights for time complexity (tc), space complexity (sc), and
+  read-write complexity (rwc), respectively. In practice, memory access
+  costs typically dominate computational costs, motivating
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[w_\text{rw} > w_\text{t}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>w</mml:mi><mml:mtext mathvariant="normal">rw</mml:mtext></mml:msub><mml:mo>&gt;</mml:mo><mml:msub><mml:mi>w</mml:mi><mml:mtext mathvariant="normal">t</mml:mtext></mml:msub></mml:mrow></mml:math></alternatives></inline-formula>.
+  The space complexity penalty activates only when
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[\text{sc} > \text{sc}_{\textrm{target}}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mtext mathvariant="normal">sc</mml:mtext><mml:mo>&gt;</mml:mo><mml:msub><mml:mtext mathvariant="normal">sc</mml:mtext><mml:mtext mathvariant="normal">target</mml:mtext></mml:msub></mml:mrow></mml:math></alternatives></inline-formula>,
+  allowing unconstrained optimization when memory fits within available
+  device capacity.</p>
+  <p>Finding the optimal contraction order—even when minimizing only
+  time complexity—is NP-complete
+  (<xref alt="Markov &amp; Shi, 2008" rid="ref-Markov2008" ref-type="bibr">Markov
+  &amp; Shi, 2008</xref>). However, the problem exhibits fixed-parameter
+  tractability: for tensor networks with bounded tree-width, optimal
+  contraction orders can be found—and the resulting contractions
+  executed—in polynomial time. This connection to tree decomposition
+  motivates several of OMECO’s optimization strategies, which leverage
+  graph-theoretic techniques to exploit this structure.</p>
+  <p>Algorithms for finding near-optimal contraction orders have been
+  developed and achieve impressive scalability
+  (<xref alt="Gray &amp; Kourtis, 2021" rid="ref-Gray2021" ref-type="bibr">Gray
+  &amp; Kourtis, 2021</xref>;
+  <xref alt="Roa-Villescas et al., 2024" rid="ref-Roa2024" ref-type="bibr">Roa-Villescas
+  et al., 2024</xref>), handling tensor networks with over
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[10^3]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msup><mml:mn>10</mml:mn><mml:mn>3</mml:mn></mml:msup></mml:math></alternatives></inline-formula>
+  tensors. While the Python package <monospace>cotengra</monospace>
+  (<xref alt="Gray &amp; Kourtis, 2021" rid="ref-Gray2021" ref-type="bibr">Gray
+  &amp; Kourtis, 2021</xref>) has been widely adopted in the community,
+  achieving optimal performance across diverse problem
+  instances—particularly when balancing solution quality against
+  optimization time constraints—remains an open challenge.</p>
+  <p>OMECO addresses this challenge through a unified and extensible
+  framework that integrates multiple complementary optimization
+  strategies, including greedy heuristics, simulated annealing, and
+  tree-width-based solvers. This comprehensive approach enables more
+  systematic exploration of the optimization time-solution quality
+  trade-off space. OMECO has been integrated into the
+  <monospace>OMEinsum</monospace> package and powers several downstream
+  applications: <monospace>Yao</monospace>
+  (<xref alt="Luo et al., 2020" rid="ref-Luo2020" ref-type="bibr">Luo et
+  al., 2020</xref>) for quantum circuit simulation,
+  <monospace>GenericTensorNetworks</monospace>
+  (<xref alt="J.-G. Liu et al., 2023" rid="ref-Liu2023" ref-type="bibr">J.-G.
+  Liu et al., 2023</xref>) and
+  <ext-link ext-link-type="uri" xlink:href="https://github.com/ArrogantGao/TensorBranching.jl"><monospace>TensorBranching</monospace></ext-link>
+  for combinatorial optimization, <monospace>TensorInference</monospace>
+  (<xref alt="Roa-Villescas &amp; Liu, 2023" rid="ref-Roa2023" ref-type="bibr">Roa-Villescas
+  &amp; Liu, 2023</xref>) for probabilistic inference, and
+  <ext-link ext-link-type="uri" xlink:href="https://github.com/TensorBFS/TensorQEC.jl"><monospace>TensorQEC</monospace></ext-link>
+  for quantum error correction. This infrastructure is expected to
+  benefit other applications requiring tree or path decomposition, such
+  as polynomial optimization
+  (<xref alt="Magron &amp; Wang, 2023" rid="ref-Magron2021" ref-type="bibr">Magron
+  &amp; Wang, 2023</xref>). These applications are reflected in the
+  ecosystem built around OMECO, as illustrated in
+  <xref alt="[fig:structure]" rid="figU003Astructure">[fig:structure]</xref>.</p>
+  <fig>
+    <caption><p>The ecosystem built around
+    <monospace>OMEinsumContractionOrders</monospace> and its
+    dependencies. OMECO serves as a core component of the tensor network
+    contractor <monospace>OMEinsum</monospace>, which powers
+    applications including <monospace>Yao</monospace> (quantum
+    simulation), <monospace>TensorQEC</monospace> (quantum error
+    correction), <monospace>TensorInference</monospace> (probabilistic
+    inference), <monospace>GenericTensorNetworks</monospace>, and
+    <monospace>TensorBranching</monospace> (combinatorial
+    optimization).<styled-content id="figU003Astructure"></styled-content></p></caption>
+    <graphic mimetype="application" mime-subtype="pdf" xlink:href="structure.pdf" />
+  </fig>
+</sec>
+<sec id="state-of-the-field">
+  <title>State of the Field</title>
+  <p>Several software packages support contraction order optimization.
+  The Python package <monospace>cotengra</monospace>
+  (<xref alt="Gray &amp; Kourtis, 2021" rid="ref-Gray2021" ref-type="bibr">Gray
+  &amp; Kourtis, 2021</xref>) provides a hyper-optimization framework
+  that combines greedy methods, simulated annealing, and graph
+  partitioning to find high-quality contraction orders. However,
+  integrating Python packages into Julia workflows introduces challenges
+  in dependency version control and environment reproducibility. The
+  <monospace>opt_einsum</monospace> package
+  (<xref alt="Smith &amp; Gray, 2018" rid="ref-Smith2018" ref-type="bibr">Smith
+  &amp; Gray, 2018</xref>) provides contraction optimization for
+  einsum-style expressions using dynamic programming and greedy-based
+  heuristics, while <monospace>quimb</monospace>
+  (<xref alt="Gray, 2018" rid="ref-Gray2018" ref-type="bibr">Gray,
+  2018</xref>) offers tensor network capabilities using
+  <monospace>cotengra</monospace> as its optimization backend. In the
+  Julia ecosystem, <monospace>TensorOperations.jl</monospace>
+  (<xref alt="Devos et al., 2023" rid="ref-TensorOperations" ref-type="bibr">Devos
+  et al., 2023</xref>) implements exact contraction order optimization,
+  but is limited to tensor networks without hyperedges (where each index
+  appears in at most two tensors) and lacks scalability to large
+  networks. <monospace>ITensors.jl</monospace>
+  (<xref alt="Fishman et al., 2022" rid="ref-ITensor" ref-type="bibr">Fishman
+  et al., 2022</xref>) primarily focuses on physics applications such as
+  MPS and DMRG algorithms, rather than general-purpose contraction order
+  optimization.</p>
+  <p>Unlike most of these existing packages, OMECO focuses on optimizing
+  arbitrary tensor networks with hyperedges, and provides the first
+  open-source implementation of the TreeSA algorithm
+  (<xref alt="Kalachev et al., 2021" rid="ref-Kalachev2021" ref-type="bibr">Kalachev
+  et al., 2021</xref>), a powerful simulated annealing approach that
+  operates directly on contraction tree structures. Beyond TreeSA, OMECO
+  implements a comprehensive suite of optimization algorithms from the
+  literature, including nested dissection methods for hypergraphs,
+  bipartition-based approaches, and exact tree decomposition solvers.
+  While the Python package <monospace>cotengra</monospace>
+  (<xref alt="Gray &amp; Kourtis, 2021" rid="ref-Gray2021" ref-type="bibr">Gray
+  &amp; Kourtis, 2021</xref>) exists in this space, we chose to build
+  OMECO as a native Julia implementation to provide these capabilities
+  to the Julia scientific computing ecosystem without language barriers,
+  enabling new applications in quantum computing and combinatorial
+  optimization that require tight integration with Julia’s tensor
+  network infrastructure.</p>
+</sec>
+<sec id="software-design">
+  <title>Software Design</title>
+  <p>To achieve modularity and extensibility, OMECO adopts a two-layer
+  architecture. The lower layer defines contraction orders through
+  contraction trees, while the upper layer implements optimization
+  algorithms that operate on this shared representation. This separation
+  cleanly decouples the representation of contraction orders from the
+  algorithms used to optimize them, allowing users to combine different
+  strategies, implement custom optimizers, and transfer the resulting
+  orders across packages and application domains.</p>
+  <p>At the representation layer, OMECO stores contraction orders as
+  binary trees using <monospace>NestedEinsum</monospace>, a natural
+  structure for encoding sequences of pairwise contractions. Each leaf
+  node corresponds to an input tensor, each internal node represents an
+  intermediate tensor produced by contracting its child nodes, and the
+  root node represents the final output tensor. This representation
+  makes it straightforward to evaluate the time and space complexity of
+  a contraction order and to apply transformations such as index
+  slicing. It can also be converted into alternative representations,
+  such as line graphs of the tensor network, when required by particular
+  optimization algorithms.</p>
+  <p>At the optimization layer, the <monospace>optimize_code</monospace>
+  function provides a unified interface to eight optimization methods,
+  ranging from fast greedy heuristics to high-quality tree decomposition
+  solvers. OMECO interoperates with graph partitioning libraries such as
+  <monospace>KaHyPar</monospace> and <monospace>Metis</monospace>, as
+  well as tree decomposition packages such as
+  <monospace>CliqueTrees</monospace>
+  (<xref alt="Samuelson &amp; Fairbanks, 2025" rid="ref-CliqueTrees2025" ref-type="bibr">Samuelson
+  &amp; Fairbanks, 2025</xref>), highlighting its integration within the
+  Julia ecosystem. Because OMECO is implemented natively in Julia, it
+  couples naturally with execution in <monospace>OMEinsum</monospace>
+  and supports diverse numeric types through multiple dispatch. This
+  design has proven effective in practice: OMECO now serves as the
+  optimization backend for packages spanning quantum simulation,
+  probabilistic inference, and combinatorial optimization.</p>
+</sec>
+<sec id="research-impact-statement">
+  <title>Research Impact Statement</title>
+  <p>OMECO has demonstrated significant research impact through both
+  technical performance and ecosystem adoption. Benchmarking against the
+  widely-used <monospace>cotengra</monospace> package on standard tensor
+  network problems—including the Sycamore quantum circuit and problems
+  from quantum simulation, probabilistic inference, and combinatorial
+  optimization—shows that OMECO optimizers consistently dominate the
+  Pareto front for the trade-off between optimization time and solution
+  quality. The <monospace>TreeSA</monospace> algorithm achieves lower
+  time and space complexity than existing methods when given sufficient
+  optimization time, while <monospace>HyperND</monospace> provides
+  superior balance for time-constrained scenarios.</p>
+  <p>Beyond performance benchmarks, OMECO has achieved substantial
+  ecosystem adoption within the Julia scientific computing community. It
+  powers the tensor contraction backend for <monospace>Yao</monospace>
+  (a quantum computing framework with over 1000 GitHub stars),
+  <monospace>GenericTensorNetworks</monospace> and
+  <monospace>TensorBranching</monospace> (combinatorial optimization
+  libraries used for solving constraint satisfaction and graph
+  problems), <monospace>TensorInference</monospace> (probabilistic
+  inference on graphical models), and <monospace>TensorQEC</monospace>
+  (quantum error correction code analysis). These packages collectively
+  support research across quantum computing, statistical physics, and
+  discrete optimization, with impactful publications
+  (<xref alt="Ebadi et al., 2022" rid="ref-Ebadi2022" ref-type="bibr">Ebadi
+  et al., 2022</xref>;
+  <xref alt="Gao et al., 2024" rid="ref-Gao2024crossentropy" ref-type="bibr">Gao
+  et al., 2024</xref>;
+  <xref alt="J.-G. Liu et al., 2023" rid="ref-Liu2023" ref-type="bibr">J.-G.
+  Liu et al., 2023</xref>;
+  <xref alt="Roa-Villescas et al., 2024" rid="ref-Roa2024" ref-type="bibr">Roa-Villescas
+  et al., 2024</xref>).</p>
+  <p>The software exhibits strong community-readiness signals:
+  comprehensive documentation with examples, extensive test coverage
+  (&gt;90%), active maintenance with regular releases, MIT open-source
+  license, and well-defined contribution processes. The modular
+  architecture has enabled external contributors to implement new
+  optimization algorithms and extend functionality to emerging
+  application domains.</p>
+</sec>
+<sec id="features-and-benchmarks">
+  <title>Features and Benchmarks</title>
+  <p>A major feature of OMECO is contraction order optimization. OMECO
+  provides several algorithms with complementary performance
+  characteristics that can be simply called by the
+  <monospace>optimize_code</monospace> function.
+  <xref alt="Table 1" rid="tblU003Aoptimizers">Table 1</xref> summarizes
+  the available optimizers and their roles:</p>
+  <table-wrap>
+    <caption>
+      <p>Summary of the contraction order optimizers available through
+      <monospace>optimize_code</monospace>.<styled-content id="tblU003Aoptimizers"></styled-content></p>
+    </caption>
+    <table>
+      <colgroup>
+        <col width="46%" />
+        <col width="54%" />
+      </colgroup>
+      <thead>
+        <tr>
+          <th align="left">Optimizer</th>
+          <th align="left">Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td align="left"><monospace>GreedyMethod</monospace></td>
+          <td align="left">Fast greedy heuristic with modest solution
+          quality</td>
+        </tr>
+        <tr>
+          <td align="left"><monospace>TreeSA</monospace></td>
+          <td align="left">Reliable simulated annealing optimizer
+          (<xref alt="Kalachev et al., 2021" rid="ref-Kalachev2021" ref-type="bibr">Kalachev
+          et al., 2021</xref>) with high-quality solutions</td>
+        </tr>
+        <tr>
+          <td align="left"><monospace>PathSA</monospace></td>
+          <td align="left">Simulated annealing optimizer for path
+          decomposition</td>
+        </tr>
+        <tr>
+          <td align="left"><monospace>HyperND</monospace></td>
+          <td align="left">Nested dissection algorithm for hypergraphs,
+          requires <monospace>KaHyPar</monospace> or
+          <monospace>Metis</monospace></td>
+        </tr>
+        <tr>
+          <td align="left"><monospace>KaHyParBipartite</monospace></td>
+          <td align="left">Graph bipartition method for large tensor
+          networks
+          (<xref alt="Gray &amp; Kourtis, 2021" rid="ref-Gray2021" ref-type="bibr">Gray
+          &amp; Kourtis, 2021</xref>), requires
+          <monospace>KaHyPar</monospace></td>
+        </tr>
+        <tr>
+          <td align="left"><monospace>SABipartite</monospace></td>
+          <td align="left">Simulated annealing bipartition method, pure
+          Julia implementation</td>
+        </tr>
+        <tr>
+          <td align="left"><monospace>ExactTreewidth</monospace></td>
+          <td align="left">Exact algorithm with exponential runtime
+          (<xref alt="Bouchitté &amp; Todinca, 2001" rid="ref-Bouchitte2001" ref-type="bibr">Bouchitté
+          &amp; Todinca, 2001</xref>), based on
+          <ext-link ext-link-type="uri" xlink:href="https://github.com/ArrogantGao/TreeWidthSolver.jl"><monospace>TreeWidthSolver</monospace></ext-link></td>
+        </tr>
+        <tr>
+          <td align="left"><monospace>Treewidth</monospace></td>
+          <td align="left">Clique tree elimination methods from
+          <monospace>CliqueTrees</monospace> package
+          (<xref alt="Samuelson &amp; Fairbanks, 2025" rid="ref-CliqueTrees2025" ref-type="bibr">Samuelson
+          &amp; Fairbanks, 2025</xref>)</td>
+        </tr>
+      </tbody>
+    </table>
+  </table-wrap>
+  <p>The algorithms <monospace>HyperND</monospace>,
+  <monospace>Treewidth</monospace>, and
+  <monospace>ExactTreewidth</monospace> are tree-width-based solvers
+  that operate on graphs. They first convert tensor networks to their
+  line graph representation
+  (<xref alt="Markov &amp; Shi, 2008" rid="ref-Markov2008" ref-type="bibr">Markov
+  &amp; Shi, 2008</xref>) and then find an optimized tree decomposition
+  of the line graph using the <monospace>CliqueTrees</monospace> and
+  <monospace>TreeWidthSolver</monospace> packages, as illustrated in
+  <xref alt="[fig:structure]" rid="figU003Astructure">[fig:structure]</xref>.
+  Additionally, the <monospace>PathSA</monospace> optimizer optimizes
+  path decomposition instead of tree decomposition. It is a variant of
+  <monospace>TreeSA</monospace> by constraining contraction orders to
+  path graphs, which is useful for applications requiring a linear
+  contraction order.</p>
+  <p>These methods balance optimization time against solution quality.
+  <xref alt="[fig:sycamore]" rid="figU003Asycamore">[fig:sycamore]</xref>
+  displays benchmark results for the tensor network of the Sycamore
+  quantum circuit
+  (<xref alt="Arute et al., 2019" rid="ref-Arute2019" ref-type="bibr">Arute
+  et al., 2019</xref>;
+  <xref alt="Pan &amp; Zhang, 2022" rid="ref-Pan2021" ref-type="bibr">Pan
+  &amp; Zhang, 2022</xref>), which is widely used as a benchmark for
+  quantum supremacy and is believed to have an optimal space complexity
+  of 52. The Pareto front highlights the optimal trade-off between
+  optimization time and solution quality.</p>
+  <fig>
+    <caption><p>Time complexity (left) and space complexity (right)
+    benchmark results for contraction order optimization on the Sycamore
+    quantum circuit tensor network (Intel Xeon Gold 6226R CPU @ 2.90GHz,
+    single-threaded). The <inline-formula><alternatives>
+    <tex-math><![CDATA[x]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>x</mml:mi></mml:math></alternatives></inline-formula>-axis
+    shows contraction cost, the <inline-formula><alternatives>
+    <tex-math><![CDATA[y]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>y</mml:mi></mml:math></alternatives></inline-formula>-axis
+    shows optimization time. Each point represents a different optimizer
+    configuration tested with varying parameters.
+    <monospace>TreeSA</monospace> and <monospace>HyperND</monospace>
+    achieve the lowest contraction costs, while
+    <monospace>GreedyMethod</monospace> offers the fastest optimization
+    time. The parameter setup for each optimizer is detailed in our
+    benchmark repository
+    <ext-link ext-link-type="uri" xlink:href="https://github.com/TensorBFS/OMEinsumContractionOrdersBenchmark"><monospace>OMEinsumContractionOrdersBenchmark</monospace></ext-link>.<styled-content id="figU003Asycamore"></styled-content></p></caption>
+    <graphic mimetype="application" mime-subtype="pdf" xlink:href="sycamore.pdf" />
+  </fig>
+  <p>Optimizers prefixed with <monospace>cotengra_</monospace> are from
+  the Python package cotengra
+  (<xref alt="Gray &amp; Kourtis, 2021" rid="ref-Gray2021" ref-type="bibr">Gray
+  &amp; Kourtis, 2021</xref>); all others are OMECO implementations. For
+  both optimization objectives (minimizing time and space complexity),
+  OMECO optimizers dominate the Pareto front. Given sufficient
+  optimization time, <monospace>TreeSA</monospace> consistently achieves
+  the lowest time and space complexity.
+  <monospace>GreedyMethod</monospace> and
+  <monospace>Treewidth</monospace> (backed by minimum fill (MF)
+  (<xref alt="Ng &amp; Peyton, 2014" rid="ref-Ng2014" ref-type="bibr">Ng
+  &amp; Peyton, 2014</xref>), multiple minimum degree (MMD)
+  (<xref alt="J. W. Liu, 1985" rid="ref-Liu1985" ref-type="bibr">J. W.
+  Liu, 1985</xref>), and approximate minimum fill (AMF)
+  (<xref alt="Rothberg &amp; Eisenstat, 1998" rid="ref-Rothberg1998" ref-type="bibr">Rothberg
+  &amp; Eisenstat, 1998</xref>)) provide the fastest optimization but
+  yield suboptimal contraction orders, while
+  <monospace>HyperND</monospace> offers a favorable balance between
+  optimization time and solution quality.</p>
+  <p>More real-world examples demonstrating applications to quantum
+  circuit simulation, combinatorial optimization, probabilistic
+  inference, and quantum error correction are available in the
+  <ext-link ext-link-type="uri" xlink:href="https://github.com/TensorBFS/OMEinsumContractionOrdersBenchmark">OMEinsumContractionOrdersBenchmark</ext-link>
+  repository. We find that optimizer performance is highly
+  problem-dependent, with no single algorithm dominating across all
+  metrics and graph topologies.</p>
+  <p>Another key feature of OMECO is index slicing, a technique that
+  trades time complexity for reduced space complexity by explicitly
+  looping over a subset of tensor indices. OMECO provides the
+  <monospace>slice_code</monospace> interface for this purpose,
+  currently supporting the <monospace>TreeSASlicer</monospace>
+  algorithm, which implements dynamic slicing based on the
+  <monospace>TreeSA</monospace> optimizer.
+  <xref alt="[fig:slicing]" rid="figU003Aslicing">[fig:slicing]</xref>
+  demonstrates this capability using the Sycamore quantum circuit, where
+  slicing reduces the space complexity from
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[2^{52}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msup><mml:mn>2</mml:mn><mml:mn>52</mml:mn></mml:msup></mml:math></alternatives></inline-formula>
+  to <inline-formula><alternatives>
+  <tex-math><![CDATA[2^{31}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msup><mml:mn>2</mml:mn><mml:mn>31</mml:mn></mml:msup></mml:math></alternatives></inline-formula>.</p>
+  <fig>
+    <caption><p>Trade-off between time complexity and target space
+    complexity using <monospace>TreeSASlicer</monospace> on the Sycamore
+    quantum circuit. The original network has a space complexity of
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[2^{52}]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msup><mml:mn>2</mml:mn><mml:mn>52</mml:mn></mml:msup></mml:math></alternatives></inline-formula>.
+    <styled-content id="figU003Aslicing"></styled-content></p></caption>
+    <graphic mimetype="application" mime-subtype="pdf" xlink:href="sycamore_slicing.pdf" />
+  </fig>
+  <p>The numerical experiments show that moderate slicing increases time
+  complexity only slightly, while aggressive slicing can induce
+  significant overhead. There is a critical transition point around
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[42]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mn>42</mml:mn></mml:math></alternatives></inline-formula>
+  where the time complexity begins to increase significantly.</p>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>We thank the Julia community and all contributors to the
+  <monospace>OMEinsumContractionOrders</monospace> and
+  <monospace>OMEinsum</monospace> packages. We are grateful to Feng Pan
+  for his effort in improving the slicing algorithm, and Xiwei Pan for
+  valuable writing suggestions that improved this manuscript.</p>
+</sec>
+<sec id="ai-usage-disclosure">
+  <title>AI Usage Disclosure</title>
+  <p>Generative AI tools were used to assist with paper writing and
+  documentation. The software implementation, algorithmic design,
+  benchmarking, and core technical contributions were developed without
+  AI assistance. All AI-assisted content has been reviewed and validated
+  by the authors for technical accuracy and scholarly integrity.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <title></title>
+  <ref id="ref-bezanson2012julia">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Bezanson</surname><given-names>Jeff</given-names></name>
+        <name><surname>Karpinski</surname><given-names>Stefan</given-names></name>
+        <name><surname>Shah</surname><given-names>Viral B.</given-names></name>
+        <name><surname>Edelman</surname><given-names>Alan</given-names></name>
+      </person-group>
+      <article-title>Julia: A fast dynamic language for technical computing</article-title>
+      <source>arXiv preprint arXiv:1209.5145</source>
+      <year iso-8601-date="2012-09">2012</year><month>09</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2018-11-27">2018</year><month>11</month><day>27</day></date-in-citation>
+      <uri>http://arxiv.org/abs/1209.5145</uri>
+      <pub-id pub-id-type="doi">10.48550/arXiv.1209.5145</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-Pan2021">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Pan</surname><given-names>Feng</given-names></name>
+        <name><surname>Zhang</surname><given-names>Pan</given-names></name>
+      </person-group>
+      <article-title>Simulating the sycamore quantum supremacy circuits</article-title>
+      <source>Physical Review Letters</source>
+      <publisher-name>American Physical Society</publisher-name>
+      <year iso-8601-date="2022">2022</year>
+      <volume>128</volume>
+      <issue>3</issue>
+      <uri>https://arxiv.org/abs/2103.03074</uri>
+      <pub-id pub-id-type="doi">10.1103/PhysRevLett.128.030501</pub-id>
+      <fpage>030501</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Gray2021">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Gray</surname><given-names>Johnnie</given-names></name>
+        <name><surname>Kourtis</surname><given-names>Stefanos</given-names></name>
+      </person-group>
+      <article-title>Hyper-optimized tensor network contraction</article-title>
+      <source>Quantum</source>
+      <publisher-name>Verein zur Forderung des Open Access Publizierens in den Quantenwissenschaften</publisher-name>
+      <year iso-8601-date="2021-03">2021</year><month>03</month>
+      <volume>5</volume>
+      <issn>2521-327X</issn>
+      <uri>http://dx.doi.org/10.22331/q-2021-03-15-410</uri>
+      <pub-id pub-id-type="doi">10.22331/q-2021-03-15-410</pub-id>
+      <fpage>410</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Kalachev2021">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Kalachev</surname><given-names>Gleb</given-names></name>
+        <name><surname>Panteleev</surname><given-names>Pavel</given-names></name>
+        <name><surname>Yung</surname><given-names>Man-Hong</given-names></name>
+      </person-group>
+      <article-title>Recursive multi-tensor contraction for XEB verification of quantum circuits</article-title>
+      <source>arXiv preprint arXiv:2108.05665</source>
+      <year iso-8601-date="2021">2021</year>
+      <uri>https://arxiv.org/abs/2108.05665</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-Bishop2006">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Bishop</surname><given-names>Christopher M.</given-names></name>
+      </person-group>
+      <source>Pattern recognition and machine learning</source>
+      <publisher-name>Springer</publisher-name>
+      <year iso-8601-date="2006">2006</year>
+    </element-citation>
+  </ref>
+  <ref id="ref-Markov2008">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Markov</surname><given-names>Igor L.</given-names></name>
+        <name><surname>Shi</surname><given-names>Yaoyun</given-names></name>
+      </person-group>
+      <article-title>Simulating Quantum Computation by Contracting Tensor Networks</article-title>
+      <source>SIAM Journal on Computing</source>
+      <publisher-name>Society for Industrial and Applied Mathematics</publisher-name>
+      <year iso-8601-date="2008-01">2008</year><month>01</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2023-10-05">2023</year><month>10</month><day>05</day></date-in-citation>
+      <volume>38</volume>
+      <issue>3</issue>
+      <issn>0097-5397</issn>
+      <pub-id pub-id-type="doi">10.1137/050644756</pub-id>
+      <fpage>963</fpage>
+      <lpage>981</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Qing2024">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Qing</surname><given-names>Yong</given-names></name>
+        <name><surname>Li</surname><given-names>Ke</given-names></name>
+        <name><surname>Zhou</surname><given-names>Peng-Fei</given-names></name>
+        <name><surname>Ran</surname><given-names>Shi-Ju</given-names></name>
+      </person-group>
+      <article-title>Compressing neural networks using tensor networks with exponentially fewer variational parameters</article-title>
+      <source>Intelligent Computing</source>
+      <year iso-8601-date="2025-05">2025</year><month>05</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2025-05-13">2025</year><month>05</month><day>13</day></date-in-citation>
+      <volume>4</volume>
+      <uri>https://doi.org/10.34133/icomputing.0123</uri>
+      <pub-id pub-id-type="doi">10.34133/icomputing.0123</pub-id>
+      <fpage>0123</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Haegeman2016">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Haegeman</surname><given-names>Jutho</given-names></name>
+        <name><surname>Lubich</surname><given-names>Christian</given-names></name>
+        <name><surname>Oseledets</surname><given-names>Ivan</given-names></name>
+        <name><surname>Vandereycken</surname><given-names>Bart</given-names></name>
+        <name><surname>Verstraete</surname><given-names>Frank</given-names></name>
+      </person-group>
+      <article-title>Unifying time evolution and optimization with matrix product states</article-title>
+      <source>Physical Review B</source>
+      <year iso-8601-date="2016">2016</year>
+      <uri>https://arxiv.org/abs/1408.5056</uri>
+      <pub-id pub-id-type="doi">10.1103/PhysRevB.94.165116</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-Harris2020">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Harris</surname><given-names>Charles R.</given-names></name>
+        <name><surname>Millman</surname><given-names>K. Jarrod</given-names></name>
+        <name><surname>van der Walt</surname><given-names>Stéfan J.</given-names></name>
+        <name><surname>Gommers</surname><given-names>Ralf</given-names></name>
+        <name><surname>Virtanen</surname><given-names>Pauli</given-names></name>
+        <name><surname>Cournapeau</surname><given-names>David</given-names></name>
+        <name><surname>Wieser</surname><given-names>Eric</given-names></name>
+        <name><surname>Taylor</surname><given-names>Julian</given-names></name>
+        <name><surname>Berg</surname><given-names>Sebastian</given-names></name>
+        <name><surname>Smith</surname><given-names>Nathaniel J.</given-names></name>
+        <name><surname>Kern</surname><given-names>Robert</given-names></name>
+        <name><surname>Picus</surname><given-names>Matti</given-names></name>
+        <name><surname>Hoyer</surname><given-names>Stephan</given-names></name>
+        <name><surname>van Kerkwijk</surname><given-names>Marten H.</given-names></name>
+        <name><surname>Brett</surname><given-names>Matthew</given-names></name>
+        <name><surname>Haldane</surname><given-names>Allan</given-names></name>
+        <name><surname>del Río</surname><given-names>Jaime Fernández</given-names></name>
+        <name><surname>Wiebe</surname><given-names>Mark</given-names></name>
+        <name><surname>Peterson</surname><given-names>Pearu</given-names></name>
+        <name><surname>Gérard-Marchant</surname><given-names>Pierre</given-names></name>
+        <name><surname>Sheppard</surname><given-names>Kevin</given-names></name>
+        <name><surname>Reddy</surname><given-names>Tyler</given-names></name>
+        <name><surname>Weckesser</surname><given-names>Warren</given-names></name>
+        <name><surname>Abbasi</surname><given-names>Hameer</given-names></name>
+        <name><surname>Gohlke</surname><given-names>Christoph</given-names></name>
+        <name><surname>Oliphant</surname><given-names>Travis E.</given-names></name>
+      </person-group>
+      <article-title>Array programming with NumPy</article-title>
+      <source>Nature</source>
+      <publisher-name>Nature Publishing Group</publisher-name>
+      <year iso-8601-date="2020-09">2020</year><month>09</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2025-08-02">2025</year><month>08</month><day>02</day></date-in-citation>
+      <volume>585</volume>
+      <issue>7825</issue>
+      <issn>1476-4687</issn>
+      <pub-id pub-id-type="doi">10.1038/s41586-020-2649-2</pub-id>
+      <fpage>357</fpage>
+      <lpage>362</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Villescas2023">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Villescas</surname><given-names>Martin Roa</given-names></name>
+        <name><surname>Liu</surname><given-names>Jin-Guo</given-names></name>
+        <name><surname>Wijnings</surname><given-names>Patrick W. A.</given-names></name>
+        <name><surname>Stuijk</surname><given-names>Sander</given-names></name>
+        <name><surname>Corporaal</surname><given-names>Henk</given-names></name>
+      </person-group>
+      <article-title>Scaling Probabilistic Inference Through Message Contraction Optimization</article-title>
+      <source>2023 Congress in Computer Science, Computer Engineering, &amp; Applied Computing (CSCE)</source>
+      <year iso-8601-date="2023-07">2023</year><month>07</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2025-08-02">2025</year><month>08</month><day>02</day></date-in-citation>
+      <pub-id pub-id-type="doi">10.1109/CSCE60160.2023.00025</pub-id>
+      <fpage>123</fpage>
+      <lpage>130</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Roa2024">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Roa-Villescas</surname><given-names>Martin</given-names></name>
+        <name><surname>Gao</surname><given-names>Xuanzhao</given-names></name>
+        <name><surname>Stuijk</surname><given-names>Sander</given-names></name>
+        <name><surname>Corporaal</surname><given-names>Henk</given-names></name>
+        <name><surname>Liu</surname><given-names>Jin-Guo</given-names></name>
+      </person-group>
+      <article-title>Probabilistic Inference in the Era of Tensor Networks and Differential Programming</article-title>
+      <source>Physical Review Research</source>
+      <year iso-8601-date="2024-09">2024</year><month>09</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2025-05-20">2025</year><month>05</month><day>20</day></date-in-citation>
+      <volume>6</volume>
+      <issue>3</issue>
+      <issn>2643-1564</issn>
+      <uri>https://arxiv.org/abs/2405.14060</uri>
+      <pub-id pub-id-type="doi">10.1103/PhysRevResearch.6.033261</pub-id>
+      <fpage>033261</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Piveteau2024">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Piveteau</surname><given-names>Christophe</given-names></name>
+        <name><surname>Chubb</surname><given-names>Christopher T.</given-names></name>
+        <name><surname>Renes</surname><given-names>Joseph M.</given-names></name>
+      </person-group>
+      <article-title>Tensor-Network Decoding Beyond 2D</article-title>
+      <source>PRX Quantum</source>
+      <publisher-name>American Physical Society</publisher-name>
+      <year iso-8601-date="2024-10">2024</year><month>10</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2025-08-17">2025</year><month>08</month><day>17</day></date-in-citation>
+      <volume>5</volume>
+      <issue>4</issue>
+      <pub-id pub-id-type="doi">10.1103/PRXQuantum.5.040303</pub-id>
+      <fpage>040303</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Liu2023">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Liu</surname><given-names>Jin-Guo</given-names></name>
+        <name><surname>Gao</surname><given-names>Xun</given-names></name>
+        <name><surname>Cain</surname><given-names>Madelyn</given-names></name>
+        <name><surname>Lukin</surname><given-names>Mikhail D</given-names></name>
+        <name><surname>Wang</surname><given-names>Sheng-Tao</given-names></name>
+      </person-group>
+      <article-title>Computing solution space properties of combinatorial optimization problems via generic tensor networks</article-title>
+      <source>SIAM Journal on Scientific Computing</source>
+      <publisher-name>SIAM</publisher-name>
+      <year iso-8601-date="2023">2023</year>
+      <volume>45</volume>
+      <issue>3</issue>
+      <pub-id pub-id-type="doi">10.1137/22m1501787</pub-id>
+      <fpage>A1239</fpage>
+      <lpage>A1270</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Bouchitte2001">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Bouchitté</surname><given-names>Vincent</given-names></name>
+        <name><surname>Todinca</surname><given-names>Ioan</given-names></name>
+      </person-group>
+      <article-title>Treewidth and minimum fill-in: Grouping the minimal separators</article-title>
+      <source>SIAM Journal on Computing</source>
+      <publisher-name>SIAM</publisher-name>
+      <year iso-8601-date="2001">2001</year>
+      <volume>31</volume>
+      <issue>1</issue>
+      <pub-id pub-id-type="doi">10.1137/s0097539799359683</pub-id>
+      <fpage>212</fpage>
+      <lpage>232</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Luo2020">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Luo</surname><given-names>Xiu-Zhe</given-names></name>
+        <name><surname>Liu</surname><given-names>Jin-Guo</given-names></name>
+        <name><surname>Zhang</surname><given-names>Pan</given-names></name>
+        <name><surname>Wang</surname><given-names>Lei</given-names></name>
+      </person-group>
+      <article-title>Yao.jl: Extensible, efficient framework for quantum algorithm design</article-title>
+      <source>Quantum</source>
+      <publisher-name>Verein zur Förderung des Open Access Publizierens in den Quantenwissenschaften</publisher-name>
+      <year iso-8601-date="2020">2020</year>
+      <volume>4</volume>
+      <pub-id pub-id-type="doi">10.22331/q-2020-10-11-341</pub-id>
+      <fpage>341</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Roa2023">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Roa-Villescas</surname><given-names>Martin</given-names></name>
+        <name><surname>Liu</surname><given-names>Jin-Guo</given-names></name>
+      </person-group>
+      <article-title>TensorInference: A julia package for tensor-based probabilistic inference</article-title>
+      <source>Journal of Open Source Software</source>
+      <publisher-name>Open Journals</publisher-name>
+      <year iso-8601-date="2023">2023</year>
+      <volume>8</volume>
+      <issue>90</issue>
+      <pub-id pub-id-type="doi">10.21105/joss.05700</pub-id>
+      <fpage>5700</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Magron2021">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Magron</surname><given-names>Victor</given-names></name>
+        <name><surname>Wang</surname><given-names>Jie</given-names></name>
+      </person-group>
+      <article-title>TSSOS: A julia library to exploit sparsity for large-scale polynomial optimization</article-title>
+      <source>ACM Transactions on Mathematical Software</source>
+      <publisher-name>ACM</publisher-name>
+      <year iso-8601-date="2023">2023</year>
+      <volume>49</volume>
+      <issue>4</issue>
+      <uri>https://arxiv.org/abs/2103.00915</uri>
+      <pub-id pub-id-type="doi">10.1145/3618299</pub-id>
+      <fpage>1</fpage>
+      <lpage>31</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-CliqueTrees2025">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Samuelson</surname><given-names>Richard</given-names></name>
+        <name><surname>Fairbanks</surname><given-names>James</given-names></name>
+      </person-group>
+      <article-title>CliqueTrees.jl: A julia library for computing tree decompositions and chordal completions of graphs</article-title>
+      <year iso-8601-date="2025">2025</year>
+      <uri>https://github.com/AlgebraicJulia/CliqueTrees.jl</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-Ng2014">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Ng</surname><given-names>Esmond G</given-names></name>
+        <name><surname>Peyton</surname><given-names>Barry W</given-names></name>
+      </person-group>
+      <article-title>Fast implementation of the minimum local fill ordering heuristic</article-title>
+      <source>CSC14: The sixth SIAM workshop on combinatorial scientific computing</source>
+      <year iso-8601-date="2014">2014</year>
+      <uri>https://doi.org/10.1137/070680680</uri>
+      <fpage>4</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Liu1985">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Liu</surname><given-names>Joseph WH</given-names></name>
+      </person-group>
+      <article-title>Modification of the minimum-degree algorithm by multiple elimination</article-title>
+      <source>ACM Transactions on Mathematical Software (TOMS)</source>
+      <publisher-name>ACM New York, NY, USA</publisher-name>
+      <year iso-8601-date="1985">1985</year>
+      <volume>11</volume>
+      <issue>2</issue>
+      <pub-id pub-id-type="doi">10.1145/214392.214398</pub-id>
+      <fpage>141</fpage>
+      <lpage>153</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Rothberg1998">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Rothberg</surname><given-names>Edward</given-names></name>
+        <name><surname>Eisenstat</surname><given-names>Stanley C</given-names></name>
+      </person-group>
+      <article-title>Node selection strategies for bottom-up sparse matrix ordering</article-title>
+      <source>SIAM Journal on Matrix Analysis and Applications</source>
+      <publisher-name>SIAM</publisher-name>
+      <year iso-8601-date="1998">1998</year>
+      <volume>19</volume>
+      <issue>3</issue>
+      <pub-id pub-id-type="doi">10.1137/s0895479896302692</pub-id>
+      <fpage>682</fpage>
+      <lpage>695</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Arute2019">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Arute</surname><given-names>Frank</given-names></name>
+        <name><surname>Arya</surname><given-names>Kunal</given-names></name>
+        <name><surname>Babbush</surname><given-names>Ryan</given-names></name>
+        <name><surname>Bacon</surname><given-names>Dave</given-names></name>
+        <name><surname>Bardin</surname><given-names>Joseph C</given-names></name>
+        <name><surname>Barends</surname><given-names>Rami</given-names></name>
+        <name><surname>Biswas</surname><given-names>Rupak</given-names></name>
+        <name><surname>Boixo</surname><given-names>Sergio</given-names></name>
+        <name><surname>Brandao</surname><given-names>Fernando GSL</given-names></name>
+        <name><surname>Buell</surname><given-names>David A</given-names></name>
+        <name><surname>others</surname></name>
+      </person-group>
+      <article-title>Quantum supremacy using a programmable superconducting processor</article-title>
+      <source>Nature</source>
+      <publisher-name>Nature Publishing Group UK London</publisher-name>
+      <year iso-8601-date="2019">2019</year>
+      <volume>574</volume>
+      <issue>7779</issue>
+      <uri>https://www.nature.com/articles/s41586-019-1666-5</uri>
+      <fpage>505</fpage>
+      <lpage>510</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Gao2024crossentropy">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Gao</surname><given-names>Xun</given-names></name>
+        <name><surname>Kalinowski</surname><given-names>Marcin</given-names></name>
+        <name><surname>Chou</surname><given-names>Chi-Ning</given-names></name>
+        <name><surname>Lukin</surname><given-names>Mikhail D</given-names></name>
+        <name><surname>Barak</surname><given-names>Boaz</given-names></name>
+        <name><surname>Choi</surname><given-names>Soonwon</given-names></name>
+      </person-group>
+      <article-title>Limitations of linear cross-entropy as a measure for quantum advantage</article-title>
+      <source>PRX Quantum</source>
+      <publisher-name>APS</publisher-name>
+      <year iso-8601-date="2024">2024</year>
+      <volume>5</volume>
+      <issue>1</issue>
+      <pub-id pub-id-type="doi">10.1103/PRXQuantum.5.010334</pub-id>
+      <fpage>010334</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Ebadi2022">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Ebadi</surname><given-names>Sepehr</given-names></name>
+        <name><surname>Keesling</surname><given-names>Alexander</given-names></name>
+        <name><surname>Cain</surname><given-names>Madelyn</given-names></name>
+        <name><surname>Wang</surname><given-names>Tout T</given-names></name>
+        <name><surname>Levine</surname><given-names>Harry</given-names></name>
+        <name><surname>Bluvstein</surname><given-names>Dolev</given-names></name>
+        <name><surname>Semeghini</surname><given-names>Giulia</given-names></name>
+        <name><surname>Omran</surname><given-names>Ahmed</given-names></name>
+        <name><surname>Liu</surname><given-names>Jin-Guo</given-names></name>
+        <name><surname>Samajdar</surname><given-names>Rhine</given-names></name>
+        <name><surname>others</surname></name>
+      </person-group>
+      <article-title>Quantum optimization of maximum independent set using rydberg atom arrays</article-title>
+      <source>Science</source>
+      <publisher-name>American Association for the Advancement of Science</publisher-name>
+      <year iso-8601-date="2022">2022</year>
+      <volume>376</volume>
+      <issue>6598</issue>
+      <pub-id pub-id-type="doi">10.1126/science.abo6587</pub-id>
+      <fpage>1209</fpage>
+      <lpage>1215</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-ITensor">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Fishman</surname><given-names>Matthew</given-names></name>
+        <name><surname>White</surname><given-names>Steven R.</given-names></name>
+        <name><surname>Stoudenmire</surname><given-names>E. Miles</given-names></name>
+      </person-group>
+      <article-title>The ITensor Software Library for Tensor Network Calculations</article-title>
+      <source>SciPost Phys. Codebases</source>
+      <publisher-name>SciPost</publisher-name>
+      <year iso-8601-date="2022">2022</year>
+      <uri>https://scipost.org/10.21468/SciPostPhysCodeb.4</uri>
+      <pub-id pub-id-type="doi">10.21468/SciPostPhysCodeb.4</pub-id>
+      <fpage>4</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Smith2018">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Smith</surname><given-names>Daniel G. A.</given-names></name>
+        <name><surname>Gray</surname><given-names>Johnnie</given-names></name>
+      </person-group>
+      <article-title>opt_einsum - a python package for optimizing contraction order for einsum-like expressions</article-title>
+      <source>Journal of Open Source Software</source>
+      <publisher-name>The Open Journal</publisher-name>
+      <year iso-8601-date="2018">2018</year>
+      <volume>3</volume>
+      <issue>26</issue>
+      <uri>https://doi.org/10.21105/joss.00753</uri>
+      <pub-id pub-id-type="doi">10.21105/joss.00753</pub-id>
+      <fpage>753</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Gray2018">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Gray</surname><given-names>Johnnie</given-names></name>
+      </person-group>
+      <article-title>quimb: A python package for quantum information and many-body calculations</article-title>
+      <source>Journal of Open Source Software</source>
+      <publisher-name>The Open Journal</publisher-name>
+      <year iso-8601-date="2018">2018</year>
+      <volume>3</volume>
+      <issue>29</issue>
+      <uri>https://doi.org/10.21105/joss.00819</uri>
+      <pub-id pub-id-type="doi">10.21105/joss.00819</pub-id>
+      <fpage>819</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-TensorOperations">
+    <element-citation publication-type="software">
+      <person-group person-group-type="author">
+        <name><surname>Devos</surname><given-names>Lukas</given-names></name>
+        <name><surname>Damme</surname><given-names>Maarten Van</given-names></name>
+        <name><surname>Haegeman</surname><given-names>Jutho</given-names></name>
+        <name><surname>contributors</surname></name>
+      </person-group>
+      <article-title>TensorOperations.jl</article-title>
+      <year iso-8601-date="2023-10">2023</year><month>10</month>
+      <uri>https://github.com/Jutho/TensorOperations.jl</uri>
+      <pub-id pub-id-type="doi">10.5281/zenodo.3245496</pub-id>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
