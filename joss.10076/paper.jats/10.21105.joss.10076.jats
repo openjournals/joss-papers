@@ -1,0 +1,621 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">10076</article-id>
+<article-id pub-id-type="doi">10.21105/joss.10076</article-id>
+<title-group>
+<article-title>FastTanhSinhQuadrature.jl: High-performance Tanh-Sinh
+numerical integration in Julia</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0001-7575-813X</contrib-id>
+<name>
+<surname>Vretinaris</surname>
+<given-names>Stamatis</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+<xref ref-type="aff" rid="aff-2"/>
+<xref ref-type="aff" rid="aff-3"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Institute for Mathematics, Astrophysics and Particle
+Physics, Radboud University, Heyendaalseweg 135, 6525 AJ Nijmegen, The
+Netherlands</institution>
+</institution-wrap>
+</aff>
+<aff id="aff-2">
+<institution-wrap>
+<institution>Albert-Einstein-Institut, Max-Planck-Institut für
+Gravitationsphysik, Callinstraße 38, 30167 Hannover,
+Germany</institution>
+</institution-wrap>
+</aff>
+<aff id="aff-3">
+<institution-wrap>
+<institution>Leibniz Universität Hannover, 30167 Hannover,
+Germany</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2026-01-26">
+<day>26</day>
+<month>1</month>
+<year>2026</year>
+</pub-date>
+<volume>11</volume>
+<issue>120</issue>
+<fpage>10076</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2026</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>Julia</kwd>
+<kwd>numerical integration</kwd>
+<kwd>quadrature</kwd>
+<kwd>tanh-sinh</kwd>
+<kwd>SIMD</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p>Numerical integration is a cornerstone of scientific computing,
+  essential for evaluating integrals that cannot be solved analytically.
+  The Tanh-Sinh (or Double Exponential) quadrature, originally proposed
+  by Takahasi &amp; Mori
+  (<xref alt="1973" rid="ref-Takahasi1973" ref-type="bibr">1973</xref>),
+  is a powerful technique known for its high accuracy and efficiency,
+  particularly for integrands with endpoint singularities.
+  <monospace>FastTanhSinhQuadrature.jl</monospace> provides a
+  high-performance, arbitrary-precision implementation of this method in
+  Julia. It leverages modern compiler technologies to achieve
+  significant speedups over traditional implementations while
+  maintaining rigorous mathematical precision.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of Need</title>
+  <p>In many fields of physics and engineering, researchers encounter
+  integrals with singularities at the boundaries. Standard Gaussian
+  quadrature rules often fail or require an excessive number of points
+  to converge in these cases. While other integration libraries exist,
+  they typically lack a combination of robustness, performance, and
+  flexibility. <monospace>FastTanhSinhQuadrature.jl</monospace>
+  addresses these needs by:</p>
+  <list list-type="order">
+    <list-item>
+      <p><bold>Robustness</bold>: Automatically handling endpoint
+      singularities without manual coordinate transformations.</p>
+    </list-item>
+    <list-item>
+      <p><bold>Performance</bold>: Utilizing SIMD (Single Instruction,
+      Multiple Data) instructions for rapid evaluation.</p>
+    </list-item>
+    <list-item>
+      <p><bold>Flexibility</bold>: Supporting arbitrary precision types
+      (e.g., <monospace>BigFloat</monospace>) and multidimensional
+      integration.</p>
+    </list-item>
+  </list>
+  <p>This package implements a rigorous Tanh-Sinh scheme with an
+  optimized “window selection” strategy enabling SIMD-accelerated
+  execution paths, making it ideal for large-scale simulations where
+  both speed and precision are critical.</p>
+</sec>
+<sec id="state-of-the-field">
+  <title>State of the field</title>
+  <p>Numerical integration is a well-established field, with mature
+  implementations in libraries such as <bold>Boost</bold>
+  (<xref alt="Boost C++ Libraries, 2024" rid="ref-Boost" ref-type="bibr">Boost
+  C++ Libraries, 2024</xref>) (C++), <bold>SciPy</bold>
+  (<xref alt="Virtanen et al., 2020" rid="ref-Virtanen2020" ref-type="bibr">Virtanen
+  et al., 2020</xref>) (Python), and <bold>mpmath</bold>
+  (<xref alt="Johansson &amp; others, 2023" rid="ref-Johansson_mpmath" ref-type="bibr">Johansson
+  &amp; others, 2023</xref>) (Python). Within the Julia ecosystem,
+  packages like <monospace>QuadGK.jl</monospace>
+  (<xref alt="Johnson, 2013" rid="ref-QuadGK" ref-type="bibr">Johnson,
+  2013</xref>) and <monospace>HCubature.jl</monospace>
+  (<xref alt="Johnson, 2017" rid="ref-HCubature" ref-type="bibr">Johnson,
+  2017</xref>) provide detailed adaptive Gauss-Kronrod and h-adaptive
+  cubature methods. However, high-performance implementations
+  specifically of the <bold>Tanh-Sinh quadrature</bold> are less
+  common.</p>
+  <p>Most existing Tanh-Sinh implementations rely on dynamic convergence
+  checks within the summation loop. This introduces conditional
+  branching that prevents modern compilers from applying SIMD
+  vectorization, restricting solvers to scalar execution speeds.
+  <monospace>FastTanhSinhQuadrature.jl</monospace> overcomes this by
+  adopting the “window selection” strategy described by Vanherck et al.
+  (<xref alt="2020" rid="ref-Vanherck2020" ref-type="bibr">2020</xref>).
+  By analytically pre-calculating the optimal step size
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[h]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>h</mml:mi></mml:math></alternatives></inline-formula>
+  and truncation index <inline-formula><alternatives>
+  <tex-math><![CDATA[n]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>n</mml:mi></mml:math></alternatives></inline-formula>
+  based on floating-point precision, the algorithm eliminates runtime
+  checks, creating a branch-free inner loop amenable to optimization by
+  <monospace>LoopVectorization.jl</monospace>
+  (<xref alt="Elrod, n.d." rid="ref-LoopVectorization" ref-type="bibr">Elrod,
+  n.d.</xref>).</p>
+</sec>
+<sec id="mathematics">
+  <title>Mathematics</title>
+  <p>The Tanh-Sinh quadrature computes integrals of the form
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[I = \int_{-1}^{1} f(x) \, \mathrm{d}x]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>I</mml:mi><mml:mo>=</mml:mo><mml:msubsup><mml:mo>∫</mml:mo><mml:mrow><mml:mi>−</mml:mi><mml:mn>1</mml:mn></mml:mrow><mml:mn>1</mml:mn></mml:msubsup><mml:mi>f</mml:mi><mml:mo stretchy="false" form="prefix">(</mml:mo><mml:mi>x</mml:mi><mml:mo stretchy="false" form="postfix">)</mml:mo><mml:mspace width="0.167em"></mml:mspace><mml:mi mathvariant="normal">d</mml:mi><mml:mi>x</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>
+  by applying the variable transformation <inline-formula><alternatives>
+  <tex-math><![CDATA[x = \tanh(\frac{\pi}{2} \sinh(t))]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>x</mml:mi><mml:mo>=</mml:mo><mml:mi>tanh</mml:mi><mml:mo>&#8289;</mml:mo><mml:mo stretchy="false" form="prefix">(</mml:mo><mml:mfrac><mml:mi>π</mml:mi><mml:mn>2</mml:mn></mml:mfrac><mml:mi>sinh</mml:mi><mml:mo>&#8289;</mml:mo><mml:mo stretchy="false" form="prefix">(</mml:mo><mml:mi>t</mml:mi><mml:mo stretchy="false" form="postfix">)</mml:mo><mml:mo stretchy="false" form="postfix">)</mml:mo></mml:mrow></mml:math></alternatives></inline-formula>
+  proposed by Takahasi &amp; Mori
+  (<xref alt="1973" rid="ref-Takahasi1973" ref-type="bibr">1973</xref>).
+  This maps the finite interval to the real line, where the integrand
+  decays double-exponentially. The integral is then approximated using
+  the trapezoidal rule over the infinite domain, truncated to a finite
+  window <inline-formula><alternatives>
+  <tex-math><![CDATA[[-n, n]]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mo stretchy="false" form="prefix">[</mml:mo><mml:mi>−</mml:mi><mml:mi>n</mml:mi><mml:mo>,</mml:mo><mml:mi>n</mml:mi><mml:mo stretchy="false" form="postfix">]</mml:mo></mml:mrow></mml:math></alternatives></inline-formula>.</p>
+  <p>For a detailed derivation of the quadrature weights, error bounds,
+  and the window selection strategy used to determine
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[h]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>h</mml:mi></mml:math></alternatives></inline-formula>
+  and <inline-formula><alternatives>
+  <tex-math><![CDATA[n]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>n</mml:mi></mml:math></alternatives></inline-formula>,
+  the reader is referred to Takahasi &amp; Mori
+  (<xref alt="1973" rid="ref-Takahasi1973" ref-type="bibr">1973</xref>)
+  and Vanherck et al.
+  (<xref alt="2020" rid="ref-Vanherck2020" ref-type="bibr">2020</xref>).</p>
+</sec>
+<sec id="software-design">
+  <title>Software Design</title>
+  <p>The package balances ease of use with maximum performance through a
+  two-tier API:</p>
+  <list list-type="order">
+    <list-item>
+      <p><bold>High-Level API</bold> (<monospace>quad</monospace>): A
+      drop-in replacement for standard quadrature functions, with
+      adaptive stopping based on mixed tolerances
+      (<monospace>rtol</monospace>, <monospace>atol</monospace>) and
+      optional reusable caches.</p>
+    </list-item>
+    <list-item>
+      <p><bold>Low-Level API</bold>
+      (<monospace>integrateND_avx</monospace>): Allows users to
+      pre-compute quadrature nodes and weights for reuse across millions
+      of integrals, eliminating allocation overhead in tight loops.</p>
+    </list-item>
+  </list>
+  <p>Key implementation features include:</p>
+  <list list-type="bullet">
+    <list-item>
+      <p><bold>Window Selection</bold>: Uses the method of Vanherck et
+      al.
+      (<xref alt="2020" rid="ref-Vanherck2020" ref-type="bibr">2020</xref>)
+      to pre-determine integration bounds, enabling branch-free
+      loops.</p>
+    </list-item>
+    <list-item>
+      <p><bold>SIMD Optimization</bold>: Leverages
+      <monospace>LoopVectorization.jl</monospace> to vectorize
+      evaluation loops, yielding 2-3x speedups over scalar codes.</p>
+    </list-item>
+    <list-item>
+      <p><bold>Reusable Adaptive Caches</bold>: Exposes
+      <monospace>adaptive_cache_1D/2D/3D</monospace> to avoid repeated
+      cache construction in repeated adaptive workloads.</p>
+    </list-item>
+    <list-item>
+      <p><bold>Callable Integrands</bold>: Supports generic callable
+      objects (e.g., struct functors), not just
+      <monospace>Function</monospace>.</p>
+    </list-item>
+    <list-item>
+      <p><bold>Static Allocation</bold>: For moderate node counts,
+      weights and nodes can be stored in
+      <monospace>StaticArrays</monospace>, eliminating heap
+      allocations.</p>
+    </list-item>
+    <list-item>
+      <p><bold>Arbitrary Precision</bold>: Supports generic number types
+      (<monospace>BigFloat</monospace>, <monospace>Double64</monospace>,
+      <monospace>Float64x2</monospace>) by dynamically deriving
+      quadrature parameters from machine epsilon.</p>
+    </list-item>
+  </list>
+</sec>
+<sec id="research-impact">
+  <title>Research Impact</title>
+  <p><monospace>FastTanhSinhQuadrature.jl</monospace> has been
+  integrated as a backend for <monospace>Integrals.jl</monospace>
+  (<xref alt="Rackauckas &amp; Nie, 2017" rid="ref-Integrals" ref-type="bibr">Rackauckas
+  &amp; Nie, 2017</xref>), ensuring widespread availability within the
+  SciML ecosystem.</p>
+  <p>To support long-term reproducibility, the software snapshot used
+  for this manuscript is archived on Zenodo
+  (<xref alt="Vretinaris, 2026" rid="ref-FastTanhSinhZenodo2026" ref-type="bibr">Vretinaris,
+  2026</xref>). Command-level reproduction steps (tests, benchmarks,
+  figure generation, and draft PDF workflow) are documented in the
+  repository’s <monospace>REPRODUCIBILITY.md</monospace> guide.</p>
+  <sec id="performance">
+    <title>Performance</title>
+    <p>Figure 1 summarizes benchmarks against
+    <monospace>FastGaussQuadrature.jl</monospace>
+    (<xref alt="Townsend et al., 2013" rid="ref-FastGaussQuadrature" ref-type="bibr">Townsend
+    et al., 2013</xref>), <monospace>QuadGK.jl</monospace>
+    (<xref alt="Johnson, 2013" rid="ref-QuadGK" ref-type="bibr">Johnson,
+    2013</xref>), <monospace>HCubature.jl</monospace>
+    (<xref alt="Johnson, 2017" rid="ref-HCubature" ref-type="bibr">Johnson,
+    2017</xref>), <monospace>Cubature.jl</monospace>
+    (<xref alt="Johnson, 2005" rid="ref-Cubature" ref-type="bibr">Johnson,
+    2005</xref>), and <monospace>Cuba.jl</monospace>
+    (<xref alt="Hahn, 2005" rid="ref-Cuba" ref-type="bibr">Hahn,
+    2005</xref>,
+    <xref alt="2015" rid="ref-Hahn2015" ref-type="bibr">2015</xref>).
+    All benchmarks use <monospace>rtol = 10^{-6}</monospace> and
+    <monospace>atol = 10^{-8}</monospace>; external adaptive solvers are
+    capped at 200,000 evaluations. For each benchmark case, the plotted
+    speedup is measured relative to the fastest competing method that
+    also met the requested tolerance.</p>
+    <p>The results show two distinct usage regimes. The high-level
+    <monospace>quad</monospace> interface is most compelling for
+    endpoint-singular integrands: in the reproduced benchmark run it is
+    about <bold>18x</bold> faster than <monospace>QuadGK.jl</monospace>
+    on <inline-formula><alternatives>
+    <tex-math><![CDATA[(1-x^2)^{-1/2}]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mo stretchy="false" form="prefix">(</mml:mo><mml:mn>1</mml:mn><mml:mo>−</mml:mo><mml:msup><mml:mi>x</mml:mi><mml:mn>2</mml:mn></mml:msup><mml:msup><mml:mo stretchy="false" form="postfix">)</mml:mo><mml:mrow><mml:mi>−</mml:mi><mml:mn>1</mml:mn><mml:mi>/</mml:mi><mml:mn>2</mml:mn></mml:mrow></mml:msup></mml:mrow></mml:math></alternatives></inline-formula>
+    and about <bold>6x</bold> faster on <inline-formula><alternatives>
+    <tex-math><![CDATA[\log(1-x)]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>log</mml:mi><mml:mo>&#8289;</mml:mo><mml:mo stretchy="false" form="prefix">(</mml:mo><mml:mn>1</mml:mn><mml:mo>−</mml:mo><mml:mi>x</mml:mi><mml:mo stretchy="false" form="postfix">)</mml:mo></mml:mrow></mml:math></alternatives></inline-formula>,
+    while in the tested 2D endpoint-singular case it is more than three
+    orders of magnitude faster than the fastest accurate alternative.
+    The SIMD path (<monospace>integrate*_avx</monospace>) is the main
+    performance-oriented API: in the directly comparable benchmark set
+    it is the fastest accurate method in a majority of cases, and it
+    remains competitive or superior across many singular and smooth
+    tensor-product problems.</p>
+    <p>Because SIMD behavior can depend on Julia and
+    <monospace>LoopVectorization</monospace> compatibility, Figure 1
+    reports two SIMD markers: one for the newer-Julia path and one for
+    Julia 1.12 (where the fully active
+    <monospace>LoopVectorization</monospace> path is available).</p>
+    <p>These benchmarks also clarify the package’s limitations.
+    <monospace>FastTanhSinhQuadrature.jl</monospace> should be preferred
+    when the integrand has endpoint singularities, when the same
+    quadrature rule can be reused across many evaluations, or when
+    arbitrary precision is required. It is less advantageous for smooth
+    low-dimensional problems where specialized Gauss or Gauss-Kronrod
+    rules already match the integrand well. For example,
+    <monospace>FastGaussQuadrature.jl</monospace> and
+    <monospace>QuadGK.jl</monospace> are faster on the smooth 1D
+    polynomial and Runge-function tests, and
+    <monospace>Cuba.jl</monospace>/<monospace>Cubature.jl</monospace>
+    can outperform the adaptive <monospace>quad</monospace> interface on
+    some smooth 3D problems. Interior singularities are likewise not
+    handled automatically and still require domain splitting via
+    <monospace>quad_split</monospace>.</p>
+    <fig>
+      <caption><p>Figure 1. Speedup of <monospace>quad</monospace> and
+      <monospace>integrate*_avx</monospace> relative to the fastest
+      accurate competing method on each benchmark problem. Two SIMD
+      markers are shown: newer-Julia and Julia 1.12
+      (<monospace>LoopVectorization</monospace>-active). The 3D
+      endpoint-singular case is omitted because
+      <monospace>FastTanhSinhQuadrature.jl</monospace> was the only
+      tested method that satisfied the requested
+      tolerance.</p></caption>
+      <graphic mimetype="image" mime-subtype="svg+xml" xlink:href="benchmark_summary.svg" />
+    </fig>
+  </sec>
+</sec>
+<sec id="usage">
+  <title>Usage</title>
+  <sec id="basic-integration">
+    <title>Basic Integration</title>
+    <code language="julia">using FastTanhSinhQuadrature
+
+# Integrate exp(x) from 0 to 1
+val = quad(exp, 0.0, 1.0; rtol=1e-8, atol=1e-10) # ≈ 1.71828...
+
+# Handle singularities: 1/sqrt(x)
+val = quad(x -&gt; 1/sqrt(x), 0.0, 1.0) # ≈ 2.0
+
+# Reuse an adaptive cache across repeated calls
+cache = adaptive_cache_1D(Float64; max_levels=16)
+val = quad(exp, 0.0, 1.0; rtol=1e-8, atol=1e-10, cache=cache)</code>
+  </sec>
+  <sec id="high-performance-pre-computation">
+    <title>High-Performance Pre-computation</title>
+    <code language="julia"># Pre-compute nodes/weights for Float64
+x, w, h = tanhsinh(Float64, Val(80))
+
+# Reuse in tight loops (zero-allocation)
+f(t) = sin(t)^2
+integral = integrate1D_avx(f, 0.0, π, x, w, h)</code>
+  </sec>
+</sec>
+<sec id="convergence">
+  <title>Convergence</title>
+  <p>Convergence tests for various integrands are shown below. The
+  method exhibits rapid exponential convergence characteristic of the
+  Tanh-Sinh scheme.</p>
+  <fig>
+    <caption><p>Convergence of Tanh-Sinh Quadrature compared to other
+    methods.</p></caption>
+    <graphic mimetype="image" mime-subtype="svg+xml" xlink:href="convergence.svg" />
+  </fig>
+</sec>
+<sec id="future-work">
+  <title>Future Work</title>
+  <p>Natural directions for future development include extending the
+  current window-selection strategy to additional exponential and
+  double-exponential quadrature formulas, deriving the corresponding
+  window sizes so that SIMD-friendly execution can be enabled for a
+  broader family of rules, and adding parallel execution paths such as
+  multithreading. Another clear next step is to generalize the current
+  specialized 1D-3D routines to an <inline-formula><alternatives>
+  <tex-math><![CDATA[n]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>n</mml:mi></mml:math></alternatives></inline-formula>-dimensional
+  formulation for arbitrary tensor-product dimensions.</p>
+</sec>
+<sec id="ai-usage-disclosure">
+  <title>AI usage disclosure</title>
+  <p>During the development of this package, the author utilized Gemini
+  (Google) for assistance with documentation, debugging and the
+  generation of the first draft of this paper. The author has reviewed
+  and edited all AI-generated content to ensure accuracy and adherence
+  to the package’s coding standards.</p>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>The author acknowledges the developers of
+  <monospace>LoopVectorization.jl</monospace> for providing the tools
+  that enabled the performance optimizations in this package.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <title></title>
+  <ref id="ref-Takahasi1973">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Takahasi</surname><given-names>Hidetosi</given-names></name>
+        <name><surname>Mori</surname><given-names>Masatake</given-names></name>
+      </person-group>
+      <article-title>Double exponential formulas for numerical integration</article-title>
+      <source>Publications of the Research Institute for Mathematical Sciences</source>
+      <publisher-name>Research Institute for Mathematical Sciences, Kyoto University</publisher-name>
+      <year iso-8601-date="1973">1973</year>
+      <volume>9</volume>
+      <issue>3</issue>
+      <pub-id pub-id-type="doi">10.2977/PRIMS/1195192451</pub-id>
+      <fpage>721</fpage>
+      <lpage>741</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Vanherck2020">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Vanherck</surname><given-names>Joren</given-names></name>
+        <name><surname>Sorée</surname><given-names>Bart</given-names></name>
+        <name><surname>Magnus</surname><given-names>Wim</given-names></name>
+      </person-group>
+      <article-title>Tanh-sinh quadrature for single and multiple integration using floating-point arithmetic</article-title>
+      <source>arXiv preprint arXiv:2007.15057</source>
+      <year iso-8601-date="2020">2020</year>
+      <uri>https://arxiv.org/abs/2007.15057</uri>
+      <pub-id pub-id-type="doi">10.48550/arXiv.2007.15057</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-Virtanen2020">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Virtanen</surname><given-names>Pauli</given-names></name>
+        <name><surname>Gommers</surname><given-names>Ralf</given-names></name>
+        <name><surname>Oliphant</surname><given-names>Travis E.</given-names></name>
+        <name><surname>Haberland</surname><given-names>Matt</given-names></name>
+        <name><surname>Reddy</surname><given-names>Tyler</given-names></name>
+        <name><surname>Cournapeau</surname><given-names>David</given-names></name>
+        <name><surname>Burovski</surname><given-names>Evgeni</given-names></name>
+        <name><surname>Peterson</surname><given-names>Pearu</given-names></name>
+        <name><surname>Weckesser</surname><given-names>Warren</given-names></name>
+        <name><surname>Bright</surname><given-names>Jonathan</given-names></name>
+        <name><surname>van der Walt</surname><given-names>Stéfan J.</given-names></name>
+        <name><surname>Brett</surname><given-names>Matthew</given-names></name>
+        <name><surname>Wilson</surname><given-names>Joshua</given-names></name>
+        <name><surname>Millman</surname><given-names>K. Jarrod</given-names></name>
+        <name><surname>Mayorov</surname><given-names>Nikolay</given-names></name>
+        <name><surname>Nelson</surname><given-names>Andrew R. J.</given-names></name>
+        <name><surname>Jones</surname><given-names>Eric</given-names></name>
+        <name><surname>Kern</surname><given-names>Robert</given-names></name>
+        <name><surname>Larson</surname><given-names>Eric</given-names></name>
+        <name><surname>Carey</surname><given-names>C J</given-names></name>
+        <name><surname>Polat</surname><given-names>İlhan</given-names></name>
+        <name><surname>Feng</surname><given-names>Yu</given-names></name>
+        <name><surname>Moore</surname><given-names>Eric W.</given-names></name>
+        <name><surname>VanderPlas</surname><given-names>Jake</given-names></name>
+        <name><surname>Laxalde</surname><given-names>Denis</given-names></name>
+        <name><surname>Perktold</surname><given-names>Josef</given-names></name>
+        <name><surname>Cimrman</surname><given-names>Robert</given-names></name>
+        <name><surname>Henriksen</surname><given-names>Ian</given-names></name>
+        <name><surname>Quintero</surname><given-names>E. A.</given-names></name>
+        <name><surname>Harris</surname><given-names>Charles R.</given-names></name>
+        <name><surname>Archibald</surname><given-names>Anne M.</given-names></name>
+        <name><surname>Ribeiro</surname><given-names>Antônio H.</given-names></name>
+        <name><surname>Pedregosa</surname><given-names>Fabian</given-names></name>
+        <name><surname>van Mulbregt</surname><given-names>Paul</given-names></name>
+        <string-name>SciPy 1.0 Contributors</string-name>
+      </person-group>
+      <article-title>SciPy 1.0: Fundamental Algorithms for Scientific Computing in Python</article-title>
+      <source>Nature Methods</source>
+      <year iso-8601-date="2020">2020</year>
+      <volume>17</volume>
+      <pub-id pub-id-type="doi">10.1038/s41592-019-0686-2</pub-id>
+      <fpage>261</fpage>
+      <lpage>272</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Boost">
+    <element-citation>
+      <person-group person-group-type="author">
+        <string-name>Boost C++ Libraries</string-name>
+      </person-group>
+      <article-title>Boost C++ Libraries</article-title>
+      <year iso-8601-date="2024">2024</year>
+      <uri>https://www.boost.org/</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-Johansson_mpmath">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Johansson</surname><given-names>Fredrik</given-names></name>
+        <name><surname>others</surname></name>
+      </person-group>
+      <article-title>mpmath: A Python library for arbitrary-precision floating-point arithmetic</article-title>
+      <year iso-8601-date="2023">2023</year>
+      <uri>http://mpmath.org/</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-QuadGK">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Johnson</surname><given-names>Steven G.</given-names></name>
+      </person-group>
+      <article-title>QuadGK.jl: Gauss–Kronrod integration in Julia</article-title>
+      <publisher-name>https://github.com/JuliaMath/QuadGK.jl</publisher-name>
+      <year iso-8601-date="2013">2013</year>
+    </element-citation>
+  </ref>
+  <ref id="ref-HCubature">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Johnson</surname><given-names>Steven G.</given-names></name>
+      </person-group>
+      <article-title>The HCubature.jl package for multi-dimensional adaptive integration in Julia</article-title>
+      <publisher-name>https://github.com/JuliaMath/HCubature.jl</publisher-name>
+      <year iso-8601-date="2017">2017</year>
+    </element-citation>
+  </ref>
+  <ref id="ref-Cubature">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Johnson</surname><given-names>Steven G.</given-names></name>
+      </person-group>
+      <article-title>Multi-dimensional adaptive integration in C: The Cubature package</article-title>
+      <publisher-name>https://github.com/stevengj/cubature</publisher-name>
+      <year iso-8601-date="2005">2005</year>
+    </element-citation>
+  </ref>
+  <ref id="ref-Cuba">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Hahn</surname><given-names>Thomas</given-names></name>
+      </person-group>
+      <article-title>Cuba: A library for multidimensional numerical integration</article-title>
+      <source>Computer Physics Communications</source>
+      <year iso-8601-date="2005">2005</year>
+      <volume>168</volume>
+      <uri>https://doi.org/10.1016/j.cpc.2005.01.010</uri>
+      <pub-id pub-id-type="doi">10.1016/j.cpc.2005.01.010</pub-id>
+      <fpage>78</fpage>
+      <lpage>95</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Hahn2015">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Hahn</surname><given-names>Thomas</given-names></name>
+      </person-group>
+      <article-title>Concurrent Cuba</article-title>
+      <source>Journal of Physics: Conference Series</source>
+      <publisher-name>IOP Publishing</publisher-name>
+      <year iso-8601-date="2015-04">2015</year><month>04</month>
+      <volume>608</volume>
+      <issue>1</issue>
+      <uri>https://doi.org/10.1088/1742-6596/608/1/012066</uri>
+      <pub-id pub-id-type="doi">10.1088/1742-6596/608/1/012066</pub-id>
+      <fpage>012066</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-LoopVectorization">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Elrod</surname><given-names>Chris</given-names></name>
+      </person-group>
+      <article-title>LoopVectorization.jl</article-title>
+      <uri>https://github.com/JuliaSIMD/LoopVectorization.jl</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-FastGaussQuadrature">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Townsend</surname><given-names>Alex</given-names></name>
+        <name><surname>Hale</surname><given-names>Nicholas</given-names></name>
+        <name><surname>Olver</surname><given-names>Sheehan</given-names></name>
+      </person-group>
+      <article-title>FastGaussQuadrature.jl</article-title>
+      <year iso-8601-date="2013">2013</year>
+      <uri>https://github.com/JuliaApproximation/FastGaussQuadrature.jl</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-Integrals">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Rackauckas</surname><given-names>Christopher</given-names></name>
+        <name><surname>Nie</surname><given-names>Qing</given-names></name>
+      </person-group>
+      <article-title>DifferentialEquations.jl – a performant and feature-rich ecosystem for solving differential equations in Julia</article-title>
+      <source>The Journal of Open Research Software</source>
+      <year iso-8601-date="2017">2017</year>
+      <volume>5</volume>
+      <issue>1</issue>
+      <uri>https://app.dimensions.ai/details/publication/pub.1085583166 and http://openresearchsoftware.metajnl.com/articles/10.5334/jors.151/galley/245/download/</uri>
+      <pub-id pub-id-type="doi">10.5334/jors.151</pub-id>
+      <fpage></fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-FastTanhSinhZenodo2026">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Vretinaris</surname><given-names>Stamatis</given-names></name>
+      </person-group>
+      <article-title>FastTanhSinhQuadrature.jl</article-title>
+      <publisher-name>https://zenodo.org/records/19420466</publisher-name>
+      <year iso-8601-date="2026">2026</year>
+      <uri>https://zenodo.org/records/19420466</uri>
+      <pub-id pub-id-type="doi">10.5281/zenodo.19420466</pub-id>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
