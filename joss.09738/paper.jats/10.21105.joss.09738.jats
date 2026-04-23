@@ -1,0 +1,590 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">9738</article-id>
+<article-id pub-id-type="doi">10.21105/joss.09738</article-id>
+<title-group>
+<article-title>aimz: Scalable probabilistic impact
+modeling</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0009-0000-2138-788X</contrib-id>
+<name>
+<surname>Kim</surname>
+<given-names>Eunseop</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Eli Lilly and Company, United States</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2025-09-29">
+<day>29</day>
+<month>9</month>
+<year>2025</year>
+</pub-date>
+<volume>11</volume>
+<issue>120</issue>
+<fpage>9738</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2026</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>Python</kwd>
+<kwd>JAX</kwd>
+<kwd>Bayesian inference</kwd>
+<kwd>uncertainty quantification</kwd>
+<kwd>probabilistic modeling</kwd>
+<kwd>high-performance computing</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p><monospace>aimz</monospace> is a Python library that provides
+  scalable infrastructure for Bayesian modeling and probabilistic
+  simulation. It offers an intuitive, estimator-like interface for
+  fitting Bayesian models, drawing posterior samples, generating
+  large-scale posterior predictive simulations, and comparing outcomes
+  across intervention scenarios with minimal boilerplate. Researchers
+  and analysts can explore “what-if” scenarios to understand potential
+  effects under different decisions, generating predictions that reflect
+  the full range of possible outcomes. <monospace>aimz</monospace>
+  supports advanced inference methods with efficient, reproducible
+  workflows, making it easy to run large-scale simulations and serialize
+  structured outputs. These design choices reduce bespoke glue code,
+  enable high-throughput analyses, and support rapid iteration and
+  experimentation.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p>Standard Bayesian workflows often encounter significant engineering
+  friction when transitioning from model specification to large-scale
+  predictive simulation and impact evaluation. While core probabilistic
+  programming frameworks offer mature inference algorithms, they lack
+  native infrastructure for the repetitive engineering tasks essential
+  to production-grade analysis: streaming predictive draws without
+  exceeding system memory, managing device-aware sharding for
+  simulation, and coordinating complex interventional scenarios. General
+  machine learning libraries provide scalable prediction pipelines but
+  lack the calibrated uncertainty quantification provided by Bayesian
+  inference. <monospace>aimz</monospace> addresses these gaps by
+  consolidating model tracing, sharded predictive sampling, and
+  experiment lineage into a single estimator-like object. This reduces
+  the bespoke engineering effort required to connect flexible
+  statistical research with high-throughput data pipelines, supporting
+  reliable and reproducible probabilistic analyses at scale.</p>
+</sec>
+<sec id="state-of-the-field">
+  <title>State of the field</title>
+  <p>The landscape of Bayesian software is largely divided between
+  low-level flexibility and high-level rigidity. Core probabilistic
+  programming languages like NumPyro
+  (<xref alt="Phan et al., 2019" rid="ref-phan2019composable" ref-type="bibr">Phan
+  et al., 2019</xref>), PyMC
+  (<xref alt="Oriol et al., 2023" rid="ref-pymc2023" ref-type="bibr">Oriol
+  et al., 2023</xref>), and Stan
+  (<xref alt="Carpenter et al., 2017" rid="ref-carpenter2017stan" ref-type="bibr">Carpenter
+  et al., 2017</xref>) provide the flexible primitives necessary for
+  custom research but require users to manually handle scaling,
+  parallelization, and other performance considerations. Conversely,
+  domain-specific frameworks like Meridian
+  (<xref alt="Team, 2025" rid="ref-meridian_github" ref-type="bibr">Team,
+  2025</xref>), Robyn
+  (<xref alt="Zhou et al., 2024" rid="ref-robyn" ref-type="bibr">Zhou et
+  al., 2024</xref>), PyMC-Marketing
+  (<xref alt="PyMC Labs, 2025" rid="ref-pymc-marketing" ref-type="bibr">PyMC
+  Labs, 2025</xref>), or Prophet
+  (<xref alt="Taylor &amp; Letham, 2018" rid="ref-prophet" ref-type="bibr">Taylor
+  &amp; Letham, 2018</xref>) can offer robust end-to-end pipelines but
+  are specialized for particular domains such as marketing mix modeling
+  or time series forecasting. These tools frequently enforce fixed model
+  architectures (e.g., specific adstock transformations or trend
+  decompositions) and opaque internal logic that are difficult to adapt
+  for research problems requiring custom hierarchical specifications or
+  structural modifications beyond what the framework provides.</p>
+  <p><monospace>aimz</monospace> is designed to target a middle ground
+  by providing Bayesian infrastructure in an estimator-like form. It
+  does not prescribe a specific model form; instead, it provides a
+  scalable execution layer for user-defined models, focusing on
+  high-throughput posterior predictive simulation, structured artifact
+  management, and parallelized execution of user-defined interventions.
+  This makes <monospace>aimz</monospace> suited for production-grade
+  Bayesian workflows where reproducibility, experiment lineage, and
+  scalable simulation are critical requirements.</p>
+</sec>
+<sec id="software-design">
+  <title>Software design</title>
+  <p><monospace>aimz</monospace> is designed to support scalable
+  Bayesian analyses in applied settings, allowing users to iterate
+  quickly across model specifications, inference settings, and
+  intervention scenarios, as well as to handle large datasets and
+  produce reproducible artifacts. It combines the usability of general
+  machine learning APIs with the flexibility of probabilistic
+  programming through a single high-level object
+  (<monospace>ImpactModel</monospace>). An
+  <monospace>ImpactModel</monospace> wraps a user-defined NumPyro model
+  function together with an inference strategy, and exposes methods for
+  fitting, prediction, and scenario comparison that manage batching,
+  sharding, and artifact serialization internally. Built atop JAX
+  (<xref alt="Bradbury et al., 2018" rid="ref-jax2018github" ref-type="bibr">Bradbury
+  et al., 2018</xref>) and NumPyro, <monospace>aimz</monospace>
+  leverages modeling flexibility, accelerator-native execution, and
+  composable program transformations such as vectorization and sharded
+  execution. It supports (minibatch) stochastic variational inference
+  (SVI) and Markov chain Monte Carlo sampling, just-in-time–compiled
+  parallel predictive streaming to chunked Zarr
+  (<xref alt="Miles et al., 2020" rid="ref-alistair_miles_2020_3773450" ref-type="bibr">Miles
+  et al., 2020</xref>) stores exposed through Xarray
+  (<xref alt="Hoyer &amp; Hamman, 2017" rid="ref-hoyer2017xarray" ref-type="bibr">Hoyer
+  &amp; Hamman, 2017</xref>), and first-class intervention handling for
+  effect estimation. Integrated MLflow
+  (<xref alt="Zaharia et al., 2018" rid="ref-zaharia2018accelerating" ref-type="bibr">Zaharia
+  et al., 2018</xref>) support enables experiment tracking and model
+  lineage.</p>
+  <p><monospace>aimz</monospace> prioritizes performance as a key
+  consideration. Predictive sampling and effect estimation are organized
+  around JIT-accelerated execution, data-parallel sharding, and
+  streaming results to disk-backed, chunked storage, enabling sustained
+  throughput for large simulation workloads without requiring all draws
+  to be retained in memory. This architectural choice comes with
+  trade-offs: only models that are compatible with sharded execution can
+  fully leverage these optimizations. Additional orchestration around
+  execution and I/O is required, which <monospace>aimz</monospace>
+  manages through a small set of high-level methods, enabling users to
+  focus on analysis while maintaining a consistent interface. At the
+  user interface level, <monospace>aimz</monospace> adopts an
+  estimator-like API with familiar methods such as
+  <monospace>fit</monospace> and <monospace>predict</monospace>, while
+  still supporting a wide range of model specifications.</p>
+  <p><monospace>aimz</monospace> is also designed for integration:
+  results are materialized as structured artifacts (e.g., Xarray objects
+  backed by Zarr stores) and can optionally be logged via MLflow for
+  experiment tracking and lineage. The combination of a stable,
+  method-based interface and standardized outputs makes
+  <monospace>aimz</monospace> well suited for AI-enabled workflows,
+  where agentic tools can invoke a small set of operations and reliably
+  consume the resulting artifacts.</p>
+</sec>
+<sec id="research-impact-statement">
+  <title>Research impact statement</title>
+  <p><monospace>aimz</monospace> enables a class of Bayesian modeling
+  and probabilistic analyses that are otherwise costly to implement and
+  difficult to reproduce at scale: fitting flexible probabilistic
+  models, generating large posterior predictive simulations, and
+  comparing outcomes across intervention scenarios. Its research impact
+  is therefore primarily infrastructural, lowering the engineering
+  barrier to scalable, uncertainty-aware probabilistic analysis while
+  remaining general enough to support diverse model specifications and
+  inference strategies.</p>
+  <p>To illustrate these properties in practice, we benchmark
+  <monospace>aimz</monospace>’s <monospace>predict</monospace> method,
+  which performs posterior predictive sampling with streaming Zarr
+  writes, on a single AWS EC2 g5.24xlarge instance. The benchmark model
+  is a Bayesian neural network with 100 input features, two hidden
+  layers of 128 units each, and a binary outcome, fitted via SVI prior
+  to the benchmark, replicating a scenario in which the model is already
+  trained with no cold-start overhead. For each dataset size
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[n \in \{10\text{K},\; 100\text{K},\; 1\text{M},\; 10\text{M},\; 100\text{M}\}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>n</mml:mi><mml:mo>∈</mml:mo><mml:mo stretchy="false" form="prefix">{</mml:mo><mml:mn>10</mml:mn><mml:mtext mathvariant="normal">K</mml:mtext><mml:mo>,</mml:mo><mml:mspace width="0.278em"></mml:mspace><mml:mn>100</mml:mn><mml:mtext mathvariant="normal">K</mml:mtext><mml:mo>,</mml:mo><mml:mspace width="0.278em"></mml:mspace><mml:mn>1</mml:mn><mml:mtext mathvariant="normal">M</mml:mtext><mml:mo>,</mml:mo><mml:mspace width="0.278em"></mml:mspace><mml:mn>10</mml:mn><mml:mtext mathvariant="normal">M</mml:mtext><mml:mo>,</mml:mo><mml:mspace width="0.278em"></mml:mspace><mml:mn>100</mml:mn><mml:mtext mathvariant="normal">M</mml:mtext><mml:mo stretchy="false" form="postfix">}</mml:mo></mml:mrow></mml:math></alternatives></inline-formula>,
+  reflecting the range from static exploratory analysis to real-time
+  production-scale inference, <monospace>aimz</monospace> draws 1,000
+  posterior predictive samples and writes them to a chunked Zarr store
+  backed by Amazon EFS. Each configuration is repeated across five
+  independent runs.</p>
+  <p>The table below reports the mean wall-clock time and mean peak
+  incremental resident set size (RSS), a measure of the additional
+  physical memory consumed by the process during the call. For
+  comparison, NumPyro’s <monospace>Predictive</monospace> class, which
+  materializes the full <inline-formula><alternatives>
+  <tex-math><![CDATA[(1{,}000 \times n)]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mo stretchy="false" form="prefix">(</mml:mo><mml:mn>1</mml:mn><mml:mo>,</mml:mo><mml:mn>000</mml:mn><mml:mo>×</mml:mo><mml:mi>n</mml:mi><mml:mo stretchy="false" form="postfix">)</mml:mo></mml:mrow></mml:math></alternatives></inline-formula>
+  output array in device memory, is included where it can run to
+  completion. Both benchmarks use only the public API of each library
+  without custom modifications. Note that the comparison is not
+  like-for-like: <monospace>aimz</monospace> batches input data, shards
+  computation across all available devices, draws posterior predictive
+  samples using a JIT-compiled forward pass, and streams results to a
+  network-attached Zarr store, whereas <monospace>Predictive</monospace>
+  runs on a single device with the full dataset in memory and returns
+  results directly.</p>
+  <table-wrap>
+    <table>
+      <colgroup>
+        <col width="9%" />
+        <col width="20%" />
+        <col width="21%" />
+        <col width="24%" />
+        <col width="26%" />
+      </colgroup>
+      <thead>
+        <tr>
+          <th align="right"><inline-formula><alternatives>
+          <tex-math><![CDATA[n]]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>n</mml:mi></mml:math></alternatives></inline-formula></th>
+          <th align="right">aimz time (s)</th>
+          <th align="right">aimz RSS (MiB)</th>
+          <th align="right">NumPyro time (s)</th>
+          <th align="right">NumPyro RSS (MiB)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td align="right">10K</td>
+          <td align="right">0.4</td>
+          <td align="right">607.1</td>
+          <td align="right">0.9</td>
+          <td align="right">44.3</td>
+        </tr>
+        <tr>
+          <td align="right">100K</td>
+          <td align="right">2.6</td>
+          <td align="right">789.3</td>
+          <td align="right">2.0</td>
+          <td align="right">483.6</td>
+        </tr>
+        <tr>
+          <td align="right">1M</td>
+          <td align="right">21.3</td>
+          <td align="right">966.5</td>
+          <td align="right">9.3</td>
+          <td align="right">4806.0</td>
+        </tr>
+        <tr>
+          <td align="right">10M</td>
+          <td align="right">200.1</td>
+          <td align="right">1102.4</td>
+          <td align="right">N/A</td>
+          <td align="right">N/A</td>
+        </tr>
+        <tr>
+          <td align="right">100M</td>
+          <td align="right">2032.9</td>
+          <td align="right">2225.3</td>
+          <td align="right">N/A</td>
+          <td align="right">N/A</td>
+        </tr>
+      </tbody>
+    </table>
+  </table-wrap>
+  <p>Because <monospace>aimz</monospace> writes output incrementally to
+  the Zarr store, its peak RSS grows slowly with
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[n]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>n</mml:mi></mml:math></alternatives></inline-formula>
+  (from roughly 600 MiB at <inline-formula><alternatives>
+  <tex-math><![CDATA[n = 10\text{K}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>n</mml:mi><mml:mo>=</mml:mo><mml:mn>10</mml:mn><mml:mtext mathvariant="normal">K</mml:mtext></mml:mrow></mml:math></alternatives></inline-formula>
+  to about 2.2 GiB at <inline-formula><alternatives>
+  <tex-math><![CDATA[n = 100\text{M}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>n</mml:mi><mml:mo>=</mml:mo><mml:mn>100</mml:mn><mml:mtext mathvariant="normal">M</mml:mtext></mml:mrow></mml:math></alternatives></inline-formula>),
+  while NumPyro’s RSS scales linearly and exceeds available memory
+  before reaching <inline-formula><alternatives>
+  <tex-math><![CDATA[n = 10\text{M}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>n</mml:mi><mml:mo>=</mml:mo><mml:mn>10</mml:mn><mml:mtext mathvariant="normal">M</mml:mtext></mml:mrow></mml:math></alternatives></inline-formula>.
+  With 1,000 posterior samples, the dominant cost at large
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[n]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>n</mml:mi></mml:math></alternatives></inline-formula>
+  is persisting approximately <inline-formula><alternatives>
+  <tex-math><![CDATA[4n]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mn>4</mml:mn><mml:mi>n</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>
+  KB of predictive draws rather than the forward-pass computation
+  itself. The <monospace>predict</monospace> method’s streaming
+  architecture is specifically designed for this regime, where the
+  volume of output exceeds what can be held in memory. Closing this gap
+  manually with <monospace>Predictive</monospace> (e.g., splitting data
+  into batches, sharding across devices, JIT-compiling the sampling
+  loop, incrementally collecting partial outputs) would effectively
+  replicate the infrastructure that <monospace>aimz</monospace> already
+  provides. For cases where the full output fits comfortably in memory,
+  <monospace>aimz</monospace> also provides the
+  <monospace>predict_on_batch</monospace> method, which returns results
+  directly without disk I/O. The scripts and configuration details used
+  to produce these results are available in the repository’s
+  <monospace>paper/benchmark/</monospace> directory.</p>
+  <p>In practice, <monospace>aimz</monospace> has supported internal
+  analytics workflows within Eli Lilly and Company that require scalable
+  posterior and posterior predictive sampling, consistent output
+  structures, and experiment traceability. In this setting, the library
+  has reduced duplicated glue code for streaming predictive draws,
+  coordinating intervention scenarios, and tracking model lineage,
+  thereby improving iteration speed and reproducibility across analyses.
+  Its stable estimator-like interface and structured, reproducible
+  outputs also make it well suited for integration with AI-enabled
+  workflows, where agentic tools can leverage standardized artifacts for
+  downstream tasks.</p>
+  <p>Beyond immediate use, <monospace>aimz</monospace> is designed as
+  reusable research infrastructure: it exposes arbitrary NumPyro model
+  functions through a stable estimator-like interface and standardizes
+  artifacts (samples, predictions, and effect estimates) in formats that
+  integrate cleanly with the broader scientific Python ecosystem (e.g.,
+  Xarray/Zarr) and with experiment tracking via MLflow. This makes it
+  easier for researchers and applied scientists to share models and
+  results, compare alternative specifications, and operationalize
+  workflows on larger datasets than would be practical with bespoke
+  scripts. Early external adoption is reflected in package index
+  downloads: since its initial public release in June 2025,
+  <monospace>aimz</monospace> has been downloaded over 10,000 times via
+  PyPI and conda-forge as of January 2026.</p>
+</sec>
+<sec id="ai-usage-disclosure">
+  <title>AI usage disclosure</title>
+  <p>Microsoft Copilot was used solely to assist with drafting code
+  docstrings and adding type hints. All suggestions generated by Copilot
+  were carefully reviewed and edited to ensure accuracy and consistency
+  with the implemented functionality. No other generative AI tools were
+  used in the development of the software, the writing of the
+  manuscript, or the preparation of supporting materials.</p>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>The author acknowledges support from Eli Lilly and Company.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <title></title>
+  <ref id="ref-alistair_miles_2020_3773450">
+    <element-citation publication-type="software">
+      <person-group person-group-type="author">
+        <name><surname>Miles</surname><given-names>Alistair</given-names></name>
+        <name><surname>Kirkham</surname><given-names>John</given-names></name>
+        <name><surname>Durant</surname><given-names>Martin</given-names></name>
+        <name><surname>Bourbeau</surname><given-names>James</given-names></name>
+        <name><surname>Onalan</surname><given-names>Tarik</given-names></name>
+        <name><surname>Hamman</surname><given-names>Joe</given-names></name>
+        <name><surname>Patel</surname><given-names>Zain</given-names></name>
+        <name><surname>shikharsg</surname></name>
+        <name><surname>Rocklin</surname><given-names>Matthew</given-names></name>
+        <name><surname>dussin</surname></name>
+        <name><surname>Schut</surname><given-names>Vincent</given-names></name>
+        <name><surname>Andrade</surname><given-names>Elliott Sales de</given-names></name>
+        <name><surname>Abernathey</surname><given-names>Ryan</given-names></name>
+        <name><surname>Noyes</surname><given-names>Charles</given-names></name>
+        <name><surname>sbalmer</surname></name>
+        <name><surname>bot</surname></name>
+        <name><surname>Tran</surname><given-names>Tommy</given-names></name>
+        <name><surname>Saalfeld</surname><given-names>Stephan</given-names></name>
+        <name><surname>Swaney</surname><given-names>Justin</given-names></name>
+        <name><surname>Moore</surname><given-names>Josh</given-names></name>
+        <name><surname>Jevnik</surname><given-names>Joe</given-names></name>
+        <name><surname>Kelleher</surname><given-names>Jerome</given-names></name>
+        <name><surname>Funke</surname><given-names>Jan</given-names></name>
+        <name><surname>Sakkis</surname><given-names>George</given-names></name>
+        <name><surname>Barnes</surname><given-names>Chris</given-names></name>
+        <name><surname>Banihirwe</surname><given-names>Anderson</given-names></name>
+      </person-group>
+      <article-title>Zarr-developers/zarr-python: v2.4.0</article-title>
+      <publisher-name>Zenodo</publisher-name>
+      <year iso-8601-date="2020">2020</year>
+      <uri>https://doi.org/10.5281/zenodo.3773450</uri>
+      <pub-id pub-id-type="doi">10.5281/zenodo.3773450</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-carpenter2017stan">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Carpenter</surname><given-names>Bob</given-names></name>
+        <name><surname>Gelman</surname><given-names>Andrew</given-names></name>
+        <name><surname>Hoffman</surname><given-names>Matthew D.</given-names></name>
+        <name><surname>Lee</surname><given-names>Daniel</given-names></name>
+        <name><surname>Goodrich</surname><given-names>Ben</given-names></name>
+        <name><surname>Betancourt</surname><given-names>Michael</given-names></name>
+        <name><surname>Brubaker</surname><given-names>Marcus</given-names></name>
+        <name><surname>Guo</surname><given-names>Jiqiang</given-names></name>
+        <name><surname>Li</surname><given-names>Peter</given-names></name>
+        <name><surname>Riddell</surname><given-names>Allen</given-names></name>
+      </person-group>
+      <article-title>Stan: A probabilistic programming language</article-title>
+      <source>Journal of Statistical Software</source>
+      <year iso-8601-date="2017">2017</year>
+      <volume>76</volume>
+      <issue>1</issue>
+      <uri>https://www.jstatsoft.org/index.php/jss/article/view/v076i01</uri>
+      <pub-id pub-id-type="doi">10.18637/jss.v076.i01</pub-id>
+      <fpage>1</fpage>
+      <lpage>32</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-hoyer2017xarray">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Hoyer</surname><given-names>S.</given-names></name>
+        <name><surname>Hamman</surname><given-names>J.</given-names></name>
+      </person-group>
+      <article-title>Xarray: N-D labeled arrays and datasets in Python</article-title>
+      <source>Journal of Open Research Software</source>
+      <year iso-8601-date="2017">2017</year>
+      <volume>5</volume>
+      <issue>1</issue>
+      <uri>https://doi.org/10.5334/jors.148</uri>
+      <pub-id pub-id-type="doi">10.5334/jors.148</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-jax2018github">
+    <element-citation publication-type="software">
+      <person-group person-group-type="author">
+        <name><surname>Bradbury</surname><given-names>James</given-names></name>
+        <name><surname>Frostig</surname><given-names>Roy</given-names></name>
+        <name><surname>Hawkins</surname><given-names>Peter</given-names></name>
+        <name><surname>Johnson</surname><given-names>Matthew James</given-names></name>
+        <name><surname>Leary</surname><given-names>Chris</given-names></name>
+        <name><surname>Maclaurin</surname><given-names>Dougal</given-names></name>
+        <name><surname>Necula</surname><given-names>George</given-names></name>
+        <name><surname>Paszke</surname><given-names>Adam</given-names></name>
+        <name><surname>VanderPlas</surname><given-names>Jake</given-names></name>
+        <name><surname>Wanderman-Milne</surname><given-names>Skye</given-names></name>
+        <name><surname>Zhang</surname><given-names>Qiao</given-names></name>
+      </person-group>
+      <article-title>JAX: Composable transformations of Python+NumPy programs</article-title>
+      <year iso-8601-date="2018">2018</year>
+      <uri>http://github.com/jax-ml/jax</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-meridian_github">
+    <element-citation publication-type="software">
+      <person-group person-group-type="author">
+        <name><surname>Team</surname><given-names>Google Meridian Marketing Mix Modeling</given-names></name>
+      </person-group>
+      <article-title>Meridian: Marketing mix modeling</article-title>
+      <year iso-8601-date="2025">2025</year>
+      <uri>https://github.com/google/meridian</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-phan2019composable">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Phan</surname><given-names>Du</given-names></name>
+        <name><surname>Pradhan</surname><given-names>Neeraj</given-names></name>
+        <name><surname>Jankowiak</surname><given-names>Martin</given-names></name>
+      </person-group>
+      <article-title>Composable effects for flexible and accelerated probabilistic programming in NumPyro</article-title>
+      <source>arXiv preprint arXiv:1912.11554</source>
+      <year iso-8601-date="2019">2019</year>
+    </element-citation>
+  </ref>
+  <ref id="ref-prophet">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Taylor</surname><given-names>Sean J.</given-names></name>
+        <name><surname>Letham</surname><given-names>Benjamin</given-names></name>
+      </person-group>
+      <article-title>Forecasting at scale</article-title>
+      <source>The American Statistician</source>
+      <year iso-8601-date="2018">2018</year>
+      <volume>72</volume>
+      <issue>1</issue>
+      <pub-id pub-id-type="doi">10.1080/00031305.2017.1380080</pub-id>
+      <fpage>37</fpage>
+      <lpage>45</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-pymc-marketing">
+    <element-citation publication-type="software">
+      <person-group person-group-type="author">
+        <string-name>PyMC Labs</string-name>
+      </person-group>
+      <article-title>Marketing statistical models in PyMC</article-title>
+      <year iso-8601-date="2025">2025</year>
+      <uri>https://github.com/pymc-labs/pymc-marketing</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-pymc2023">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Oriol</surname><given-names>Abril-Pla</given-names></name>
+        <name><surname>Virgile</surname><given-names>Andreani</given-names></name>
+        <name><surname>Colin</surname><given-names>Carroll</given-names></name>
+        <name><surname>Larry</surname><given-names>Dong</given-names></name>
+        <name><surname>J.</surname><given-names>Fonnesbeck Christopher</given-names></name>
+        <name><surname>Maxim</surname><given-names>Kochurov</given-names></name>
+        <name><surname>Ravin</surname><given-names>Kumar</given-names></name>
+        <name><surname>Jupeng</surname><given-names>Lao</given-names></name>
+        <name><surname>C.</surname><given-names>Luhmann Christian</given-names></name>
+        <name><surname>A.</surname><given-names>Martin Osvaldo</given-names></name>
+        <name><surname>Michael</surname><given-names>Osthege</given-names></name>
+        <name><surname>Ricardo</surname><given-names>Vieira</given-names></name>
+        <name><surname>Thomas</surname><given-names>Wiecki</given-names></name>
+        <name><surname>Robert</surname><given-names>Zinkov</given-names></name>
+      </person-group>
+      <article-title>PyMC: A modern and comprehensive probabilistic programming framework in Python</article-title>
+      <source>PeerJ Computer Science</source>
+      <year iso-8601-date="2023">2023</year>
+      <volume>9</volume>
+      <pub-id pub-id-type="doi">10.7717/peerj-cs.1516</pub-id>
+      <fpage>e1516</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-robyn">
+    <element-citation publication-type="software">
+      <person-group person-group-type="author">
+        <name><surname>Zhou</surname><given-names>Gufeng</given-names></name>
+        <name><surname>Lares</surname><given-names>Bernardo</given-names></name>
+        <name><surname>Skokan</surname><given-names>Igor</given-names></name>
+        <name><surname>Sentana</surname><given-names>Leonel</given-names></name>
+      </person-group>
+      <article-title>Robyn: Semi-automated marketing mix modeling (MMM) from Meta marketing science</article-title>
+      <year iso-8601-date="2024">2024</year>
+      <uri>https://github.com/facebookexperimental/Robyn</uri>
+      <pub-id pub-id-type="doi">10.32614/cran.package.robyn</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-zaharia2018accelerating">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Zaharia</surname><given-names>Matei A.</given-names></name>
+        <name><surname>Chen</surname><given-names>Andrew</given-names></name>
+        <name><surname>Davidson</surname><given-names>Aaron</given-names></name>
+        <name><surname>Ghodsi</surname><given-names>Ali</given-names></name>
+        <name><surname>Hong</surname><given-names>Sue Ann</given-names></name>
+        <name><surname>Konwinski</surname><given-names>Andy</given-names></name>
+        <name><surname>Murching</surname><given-names>Siddharth</given-names></name>
+        <name><surname>Nykodym</surname><given-names>Tomas</given-names></name>
+        <name><surname>Ogilvie</surname><given-names>Paul</given-names></name>
+        <name><surname>Parkhe</surname><given-names>Mani</given-names></name>
+        <name><surname>Xie</surname><given-names>Fen</given-names></name>
+        <name><surname>Zumar</surname><given-names>Corey</given-names></name>
+      </person-group>
+      <article-title>Accelerating the machine learning lifecycle with MLflow</article-title>
+      <source>IEEE Data Eng. Bull.</source>
+      <year iso-8601-date="2018">2018</year>
+      <volume>41</volume>
+      <uri>https://dblp.org/rec/journals/debu/ZahariaCD0HKMNO18</uri>
+      <fpage>39</fpage>
+      <lpage>45</lpage>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
