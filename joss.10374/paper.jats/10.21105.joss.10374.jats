@@ -1,0 +1,618 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">10374</article-id>
+<article-id pub-id-type="doi">10.21105/joss.10374</article-id>
+<title-group>
+<article-title>sklearn-migrator: Cross-version migration of scikit-learn
+models for reproducible MLOps</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0009-0000-0752-8519</contrib-id>
+<name>
+<surname>Gonzalez</surname>
+<given-names>Alberto Andres Valdes</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Independent Researcher (Chile)</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2025-12-12">
+<day>12</day>
+<month>12</month>
+<year>2025</year>
+</pub-date>
+<volume>11</volume>
+<issue>121</issue>
+<fpage>10374</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2026</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>Python</kwd>
+<kwd>machine learning</kwd>
+<kwd>scikit-learn</kwd>
+<kwd>MLOps</kwd>
+<kwd>model reproducibility</kwd>
+<kwd>model migration</kwd>
+<kwd>model persistence</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p><monospace>sklearn-migrator</monospace> is a Python library for
+  <bold>safely migrating scikit-learn models across versions</bold>
+  while preserving inference behavior and remaining robust to internal
+  attribute changes. scikit-learn is among the most widely used machine
+  learning libraries in both research and industry, and its estimators
+  are commonly deployed in tabular-data domains such as finance, risk,
+  operations, and marketing
+  (<xref alt="Kaggle, n.d." rid="ref-kaggle2021" ref-type="bibr">Kaggle,
+  n.d.</xref>;
+  <xref alt="Pedregosa et al., 2011" rid="ref-pedregosa2011" ref-type="bibr">Pedregosa
+  et al., 2011</xref>). In these settings, model upgrades often coincide
+  with dependency upgrades, container base-image updates, or security
+  patching cycles—making version-to-version portability a practical
+  requirement for production MLOps.</p>
+  <p>The core problem is that standard persistence mechanisms
+  (pickle/joblib) are <bold>version-fragile</bold>: models saved under
+  one scikit-learn release may fail to load—or may load with altered
+  behavior—under another. This limitation is explicitly cautioned in the
+  official documentation and has been observed in empirical and
+  experiential work
+  (<xref alt="Fitzpatrick &amp; Manning, 2024" rid="ref-fitzpatrick2024davos" ref-type="bibr">Fitzpatrick
+  &amp; Manning, 2024</xref>;
+  <xref alt="Parida et al., 2025" rid="ref-parida2025exportformats" ref-type="bibr">Parida
+  et al., 2025</xref>;
+  <xref alt="scikit-learn developers, n.d." rid="ref-sklearn_persistence" ref-type="bibr">scikit-learn
+  developers, n.d.</xref>). <monospace>sklearn-migrator</monospace>
+  addresses this gap by exporting supported estimators into
+  <bold>portable, JSON-compatible Python dictionaries</bold> and
+  reconstructing them in a different environment running a target
+  scikit-learn version. The resulting payloads are readable,
+  inspectable, and transportable across environments and teams, enabling
+  long-term reproducibility and governance.</p>
+  <p>The migration proceeds in two stages. <bold>Stage 1
+  (parity):</bold> the library captures a minimal set of
+  prediction-critical attributes that guarantee parity of outputs across
+  versions, validated under a strict tolerance (e.g.,
+  <monospace>max |y_in - y_out| &lt; 1e-2</monospace>). <bold>Stage 2
+  (compatibility):</bold> remaining attributes are serialized with a
+  version-aware policy that gracefully handles additions, removals, and
+  renames so deserialization does not break across releases. This
+  strategy is designed around the practical reality that estimator
+  internals, defaults, and attribute names shift over time—even when the
+  public API remains stable
+  (<xref alt="Parida et al., 2025" rid="ref-parida2025exportformats" ref-type="bibr">Parida
+  et al., 2025</xref>;
+  <xref alt="scikit-learn developers, n.d." rid="ref-sklearn_persistence" ref-type="bibr">scikit-learn
+  developers, n.d.</xref>).</p>
+  <p>This submission supports <bold>21 models</bold> across supervised
+  and unsupervised learning:</p>
+  <table-wrap>
+    <table>
+      <colgroup>
+        <col width="33%" />
+        <col width="33%" />
+        <col width="33%" />
+      </colgroup>
+      <thead>
+        <tr>
+          <th>Category</th>
+          <th>#</th>
+          <th>Estimators</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Classification</td>
+          <td>7</td>
+          <td><monospace>DecisionTreeClassifier</monospace>,
+          <monospace>RandomForestClassifier</monospace>,
+          <monospace>GradientBoostingClassifier</monospace>,
+          <monospace>LogisticRegression</monospace>,
+          <monospace>KNeighborsClassifier</monospace>,
+          <monospace>SVC</monospace>,
+          <monospace>MLPClassifier</monospace></td>
+        </tr>
+        <tr>
+          <td>Regression</td>
+          <td>10</td>
+          <td><monospace>DecisionTreeRegressor</monospace>,
+          <monospace>RandomForestRegressor</monospace>,
+          <monospace>GradientBoostingRegressor</monospace>,
+          <monospace>LinearRegression</monospace>,
+          <monospace>Ridge</monospace>, <monospace>Lasso</monospace>,
+          <monospace>KNeighborsRegressor</monospace>,
+          <monospace>SVR</monospace>,
+          <monospace>AdaBoostRegressor</monospace>,
+          <monospace>MLPRegressor</monospace></td>
+        </tr>
+        <tr>
+          <td>Clustering</td>
+          <td>3</td>
+          <td><monospace>AgglomerativeClustering</monospace>,
+          <monospace>KMeans</monospace>,
+          <monospace>MiniBatchKMeans</monospace></td>
+        </tr>
+        <tr>
+          <td>Dimensionality Reduction</td>
+          <td>1</td>
+          <td><monospace>PCA</monospace></td>
+        </tr>
+        <tr>
+          <td><bold>Total</bold></td>
+          <td><bold>21</bold></td>
+          <td></td>
+        </tr>
+      </tbody>
+    </table>
+  </table-wrap>
+  <p><monospace>sklearn-migrator</monospace> has been validated across
+  <bold>32 scikit-learn versions</bold>
+  (<monospace>0.21.3 → 1.7.2</monospace>), covering <bold>1,024
+  migration pairs</bold>, with automated, environment-isolated testing
+  and strict parity checks. Continuous integration runs on every push:
+  unit tests across four Python versions (3.9–3.12), followed by the
+  automated build of 64 isolated Docker images and 21,504 (21 models ×
+  32 × 32 version pairs) environment-isolated integration executions,
+  each validated against a strict parity threshold.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p>Persisted scikit-learn models frequently break across library
+  upgrades because internal attributes, defaults, and serialization
+  details change over time. Standard persistence mechanisms (e.g.,
+  pickle/joblib) are <bold>version-fragile</bold>: a model saved under
+  one release may fail to load—or load with altered behavior—under
+  another
+  (<xref alt="Fitzpatrick &amp; Manning, 2024" rid="ref-fitzpatrick2024davos" ref-type="bibr">Fitzpatrick
+  &amp; Manning, 2024</xref>;
+  <xref alt="Parida et al., 2025" rid="ref-parida2025exportformats" ref-type="bibr">Parida
+  et al., 2025</xref>;
+  <xref alt="scikit-learn developers, n.d." rid="ref-sklearn_persistence" ref-type="bibr">scikit-learn
+  developers, n.d.</xref>). The resulting brittleness complicates
+  production upgrades, environment migrations, cross-team sharing, and
+  long-term reproducibility—especially in regulated or audit-heavy
+  contexts where models must remain verifiable over time.</p>
+  <p>In practice, this fragility creates costly failure modes. A
+  dependency upgrade may break deserialization of a mission-critical
+  model artifact. Conversely, pinning old versions indefinitely
+  increases security risk and operational burden. Teams often face an
+  uncomfortable trade-off: <bold>upgrade safely</bold> (but risk
+  breaking legacy models) or <bold>freeze environments</bold> (but
+  accumulate technical debt). This is particularly acute in
+  organizations that operate many model-serving services, notebooks, and
+  batch pipelines with slightly different dependency constraints.</p>
+  <p><monospace>sklearn-migrator</monospace> addresses this need with a
+  two-stage, version-aware (de)serialization strategy. First, it
+  captures the minimal, prediction-critical attributes to guarantee
+  output parity between versions. Second, it serializes remaining
+  attributes with explicit, version-conditioned defaults so that
+  parameters added, removed, or renamed across releases do not break
+  deserialization. Unlike pickle/joblib, the library uses portable,
+  JSON-compatible Python dictionaries, enabling safe transport,
+  inspection, and storage independent of the original runtime
+  (<xref alt="Fitzpatrick &amp; Manning, 2024" rid="ref-fitzpatrick2024davos" ref-type="bibr">Fitzpatrick
+  &amp; Manning, 2024</xref>;
+  <xref alt="Parida et al., 2025" rid="ref-parida2025exportformats" ref-type="bibr">Parida
+  et al., 2025</xref>).</p>
+  <p>The library targets practitioners and MLOps teams who must migrate
+  or reproduce models across heterogeneous environments. It supports
+  forward and backward migration across 32 scikit-learn releases
+  (<monospace>0.21.3 → 1.7.2</monospace>), covering <bold>1,024</bold>
+  version pairs with unit tests and environment-isolated validation.</p>
+</sec>
+<sec id="state-of-the-field">
+  <title>State of the field</title>
+  <p>Model persistence and portability are longstanding challenges in
+  applied machine learning
+  (<xref alt="scikit-learn contributors, 2018" rid="ref-sklearn_issue10319" ref-type="bibr">scikit-learn
+  contributors, 2018</xref>). In the scikit-learn ecosystem, the
+  officially recommended mechanisms—<monospace>pickle</monospace> and
+  <monospace>joblib</monospace>—are explicitly documented as
+  <italic>not</italic> guaranteeing forward or backward compatibility
+  across library versions
+  (<xref alt="scikit-learn developers, n.d." rid="ref-sklearn_persistence" ref-type="bibr">scikit-learn
+  developers, n.d.</xref>). As a result, serialized models are tightly
+  coupled to the exact scikit-learn release and Python environment in
+  which they were created.</p>
+  <p>Several alternative approaches partially address related concerns,
+  but each has significant limitations:</p>
+  <list list-type="bullet">
+    <list-item>
+      <p><bold>pickle/joblib</bold>: the default scikit-learn
+      persistence mechanism and the most widely used in practice, but
+      explicitly documented as <italic>not</italic> guaranteeing
+      cross-version compatibility
+      (<xref alt="scikit-learn developers, n.d." rid="ref-sklearn_persistence" ref-type="bibr">scikit-learn
+      developers, n.d.</xref>). A model serialized under one release may
+      raise <monospace>AttributeError</monospace>,
+      <monospace>ModuleNotFoundError</monospace>, or silently produce
+      different predictions under another—with no warning to the
+      user.</p>
+    </list-item>
+    <list-item>
+      <p><bold>skops</bold>: designed to replace pickle for
+      <italic>secure</italic> model sharing by avoiding arbitrary code
+      execution on deserialization. However, it does not address
+      cross-version compatibility: a <monospace>.skops</monospace> file
+      is still tied to the scikit-learn version used at serialization
+      time, and loading it under a different release is subject to the
+      same attribute-level breakage as pickle.</p>
+    </list-item>
+    <list-item>
+      <p><bold>sklearn-onnx</bold>: converts fitted estimators to the
+      ONNX intermediate representation, enabling deployment across
+      runtimes (e.g., <monospace>onnxruntime</monospace>, C++, Java).
+      However, it covers only a subset of scikit-learn estimators,
+      requires a non-trivial conversion step, introduces a dependency on
+      the ONNX runtime, and does not guarantee numerical parity with the
+      original scikit-learn predictions due to differences in
+      floating-point arithmetic across backends
+      (<xref alt="Parida et al., 2025" rid="ref-parida2025exportformats" ref-type="bibr">Parida
+      et al., 2025</xref>).</p>
+    </list-item>
+    <list-item>
+      <p><bold>PMML</bold>: a mature XML-based interchange standard with
+      broad tooling support across platforms and languages. However,
+      estimator coverage is limited, the format is verbose and difficult
+      to inspect programmatically, and numerical parity with the
+      original model is not guaranteed—particularly for ensemble methods
+      and neural networks.</p>
+    </list-item>
+    <list-item>
+      <p><bold>Re-training</bold>: the most common production
+      workaround—simply refit the model on the target environment. This
+      is often infeasible due to missing or proprietary training data,
+      regulatory constraints that prohibit model changes, computational
+      cost at scale, or the need to preserve a specific model artifact
+      for audit or reproducibility purposes.</p>
+    </list-item>
+  </list>
+  <p>None of these alternatives directly addresses the version-fragility
+  problem for native scikit-learn estimators in production. Pinning old
+  scikit-learn versions accumulates CVEs and security debt over time,
+  exposing production systems to known vulnerabilities. This makes a
+  migration tool particularly compelling in organizations where
+  dependency upgrades are driven by security patching cycles.</p>
+  <p><monospace>sklearn-migrator</monospace> addresses this gap by
+  enabling native, Python-centric cross-version migration without
+  re-training, runtime conversion, or version pinning—while maintaining
+  full compatibility with the scikit-learn API.</p>
+</sec>
+<sec id="research-impact-statement">
+  <title>Research Impact Statement</title>
+  <p>This software addresses a critical reproducibility challenge in
+  applied machine learning: the inherent fragility of serialized
+  <monospace>scikit-learn</monospace> models across library versions.
+  Standard persistence mechanisms (e.g., <monospace>pickle</monospace>)
+  tie model artifacts to specific environments, creating a “dependency
+  lock-in” that hinders long-term research reproducibility and
+  complicates production MLOps workflows.</p>
+  <p>By enabling deterministic, cross-version migration,
+  <monospace>sklearn-migrator</monospace> mitigates the operational risk
+  and technical debt associated with mandatory security patching and
+  dependency upgrades. The library is particularly impactful for
+  high-stakes domains—such as finance, healthcare, and risk
+  modeling—where models must remain verifiable over long lifecycles and
+  where retraining may be computationally expensive or ethically
+  restricted.</p>
+  <p>More broadly, this work promotes <bold>transparent and inspectable
+  model artifacts</bold>, filling a significant gap in the machine
+  learning ecosystem by providing a native, Python-centric path to model
+  portability that complements existing interoperability standards.</p>
+</sec>
+<sec id="design-and-validation">
+  <title>Design and validation</title>
+  <sec id="software-design">
+    <title>Software Design</title>
+    <p>The design of <monospace>sklearn-migrator</monospace> follows a
+    modular, estimator-centric architecture that separates model
+    inspection, version-aware serialization, and controlled
+    reconstruction in the target environment. Each supported estimator
+    family is implemented as an <bold>isolated migration unit</bold>,
+    allowing fine-grained handling of structural changes across versions
+    without affecting unrelated models.</p>
+    <p>The migration pipeline consists of three functional
+    components:</p>
+    <list list-type="order">
+      <list-item>
+        <p><bold>Introspection Layer</bold>: Extracts constructor
+        parameters and prediction-critical attributes from a fitted
+        estimator in the source environment.</p>
+      </list-item>
+      <list-item>
+        <p><bold>Version-aware Serialization Layer</bold>: Encodes
+        attributes into a portable, JSON-compatible dictionary,
+        explicitly recording defaults for attributes that may not exist
+        in all versions.</p>
+      </list-item>
+      <list-item>
+        <p><bold>Deserialization Layer</bold>: Reconstructs an
+        equivalent estimator in the target environment, assigning only
+        attributes valid for the destination version and safely skipping
+        deprecated fields.</p>
+      </list-item>
+    </list>
+  </sec>
+  <sec id="serialization-format">
+    <title>Serialization format</title>
+    <p>Each supported estimator is serialized into a Python dictionary
+    containing:</p>
+    <list list-type="order">
+      <list-item>
+        <p><bold>Metadata</bold>: source version, estimator type, and
+        migration-relevant flags.</p>
+      </list-item>
+      <list-item>
+        <p><bold>Parity-critical reconstruction parameters</bold>: the
+        minimal set of fields required to produce matching predictions
+        under strict tolerance.</p>
+      </list-item>
+      <list-item>
+        <p><bold>Compatibility attributes</bold>: additional learned
+        attributes stored with version-aware rules, including explicit
+        defaults for fields that exist only in some versions.</p>
+      </list-item>
+    </list>
+    <p>The library restricts values to JSON-encodable primitives
+    (numbers, strings, booleans, lists, dicts), enabling storage in
+    plain JSON files, object storage, or artifact registries, and
+    supporting inspection without executing arbitrary code.</p>
+  </sec>
+  <sec id="validation-methodology">
+    <title>Validation methodology</title>
+    <p><monospace>sklearn-migrator</monospace> validates migrations
+    through:</p>
+    <list list-type="bullet">
+      <list-item>
+        <p><bold>Environment isolation</bold>: 64 dedicated Docker
+        images (32 source + 32 target versions) are built and pushed to
+        GHCR on every push, ensuring <monospace>version_in</monospace>
+        and <monospace>version_out</monospace> represent fully
+        independent, real scikit-learn installations with no dependency
+        leakage.</p>
+      </list-item>
+      <list-item>
+        <p><bold>Automated threshold enforcement</bold>: each of the
+        21,504 migration executions (21 models × 32 × 32 version pairs)
+        is validated automatically against
+        <monospace>max |y_in - y_out| ≤ 1e-2</monospace>; any failure
+        blocks the pipeline.</p>
+      </list-item>
+      <list-item>
+        <p><bold>Multi-Python compatibility</bold>: unit tests run in
+        parallel across Python 3.9, 3.10, 3.11, and 3.12 on every
+        push.</p>
+      </list-item>
+      <list-item>
+        <p><bold>Fixed synthetic datasets</bold> for deterministic
+        evaluation.</p>
+      </list-item>
+    </list>
+    <p>Each of the 21 supported models is tested with a specific
+    parameter configuration, ranging from default instantiations (e.g.,
+    <monospace>LinearRegression()</monospace>,
+    <monospace>RandomForestClassifier()</monospace>) to configurations
+    with explicit parameters (e.g.,
+    <monospace>DecisionTreeClassifier(max_depth=4, random_state=42)</monospace>,
+    <monospace>PCA(n_components=2, whiten=True, svd_solver='full')</monospace>).
+    Exhaustive combinatorial testing is outside the current scope.</p>
+    <p>The library has been tested across a full 32×32 version
+    compatibility matrix, totaling <bold>1,024 migration
+    pairs</bold>.</p>
+  </sec>
+</sec>
+<sec id="example">
+  <title>Example</title>
+  <p>The example below trains a
+  <monospace>RandomForestRegressor</monospace>, serializes it to a
+  portable dictionary, deserializes it, and checks prediction parity
+  within a strict tolerance.</p>
+  <code language="python">import json
+import numpy as np
+import sklearn
+from sklearn.datasets import make_regression
+from sklearn.ensemble import RandomForestRegressor
+
+from sklearn_migrator.regression.random_forest_reg import (
+    serialize_random_forest_reg,
+    deserialize_random_forest_reg,
+)
+
+X, y = make_regression(n_samples=200, n_features=10, random_state=0)
+src_version = sklearn.__version__
+
+src_model = RandomForestRegressor(
+    n_estimators=50, random_state=0
+).fit(X, y)
+
+payload = serialize_random_forest_reg(src_model, version_in=src_version)
+
+with open(&quot;model.json&quot;, &quot;w&quot;) as f:
+    json.dump(payload, f)
+
+# --- In a different environment, load and deserialize ---
+# In practice, version_out may differ.
+tgt_version = sklearn.__version__
+with open(&quot;model.json&quot;) as f:
+    payload_loaded = json.load(f)
+
+tgt_model = deserialize_random_forest_reg(payload_loaded, version_out=tgt_version)
+
+y_src = src_model.predict(X)
+y_tgt = tgt_model.predict(X)
+assert np.max(np.abs(y_src - y_tgt)) &lt; 1e-2
+print(&quot;Prediction parity verified.&quot;)</code>
+  <p>Analogous functions exist for all covered estimators. In a true
+  two-environment workflow, serialization runs in the source environment
+  (e.g., 0.24.2) and deserialization in the target (e.g., 1.7.2).</p>
+</sec>
+<sec id="limitations">
+  <title>Limitations</title>
+  <list list-type="bullet">
+    <list-item>
+      <p><bold>Two environments required.</bold> End-to-end validation
+      relies on two isolated environments. While this can be simulated
+      on one machine, truly isolated setups (e.g., Docker images) are
+      recommended to avoid dependency leakage.</p>
+    </list-item>
+    <list-item>
+      <p><bold>Partial scikit-learn coverage.</bold> Additional models
+      (e.g., pipelines, transformers) are not yet supported but are
+      planned for future releases. Community contributions are
+      welcome.</p>
+    </list-item>
+    <list-item>
+      <p><bold>Parity tolerance depends on model family.</bold> Some
+      families may be sensitive to floating-point or solver differences
+      across versions; tolerances can be adjusted depending on
+      operational requirements.</p>
+    </list-item>
+    <list-item>
+      <p><bold>Parameter configuration coverage.</bold> Each model is
+      validated under a representative configuration. Exhaustive
+      coverage of all parameter combinations and future breaking changes
+      is outside the current scope.</p>
+    </list-item>
+  </list>
+</sec>
+<sec id="ai-usage-disclosure">
+  <title>AI Usage Disclosure</title>
+  <p>Large language models were used to assist with minor grammar
+  checking and phrasing improvements during manuscript preparation. All
+  software design decisions, implementation, experiments, validation,
+  and technical content were authored and verified by the submitting
+  author.</p>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>We thank the scikit-learn core developers and contributors for
+  their open-source work and documentation, as well as the broader
+  NumPy/SciPy/joblib ecosystems on which this project depends. We are
+  grateful to colleagues and early adopters for testing and feedback,
+  and to the JOSS editors and reviewers for guidance during the review
+  process.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <title></title>
+  <ref id="ref-pedregosa2011">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Pedregosa</surname><given-names>Fabian</given-names></name>
+        <name><surname>Varoquaux</surname><given-names>Gaël</given-names></name>
+        <name><surname>Gramfort</surname><given-names>Alexandre</given-names></name>
+        <name><surname>Michel</surname><given-names>Vincent</given-names></name>
+        <name><surname>Thirion</surname><given-names>Bertrand</given-names></name>
+        <name><surname>Grisel</surname><given-names>Olivier</given-names></name>
+        <name><surname>Blondel</surname><given-names>Mathieu</given-names></name>
+        <name><surname>Prettenhofer</surname><given-names>Peter</given-names></name>
+        <name><surname>Weiss</surname><given-names>Ron</given-names></name>
+        <name><surname>Dubourg</surname><given-names>Vincent</given-names></name>
+        <name><surname>Vanderplas</surname><given-names>Jake</given-names></name>
+        <name><surname>Passos</surname><given-names>Alexandre</given-names></name>
+        <name><surname>Cournapeau</surname><given-names>David</given-names></name>
+        <name><surname>Brucher</surname><given-names>Matthieu</given-names></name>
+        <name><surname>Perrot</surname><given-names>Matthieu</given-names></name>
+        <name><surname>Duchesnay</surname><given-names>Édouard</given-names></name>
+      </person-group>
+      <article-title>Scikit-learn: Machine learning in Python</article-title>
+      <source>Journal of Machine Learning Research</source>
+      <year iso-8601-date="2011">2011</year>
+      <volume>12</volume>
+      <fpage>2825</fpage>
+      <lpage>2830</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-sklearn_persistence">
+    <element-citation>
+      <person-group person-group-type="author">
+        <string-name>scikit-learn developers</string-name>
+      </person-group>
+      <article-title>Model persistence</article-title>
+      <publisher-name>https://scikit-learn.org/stable/model_persistence.html</publisher-name>
+    </element-citation>
+  </ref>
+  <ref id="ref-kaggle2021">
+    <element-citation>
+      <person-group person-group-type="author">
+        <string-name>Kaggle</string-name>
+      </person-group>
+      <article-title>Kaggle’s state of machine learning and data science 2021</article-title>
+      <publisher-name>https://storage.googleapis.com/kaggle-media/surveys/Kaggle%27s%20State%20of%20Machine%20Learning%20and%20Data%20Science%202021.pdf</publisher-name>
+    </element-citation>
+  </ref>
+  <ref id="ref-fitzpatrick2024davos">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Fitzpatrick</surname><given-names>Paxton C.</given-names></name>
+        <name><surname>Manning</surname><given-names>Jeremy R.</given-names></name>
+      </person-group>
+      <article-title>Davos: A Python package “smuggler” for constructing lightweight reproducible notebooks</article-title>
+      <source>SoftwareX</source>
+      <year iso-8601-date="2024">2024</year>
+      <volume>25</volume>
+      <pub-id pub-id-type="doi">10.1016/j.softx.2023.101614</pub-id>
+      <fpage>101614</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-parida2025exportformats">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Parida</surname><given-names>Shreyas Kumar</given-names></name>
+        <name><surname>Gerostathopoulos</surname><given-names>Ilias</given-names></name>
+        <name><surname>Bogner</surname><given-names>Justus</given-names></name>
+      </person-group>
+      <article-title>How do model export formats impact the development of ML-enabled systems? A case study on model integration</article-title>
+      <year iso-8601-date="2025">2025</year>
+      <uri>https://arxiv.org/abs/2502.00429</uri>
+      <pub-id pub-id-type="doi">10.48550/arXiv.2502.00429</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-sklearn_issue10319">
+    <element-citation>
+      <person-group person-group-type="author">
+        <string-name>scikit-learn contributors</string-name>
+      </person-group>
+      <article-title>Model persistence across versions — scikit-learn issue #10319</article-title>
+      <publisher-name>https://github.com/scikit-learn/scikit-learn/issues/10319</publisher-name>
+      <year iso-8601-date="2018">2018</year>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
