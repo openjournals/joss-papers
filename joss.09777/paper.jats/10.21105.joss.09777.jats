@@ -1,0 +1,1014 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">9777</article-id>
+<article-id pub-id-type="doi">10.21105/joss.09777</article-id>
+<title-group>
+<article-title>ecodive: Parallel and Memory-Efficient R Package for
+Ecological Diversity Analysis</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author" corresp="yes">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0002-2479-2044</contrib-id>
+<name>
+<surname>Smith</surname>
+<given-names>Daniel P</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+<xref ref-type="aff" rid="aff-2"/>
+<xref ref-type="corresp" rid="cor-1"><sup>*</sup></xref>
+</contrib>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0009-0000-2698-6478</contrib-id>
+<name>
+<surname>Cregeen</surname>
+<given-names>Sara J Javornik</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+<xref ref-type="aff" rid="aff-2"/>
+</contrib>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0002-4046-6898</contrib-id>
+<name>
+<surname>Petrosino</surname>
+<given-names>Joseph F</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+<xref ref-type="aff" rid="aff-2"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>The Alkek Center for Metagenomics and Microbiome Research,
+Department of Molecular Virology and Microbiology, Baylor College of
+Medicine, Houston, TX 77030, USA</institution>
+</institution-wrap>
+</aff>
+<aff id="aff-2">
+<institution-wrap>
+<institution>Department of Molecular Virology and Microbiology, Baylor
+College of Medicine, Houston, TX, USA</institution>
+<institution-id institution-id-type="ROR">02pttbw34</institution-id>
+</institution-wrap>
+</aff>
+</contrib-group>
+<author-notes>
+<corresp id="cor-1">* E-mail: <email></email></corresp>
+</author-notes>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2026-01-29">
+<day>29</day>
+<month>1</month>
+<year>2026</year>
+</pub-date>
+<volume>11</volume>
+<issue>121</issue>
+<fpage>9777</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2026</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>R</kwd>
+<kwd>ecology</kwd>
+<kwd>bioinformatics</kwd>
+<kwd>microbiome</kwd>
+<kwd>diversity</kwd>
+<kwd>high-performance computing</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p>Modern ecology relies on quantifying the biological complexity of
+  communities across diverse scales, from microscopic human microbiomes
+  to vast forest ecosystems. Researchers use diversity metrics to
+  describe the variety within a site (alpha diversity) and the
+  compositional differences between sites (beta diversity).
+  <monospace>ecodive</monospace> is an R package built to compute these
+  metrics with high efficiency. It provides a comprehensive, unified
+  toolset that allows researchers to analyze large-scale datasets that
+  were previously computationally prohibitive. By integrating optimized
+  C-based algorithms with a parallel processing engine,
+  <monospace>ecodive</monospace> enables rapid, high-throughput
+  ecological analysis through a lightweight, portable framework.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of Need</title>
+  <p>A primary challenge in modern ecological analysis is the management
+  of high-dimensional data. As sequencing technologies improve, datasets
+  are growing to include thousands of samples and tens of thousands of
+  unique taxa. Beta diversity calculations, which involve comparing
+  every sample to every other sample, exhibit
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[O(n^2)]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>O</mml:mi><mml:mo stretchy="false" form="prefix">(</mml:mo><mml:msup><mml:mi>n</mml:mi><mml:mn>2</mml:mn></mml:msup><mml:mo stretchy="false" form="postfix">)</mml:mo></mml:mrow></mml:math></alternatives></inline-formula>
+  complexity. This quadratic scaling creates a significant bottleneck;
+  doubling a dataset’s size quadruples the processing time and memory
+  requirements, frequently exceeding the capacity of standard research
+  workstations.</p>
+  <p>Furthermore, the software landscape for ecological metrics is
+  fragmented. A researcher needing to calculate a specific set of
+  indices - for example, Faith’s Phylogenetic Diversity, Bray-Curtis
+  dissimilarity, and UniFrac distances - often must install and manage
+  multiple R packages (<monospace>picante</monospace>,
+  <monospace>vegan</monospace>, <monospace>GUniFrac</monospace>), each
+  with different dependencies, input formats, and performance
+  limitations.</p>
+  <p><monospace>ecodive</monospace> solves these problems by providing a
+  centralized, high-performance library. It targets ecologists,
+  microbiologists, and bioinformaticians who require a robust,
+  dependency-free solution for diversity analysis. By consolidating 50
+  standard metrics into a single, optimized framework, it eliminates the
+  need for “package hopping” and enables the analysis of massive
+  datasets on standard hardware.</p>
+</sec>
+<sec id="state-of-the-field">
+  <title>State of the Field</title>
+  <p>While several R packages support diversity analysis,
+  <monospace>ecodive</monospace> offers a unique scholarly contribution
+  by bridging the gap between specialized high-performance tools and
+  comprehensive ecological libraries. As shown in Table 1, the current
+  landscape is defined by three primary trade-offs: analytical breadth,
+  computational efficiency, and infrastructure overhead.</p>
+  <table-wrap>
+    <caption>
+      <p>Comparison of community diversity metrics and architectural
+      features across 16 R packages. Metrics were identified using a
+      large language model protocol on package reference manuals to
+      categorize metrics and filter for symmetry and ecological
+      relevance. Alpha: Number of alpha diversity metrics; Beta: Number
+      of beta diversity metrics; Uni: <inline-formula><alternatives>
+      <tex-math><![CDATA[\checkmark]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>✓</mml:mi></mml:math></alternatives></inline-formula>
+      indicates UniFrac support; Par: Parallelized calculation of
+      metrics; Cmp: Implementation uses compiled code (e.g. C/C++); Dep:
+      Transitive count of hard R dependencies. Full methodology and LLM
+      prompts are available in <monospace>ecodive</monospace>’s
+      benchmarking documentation.</p>
+    </caption>
+    <table>
+      <colgroup>
+        <col width="19%" />
+        <col width="7%" />
+        <col width="7%" />
+        <col width="7%" />
+        <col width="7%" />
+        <col width="7%" />
+        <col width="7%" />
+        <col width="41%" />
+      </colgroup>
+      <thead>
+        <tr>
+          <th align="left">R Package</th>
+          <th align="right">Alpha</th>
+          <th align="right">Beta</th>
+          <th align="right">Uni</th>
+          <th align="right">Par</th>
+          <th align="right">Cmp</th>
+          <th align="right">Dep</th>
+          <th align="left">Citation</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td align="left"><monospace>ecodive</monospace></td>
+          <td align="right">14</td>
+          <td align="right">36</td>
+          <td align="right"><inline-formula><alternatives>
+          <tex-math><![CDATA[\checkmark]]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>✓</mml:mi></mml:math></alternatives></inline-formula></td>
+          <td align="right"><inline-formula><alternatives>
+          <tex-math><![CDATA[\checkmark]]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>✓</mml:mi></mml:math></alternatives></inline-formula></td>
+          <td align="right"><inline-formula><alternatives>
+          <tex-math><![CDATA[\checkmark]]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>✓</mml:mi></mml:math></alternatives></inline-formula></td>
+          <td align="right">0</td>
+          <td align="left">This work</td>
+        </tr>
+        <tr>
+          <td align="left"><monospace>abdiv</monospace></td>
+          <td align="right">17</td>
+          <td align="right">48</td>
+          <td align="right"><inline-formula><alternatives>
+          <tex-math><![CDATA[\checkmark]]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>✓</mml:mi></mml:math></alternatives></inline-formula></td>
+          <td align="right"><inline-formula><alternatives>
+          <tex-math><![CDATA[-]]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>−</mml:mi></mml:math></alternatives></inline-formula></td>
+          <td align="right"><inline-formula><alternatives>
+          <tex-math><![CDATA[-]]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>−</mml:mi></mml:math></alternatives></inline-formula></td>
+          <td align="right">5</td>
+          <td align="left">Bittinger
+          (<xref alt="2020" rid="ref-abdiv" ref-type="bibr">2020</xref>)</td>
+        </tr>
+        <tr>
+          <td align="left"><monospace>adiv</monospace></td>
+          <td align="right">42</td>
+          <td align="right">58</td>
+          <td align="right"><inline-formula><alternatives>
+          <tex-math><![CDATA[-]]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>−</mml:mi></mml:math></alternatives></inline-formula></td>
+          <td align="right"><inline-formula><alternatives>
+          <tex-math><![CDATA[-]]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>−</mml:mi></mml:math></alternatives></inline-formula></td>
+          <td align="right"><inline-formula><alternatives>
+          <tex-math><![CDATA[-]]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>−</mml:mi></mml:math></alternatives></inline-formula></td>
+          <td align="right">97</td>
+          <td align="left">Pavoine
+          (<xref alt="2020" rid="ref-adiv" ref-type="bibr">2020</xref>)</td>
+        </tr>
+        <tr>
+          <td align="left"><monospace>ampvis2</monospace></td>
+          <td align="right">6</td>
+          <td align="right">25</td>
+          <td align="right"><inline-formula><alternatives>
+          <tex-math><![CDATA[\checkmark]]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>✓</mml:mi></mml:math></alternatives></inline-formula></td>
+          <td align="right"><inline-formula><alternatives>
+          <tex-math><![CDATA[-]]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>−</mml:mi></mml:math></alternatives></inline-formula></td>
+          <td align="right"><inline-formula><alternatives>
+          <tex-math><![CDATA[-]]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>−</mml:mi></mml:math></alternatives></inline-formula></td>
+          <td align="right">75</td>
+          <td align="left">Andersen et al.
+          (<xref alt="2018" rid="ref-ampvis2" ref-type="bibr">2018</xref>)</td>
+        </tr>
+        <tr>
+          <td align="left"><monospace>ecodist</monospace></td>
+          <td align="right">0</td>
+          <td align="right">9</td>
+          <td align="right"><inline-formula><alternatives>
+          <tex-math><![CDATA[-]]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>−</mml:mi></mml:math></alternatives></inline-formula></td>
+          <td align="right"><inline-formula><alternatives>
+          <tex-math><![CDATA[-]]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>−</mml:mi></mml:math></alternatives></inline-formula></td>
+          <td align="right"><inline-formula><alternatives>
+          <tex-math><![CDATA[\checkmark]]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>✓</mml:mi></mml:math></alternatives></inline-formula></td>
+          <td align="right">10</td>
+          <td align="left">Goslee &amp; Urban
+          (<xref alt="2007" rid="ref-ecodist" ref-type="bibr">2007</xref>)</td>
+        </tr>
+        <tr>
+          <td align="left"><monospace>entropart</monospace></td>
+          <td align="right">11</td>
+          <td align="right">9</td>
+          <td align="right"><inline-formula><alternatives>
+          <tex-math><![CDATA[-]]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>−</mml:mi></mml:math></alternatives></inline-formula></td>
+          <td align="right"><inline-formula><alternatives>
+          <tex-math><![CDATA[-]]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>−</mml:mi></mml:math></alternatives></inline-formula></td>
+          <td align="right"><inline-formula><alternatives>
+          <tex-math><![CDATA[-]]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>−</mml:mi></mml:math></alternatives></inline-formula></td>
+          <td align="right">82</td>
+          <td align="left">Marcon &amp; Herault
+          (<xref alt="2015" rid="ref-entropart" ref-type="bibr">2015</xref>)</td>
+        </tr>
+        <tr>
+          <td align="left"><monospace>GUniFrac</monospace></td>
+          <td align="right">0</td>
+          <td align="right">4</td>
+          <td align="right"><inline-formula><alternatives>
+          <tex-math><![CDATA[\checkmark]]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>✓</mml:mi></mml:math></alternatives></inline-formula></td>
+          <td align="right"><inline-formula><alternatives>
+          <tex-math><![CDATA[-]]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>−</mml:mi></mml:math></alternatives></inline-formula></td>
+          <td align="right"><inline-formula><alternatives>
+          <tex-math><![CDATA[\checkmark]]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>✓</mml:mi></mml:math></alternatives></inline-formula></td>
+          <td align="right">47</td>
+          <td align="left">Chen et al.
+          (<xref alt="2023" rid="ref-GUniFrac" ref-type="bibr">2023</xref>)</td>
+        </tr>
+        <tr>
+          <td align="left"><monospace>labdsv</monospace></td>
+          <td align="right">2</td>
+          <td align="right">7</td>
+          <td align="right"><inline-formula><alternatives>
+          <tex-math><![CDATA[-]]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>−</mml:mi></mml:math></alternatives></inline-formula></td>
+          <td align="right"><inline-formula><alternatives>
+          <tex-math><![CDATA[-]]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>−</mml:mi></mml:math></alternatives></inline-formula></td>
+          <td align="right"><inline-formula><alternatives>
+          <tex-math><![CDATA[\checkmark]]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>✓</mml:mi></mml:math></alternatives></inline-formula></td>
+          <td align="right">8</td>
+          <td align="left">Roberts
+          (<xref alt="2005" rid="ref-labdsv" ref-type="bibr">2005</xref>)</td>
+        </tr>
+        <tr>
+          <td align="left"><monospace>OmicFlow</monospace></td>
+          <td align="right">6</td>
+          <td align="right">9</td>
+          <td align="right"><inline-formula><alternatives>
+          <tex-math><![CDATA[\checkmark]]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>✓</mml:mi></mml:math></alternatives></inline-formula></td>
+          <td align="right"><inline-formula><alternatives>
+          <tex-math><![CDATA[\checkmark]]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>✓</mml:mi></mml:math></alternatives></inline-formula></td>
+          <td align="right"><inline-formula><alternatives>
+          <tex-math><![CDATA[\checkmark]]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>✓</mml:mi></mml:math></alternatives></inline-formula></td>
+          <td align="right">90</td>
+          <td align="left">Gusinac et al.
+          (<xref alt="2025" rid="ref-OmicFlow" ref-type="bibr">2025</xref>)</td>
+        </tr>
+        <tr>
+          <td align="left"><monospace>parallelDist</monospace></td>
+          <td align="right">0</td>
+          <td align="right">26</td>
+          <td align="right"><inline-formula><alternatives>
+          <tex-math><![CDATA[-]]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>−</mml:mi></mml:math></alternatives></inline-formula></td>
+          <td align="right"><inline-formula><alternatives>
+          <tex-math><![CDATA[\checkmark]]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>✓</mml:mi></mml:math></alternatives></inline-formula></td>
+          <td align="right"><inline-formula><alternatives>
+          <tex-math><![CDATA[\checkmark]]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>✓</mml:mi></mml:math></alternatives></inline-formula></td>
+          <td align="right">2</td>
+          <td align="left">Eckert
+          (<xref alt="2017" rid="ref-parallelDist" ref-type="bibr">2017</xref>)</td>
+        </tr>
+        <tr>
+          <td align="left"><monospace>philentropy</monospace></td>
+          <td align="right">1</td>
+          <td align="right">43</td>
+          <td align="right"><inline-formula><alternatives>
+          <tex-math><![CDATA[-]]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>−</mml:mi></mml:math></alternatives></inline-formula></td>
+          <td align="right"><inline-formula><alternatives>
+          <tex-math><![CDATA[\checkmark]]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>✓</mml:mi></mml:math></alternatives></inline-formula></td>
+          <td align="right"><inline-formula><alternatives>
+          <tex-math><![CDATA[\checkmark]]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>✓</mml:mi></mml:math></alternatives></inline-formula></td>
+          <td align="right">4</td>
+          <td align="left">Drost
+          (<xref alt="2018" rid="ref-philentropy" ref-type="bibr">2018</xref>)</td>
+        </tr>
+        <tr>
+          <td align="left"><monospace>phyloregion</monospace></td>
+          <td align="right">9</td>
+          <td align="right">10</td>
+          <td align="right"><inline-formula><alternatives>
+          <tex-math><![CDATA[\checkmark]]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>✓</mml:mi></mml:math></alternatives></inline-formula></td>
+          <td align="right"><inline-formula><alternatives>
+          <tex-math><![CDATA[-]]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>−</mml:mi></mml:math></alternatives></inline-formula></td>
+          <td align="right"><inline-formula><alternatives>
+          <tex-math><![CDATA[-]]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>−</mml:mi></mml:math></alternatives></inline-formula></td>
+          <td align="right">64</td>
+          <td align="left">Daru et al.
+          (<xref alt="2020" rid="ref-phyloregion" ref-type="bibr">2020</xref>)</td>
+        </tr>
+        <tr>
+          <td align="left"><monospace>phyloseq</monospace></td>
+          <td align="right">7</td>
+          <td align="right">43</td>
+          <td align="right"><inline-formula><alternatives>
+          <tex-math><![CDATA[\checkmark]]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>✓</mml:mi></mml:math></alternatives></inline-formula></td>
+          <td align="right"><inline-formula><alternatives>
+          <tex-math><![CDATA[\checkmark]]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>✓</mml:mi></mml:math></alternatives></inline-formula></td>
+          <td align="right"><inline-formula><alternatives>
+          <tex-math><![CDATA[-]]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>−</mml:mi></mml:math></alternatives></inline-formula></td>
+          <td align="right">54</td>
+          <td align="left">McMurdie &amp; Holmes
+          (<xref alt="2013" rid="ref-phyloseq" ref-type="bibr">2013</xref>)</td>
+        </tr>
+        <tr>
+          <td align="left"><monospace>picante</monospace></td>
+          <td align="right">14</td>
+          <td align="right">9</td>
+          <td align="right"><inline-formula><alternatives>
+          <tex-math><![CDATA[\checkmark]]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>✓</mml:mi></mml:math></alternatives></inline-formula></td>
+          <td align="right"><inline-formula><alternatives>
+          <tex-math><![CDATA[-]]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>−</mml:mi></mml:math></alternatives></inline-formula></td>
+          <td align="right"><inline-formula><alternatives>
+          <tex-math><![CDATA[-]]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>−</mml:mi></mml:math></alternatives></inline-formula></td>
+          <td align="right">11</td>
+          <td align="left">Kembel et al.
+          (<xref alt="2010" rid="ref-picante" ref-type="bibr">2010</xref>)</td>
+        </tr>
+        <tr>
+          <td align="left"><monospace>tabula</monospace></td>
+          <td align="right">16</td>
+          <td align="right">12</td>
+          <td align="right"><inline-formula><alternatives>
+          <tex-math><![CDATA[-]]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>−</mml:mi></mml:math></alternatives></inline-formula></td>
+          <td align="right"><inline-formula><alternatives>
+          <tex-math><![CDATA[-]]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>−</mml:mi></mml:math></alternatives></inline-formula></td>
+          <td align="right"><inline-formula><alternatives>
+          <tex-math><![CDATA[-]]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>−</mml:mi></mml:math></alternatives></inline-formula></td>
+          <td align="right">2</td>
+          <td align="left">Frerebeau
+          (<xref alt="2019" rid="ref-tabula" ref-type="bibr">2019</xref>)</td>
+        </tr>
+        <tr>
+          <td align="left"><monospace>vegan</monospace></td>
+          <td align="right">17</td>
+          <td align="right">52</td>
+          <td align="right"><inline-formula><alternatives>
+          <tex-math><![CDATA[-]]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>−</mml:mi></mml:math></alternatives></inline-formula></td>
+          <td align="right"><inline-formula><alternatives>
+          <tex-math><![CDATA[-]]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>−</mml:mi></mml:math></alternatives></inline-formula></td>
+          <td align="right"><inline-formula><alternatives>
+          <tex-math><![CDATA[\checkmark]]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>✓</mml:mi></mml:math></alternatives></inline-formula></td>
+          <td align="right">7</td>
+          <td align="left">Oksanen et al.
+          (<xref alt="2001" rid="ref-vegan" ref-type="bibr">2001</xref>)</td>
+        </tr>
+      </tbody>
+    </table>
+  </table-wrap>
+  <sec id="analytical-breadth-vs.-computational-scalability">
+    <title>1. Analytical Breadth vs. Computational Scalability</title>
+    <p>The ecological software landscape often requires researchers to
+    choose between a wide variety of metrics and the speed necessary for
+    high-dimensional community data. As shown in Table 1, packages like
+    <monospace>adiv</monospace> and <monospace>abdiv</monospace> offer
+    significant analytical breadth, providing 100 and 65 total metrics,
+    respectively. However, both lack parallelized execution (Par) and
+    compiled backend implementations (Cmp), which limits their utility
+    for large-scale datasets. <monospace>ecodive</monospace> overcomes
+    this limitation by providing a comprehensive suite of 50 metrics -
+    comparable in scope to the foundational <monospace>vegan</monospace>
+    package (69 metrics) - while utilizing a parallelized C engine to
+    ensure scalability.</p>
+  </sec>
+  <sec id="domain-specific-functionality-and-unifrac-support">
+    <title>2. Domain-Specific Functionality and UniFrac Support</title>
+    <p>General-purpose high-performance libraries often fail to address
+    specific ecological needs, such as phylogenetic awareness. For
+    instance, despite their high metric counts, neither
+    <monospace>vegan</monospace> (69 metrics),
+    <monospace>adiv</monospace> (100 metrics), nor
+    <monospace>philentropy</monospace> (44 metrics) provide UniFrac
+    support. While specialized tools like <monospace>picante</monospace>
+    and <monospace>GUniFrac</monospace> do include these indices, they
+    operate serially and carry significant dependency burdens.
+    <monospace>ecodive</monospace> is unique in combining extensive
+    general metrics with parallelized UniFrac support, functioning as a
+    unified tool for both phylogenetic and non-phylogenetic analyses
+    without sacrificing performance.</p>
+  </sec>
+  <sec id="infrastructure-stability-and-dependency-management">
+    <title>3. Infrastructure Stability and Dependency Management</title>
+    <p>A critical but often overlooked limitation in existing software
+    is the “transitive burden” of recursive dependencies. Table 1
+    reveals significant infrastructure overhead across the field:
+    <monospace>adiv</monospace> requires 97 hard dependencies,
+    <monospace>OmicFlow</monospace> requires 90, and
+    <monospace>phyloregion</monospace> requires 64. Such high counts
+    increase maintenance complexity and supply chain vulnerability for
+    research pipelines. <monospace>ecodive</monospace> addresses this by
+    delivering its full feature set - including parallelization and
+    compiled performance - with zero external R dependencies. This
+    zero-dependency architecture ensures high community readiness and
+    long-term stability for ecological research.</p>
+  </sec>
+  <sec id="the-ecodive-contribution">
+    <title>The <monospace>ecodive</monospace> Contribution</title>
+    <p><monospace>ecodive</monospace> offers a unique scholarly
+    contribution by bridging these gaps into a single framework. It
+    implements 50 symmetric metrics chosen specifically for their
+    relevance to ecological ordination. Built on a parallelized C
+    engine, the package matches or exceeds the performance of
+    specialized tools while ensuring that results remain numerically
+    identical to established packages. This performance is delivered
+    within a zero-dependency architecture, which minimizes maintenance
+    overhead and protects against the supply chain vulnerabilities
+    common in complex bioinformatic pipelines.</p>
+  </sec>
+</sec>
+<sec id="software-design">
+  <title>Software Design</title>
+  <p>The architecture of <monospace>ecodive</monospace> balances the
+  user-friendly conventions of R with the raw performance of C. A
+  critical design trade-off centered on data representation.</p>
+  <p>Most R users work with dense matrices where samples are rows and
+  features are columns. Standard R functions like
+  <monospace>dist()</monospace> expect this format. However, ecological
+  matrices are typically 90-99% zeros (sparse). Storing them as dense
+  matrices wastes gigabytes of RAM, and processing them row-by-row is
+  cache-inefficient for many distance algorithms.</p>
+  <p>To address this, <monospace>ecodive</monospace> maintains the
+  standard R interface (samples-as-rows) but fundamentally alters the
+  backend data structure:</p>
+  <list list-type="order">
+    <list-item>
+      <p><bold>Transparent Conversion:</bold> When a standard matrix is
+      passed to <monospace>ecodive</monospace>, it is internally
+      converted into a column-compressed sparse matrix
+      (<monospace>dgCMatrix</monospace>) with samples transposed to
+      columns. This incurs a one-time overhead but allows the C engine
+      to skip zeros entirely and access memory in a cache-friendly,
+      column-major pattern.</p>
+    </list-item>
+    <list-item>
+      <p><bold>Transformation Bypass:</bold> For extremely large
+      datasets where the overhead of this transformation is non-trivial,
+      users can manually provide data in the native
+      <monospace>dgCMatrix</monospace> format (samples as columns).
+      <monospace>ecodive</monospace> detects this optimized state and
+      bypasses the transformation step, operating directly on the
+      existing C pointers. This allows for “zero-copy” analysis of
+      massive datasets.</p>
+    </list-item>
+    <list-item>
+      <p><bold>Parallelization Strategy:</bold>
+      <monospace>ecodive</monospace> employs a direct implementation
+      using the standard POSIX threads (<monospace>pthreads</monospace>)
+      library, avoiding the memory duplication overhead of forking
+      processes found in R’s <monospace>parallel</monospace> package.
+      This design enables fine-grained, dynamic load balancing, ensuring
+      efficient execution even when calculating partial distance
+      matrices.</p>
+    </list-item>
+  </list>
+</sec>
+<sec id="research-impact-statement">
+  <title>Research Impact Statement</title>
+  <p><monospace>ecodive</monospace> has demonstrated immediate utility
+  in high-dimensional microbiome studies. The core C algorithms in
+  <monospace>ecodive</monospace> were originally developed for and
+  deployed in the <monospace>rbiom</monospace> package
+  (<xref alt="Smith, 2020" rid="ref-rbiom" ref-type="bibr">Smith,
+  2020</xref>). As part of <monospace>rbiom</monospace>, these optimized
+  metrics have already been utilized in diverse microbial ecology
+  studies, including research on preterm infant microbiomes
+  (<xref alt="Ahearn-Ford et al., 2025" rid="ref-AhearnFord2025" ref-type="bibr">Ahearn-Ford
+  et al., 2025</xref>), dietary interventions
+  (<xref alt="DiMattia et al., 2025" rid="ref-DiMattia2025" ref-type="bibr">DiMattia
+  et al., 2025</xref>), and relationship satisfaction
+  (<xref alt="Cheng et al., 2023" rid="ref-Cheng2023" ref-type="bibr">Cheng
+  et al., 2023</xref>). <monospace>ecodive</monospace> extracts these
+  proven, high-performance components into a standalone, lightweight
+  library to make them accessible to the broader R ecosystem without
+  <monospace>rbiom</monospace>’s specific visualization and data
+  structure dependencies.</p>
+  <p>To evaluate <monospace>ecodive</monospace> under realistic research
+  conditions, we conducted
+  <ext-link ext-link-type="uri" xlink:href="https://cmmr.github.io/ecodive/articles/benchmark.html">benchmarks</ext-link>
+  on a workstation with a 6-core Intel i5-9600K CPU and 64GB RAM running
+  Windows 11. While several packages leveraged all six cores, our
+  results demonstrate that algorithmic efficiency and sparse data
+  handling are as critical as raw multi-threading.</p>
+  <fig>
+    <caption><p><bold>Benchmarking results.</bold> Execution time
+    (x-axis) vs. peak memory usage (y-axis) for various diversity
+    metrics across 16 R packages. <monospace>ecodive</monospace>
+    (highlighted) consistently occupies the bottom-left quadrant,
+    indicating high speed and low memory footprint. Note the log scale
+    on both axes.</p></caption>
+    <graphic mimetype="image" mime-subtype="svg+xml" xlink:href="fig1.svg" />
+  </fig>
+  <p>As illustrated in Figure 1, <monospace>ecodive</monospace>
+  consistently occupies the bottom-left quadrant across all metrics,
+  indicating a simultaneous optimization of execution time and memory
+  footprint:</p>
+  <list list-type="bullet">
+    <list-item>
+      <p><bold>Performance:</bold> For the widely-used Unweighted
+      UniFrac metric (<inline-formula><alternatives>
+      <tex-math><![CDATA[N=50]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>N</mml:mi><mml:mo>=</mml:mo><mml:mn>50</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>
+      samples), <monospace>ecodive</monospace> completed calculations in
+      6.9ms, approximately 400x faster than
+      <monospace>picante</monospace> (2.6s) and 50x faster than
+      <monospace>phyloseq</monospace> (320ms).</p>
+    </list-item>
+    <list-item>
+      <p><bold>Scalability:</bold> When processing Bray-Curtis
+      dissimilarity for large datasets (<inline-formula><alternatives>
+      <tex-math><![CDATA[N=1006]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>N</mml:mi><mml:mo>=</mml:mo><mml:mn>1006</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>
+      samples), <monospace>ecodive</monospace> required only 19ms,
+      whereas <monospace>vegan</monospace> required 2.0s (~100x
+      faster).</p>
+    </list-item>
+    <list-item>
+      <p><bold>Memory Efficiency:</bold> The sparse architecture reduces
+      memory allocation from gigabytes to megabytes, enabling the
+      analysis of massive UniFrac matrices on standard laptops that
+      would otherwise require high-performance computing clusters.</p>
+    </list-item>
+  </list>
+  <p>By operationalizing these performance gains within a stable,
+  high-performance framework, <monospace>ecodive</monospace> bridges the
+  gap between specialized high-performance computing and everyday
+  ecological research workflows.</p>
+  <p>The package is available for installation via CRAN and Conda-Forge,
+  supported by comprehensive vignettes that guide users through metric
+  selection and performance tuning. This distribution model, combined
+  with a zero-dependency architecture, ensures high community readiness
+  and long-term stability for ecological software pipelines.</p>
+</sec>
+<sec id="example-usage">
+  <title>Example Usage</title>
+  <p><monospace>ecodive</monospace> is designed for ease of use and
+  integrates seamlessly with existing bioinformatics workflows, such as
+  those using <monospace>phyloseq</monospace> objects. For example,
+  calculating weighted UniFrac distances is straightforward:</p>
+  <code language="r script">data(esophagus, package = 'phyloseq')
+ecodive::weighted_unifrac(esophagus)
+#&gt;           B         C
+#&gt; C 0.1050480          
+#&gt; D 0.1401124 0.1422409</code>
+</sec>
+<sec id="ai-usage-disclosure">
+  <title>AI Usage Disclosure</title>
+  <p>Generative AI tools (Google Gemini) were used to assist in the
+  drafting and revision of this manuscript and the generation of
+  documentation. No AI tools were used to write the functional source
+  code (R or C) of the software. All AI-generated text was critically
+  reviewed, verified for accuracy, and edited by the authors.</p>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>This study was supported by NIH/NIAD (Grant number U19 AI144297),
+  and Baylor College of Medicine and Alkek Foundation Seed.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <title></title>
+  <ref id="ref-abdiv">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Bittinger</surname><given-names>Kyle</given-names></name>
+      </person-group>
+      <article-title>Abdiv: Alpha and beta diversity measures</article-title>
+      <source>CRAN: Contributed Packages</source>
+      <publisher-name>The R Foundation</publisher-name>
+      <year iso-8601-date="2020">2020</year>
+      <pub-id pub-id-type="doi">10.32614/cran.package.abdiv</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-adiv">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Pavoine</surname><given-names>Sandrine</given-names></name>
+      </person-group>
+      <article-title>Adiv: An r package to analyse biodiversity in ecology</article-title>
+      <source>Methods in Ecology and Evolution</source>
+      <year iso-8601-date="2020">2020</year>
+      <volume>11</volume>
+      <pub-id pub-id-type="doi">10.1111/2041-210X.13430</pub-id>
+      <fpage>1106</fpage>
+      <lpage>1112</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-ampvis2">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Andersen</surname><given-names>Kasper S.</given-names></name>
+        <name><surname>Kirkegaard</surname><given-names>Rasmus H.</given-names></name>
+        <name><surname>Karst</surname><given-names>Søren M.</given-names></name>
+        <name><surname>Albertsen</surname><given-names>Mads</given-names></name>
+      </person-group>
+      <article-title>ampvis2: An r package to analyse and visualise 16S rRNA amplicon data</article-title>
+      <publisher-name>openRxiv</publisher-name>
+      <year iso-8601-date="2018">2018</year>
+      <pub-id pub-id-type="doi">10.1101/299537</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-ecodist">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Goslee</surname><given-names>Sarah C.</given-names></name>
+        <name><surname>Urban</surname><given-names>Dean L.</given-names></name>
+      </person-group>
+      <article-title>The ecodist package for dissimilarity-based analysis of ecological data</article-title>
+      <source>Journal of Statistical Software</source>
+      <year iso-8601-date="2007">2007</year>
+      <volume>22</volume>
+      <pub-id pub-id-type="doi">10.18637/jss.v022.i07</pub-id>
+      <fpage>1</fpage>
+      <lpage>19</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-entropart">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Marcon</surname><given-names>Eric</given-names></name>
+        <name><surname>Herault</surname><given-names>Bruno</given-names></name>
+      </person-group>
+      <article-title>Entropart: An r package to measure and partition diversity</article-title>
+      <source>Journal of Statistical Software</source>
+      <year iso-8601-date="2015">2015</year>
+      <volume>67</volume>
+      <issue>8</issue>
+      <pub-id pub-id-type="doi">10.18637/jss.v067.i08</pub-id>
+      <fpage>1</fpage>
+      <lpage>26</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-GUniFrac">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Chen</surname><given-names>Jun</given-names></name>
+        <name><surname>Zhang</surname><given-names>Xianyang</given-names></name>
+        <name><surname>Yang</surname><given-names>Lu</given-names></name>
+        <name><surname>Zhang</surname><given-names>Lujun</given-names></name>
+      </person-group>
+      <article-title>GUniFrac: Generalized UniFrac distances, distance-based multivariate methods and feature-based univariate methods for microbiome data analysis</article-title>
+      <source>CRAN: Contributed Packages</source>
+      <publisher-name>The R Foundation</publisher-name>
+      <year iso-8601-date="2023">2023</year>
+      <pub-id pub-id-type="doi">10.32614/CRAN.package.GUniFrac</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-labdsv">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Roberts</surname><given-names>David W.</given-names></name>
+      </person-group>
+      <article-title>Labdsv: Ordination and multivariate analysis for ecology</article-title>
+      <source>CRAN: Contributed Packages</source>
+      <publisher-name>The R Foundation</publisher-name>
+      <year iso-8601-date="2005">2005</year>
+      <pub-id pub-id-type="doi">10.32614/cran.package.labdsv</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-OmicFlow">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Gusinac</surname><given-names>Alem</given-names></name>
+        <name><surname>Ederveen</surname><given-names>Thomas</given-names></name>
+        <name><surname>Boleij</surname><given-names>Annemarie</given-names></name>
+      </person-group>
+      <article-title>OmicFlow: Fast and efficient (automated) analysis of sparse omics data</article-title>
+      <source>CRAN: Contributed Packages</source>
+      <publisher-name>The R Foundation</publisher-name>
+      <year iso-8601-date="2025">2025</year>
+      <pub-id pub-id-type="doi">10.32614/cran.package.omicflow</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-parallelDist">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Eckert</surname><given-names>Alexander</given-names></name>
+      </person-group>
+      <article-title>parallelDist: Parallel distance matrix computation using multiple threads</article-title>
+      <source>CRAN: Contributed Packages</source>
+      <publisher-name>The R Foundation</publisher-name>
+      <year iso-8601-date="2017">2017</year>
+      <pub-id pub-id-type="doi">10.32614/cran.package.paralleldist</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-philentropy">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Drost</surname><given-names>Hajk-Georg</given-names></name>
+      </person-group>
+      <article-title>Philentropy: Information theory and distance quantification with r</article-title>
+      <source>Journal of Open Source Software</source>
+      <year iso-8601-date="2018">2018</year>
+      <volume>3</volume>
+      <issue>26</issue>
+      <pub-id pub-id-type="doi">10.21105/joss.00765</pub-id>
+      <fpage>765</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-phyloregion">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Daru</surname><given-names>Barnabas H.</given-names></name>
+        <name><surname>Karunarathne</surname><given-names>Piyal</given-names></name>
+        <name><surname>Schliep</surname><given-names>Klaus</given-names></name>
+      </person-group>
+      <article-title>Phyloregion: R package for biogeographical regionalization and macroecology</article-title>
+      <source>Methods in Ecology and Evolution</source>
+      <year iso-8601-date="2020">2020</year>
+      <volume>11</volume>
+      <issue>11</issue>
+      <pub-id pub-id-type="doi">10.1111/2041-210x.13478</pub-id>
+      <fpage>1483</fpage>
+      <lpage>1491</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-phyloseq">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>McMurdie</surname><given-names>Paul J.</given-names></name>
+        <name><surname>Holmes</surname><given-names>Susan</given-names></name>
+      </person-group>
+      <article-title>Phyloseq: An r package for reproducible interactive analysis and graphics of microbiome census data</article-title>
+      <source>PloS one</source>
+      <year iso-8601-date="2013">2013</year>
+      <volume>8</volume>
+      <issue>4</issue>
+      <pub-id pub-id-type="doi">10.1371/journal.pone.0061217</pub-id>
+      <fpage>e61217</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-picante">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Kembel</surname><given-names>S. W.</given-names></name>
+        <name><surname>Cowan</surname><given-names>P. D.</given-names></name>
+        <name><surname>Helmus</surname><given-names>M. R.</given-names></name>
+        <name><surname>Cornwell</surname><given-names>W. K.</given-names></name>
+        <name><surname>Morlon</surname><given-names>H.</given-names></name>
+        <name><surname>Ackerly</surname><given-names>D. D.</given-names></name>
+        <name><surname>Blomberg</surname><given-names>S. P.</given-names></name>
+        <name><surname>Webb</surname><given-names>C. O.</given-names></name>
+      </person-group>
+      <article-title>Picante: R tools for integrating phylogenies and ecology</article-title>
+      <source>Bioinformatics</source>
+      <year iso-8601-date="2010">2010</year>
+      <volume>26</volume>
+      <pub-id pub-id-type="doi">10.1093/bioinformatics/btq166</pub-id>
+      <fpage>1463</fpage>
+      <lpage>1464</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-rbiom">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Smith</surname><given-names>Daniel P.</given-names></name>
+      </person-group>
+      <article-title>Rbiom: Read/write, analyze, and visualize “BIOM” data</article-title>
+      <source>CRAN: Contributed Packages</source>
+      <publisher-name>The R Foundation</publisher-name>
+      <year iso-8601-date="2020">2020</year>
+      <uri>https://CRAN.R-project.org/package=rbiom</uri>
+      <pub-id pub-id-type="doi">10.32614/cran.package.rbiom</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-tabula">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Frerebeau</surname><given-names>Nicolas</given-names></name>
+      </person-group>
+      <article-title>Tabula: An r package for analysis, seriation, and visualization of archaeological count data</article-title>
+      <source>Journal of Open Source Software</source>
+      <year iso-8601-date="2019">2019</year>
+      <volume>4</volume>
+      <issue>44</issue>
+      <pub-id pub-id-type="doi">10.21105/joss.01821</pub-id>
+      <fpage>1821</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-vegan">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Oksanen</surname><given-names>Jari</given-names></name>
+        <name><surname>Simpson</surname><given-names>Gavin L.</given-names></name>
+        <name><surname>Blanchet</surname><given-names>F. Guillaume</given-names></name>
+        <name><surname>Kindt</surname><given-names>Roeland</given-names></name>
+        <name><surname>Legendre</surname><given-names>Pierre</given-names></name>
+        <name><surname>Minchin</surname><given-names>Peter R.</given-names></name>
+        <name><surname>O’Hara</surname><given-names>R. B.</given-names></name>
+        <name><surname>Solymos</surname><given-names>Peter</given-names></name>
+        <name><surname>Stevens</surname><given-names>M. Henry H.</given-names></name>
+        <name><surname>Szoecs</surname><given-names>Eduard</given-names></name>
+        <name><surname>Wagner</surname><given-names>Helene</given-names></name>
+        <name><surname>Barbour</surname><given-names>Matt</given-names></name>
+        <name><surname>Bedward</surname><given-names>Michael</given-names></name>
+        <name><surname>Bolker</surname><given-names>Ben</given-names></name>
+        <name><surname>Borcard</surname><given-names>Daniel</given-names></name>
+        <name><surname>Carvalho</surname><given-names>Gustavo</given-names></name>
+        <name><surname>Chirico</surname><given-names>Michael</given-names></name>
+        <name><surname>De Caceres</surname><given-names>Miquel</given-names></name>
+        <name><surname>Durand</surname><given-names>Sebastien</given-names></name>
+        <name><surname>Evangelista</surname><given-names>Heloisa Beatriz Antoniazi</given-names></name>
+        <name><surname>FitzJohn</surname><given-names>Rich</given-names></name>
+        <name><surname>Friendly</surname><given-names>Michael</given-names></name>
+        <name><surname>Furneaux</surname><given-names>Brendan</given-names></name>
+        <name><surname>Hannigan</surname><given-names>Geoffrey</given-names></name>
+        <name><surname>Hill</surname><given-names>Mark O.</given-names></name>
+        <name><surname>Lahti</surname><given-names>Leo</given-names></name>
+        <name><surname>McGlinn</surname><given-names>Dan</given-names></name>
+        <name><surname>Ouellette</surname><given-names>Marie-Helene</given-names></name>
+        <name><surname>Ribeiro Cunha</surname><given-names>Eduardo</given-names></name>
+        <name><surname>Smith</surname><given-names>Tyler</given-names></name>
+        <name><surname>Stier</surname><given-names>Adrian</given-names></name>
+        <name><surname>Ter Braak</surname><given-names>Cajo J. F.</given-names></name>
+        <name><surname>Weedon</surname><given-names>James</given-names></name>
+        <name><surname>Borman</surname><given-names>Tuomas</given-names></name>
+      </person-group>
+      <article-title>Vegan: Community ecology package</article-title>
+      <source>CRAN: Contributed Packages</source>
+      <publisher-name>The R Foundation</publisher-name>
+      <year iso-8601-date="2001">2001</year>
+      <uri>https://CRAN.R-project.org/package=vegan</uri>
+      <pub-id pub-id-type="doi">10.32614/CRAN.package.vegan</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-Cheng2023">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Cheng</surname><given-names>Qiwen</given-names></name>
+        <name><surname>Krajmalnik-Brown</surname><given-names>Rosa</given-names></name>
+        <name><surname>DiBaise</surname><given-names>John K.</given-names></name>
+        <name><surname>Maldonado</surname><given-names>Juan</given-names></name>
+        <name><surname>Guest</surname><given-names>M. Aaron</given-names></name>
+        <name><surname>Todd</surname><given-names>Michael</given-names></name>
+        <name><surname>Langer</surname><given-names>Shelby L.</given-names></name>
+      </person-group>
+      <article-title>Relationship functioning and gut microbiota composition among older adult couples</article-title>
+      <source>International Journal of Environmental Research and Public Health</source>
+      <year iso-8601-date="2023">2023</year>
+      <volume>20</volume>
+      <issue>8</issue>
+      <pub-id pub-id-type="doi">10.3390/ijerph20085435</pub-id>
+      <fpage>5435</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-DiMattia2025">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>DiMattia</surname><given-names>Zachary S.</given-names></name>
+        <name><surname>Zhao</surname><given-names>Jingcheng</given-names></name>
+        <name><surname>Hao</surname><given-names>Fuhua</given-names></name>
+        <name><surname>Koshkin</surname><given-names>Sergei</given-names></name>
+        <name><surname>Bisanz</surname><given-names>Jordan E.</given-names></name>
+        <name><surname>Patterson</surname><given-names>Andrew D.</given-names></name>
+        <name><surname>Fleming</surname><given-names>Jennifer A.</given-names></name>
+        <name><surname>Kris‐Etherton</surname><given-names>Penny M.</given-names></name>
+        <name><surname>Petersen</surname><given-names>Kristina S.</given-names></name>
+      </person-group>
+      <article-title>Effect of varying quantities of lean beef as part of a mediterranean‐style dietary pattern on gut microbiota and plasma, fecal, and urinary metabolites: A randomized crossover controlled feeding trial</article-title>
+      <source>Journal of the American Heart Association</source>
+      <year iso-8601-date="2025">2025</year>
+      <volume>14</volume>
+      <issue>19</issue>
+      <pub-id pub-id-type="doi">10.1161/jaha.125.041063</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-AhearnFord2025">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Ahearn-Ford</surname><given-names>Sinéad</given-names></name>
+        <name><surname>Kakaroukas</surname><given-names>Andreas</given-names></name>
+        <name><surname>Young</surname><given-names>Gregory R.</given-names></name>
+        <name><surname>Nelson</surname><given-names>Andrew</given-names></name>
+        <name><surname>Abrahamse-Berkeveld</surname><given-names>Marieke</given-names></name>
+        <name><surname>Elburg</surname><given-names>Ruurd M. van</given-names></name>
+        <name><surname>Smith</surname><given-names>Darren</given-names></name>
+        <name><surname>Berrington</surname><given-names>Janet E.</given-names></name>
+        <name><surname>Embleton</surname><given-names>Nicholas D.</given-names></name>
+        <name><surname>Stewart</surname><given-names>Christopher J.</given-names></name>
+      </person-group>
+      <article-title>Spatiotemporal development of late and moderate preterm infant gut and oral microbiomes and impact of gestational age on early colonization</article-title>
+      <source>mSystems</source>
+      <year iso-8601-date="2025">2025</year>
+      <volume>10</volume>
+      <issue>12</issue>
+      <pub-id pub-id-type="doi">10.1128/msystems.00667-25</pub-id>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
