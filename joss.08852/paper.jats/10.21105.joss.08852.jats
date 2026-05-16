@@ -1,0 +1,480 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">8852</article-id>
+<article-id pub-id-type="doi">10.21105/joss.08852</article-id>
+<title-group>
+<article-title>jaxDecomp: JAX Library for 3D Domain Decomposition and
+Parallel FFTs</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0009-0001-6501-4564</contrib-id>
+<name>
+<surname>Kabalan</surname>
+<given-names>Wassim</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0001-7956-0542</contrib-id>
+<name>
+<surname>Lanusse</surname>
+<given-names>François</given-names>
+</name>
+<xref ref-type="aff" rid="aff-2"/>
+<xref ref-type="aff" rid="aff-3"/>
+</contrib>
+<contrib contrib-type="author">
+<name>
+<surname>Boucaud</surname>
+<given-names>Alexandre</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<contrib contrib-type="author">
+<name>
+<surname>Aubourg</surname>
+<given-names>Eric</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Université Paris Cité, CNRS, Astroparticule et Cosmologie,
+F-75013 Paris, France</institution>
+</institution-wrap>
+</aff>
+<aff id="aff-2">
+<institution-wrap>
+<institution>Université Paris-Saclay, Université Paris Cité, CEA, CNRS,
+AIM, 91191, Gif-sur-Yvette, France</institution>
+</institution-wrap>
+</aff>
+<aff id="aff-3">
+<institution-wrap>
+<institution>Flatiron Institute, Center for Computational Astrophysics,
+162 5th Avenue, New York, NY 10010, USA</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2024-06-26">
+<day>26</day>
+<month>6</month>
+<year>2024</year>
+</pub-date>
+<volume>11</volume>
+<issue>121</issue>
+<fpage>8852</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2026</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>Jax</kwd>
+<kwd>CUDA</kwd>
+<kwd>Python</kwd>
+<kwd>HPC</kwd>
+<kwd>FFT</kwd>
+<kwd>Simulations</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p><monospace>JAX</monospace>
+  (<xref alt="Bradbury et al., 2018" rid="ref-JAX" ref-type="bibr">Bradbury
+  et al., 2018</xref>) has become a popular framework for machine
+  learning and scientific computing, offering high performance,
+  composability, and distributed computing. However, its use as a full
+  HPC framework has been limited by partial native support for key
+  distributed operations. Libraries like <monospace>MPI4JAX</monospace>
+  (<xref alt="Häfner &amp; Vicentini, 2021" rid="ref-mpi4jax" ref-type="bibr">Häfner
+  &amp; Vicentini, 2021</xref>) enable large-scale parallelism but face
+  limitations, notably buffer size constraints and incompatibility with
+  native JAX distribution, making it hard to use with the JAX
+  ecosystem.</p>
+  <p>The introduction of JAX’s unified array API and tools like
+  <monospace>pjit</monospace> and
+  <monospace>custom_partitioning</monospace> has made SPMD-style
+  programming more accessible. However, many HPC workflows require
+  specialized operations such as optimized distributed Fast Fourier
+  Transforms (FFTs) or halo exchange operations.</p>
+  <p>To fill this gap, we present <monospace>jaxDecomp</monospace>, a
+  fully differentiable JAX library for distributed 3D FFTs and halo
+  exchanges. It wraps NVIDIA’s <monospace>cuDecomp</monospace> library
+  (<xref alt="Romero et al., 2022" rid="ref-cuDecomp" ref-type="bibr">Romero
+  et al., 2022</xref>), exposing its functionality as JAX primitives
+  while maintaining compatibility with JAX transformations like
+  <monospace>jit</monospace> and <monospace>grad</monospace>. Beyond
+  basic distributed FFTs, <monospace>jaxDecomp</monospace> provides halo
+  exchange operations and automatic optimization of communication
+  backends (NCCL, MPI, NVSHMEM) based on the target hardware. Benchmarks
+  show competitive performance with native JAX while adding HPC-specific
+  features.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of Need</title>
+  <p>For numerical simulations on HPC systems, a distributed,
+  easy-to-use, and differentiable FFT is essential for achieving peak
+  performance and scalability. While JAX now provides native distributed
+  FFT support, this was introduced only very recently and lacks the
+  specialized HPC features required by many applications. There is a
+  pressing need for a solution that provides not only distributed FFTs
+  but also halo exchanges, optimized communication backends, and
+  seamless integration with existing cluster infrastructure.</p>
+  <p>In scientific applications such as cosmological particle mesh (PM)
+  simulations, specialized frameworks like <monospace>FlowPM</monospace>
+  (<xref alt="Modi et al., 2020" rid="ref-FlowPM" ref-type="bibr">Modi
+  et al., 2020</xref>) built on <monospace>mesh-TensorFlow</monospace>
+  (<xref alt="Shazeer et al., 2018" rid="ref-TF-MESH" ref-type="bibr">Shazeer
+  et al., 2018</xref>) or JAX-based codes like
+  <monospace>pmwd</monospace>
+  (<xref alt="Li et al., 2022" rid="ref-pmwd" ref-type="bibr">Li et al.,
+  2022</xref>) often struggle to scale beyond single-node memory limits
+  or rely on manual distribution strategies. These challenges highlight
+  the need for a scalable, high-performance approach to distributed FFTs
+  that remains differentiable for advanced algorithms (like Hamiltonian
+  Monte Carlo
+  (<xref alt="Brooks et al., 2011" rid="ref-HMC" ref-type="bibr">Brooks
+  et al., 2011</xref>) or the No-U-Turn Sampler (NUTS)
+  (<xref alt="Hoffman &amp; Gelman, 2011" rid="ref-NUTS" ref-type="bibr">Hoffman
+  &amp; Gelman, 2011</xref>)).</p>
+</sec>
+<sec id="implementation">
+  <title>Implementation</title>
+  <sec id="distributed-fft-algorithm">
+    <title>Distributed FFT Algorithm</title>
+    <p><monospace>jaxDecomp</monospace> performs 3D FFTs by applying 1D
+    FFTs along the Z, Y, and X axes, with global transpositions between
+    steps to ensure each axis is locally accessible. This enables fully
+    local computation while distributing the workload across
+    devices.</p>
+    <p>The table below summarizes the FFT-transpose sequence:</p>
+    <table-wrap>
+      <table>
+        <colgroup>
+          <col width="24%" />
+          <col width="76%" />
+        </colgroup>
+        <thead>
+          <tr>
+            <th>Steps</th>
+            <th>Operation Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>FFT along Z</td>
+            <td>Batched 1D FFT along the Z-axis.</td>
+          </tr>
+          <tr>
+            <td>Transpose Z to Y</td>
+            <td>Transpose to <inline-formula><alternatives>
+            <tex-math><![CDATA[Z \times X \times Y]]></tex-math>
+            <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>Z</mml:mi><mml:mo>×</mml:mo><mml:mi>X</mml:mi><mml:mo>×</mml:mo><mml:mi>Y</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>.
+            Partition the Y-axis</td>
+          </tr>
+          <tr>
+            <td>FFT along Y</td>
+            <td>Batched 1D FFT along the Y-axis.</td>
+          </tr>
+          <tr>
+            <td>Transpose Y to X</td>
+            <td>Transpose to <inline-formula><alternatives>
+            <tex-math><![CDATA[Y \times Z \times X]]></tex-math>
+            <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>Y</mml:mi><mml:mo>×</mml:mo><mml:mi>Z</mml:mi><mml:mo>×</mml:mo><mml:mi>X</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>.
+            Partition the X-axis</td>
+          </tr>
+          <tr>
+            <td>FFT along X</td>
+            <td>Batched 1D FFT along the X-axis.</td>
+          </tr>
+        </tbody>
+      </table>
+    </table-wrap>
+    <p><monospace>jaxDecomp</monospace> uses pencil and slab
+    decomposition schemes to distribute 3D data across GPUs. Each FFT
+    step is followed by a transposition that reshapes and rebalances the
+    array to align the next axis for local computation. More technical
+    details, including decomposition strategies and axis layouts, are
+    available in the
+    <ext-link ext-link-type="uri" xlink:href="https://jaxdecomp.readthedocs.io/en/latest/02-decomposition.html">documentation</ext-link>.</p>
+  </sec>
+  <sec id="distributed-halo-exchange">
+    <title>Distributed Halo Exchange</title>
+    <p><monospace>jaxDecomp</monospace> includes efficient halo exchange
+    operations required in stencil computations and PDE solvers. It
+    supports multiple backends—<monospace>NCCL</monospace>,
+    <monospace>MPI</monospace>, and <monospace>NVSHMEM</monospace>—to
+    adapt to different cluster architectures and communication patterns.
+    Details and visuals of the halo exchange logic are available in the
+    <ext-link ext-link-type="uri" xlink:href="https://jaxdecomp.readthedocs.io/en/latest/04-halo_exchange.html">documentation</ext-link>.</p>
+    <fig>
+      <caption><p>Visualization of the distributed halo exchange process
+      in <monospace>jaxDecomp</monospace></p></caption>
+      <graphic mimetype="image" mime-subtype="svg+xml" xlink:href="halo-exchange.svg" />
+    </fig>
+  </sec>
+</sec>
+<sec id="benchmarks">
+  <title>Benchmarks</title>
+  <p>Benchmarks were run on the Jean Zay supercomputer using NVIDIA H100
+  GPUs to evaluate the scaling behavior of distributed 3D FFTs across 2
+  to 256 GPUs, comparing single-precision (float32) and double-precision
+  (float64) performance.</p>
+  <p>For strong scaling, a fixed global grid (512³, 1024³, 2048³, or
+  4096³) is distributed across an increasing number of GPUs. For weak
+  scaling, a fixed local volume of 1,048,576 elements per GPU is
+  maintained as the GPU count grows. Both experiments test multiple
+  pencil and slab decomposition strategies, reporting the fastest
+  configuration at each GPU count.</p>
+  <fig>
+    <caption><p>Strong scaling of distributed 3D FFTs on the Jean Zay
+    supercomputer (H100 GPUs). Each subplot shows a fixed global grid
+    size with execution time decreasing as GPUs
+    increase.<styled-content id="figU003Astrong_scaling"></styled-content></p></caption>
+    <graphic mimetype="image" mime-subtype="png" xlink:href="strong_scaling.png" />
+  </fig>
+  <fig>
+    <caption><p>Weak scaling with a fixed local volume of 1,048,576
+    elements per GPU. Execution time remains nearly flat as GPU count
+    increases from 2 to 256, demonstrating high parallel
+    efficiency.<styled-content id="figU003Aweak_scaling"></styled-content></p></caption>
+    <graphic mimetype="image" mime-subtype="png" xlink:href="weak_scaling.png" />
+  </fig>
+</sec>
+<sec id="stability-and-releases">
+  <title>Stability and releases</title>
+  <p>We aim for 100% test coverage across all core functionalities: FFT,
+  halo exchange, and transposition. The code has been tested on the Jean
+  Zay supercomputer, with simulations distributed on 64 GPUs. The
+  package is available on PyPI and can be installed via
+  <monospace>pip install jaxDecomp</monospace>.</p>
+  <sec id="contributing-and-community">
+    <title>Contributing and Community</title>
+    <p>Contributions are welcome. The project follows clear guidelines
+    and uses <monospace>yapf</monospace> and
+    <monospace>pre-commit</monospace> for formatting. A full guide is
+    available in the
+    <ext-link ext-link-type="uri" xlink:href="https://github.com/DifferentiableUniverseInitiative/jaxDecomp/blob/main/CONTRIBUTING.md">repository’s
+    <monospace>CONTRIBUTING.md</monospace></ext-link>. Users and
+    developers are invited to participate by opening issues, submitting
+    pull requests, or joining discussions via GitHub.</p>
+  </sec>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>This work was granted access to the HPC resources of IDRIS under
+  the allocation 2024-AD011014949 made by GENCI. The computations in
+  this work were, in part, run at facilities supported by the Scientific
+  Computing Core at the Flatiron Institute, a division of the Simons
+  Foundation.</p>
+  <p>We also acknowledge the SCIPOL scipol.in2p3.fr funded by the
+  European Research Council (ERC) under the European Union’s Horizon
+  2020 research and innovation program (PI: Josquin Errard, Grant
+  agreement No. 101044073).</p>
+  <sec id="appendix">
+    <title>Appendix</title>
+    <sec id="particle-mesh-example-pm-forces">
+      <title>Particle-Mesh Example (PM Forces)</title>
+      <p>The following example computes gravitational forces using a
+      Particle-Mesh (PM) scheme in a JAX-based setup, running on
+      multiple GPUs with <monospace>jaxDecomp</monospace>.while
+      remaining fully differentiable.</p>
+      <code language="python">import jax.numpy as jnp
+import jaxdecomp
+
+def pm_forces(density):
+    # `density` is a 3D distributed array of shape (Nx, Ny, Nz) is defined over the simulation mesh distributed across (y, z) axes
+    delta_k = jaxdecomp.fft.pfft3d(density)
+    ky, kz, kx = jaxdecomp.fft.fftfreq3d(delta_k)
+    kk = kx**2 + ky**2 + kz**2
+    laplace_kernel = jnp.where(kk == 0, 1.0, -1.0 / kk)
+    pot_k = delta_k * laplace_kernel
+    forces = [-jaxdecomp.fft.pifft3d(1j * k * pot_k) for k in [kx, ky, kz]]
+    return jnp.stack(forces, axis=-1)</code>
+      <p>A more detailed example of an LPT simulation can be found in
+      the
+      <ext-link ext-link-type="uri" xlink:href="https://github.com/DifferentiableUniverseInitiative/jaxDecomp/blob/main/examples/lpt_nbody_demo.py">jaxdecomp_lpt
+      example</ext-link>.</p>
+      <fig>
+        <caption><p>Visualization of an LPT density field at z=0 for a
+        2048³ grid generated using
+        <monospace>jaxDecomp</monospace>.</p></caption>
+        <graphic mimetype="image" mime-subtype="png" xlink:href="LPT_density_field_z0_2048.png" />
+      </fig>
+      <p>I refer the reader to the full API description in the
+      <ext-link ext-link-type="uri" xlink:href="https://jaxdecomp.readthedocs.io/en/latest/01-basic_usage.html">jaxDecomp
+      documentation</ext-link>.</p>
+    </sec>
+  </sec>
+</sec>
+</body>
+<back>
+<ref-list>
+  <title></title>
+  <ref id="ref-cuDecomp">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Romero</surname><given-names>Joshua</given-names></name>
+        <name><surname>Costa</surname><given-names>Pedro</given-names></name>
+        <name><surname>Fatica</surname><given-names>Massimiliano</given-names></name>
+      </person-group>
+      <article-title>Distributed-memory simulations of turbulent flows on modern GPU systems using an adaptive pencil decomposition library</article-title>
+      <source>Proceedings of the platform for advanced scientific computing conference</source>
+      <publisher-name>Association for Computing Machinery</publisher-name>
+      <publisher-loc>New York, NY, USA</publisher-loc>
+      <year iso-8601-date="2022">2022</year>
+      <isbn>9781450394109</isbn>
+      <uri>https://doi.org/10.1145/3539781.3539797</uri>
+      <pub-id pub-id-type="doi">10.1145/3539781.3539797</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-pmwd">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Li</surname><given-names>Yin</given-names></name>
+        <name><surname>Lu</surname><given-names>Libin</given-names></name>
+        <name><surname>Modi</surname><given-names>Chirag</given-names></name>
+        <name><surname>Jamieson</surname><given-names>Drew</given-names></name>
+        <name><surname>Zhang</surname><given-names>Yucheng</given-names></name>
+        <name><surname>Feng</surname><given-names>Yu</given-names></name>
+        <name><surname>Zhou</surname><given-names>Wenda</given-names></name>
+        <name><surname>Kwan</surname><given-names>Ngai Pok</given-names></name>
+        <name><surname>Lanusse</surname><given-names>François</given-names></name>
+        <name><surname>Greengard</surname><given-names>Leslie</given-names></name>
+      </person-group>
+      <article-title>pmwd: A differentiable cosmological particle-mesh N-body library</article-title>
+      <year iso-8601-date="2022">2022</year>
+      <uri>https://arxiv.org/abs/2211.09958</uri>
+      <pub-id pub-id-type="doi">10.48550/arXiv.2211.09958</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-JAX">
+    <element-citation publication-type="software">
+      <person-group person-group-type="author">
+        <name><surname>Bradbury</surname><given-names>James</given-names></name>
+        <name><surname>Frostig</surname><given-names>Roy</given-names></name>
+        <name><surname>Hawkins</surname><given-names>Peter</given-names></name>
+        <name><surname>Johnson</surname><given-names>Matthew James</given-names></name>
+        <name><surname>Leary</surname><given-names>Chris</given-names></name>
+        <name><surname>Maclaurin</surname><given-names>Dougal</given-names></name>
+        <name><surname>Necula</surname><given-names>George</given-names></name>
+        <name><surname>Paszke</surname><given-names>Adam</given-names></name>
+        <name><surname>VanderPlas</surname><given-names>Jake</given-names></name>
+        <name><surname>Wanderman-Milne</surname><given-names>Skye</given-names></name>
+        <name><surname>Zhang</surname><given-names>Qiao</given-names></name>
+      </person-group>
+      <article-title>JAX: Composable transformations of Python+NumPy programs</article-title>
+      <year iso-8601-date="2018">2018</year>
+      <uri>http://github.com/google/jax</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-NUTS">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Hoffman</surname><given-names>Matthew D.</given-names></name>
+        <name><surname>Gelman</surname><given-names>Andrew</given-names></name>
+      </person-group>
+      <article-title>The No-U-Turn sampler: Adaptively setting path lengths in Hamiltonian Monte Carlo</article-title>
+      <year iso-8601-date="2011">2011</year>
+      <uri>https://arxiv.org/abs/1111.4246</uri>
+      <pub-id pub-id-type="doi">10.48550/arXiv.1111.4246</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-HMC">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Brooks</surname><given-names>Steve</given-names></name>
+        <name><surname>Gelman</surname><given-names>Andrew</given-names></name>
+        <name><surname>Jones</surname><given-names>Galin</given-names></name>
+        <name><surname>Meng</surname><given-names>Xiao-Li</given-names></name>
+      </person-group>
+      <source>Handbook of Markov Chain Monte Carlo</source>
+      <publisher-name>Chapman; Hall/CRC</publisher-name>
+      <year iso-8601-date="2011-05">2011</year><month>05</month>
+      <isbn>9780429138508</isbn>
+      <uri>http://dx.doi.org/10.1201/b10905</uri>
+      <pub-id pub-id-type="doi">10.1201/b10905</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-mpi4jax">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Häfner</surname><given-names>Dion</given-names></name>
+        <name><surname>Vicentini</surname><given-names>Filippo</given-names></name>
+      </person-group>
+      <article-title>mpi4jax: Zero-copy MPI communication of JAX arrays</article-title>
+      <source>Journal of Open Source Software</source>
+      <publisher-name>The Open Journal</publisher-name>
+      <year iso-8601-date="2021">2021</year>
+      <volume>6</volume>
+      <issue>65</issue>
+      <uri>https://doi.org/10.21105/joss.03419</uri>
+      <pub-id pub-id-type="doi">10.21105/joss.03419</pub-id>
+      <fpage>3419</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-FlowPM">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Modi</surname><given-names>Chirag</given-names></name>
+        <name><surname>Lanusse</surname><given-names>Francois</given-names></name>
+        <name><surname>Seljak</surname><given-names>Uros</given-names></name>
+      </person-group>
+      <article-title>FlowPM: Distributed TensorFlow implementation of the FastPM cosmological N-body solver</article-title>
+      <year iso-8601-date="2020">2020</year>
+      <uri>https://arxiv.org/abs/2010.11847</uri>
+      <pub-id pub-id-type="doi">10.48550/arXiv.2010.11847</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-TF-MESH">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Shazeer</surname><given-names>Noam</given-names></name>
+        <name><surname>Cheng</surname><given-names>Youlong</given-names></name>
+        <name><surname>Parmar</surname><given-names>Niki</given-names></name>
+        <name><surname>Tran</surname><given-names>Dustin</given-names></name>
+        <name><surname>Vaswani</surname><given-names>Ashish</given-names></name>
+        <name><surname>Koanantakool</surname><given-names>Penporn</given-names></name>
+        <name><surname>Hawkins</surname><given-names>Peter</given-names></name>
+        <name><surname>Lee</surname><given-names>HyoukJoong</given-names></name>
+        <name><surname>Hong</surname><given-names>Mingsheng</given-names></name>
+        <name><surname>Young</surname><given-names>Cliff</given-names></name>
+        <name><surname>Sepassi</surname><given-names>Ryan</given-names></name>
+        <name><surname>Hechtman</surname><given-names>Blake</given-names></name>
+      </person-group>
+      <article-title>Mesh-TensorFlow: Deep learning for supercomputers</article-title>
+      <year iso-8601-date="2018">2018</year>
+      <uri>https://arxiv.org/abs/1811.02084</uri>
+      <pub-id pub-id-type="doi">10.48550/arXiv.1811.02084</pub-id>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
