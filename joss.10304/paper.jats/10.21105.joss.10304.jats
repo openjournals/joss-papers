@@ -1,0 +1,724 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">10304</article-id>
+<article-id pub-id-type="doi">10.21105/joss.10304</article-id>
+<title-group>
+<article-title>ado: a Python framework for computational experimentation
+and benchmarking</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author" equal-contrib="yes" corresp="yes">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0003-1337-440X</contrib-id>
+<name>
+<surname>Johnston</surname>
+<given-names>Michael A.</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+<xref ref-type="corresp" rid="cor-1"><sup>*</sup></xref>
+</contrib>
+<contrib contrib-type="author" equal-contrib="yes">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0003-1655-7500</contrib-id>
+<name>
+<surname>Pomponio</surname>
+<given-names>Alessandro</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>IBM Research - Ireland</institution>
+<institution-id institution-id-type="ROR">04jnxr720</institution-id>
+</institution-wrap>
+</aff>
+</contrib-group>
+<author-notes>
+<corresp id="cor-1">* E-mail: <email></email></corresp>
+</author-notes>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2026-02-09">
+<day>9</day>
+<month>2</month>
+<year>2026</year>
+</pub-date>
+<volume>11</volume>
+<issue>121</issue>
+<fpage>10304</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2026</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>Python</kwd>
+<kwd>benchmarking</kwd>
+<kwd>design-of-experiments</kwd>
+<kwd>experiment campaigns</kwd>
+<kwd>optimization</kwd>
+<kwd>provenance</kwd>
+<kwd>data sharing</kwd>
+<kwd>data reuse</kwd>
+<kwd>foundation-models</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p>The <bold>Accelerated Discovery Orchestrator (ado)</bold> is a
+  Python package that addresses a recurring challenge in research
+  software development: implementing common capabilities for design of
+  experiments (DoE) and execution of related computational experiment
+  campaigns. These cross-cutting capabilities span methodology
+  (design-space specification, sampling, analysis), interface (CLI and
+  configuration management), execution (parallel and scale-out), and
+  data (sharing, provenance, and reuse).</p>
+  <p>ado delivers these capabilities across domains through a
+  lightweight plugin model, where integrating new components can be as
+  simple as decorating a Python function. This is enabled by ado’s core
+  abstraction: the <italic>Discovery Space</italic>.</p>
+  <p>Out-of-the-box, ado includes state-of-the-art optimization
+  algorithms and predictive modeling tools, alongside experiments
+  targeting foundation-model performance. Our aim is for ado to become a
+  focal point for developing and consuming advanced capabilities for
+  defining and executing experiment campaigns.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p>While the domains of computational science are diverse, spanning
+  machine learning (ML), physics simulation, and hardware design, the
+  process of experimentation is remarkably uniform. Whether tuning
+  hyperparameters, benchmarking foundation models, or sweeping
+  simulation parameters, researchers consistently follow a structured
+  pattern: define a configuration space, select points, execute
+  experiments, record results, and analyze the outcomes to guide the
+  next iteration. This workflow, the <italic>experiment
+  campaign</italic>, is central to modern research and development, yet
+  it is often managed with tools that fail to capture its essential
+  structure.</p>
+  <p>Scientific and ML workflow systems like Galaxy, AiiDA, and Kubeflow
+  excel at executing general directed acyclic graphs (DAGs). However,
+  they are fundamentally context-free, treating each step as a black box
+  (<xref alt="George &amp; Saha, 2022" rid="ref-George2022EndtoendML" ref-type="bibr">George
+  &amp; Saha, 2022</xref>;
+  <xref alt="Huber et al., 2020" rid="ref-Huber2020" ref-type="bibr">Huber
+  et al., 2020</xref>;
+  <xref alt="The Galaxy Community, 2024" rid="ref-10.1093U002FnarU002Fgkae410" ref-type="bibr">The
+  Galaxy Community, 2024</xref>). When it comes to experiment campaigns,
+  this forces researchers to implement mechanisms for trial submission,
+  parameter handling, and result collation.</p>
+  <p>ado directly addresses this gap. Instead of orchestrating arbitrary
+  DAGs, ado focuses on the generic experiment campaign process. Users
+  declaratively define configuration spaces and operations on them. ado
+  then orchestrates the operations using its own protocols. For example,
+  in sampling workflows, it handles reuse of prior measurements, trial
+  execution and monitoring, and time-resolved measurement recording,
+  maintaining consistency over a shared sample store. This approach
+  mirrors the advantages of declarative systems like SQL or Terraform:
+  reduced boilerplate, fewer errors, and greater clarity. It also aids
+  code generators in creating experiment definitions and design
+  spaces.</p>
+  <fig>
+    <caption><p>A schematic overview of ado’s architecture.
+    <styled-content id="figU003Aado"></styled-content></p></caption>
+    <graphic mimetype="application" mime-subtype="pdf" xlink:href="ADOSchematic.pdf" />
+  </fig>
+  <p>ado extends its core model with valuable support capabilities.
+  Specifications (configuration spaces, operations) and measurements are
+  stored in a database with flexible deployment options (local or shared
+  remote). It leverages Ray to seamlessly scale from a researcher’s
+  laptop to a large remote cluster
+  (<xref alt="Moritz et al., 2018" rid="ref-Moritz2018" ref-type="bibr">Moritz
+  et al., 2018</xref>), with all functionality accessible via a
+  human-centric CLI and Python API. Researchers can contribute custom
+  experiments or operators through a simple plugin interface (see
+  <xref alt="[fig:ado]" rid="figU003Aado">[fig:ado]</xref>).</p>
+</sec>
+<sec id="state-of-the-field">
+  <title>State of the field</title>
+  <p>Mature workflow managers such as Galaxy, AiiDA, and Kubeflow excel
+  at scalable, reliable DAG orchestration with strong provenance and
+  native integration with common execution platforms (e.g., HPC for
+  AiiDA; Kubernetes for Kubeflow). Their design prioritizes flexible,
+  open-ended execution flow; adding the higher-level semantic constructs
+  required for experiment campaigns would conflict with this
+  architecture. Similarly, ML lifecycle management tools like MLflow
+  provide robust experiment tracking, metric logging, and artifact
+  management features for individual runs
+  (<xref alt="Zaharia et al., 2018" rid="ref-Zaharia2018AcceleratingTM" ref-type="bibr">Zaharia
+  et al., 2018</xref>), but do not model the multi-stage lifecycle of a
+  campaign as a primary entity.</p>
+  <p>Optimization frameworks like Optuna, Ax, Nevergrad, and Ray Tune
+  are also key components for executing experiment campaigns
+  (<xref alt="Akiba et al., 2019" rid="ref-Akiba2019" ref-type="bibr">Akiba
+  et al., 2019</xref>;
+  <xref alt="Bennet et al., 2021" rid="ref-10.1145U002F3460310.3460312" ref-type="bibr">Bennet
+  et al., 2021</xref>;
+  <xref alt="Liaw et al., 2018" rid="ref-Liaw2018" ref-type="bibr">Liaw
+  et al., 2018</xref>;
+  <xref alt="Olson et al., 2025" rid="ref-olson2025ax" ref-type="bibr">Olson
+  et al., 2025</xref>). While these tools are beginning to add data
+  management features—for example, persistent storage for resuming
+  studies—extending them to manage experiment campaigns would lead to
+  duplicated effort. Furthermore, using these frameworks requires
+  writing glue logic between optimizers, objectives, and logging, which
+  leads to bespoke implementations and reduced reusability.</p>
+  <p>Emerging robotic lab frameworks, for instance, the Experiment
+  Orchestration System (EOS), provide rigorous, repeatable execution for
+  physical experiments
+  (<xref alt="Angelopoulos et al., 2025" rid="ref-Angelopoulos2025_EOS" ref-type="bibr">Angelopoulos
+  et al., 2025</xref>). The focus of these frameworks is managing the
+  operational complexity of physical execution, answering how to carry
+  out a specific repeatable experiment with lab instruments, rather than
+  providing domain-agnostic campaign semantics.</p>
+  <p>ado synergizes with, rather than replaces, these tools. It fills a
+  functional gap for experiment campaign management through a unified
+  coordination layer that integrates cleanly with the existing
+  ecosystem. It can use workflow managers as experiment executors,
+  integrate optimization frameworks, and orchestrate physical
+  experiments by coupling with robotic lab systems. At the same time,
+  individual experiment implementations within ado’s plugin architecture
+  can leverage frameworks like MLflow for fine-grained, domain-specific
+  tracking.</p>
+</sec>
+<sec id="software-design">
+  <title>Software design</title>
+  <sec id="trace-design-requirements">
+    <title>TRACE design requirements</title>
+    <p>We first established TRACE, a set of five requirements for
+    managing the artifacts of an experimental campaign or study.</p>
+    <table-wrap>
+      <table>
+        <colgroup>
+          <col width="13%" />
+          <col width="87%" />
+        </colgroup>
+        <thead>
+          <tr>
+            <th>Characteristic</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><bold>Time-Resolved</bold></td>
+            <td>The time series of sampling processes adding data to a
+            study is preserved.</td>
+          </tr>
+          <tr>
+            <td><bold>Reconcilable</bold></td>
+            <td>There is a consistent protocol for adding data from a
+            common context into a specific study.</td>
+          </tr>
+          <tr>
+            <td><bold>Actionable</bold></td>
+            <td>A study must contain all necessary information for
+            adding a new measurement to itself.</td>
+          </tr>
+          <tr>
+            <td><bold>Common Context</bold></td>
+            <td>There is a schema and storage mechanism allowing data to
+            be shared across multiple studies.</td>
+          </tr>
+          <tr>
+            <td><bold>Encapsulated</bold></td>
+            <td>The study rigorously defines the valid configurations
+            and measurements, preventing contamination from unrelated
+            data.</td>
+          </tr>
+        </tbody>
+      </table>
+    </table-wrap>
+    <p>A system satisfying these requirements would ensure that a DoE
+    and its associated data can be understood, shared, extended, and
+    analyzed without introducing inconsistencies. In this way, the TRACE
+    requirements offer a concrete implementation of the FAIR Principles
+    (Findable, Accessible, Interoperable, and Reusable)
+    (<xref alt="Wilkinson et al., 2016" rid="ref-wilkinson2016fair" ref-type="bibr">Wilkinson
+    et al., 2016</xref>). Where FAIR describes <italic>what</italic>
+    qualities a digital asset should possess, TRACE defines
+    <italic>how</italic> to construct systems that generate inherently
+    FAIR data from the inception of an experiment campaign.</p>
+  </sec>
+  <sec id="discovery-space-as-a-core-abstraction">
+    <title>Discovery Space as a core abstraction</title>
+    <p>The TRACE characteristics guided our search for a data model.
+    First, we noted that configuration search campaigns have
+    well-defined mathematical properties:</p>
+    <list list-type="bullet">
+      <list-item>
+        <p><bold>A Configuration Probability Space</bold>: the
+        definition of the dimensions of the configuration space being
+        explored (the “what”) and the probability distribution governing
+        the selection process (the “how likely”).</p>
+      </list-item>
+      <list-item>
+        <p><bold>An Action Space:</bold> the set of experiments that can
+        be applied to a configuration to measure its properties (the
+        “how to measure”).</p>
+      </list-item>
+      <list-item>
+        <p><bold>A sample set:</bold> the set of points currently
+        sampled and measured for a given combination of a configuration
+        probability space and an action space. It is the union of the
+        <bold>sample time series</bold> of operations on that
+        combination.</p>
+      </list-item>
+    </list>
+    <fig>
+      <caption><p>A view of a Discovery Space data model instance. The
+      left-hand side shows the key data components of the model. The
+      right-hand side shows the sampling and measurement process for a
+      point.<styled-content id="figU003Adiscoveryspace"></styled-content></p></caption>
+      <graphic mimetype="image" mime-subtype="svg+xml" xlink:href="discovery_space_v1.drawio.svg" />
+    </fig>
+    <p>The <bold>Discovery Space</bold>, the central data model in the
+    system’s architecture, combines these properties (see
+    <xref alt="[fig:discoveryspace]" rid="figU003Adiscoveryspace">[fig:discoveryspace]</xref>).
+    By containing the configuration probability space and action space
+    definitions it is <bold>encapsulated</bold> and
+    <bold>actionable</bold>; it is <bold>time-resolved</bold> as it
+    contains the sample set.</p>
+    <fig>
+      <caption><p>Data sharing between Discovery Spaces. Each space
+      reads/writes samples and time series membership details from a
+      shared sample store (<italic>common context</italic>). In this
+      case both spaces have the same action space and contain point X.
+      If point X is measured on Discovery Space A, it will not appear in
+      the sample set of Discovery Space B until it is requested to be
+      measured via B (<italic>reconcilable</italic>).
+      <styled-content id="figU003Ads_interaction"></styled-content></p></caption>
+      <graphic mimetype="application" mime-subtype="pdf" xlink:href="ds_interaction_v2.drawio.pdf" />
+    </fig>
+    <p>We obtain a <bold>common context</bold> by storing the sample
+    time series in a shared sample store with a common schema. Finally,
+    it is <bold>reconcilable</bold> as it enforces a strict membership
+    rule for its sample set: only samples in the common-context that are
+    associated with an operation conducted on that space are included
+    (see
+    <xref alt="[fig:ds_interaction]" rid="figU003Ads_interaction">[fig:ds_interaction]</xref>).
+    Hence, it displays the TRACE characteristics.</p>
+    <p>The Discovery Space abstraction effectively decouples
+    workload-specific experiments from the search and optimization
+    algorithms, enabling the kind of versatile, workload-agnostic
+    capabilities that are a key goal of the program.</p>
+  </sec>
+  <sec id="pydantic-based-core-architecture">
+    <title>Pydantic-based core architecture</title>
+    <p>ado is implemented in Python, chosen for its ubiquity in
+    scientific domains. Central to ado is the Pydantic framework, which
+    we use for all data modeling. These Pydantic models serve as the
+    primary user-facing components, providing automatic validation,
+    self-documenting schemas, and a clear target for AI code
+    generation.</p>
+    <p>They also serve as the data-contract for ado’s extensible plugin
+    architecture. This allows domain experts to contribute
+    self-contained plugins for experiments, sampling, and analysis
+    tools, which immediately and safely inherit all the platform’s core
+    capabilities</p>
+  </sec>
+</sec>
+<sec id="research-impact-statement">
+  <title>Research impact statement</title>
+  <p>ado is a community-ready platform for reproducible research,
+  released as open source code with extensive documentation. It has been
+  internally battle-tested on complex industrial workloads and research
+  questions
+  (<xref alt="Johnston et al., 2025" rid="ref-johnston2025efficientreuseablecloudconfiguration" ref-type="bibr">Johnston
+  et al., 2025</xref>). Its realized impact and utility are demonstrated
+  by a range of publicly available artifacts.</p>
+  <list list-type="bullet">
+    <list-item>
+      <p><bold>Large-Scale Benchmarking:</bold> All fine-tuning
+      benchmarks for IBM’s watsonx.ai platform were executed using ado.
+      This effort produced the
+      <ext-link ext-link-type="uri" xlink:href="https://ibm.github.io/ado/actuators/sft-trainer/">sft-trainer
+      plugin</ext-link>, which we have open-sourced, a library of
+      <ext-link ext-link-type="uri" xlink:href="https://github.com/IBM/ado/tree/main/plugins/custom_experiments/autoconf">recommender
+      models derived from the benchmark data</ext-link>, and a public
+      dataset for benchmarking predictive models for fine-tuning
+      performance
+      (<xref alt="Lotito et al., 2026" rid="ref-lotito2026finetuning" ref-type="bibr">Lotito
+      et al., 2026</xref>).</p>
+    </list-item>
+    <list-item>
+      <p><bold>Advanced Performance Analysis:</bold> ado was used to
+      conduct detailed performance analysis of geospatial models on vLLM
+      (<xref alt="Kwon et al., 2023" rid="ref-10.1145U002F3600006.3613165" ref-type="bibr">Kwon
+      et al., 2023</xref>). We have open-sourced the resulting
+      <ext-link ext-link-type="uri" xlink:href="https://ibm.github.io/ado/actuators/vllm_performance/">vllm-performance
+      plugin</ext-link> that includes unique features like automated
+      deployment and tear-down of inference services on Kubernetes.</p>
+    </list-item>
+    <list-item>
+      <p><bold>Accelerated Benchmarking:</bold> We have open-sourced
+      <ext-link ext-link-type="uri" xlink:href="https://ibm.github.io/ado/operators/trim/">the
+      TRIM operator plugin</ext-link> which we developed to reduce the
+      time required to execute new benchmarking campaigns to account for
+      availability of new workload options e.g. new GPUs, new model
+      versions. It uses feature-importance-guided active learning to
+      build performance surrogates with minimal measurements.</p>
+    </list-item>
+  </list>
+  <p>Based on this foundation we believe ado can positively impact
+  research workflows in the near term. It lowers the barrier to complex
+  benchmarking by eliminating the need to write bespoke orchestration
+  code, while its plugin architecture provides a new avenue for
+  researchers to distribute novel experiments, sampling methods, and
+  analysis tools. Further, it enhances collaboration by giving research
+  teams a shared environment for running experiments and storing data.
+  We are actively developing ado to accelerate our own research and are
+  frequently releasing new features, for example increasing its synergy
+  with AI agents to enable more powerful automation of the experiment
+  campaign lifecycle.</p>
+</sec>
+<sec id="ai-usage-disclosure">
+  <title>AI usage disclosure</title>
+  <p>Generative AI was used for the manuscript and codebase, with human
+  authors reviewing and taking responsibility for the final content. For
+  the manuscript, AI helped refine sentences and check for compliance
+  with submission guidelines. For code, AI agents assisted with
+  development tasks within a structured framework that includes coding
+  rules, self-describing schemas with validation, and mandatory human
+  review of all contributions.</p>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>ado is partially funded by the European Union through the Smart
+  Networks and Services Joint Undertaking (SNS JU) under grant agreement
+  No. 101192750 (Project 6G-DALI).</p>
+  <p>We acknowledge contributions from many people in the development of
+  ado: Vassilis Vassiliadis, Christian Pinto, Srikumar Venugopal,
+  Daniele Lotito, Michele Gazzetti, Burkhard Ringelin, Boris Lublinsky,
+  Renato Maia, Renato Cerqueira, Gabriela Pinheiro, Raphael Melo,
+  Christoph Hagleitner.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <title></title>
+  <ref id="ref-johnston2025efficientreuseablecloudconfiguration">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Johnston</surname><given-names>Michael</given-names></name>
+        <name><surname>Ringlein</surname><given-names>Burkhard</given-names></name>
+        <name><surname>Hagleitner</surname><given-names>Christoph</given-names></name>
+        <name><surname>Pomponio</surname><given-names>Alessandro</given-names></name>
+        <name><surname>Vassiliadis</surname><given-names>Vassilis</given-names></name>
+        <name><surname>Pinto</surname><given-names>Christian</given-names></name>
+        <name><surname>Venugopal</surname><given-names>Srikumar</given-names></name>
+      </person-group>
+      <article-title>Efficient and reusable cloud configuration search using discovery spaces</article-title>
+      <year iso-8601-date="2025">2025</year>
+      <uri>https://arxiv.org/abs/2506.21467</uri>
+      <pub-id pub-id-type="doi">10.48550/arXiv.2506.21467</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-Liaw2018">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Liaw</surname><given-names>Richard</given-names></name>
+        <name><surname>Liang</surname><given-names>Eric</given-names></name>
+        <name><surname>Nishihara</surname><given-names>Robert</given-names></name>
+        <name><surname>Moritz</surname><given-names>Philipp</given-names></name>
+        <name><surname>Gonzalez</surname><given-names>Joseph E.</given-names></name>
+        <name><surname>Stoica</surname><given-names>Ion</given-names></name>
+      </person-group>
+      <article-title>Tune: A research platform for distributed model selection and training</article-title>
+      <source>arXiv preprint arXiv:1807.05118</source>
+      <year iso-8601-date="2018">2018</year>
+      <pub-id pub-id-type="doi">10.48550/arXiv.1807.05118</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-Moritz2018">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Moritz</surname><given-names>Philipp</given-names></name>
+        <name><surname>Nishihara</surname><given-names>Robert</given-names></name>
+        <name><surname>Wang</surname><given-names>Stephanie</given-names></name>
+        <name><surname>Tumanov</surname><given-names>Alexey</given-names></name>
+        <name><surname>Liaw</surname><given-names>Richard</given-names></name>
+        <name><surname>Liang</surname><given-names>Eric</given-names></name>
+        <name><surname>Elibol</surname><given-names>Melih</given-names></name>
+        <name><surname>Yang</surname><given-names>Zongheng</given-names></name>
+        <name><surname>Paul</surname><given-names>William</given-names></name>
+        <name><surname>Jordan</surname><given-names>Michael I.</given-names></name>
+        <name><surname>Stoica</surname><given-names>Ion</given-names></name>
+      </person-group>
+      <article-title>Ray: A distributed framework for emerging AI applications</article-title>
+      <source>13th USENIX symposium on operating systems design and implementation (OSDI 18)</source>
+      <year iso-8601-date="2018">2018</year>
+      <pub-id pub-id-type="doi">10.48550/arXiv.1712.05889</pub-id>
+      <fpage>561</fpage>
+      <lpage>577</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Akiba2019">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Akiba</surname><given-names>Takuya</given-names></name>
+        <name><surname>Sano</surname><given-names>Shotaro</given-names></name>
+        <name><surname>Yanase</surname><given-names>Toshihiko</given-names></name>
+        <name><surname>Ohta</surname><given-names>Takeru</given-names></name>
+        <name><surname>Koyama</surname><given-names>Masanori</given-names></name>
+      </person-group>
+      <article-title>Optuna: A next-generation hyperparameter optimization framework</article-title>
+      <source>Proceedings of the 25th ACM SIGKDD international conference on knowledge discovery &amp; data mining</source>
+      <year iso-8601-date="2019">2019</year>
+      <pub-id pub-id-type="doi">10.1145/3292500.3330701</pub-id>
+      <fpage>2623</fpage>
+      <lpage>2631</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Huber2020">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Huber</surname><given-names>Sebastiaan P.</given-names></name>
+        <name><surname>Zoupanos</surname><given-names>Spyros</given-names></name>
+        <name><surname>Uhrin</surname><given-names>Martin</given-names></name>
+        <name><surname>Talirz</surname><given-names>Leopold</given-names></name>
+        <name><surname>Kahle</surname><given-names>Leonid</given-names></name>
+        <name><surname>Häuselmann</surname><given-names>Rico</given-names></name>
+        <name><surname>Gresch</surname><given-names>Dominik</given-names></name>
+        <name><surname>Müller</surname><given-names>Tiziano</given-names></name>
+        <name><surname>Yakutovich</surname><given-names>Aliaksandr V.</given-names></name>
+        <name><surname>Andersen</surname><given-names>Casper W.</given-names></name>
+        <name><surname>Ramirez</surname><given-names>Francisco F.</given-names></name>
+        <name><surname>Adorf</surname><given-names>Carl S.</given-names></name>
+        <name><surname>Gargiulo</surname><given-names>Fernando</given-names></name>
+        <name><surname>Kumbhar</surname><given-names>Snehal</given-names></name>
+        <name><surname>Passaro</surname><given-names>Elsa</given-names></name>
+        <name><surname>Johnston</surname><given-names>Conrad</given-names></name>
+        <name><surname>Merkys</surname><given-names>Andrius</given-names></name>
+        <name><surname>Cepellotti</surname><given-names>Andrea</given-names></name>
+        <name><surname>Mounet</surname><given-names>Nicolas</given-names></name>
+        <name><surname>Marzari</surname><given-names>Nicola</given-names></name>
+        <name><surname>Kozinsky</surname><given-names>Boris</given-names></name>
+        <name><surname>Pizzi</surname><given-names>Giovanni</given-names></name>
+      </person-group>
+      <article-title>AiiDA 1.0, a scalable computational infrastructure for automated reproducible workflows and data provenance</article-title>
+      <source>Scientific Data</source>
+      <year iso-8601-date="2020-09-08">2020</year><month>09</month><day>08</day>
+      <volume>7</volume>
+      <issue>1</issue>
+      <issn>2052-4463</issn>
+      <uri>https://doi.org/10.1038/s41597-020-00638-4</uri>
+      <pub-id pub-id-type="doi">10.1038/s41597-020-00638-4</pub-id>
+      <fpage>300</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-10.1093U002FnarU002Fgkae410">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <string-name>The Galaxy Community</string-name>
+      </person-group>
+      <article-title>The Galaxy platform for accessible, reproducible, and collaborative data analyses: 2024 update</article-title>
+      <source>Nucleic Acids Research</source>
+      <year iso-8601-date="2024-05">2024</year><month>05</month>
+      <volume>52</volume>
+      <issue>W1</issue>
+      <issn>0305-1048</issn>
+      <uri>https://doi.org/10.1093/nar/gkae410</uri>
+      <pub-id pub-id-type="doi">10.1093/nar/gkae410</pub-id>
+      <fpage>W83</fpage>
+      <lpage>W94</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-10.1145U002F3460310.3460312">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Bennet</surname><given-names>Pauline</given-names></name>
+        <name><surname>Doerr</surname><given-names>Carola</given-names></name>
+        <name><surname>Moreau</surname><given-names>Antoine</given-names></name>
+        <name><surname>Rapin</surname><given-names>Jeremy</given-names></name>
+        <name><surname>Teytaud</surname><given-names>Fabien</given-names></name>
+        <name><surname>Teytaud</surname><given-names>Olivier</given-names></name>
+      </person-group>
+      <article-title>Nevergrad: Black-box optimization platform</article-title>
+      <source>SIGEVOlution</source>
+      <publisher-name>Association for Computing Machinery</publisher-name>
+      <publisher-loc>New York, NY, USA</publisher-loc>
+      <year iso-8601-date="2021-04">2021</year><month>04</month>
+      <volume>14</volume>
+      <issue>1</issue>
+      <uri>https://doi.org/10.1145/3460310.3460312</uri>
+      <pub-id pub-id-type="doi">10.1145/3460310.3460312</pub-id>
+      <fpage>8</fpage>
+      <lpage>15</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-olson2025ax">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Olson</surname><given-names>Miles</given-names></name>
+        <name><surname>Santorella</surname><given-names>Elizabeth</given-names></name>
+        <name><surname>Tiao</surname><given-names>Louis C.</given-names></name>
+        <name><surname>Cakmak</surname><given-names>Sait</given-names></name>
+        <name><surname>Eriksson</surname><given-names>David</given-names></name>
+        <name><surname>Garrard</surname><given-names>Mia</given-names></name>
+        <name><surname>Daulton</surname><given-names>Sam</given-names></name>
+        <name><surname>Balandat</surname><given-names>Maximilian</given-names></name>
+        <name><surname>Bakshy</surname><given-names>Eytan</given-names></name>
+        <name><surname>Kashtelyan</surname><given-names>Elena</given-names></name>
+        <name><surname>Lin</surname><given-names>Zhiyuan Jerry</given-names></name>
+        <name><surname>Ament</surname><given-names>Sebastian</given-names></name>
+        <name><surname>Beckerman</surname><given-names>Bernard</given-names></name>
+        <name><surname>Onofrey</surname><given-names>Eric</given-names></name>
+        <name><surname>Igusti</surname><given-names>Paschal</given-names></name>
+        <name><surname>Lara</surname><given-names>Cristian</given-names></name>
+        <name><surname>Letham</surname><given-names>Benjamin</given-names></name>
+        <name><surname>Cardoso</surname><given-names>Cesar</given-names></name>
+        <name><surname>Shen</surname><given-names>Shiyun Sunny</given-names></name>
+        <name><surname>Lin</surname><given-names>Andy Chenyuan</given-names></name>
+        <name><surname>Grange</surname><given-names>Matthew</given-names></name>
+      </person-group>
+      <article-title>Ax: A platform for adaptive experimentation</article-title>
+      <source>AutoML 2025 ABCD track</source>
+      <year iso-8601-date="2025">2025</year>
+      <uri>https://openreview.net/forum?id=U1f6wHtG1g</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-Angelopoulos2025_EOS">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Angelopoulos</surname><given-names>Angelos</given-names></name>
+        <name><surname>Baykal</surname><given-names>Cem</given-names></name>
+        <name><surname>Kandel</surname><given-names>Jade</given-names></name>
+        <name><surname>Verber</surname><given-names>Matthew</given-names></name>
+        <name><surname>Cahoon</surname><given-names>James F.</given-names></name>
+        <name><surname>Alterovitz</surname><given-names>Ron</given-names></name>
+      </person-group>
+      <article-title>The Experiment Orchestration System (EOS): Comprehensive foundation for laboratory automation</article-title>
+      <source>2025 IEEE international conference on robotics and automation (ICRA)</source>
+      <year iso-8601-date="2025-05">2025</year><month>05</month>
+      <pub-id pub-id-type="doi">10.1109/ICRA55743.2025.11128578</pub-id>
+      <fpage>15900</fpage>
+      <lpage>15906</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-10.1145U002F3600006.3613165">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Kwon</surname><given-names>Woosuk</given-names></name>
+        <name><surname>Li</surname><given-names>Zhuohan</given-names></name>
+        <name><surname>Zhuang</surname><given-names>Siyuan</given-names></name>
+        <name><surname>Sheng</surname><given-names>Ying</given-names></name>
+        <name><surname>Zheng</surname><given-names>Lianmin</given-names></name>
+        <name><surname>Yu</surname><given-names>Cody Hao</given-names></name>
+        <name><surname>Gonzalez</surname><given-names>Joseph</given-names></name>
+        <name><surname>Zhang</surname><given-names>Hao</given-names></name>
+        <name><surname>Stoica</surname><given-names>Ion</given-names></name>
+      </person-group>
+      <article-title>Efficient memory management for large language model serving with PagedAttention</article-title>
+      <source>Proceedings of the 29th symposium on operating systems principles</source>
+      <publisher-name>Association for Computing Machinery</publisher-name>
+      <publisher-loc>New York, NY, USA</publisher-loc>
+      <year iso-8601-date="2023">2023</year>
+      <isbn>9798400702297</isbn>
+      <uri>https://doi.org/10.1145/3600006.3613165</uri>
+      <pub-id pub-id-type="doi">10.1145/3600006.3613165</pub-id>
+      <fpage>611</fpage>
+      <lpage>626</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Zaharia2018AcceleratingTM">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Zaharia</surname><given-names>Matei A.</given-names></name>
+        <name><surname>Chen</surname><given-names>Andrew</given-names></name>
+        <name><surname>Davidson</surname><given-names>Aaron</given-names></name>
+        <name><surname>Ghodsi</surname><given-names>Ali</given-names></name>
+        <name><surname>Hong</surname><given-names>Sue Ann</given-names></name>
+        <name><surname>Konwinski</surname><given-names>Andy</given-names></name>
+        <name><surname>Murching</surname><given-names>Siddharth</given-names></name>
+        <name><surname>Nykodym</surname><given-names>Tomas</given-names></name>
+        <name><surname>Ogilvie</surname><given-names>Paul</given-names></name>
+        <name><surname>Parkhe</surname><given-names>Mani</given-names></name>
+        <name><surname>Xie</surname><given-names>Fen</given-names></name>
+        <name><surname>Zumar</surname><given-names>Corey</given-names></name>
+      </person-group>
+      <article-title>Accelerating the machine learning lifecycle with MLflow</article-title>
+      <source>IEEE Data Eng. Bull.</source>
+      <year iso-8601-date="2018">2018</year>
+      <volume>41</volume>
+      <uri>https://api.semanticscholar.org/CorpusID:83459546</uri>
+      <fpage>39</fpage>
+      <lpage>45</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-George2022EndtoendML">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>George</surname><given-names>Johnu</given-names></name>
+        <name><surname>Saha</surname><given-names>Amit</given-names></name>
+      </person-group>
+      <article-title>End-to-end machine learning using kubeflow</article-title>
+      <source>Proceedings of the 5th Joint International Conference on Data Science &amp; Management of Data (9th ACM IKDD CODS and 27th COMAD)</source>
+      <year iso-8601-date="2022">2022</year>
+      <uri>https://api.semanticscholar.org/CorpusID:245803553</uri>
+      <pub-id pub-id-type="doi">10.1145/3493700.3493768</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-wilkinson2016fair">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Wilkinson</surname><given-names>Mark D</given-names></name>
+        <name><surname>Dumontier</surname><given-names>Michel</given-names></name>
+        <name><surname>Aalbersberg</surname><given-names>IJsbrand Jan</given-names></name>
+        <name><surname>Appleton</surname><given-names>Gabrielle</given-names></name>
+        <name><surname>Axton</surname><given-names>Myles</given-names></name>
+        <name><surname>Baak</surname><given-names>Arie</given-names></name>
+        <name><surname>Blomberg</surname><given-names>Niklas</given-names></name>
+        <name><surname>Boiten</surname><given-names>Jan-Willem</given-names></name>
+        <name><surname>Silva Santos</surname><given-names>Luiz Bonino da</given-names></name>
+        <name><surname>Bourne</surname><given-names>Philip E</given-names></name>
+        <name><surname>others</surname></name>
+      </person-group>
+      <article-title>The FAIR guiding principles for scientific data management and stewardship</article-title>
+      <source>Scientific data</source>
+      <publisher-name>Nature Publishing Group</publisher-name>
+      <year iso-8601-date="2016">2016</year>
+      <volume>3</volume>
+      <pub-id pub-id-type="doi">10.1038/sdata.2016.18</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-lotito2026finetuning">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Lotito</surname><given-names>Daniele</given-names></name>
+        <name><surname>Venugopal</surname><given-names>Srikumar</given-names></name>
+        <name><surname>Vassiliadis</surname><given-names>Vassilis</given-names></name>
+        <name><surname>Pinto</surname><given-names>Christian</given-names></name>
+        <name><surname>Pomponio</surname><given-names>Alessandro</given-names></name>
+        <name><surname>Johnston</surname><given-names>Michael</given-names></name>
+      </person-group>
+      <article-title>LLM fine-tuning performance benchmark dataset</article-title>
+      <publisher-name>Hugging Face Datasets</publisher-name>
+      <year iso-8601-date="2026">2026</year>
+      <uri>https://huggingface.co/datasets/ibm-research/LLM_Fine-Tuning_Performance/</uri>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
