@@ -1,0 +1,543 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">9598</article-id>
+<article-id pub-id-type="doi">10.21105/joss.09598</article-id>
+<title-group>
+<article-title>TNC: Distributed Tensor Network Contractions in
+Rust</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0003-3514-8657</contrib-id>
+<name>
+<surname>Geiger</surname>
+<given-names>Manuel</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0002-1289-6559</contrib-id>
+<name>
+<surname>Huang</surname>
+<given-names>Qunsheng</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0002-6386-0230</contrib-id>
+<name>
+<surname>Mendl</surname>
+<given-names>Christian B.</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+<xref ref-type="aff" rid="aff-2"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>School for Computation, Information and Technology,
+Technical University of Munich, Germany</institution>
+</institution-wrap>
+</aff>
+<aff id="aff-2">
+<institution-wrap>
+<institution>Institute for Advanced Study, Technical University of
+Munich, Germany</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2025-10-09">
+<day>9</day>
+<month>10</month>
+<year>2025</year>
+</pub-date>
+<volume>11</volume>
+<issue>122</issue>
+<fpage>9598</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2026</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>tensor networks</kwd>
+<kwd>quantum computing</kwd>
+<kwd>high-performance computing</kwd>
+<kwd>Rust</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p>Since real quantum computers continue to have high error rates,
+  classical error-free simulation of circuits is essential for
+  verification, benchmarking, and algorithm design. A commonly used tool
+  for the simulation are tensor networks, which represent a quantum
+  circuit as network of multi-dimensional arrays that must be multiplied
+  (“contracted”) to compute the result of the circuit. TNC is a
+  Rust-based library for efficiently contracting large tensor networks.
+  Designed for distributed-memory environments common in
+  high-performance computing (HPC), TNC partitions tensor networks to
+  enable parallel contraction across multiple compute nodes. While
+  optimized for quantum circuit simulation, TNC is general enough to
+  contract arbitrary tensor networks, combining high performance with
+  Rust’s memory safety guarantees.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p>With the rapid advancements in quantum computing, ever larger
+  quantum circuits are being explored, which require more computing
+  resources. Real quantum hardware is often not yet available, however,
+  has limited qubit counts, and has high error rates due to imperfect
+  gates and noise induced by the environment. Hence, research on
+  efficient classical simulation methods is crucial to bridge this gap.
+  Tensor networks have been shown to be a viable tool for classical
+  simulation, even disproving two major claims of quantum advantage,
+  i.e., the realization of an algorithm on real quantum hardware which
+  would be infeasible to simulate on classical hardware
+  (<xref alt="Pan et al., 2022" rid="ref-Pan2022" ref-type="bibr">Pan et
+  al., 2022</xref>;
+  <xref alt="Patra et al., 2024" rid="ref-Patra2024" ref-type="bibr">Patra
+  et al., 2024</xref>). Apart from quantum simulation, they are also
+  used in other areas, such as machine learning, quantum optimization,
+  quantum chemistry, and quantum error correction
+  (<xref alt="García &amp; Romero, 2024" rid="ref-Garcia2024" ref-type="bibr">García
+  &amp; Romero, 2024</xref>).</p>
+  <p>However, existing libraries for tensor network contractions often
+  only consider shared-memory parallelism
+  (<xref alt="Pfeifer et al., 2015" rid="ref-Pfeifer2015" ref-type="bibr">Pfeifer
+  et al., 2015</xref>), are not open-source
+  (<xref alt="Bayraktar et al., 2023" rid="ref-Bayraktar2023" ref-type="bibr">Bayraktar
+  et al., 2023</xref>), or are written in Python
+  (<xref alt="Lykov et al., 2021" rid="ref-QTensor" ref-type="bibr">Lykov
+  et al., 2021</xref>) and hence less suited for HPC. Furthermore,
+  parallelization is usually done by a technique called
+  <italic>slicing</italic>, which incurs computational overhead. Popular
+  libraries using slicing include ExaTN
+  (<xref alt="Lyakh et al., 2022" rid="ref-ExaTN" ref-type="bibr">Lyakh
+  et al., 2022</xref>) and Jet
+  (<xref alt="Vincent et al., 2022" rid="ref-Jet" ref-type="bibr">Vincent
+  et al., 2022</xref>). TNC addresses these limitations by targeting
+  distributed-memory systems, being fully open-source, implemented in
+  Rust, and employing partitioning rather than slicing for
+  parallelization. The use of Rust further provides strong guarantees of
+  memory safety.</p>
+</sec>
+<sec id="features">
+  <title>Features</title>
+  <p>The user can construct quantum circuits using the library’s API or
+  import them from code written in the widely-used OpenQASM2 language
+  (<xref alt="Cross et al., 2017" rid="ref-Cross2017" ref-type="bibr">Cross
+  et al., 2017</xref>). From a given circuit, the user can then generate
+  tensor networks that compute the expectation value, the amplitudes to
+  specific measurement outcomes, or the full state vector. Furthermore,
+  random tensor networks can be created as well, for instance, in the
+  form of the original Sycamore experiment
+  (<xref alt="Arute et al., 2019" rid="ref-Arute2019" ref-type="bibr">Arute
+  et al., 2019</xref>). The library supports serialization of tensors
+  and tensor networks to and from HDF5 files.</p>
+  <p>Tensors in TNC can be defined hierarchically, enabling tensor
+  networks in which vertices may represent either raw tensors or nested
+  subnetworks. This hierarchical representation naturally expresses
+  partitioning‑based parallelization and supports multiple
+  parallelization levels.</p>
+  <p>For contraction, the library partitions tensor networks based on
+  the number of available compute nodes. It obtains an initial
+  partitioning using the hypergraph partitioning library KaHyPar
+  (<xref alt="Andre et al., 2018" rid="ref-Andre2018" ref-type="bibr">Andre
+  et al., 2018</xref>). However, these initial partitionings are often
+  not optimal in terms of contraction cost. Therefore, our library
+  features different algorithms to improve an initial partitioning, such
+  as greedy rebalancing, simulated annealing, and a genetic algorithm.
+  As a cost function, we use a parallelism-aware computation cost
+  metric. The final partitioning thus achieves better time-to-solution
+  by better load balancing between compute nodes. In a recent
+  publication, we showed that partitionings optimized with the simulated
+  annealing method have contraction costs that are competitive with
+  state-of-the-art methods
+  (<xref alt="Geiger et al., 2025" rid="ref-Geiger2025" ref-type="bibr">Geiger
+  et al., 2025</xref>).</p>
+  <p>The library can find contraction paths, which specify the order of
+  contraction operations, using different methods from the cotengra
+  library
+  (<xref alt="Gray &amp; Kourtis, 2021" rid="ref-Gray2021" ref-type="bibr">Gray
+  &amp; Kourtis, 2021</xref>). It then performs the individual
+  contractions using matrix-matrix multiplications via MKL
+  (<xref alt="Intel, n.d." rid="ref-MKL" ref-type="bibr">Intel,
+  n.d.</xref>) or a pure Rust backend, with tensor transpositions
+  performed using the hptt library
+  (<xref alt="Springer et al., 2017" rid="ref-Springer2017" ref-type="bibr">Springer
+  et al., 2017</xref>).</p>
+  <p>To execute distributed contractions, TNC performs the contractions
+  of different partitions in parallel across compute nodes.
+  Communication and data exchange between nodes are coordinated using
+  MPI, enabling scalable execution on distributed‑memory HPC
+  systems.</p>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>We acknowledge the funding received for the MUNIQC-SC initiative
+  under funding number 13N16191 from the VDI technology center as part
+  of the German BMBF program. The work is also supported by the Bavarian
+  state government via the BayQS project with funds from the Hightech
+  Agenda Bayern, and via the Munich Quantum Valley, section K7, with
+  funds from the Hightech Agenda Bayern Plus.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <title></title>
+  <ref id="ref-Pan2022">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Pan</surname><given-names>Feng</given-names></name>
+        <name><surname>Chen</surname><given-names>Keyang</given-names></name>
+        <name><surname>Zhang</surname><given-names>Pan</given-names></name>
+      </person-group>
+      <article-title>Solving the sampling problem of the sycamore quantum circuits</article-title>
+      <source>Physical Review Letters</source>
+      <publisher-name>American Physical Society</publisher-name>
+      <year iso-8601-date="2022-08">2022</year><month>08</month>
+      <volume>129</volume>
+      <pub-id pub-id-type="doi">10.1103/PhysRevLett.129.090502</pub-id>
+      <fpage>090502</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Patra2024">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Patra</surname><given-names>Siddhartha</given-names></name>
+        <name><surname>Jahromi</surname><given-names>Saeed S.</given-names></name>
+        <name><surname>Singh</surname><given-names>Sukhbinder</given-names></name>
+        <name><surname>Orús</surname><given-names>Román</given-names></name>
+      </person-group>
+      <article-title>Efficient tensor network simulation of IBM’s largest quantum processors</article-title>
+      <source>Physical Review Letters</source>
+      <publisher-name>American Physical Society</publisher-name>
+      <year iso-8601-date="2024-03">2024</year><month>03</month>
+      <volume>6</volume>
+      <uri>https://link.aps.org/doi/10.1103/PhysRevResearch.6.013326</uri>
+      <pub-id pub-id-type="doi">10.1103/PhysRevResearch.6.013326</pub-id>
+      <fpage>013326</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Gray2021">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Gray</surname><given-names>Johnnie</given-names></name>
+        <name><surname>Kourtis</surname><given-names>Stefanos</given-names></name>
+      </person-group>
+      <article-title>Hyper-optimized tensor network contraction</article-title>
+      <source>Quantum</source>
+      <publisher-name>Verein zur Förderung des Open Access Publizierens in den Quantenwissenschaften</publisher-name>
+      <year iso-8601-date="2021-03">2021</year><month>03</month>
+      <volume>5</volume>
+      <issn>2521-327X</issn>
+      <pub-id pub-id-type="doi">10.22331/q-2021-03-15-410</pub-id>
+      <fpage>410</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Cross2017">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Cross</surname><given-names>Andrew W.</given-names></name>
+        <name><surname>Bishop</surname><given-names>Lev S.</given-names></name>
+        <name><surname>Smolin</surname><given-names>John A.</given-names></name>
+        <name><surname>Gambetta</surname><given-names>Jay M.</given-names></name>
+      </person-group>
+      <article-title>Open quantum assembly language</article-title>
+      <publisher-name>arXiv</publisher-name>
+      <year iso-8601-date="2017">2017</year>
+      <uri>https://arxiv.org/abs/1707.03429</uri>
+      <pub-id pub-id-type="doi">10.48550/ARXIV.1707.03429</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-Andre2018">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Andre</surname><given-names>Robin</given-names></name>
+        <name><surname>Schlag</surname><given-names>Sebastian</given-names></name>
+        <name><surname>Schulz</surname><given-names>Christian</given-names></name>
+      </person-group>
+      <article-title>Memetic multilevel hypergraph partitioning</article-title>
+      <source>Proceedings of the Genetic and Evolutionary Computation Conference</source>
+      <publisher-name>Association for Computing Machinery (ACM)</publisher-name>
+      <publisher-loc>Kyoto Japan</publisher-loc>
+      <year iso-8601-date="2018-07">2018</year><month>07</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2024-06-06">2024</year><month>06</month><day>06</day></date-in-citation>
+      <isbn>978-1-4503-5618-3</isbn>
+      <pub-id pub-id-type="doi">10.1145/3205455.3205475</pub-id>
+      <fpage>347</fpage>
+      <lpage>354</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Springer2017">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Springer</surname><given-names>Paul</given-names></name>
+        <name><surname>Su</surname><given-names>Tong</given-names></name>
+        <name><surname>Bientinesi</surname><given-names>Paolo</given-names></name>
+      </person-group>
+      <article-title>HPTT: A high-performance tensor transposition C++ library</article-title>
+      <publisher-name>arXiv</publisher-name>
+      <year iso-8601-date="2017">2017</year>
+      <uri>https://arxiv.org/abs/1704.04374</uri>
+      <pub-id pub-id-type="doi">10.48550/ARXIV.1704.04374</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-Geiger2025">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Geiger</surname><given-names>Manuel</given-names></name>
+        <name><surname>Huang</surname><given-names>Qunsheng</given-names></name>
+        <name><surname>Mendl</surname><given-names>Christian B.</given-names></name>
+      </person-group>
+      <article-title>Optimizing tensor network partitioning using simulated annealing</article-title>
+      <year iso-8601-date="2025">2025</year>
+      <uri>https://arxiv.org/abs/2507.20667</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-Arute2019">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Arute</surname><given-names>Frank</given-names></name>
+        <name><surname>Arya</surname><given-names>Kunal</given-names></name>
+        <name><surname>Babbush</surname><given-names>Ryan</given-names></name>
+        <name><surname>Bacon</surname><given-names>Dave</given-names></name>
+        <name><surname>Bardin</surname><given-names>Joseph C.</given-names></name>
+        <name><surname>Barends</surname><given-names>Rami</given-names></name>
+        <name><surname>Biswas</surname><given-names>Rupak</given-names></name>
+        <name><surname>Boixo</surname><given-names>Sergio</given-names></name>
+        <name><surname>Brandao</surname><given-names>Fernando G. S. L.</given-names></name>
+        <name><surname>Buell</surname><given-names>David A.</given-names></name>
+        <name><surname>Burkett</surname><given-names>Brian</given-names></name>
+        <name><surname>Chen</surname><given-names>Yu</given-names></name>
+        <name><surname>Chen</surname><given-names>Zijun</given-names></name>
+        <name><surname>Chiaro</surname><given-names>Ben</given-names></name>
+        <name><surname>Collins</surname><given-names>Roberto</given-names></name>
+        <name><surname>Courtney</surname><given-names>William</given-names></name>
+        <name><surname>Dunsworth</surname><given-names>Andrew</given-names></name>
+        <name><surname>Farhi</surname><given-names>Edward</given-names></name>
+        <name><surname>Foxen</surname><given-names>Brooks</given-names></name>
+        <name><surname>Fowler</surname><given-names>Austin</given-names></name>
+        <name><surname>Gidney</surname><given-names>Craig</given-names></name>
+        <name><surname>Giustina</surname><given-names>Marissa</given-names></name>
+        <name><surname>Graff</surname><given-names>Rob</given-names></name>
+        <name><surname>Guerin</surname><given-names>Keith</given-names></name>
+        <name><surname>Habegger</surname><given-names>Steve</given-names></name>
+        <name><surname>Harrigan</surname><given-names>Matthew P.</given-names></name>
+        <name><surname>Hartmann</surname><given-names>Michael J.</given-names></name>
+        <name><surname>Ho</surname><given-names>Alan</given-names></name>
+        <name><surname>Hoffmann</surname><given-names>Markus</given-names></name>
+        <name><surname>Huang</surname><given-names>Trent</given-names></name>
+        <name><surname>Humble</surname><given-names>Travis S.</given-names></name>
+        <name><surname>Isakov</surname><given-names>Sergei V.</given-names></name>
+        <name><surname>Jeffrey</surname><given-names>Evan</given-names></name>
+        <name><surname>Jiang</surname><given-names>Zhang</given-names></name>
+        <name><surname>Kafri</surname><given-names>Dvir</given-names></name>
+        <name><surname>Kechedzhi</surname><given-names>Kostyantyn</given-names></name>
+        <name><surname>Kelly</surname><given-names>Julian</given-names></name>
+        <name><surname>Klimov</surname><given-names>Paul V.</given-names></name>
+        <name><surname>Knysh</surname><given-names>Sergey</given-names></name>
+        <name><surname>Korotkov</surname><given-names>Alexander</given-names></name>
+        <name><surname>Kostritsa</surname><given-names>Fedor</given-names></name>
+        <name><surname>Landhuis</surname><given-names>David</given-names></name>
+        <name><surname>Lindmark</surname><given-names>Mike</given-names></name>
+        <name><surname>Lucero</surname><given-names>Erik</given-names></name>
+        <name><surname>Lyakh</surname><given-names>Dmitry</given-names></name>
+        <name><surname>Mandrà</surname><given-names>Salvatore</given-names></name>
+        <name><surname>McClean</surname><given-names>Jarrod R.</given-names></name>
+        <name><surname>McEwen</surname><given-names>Matthew</given-names></name>
+        <name><surname>Megrant</surname><given-names>Anthony</given-names></name>
+        <name><surname>Mi</surname><given-names>Xiao</given-names></name>
+        <name><surname>Michielsen</surname><given-names>Kristel</given-names></name>
+        <name><surname>Mohseni</surname><given-names>Masoud</given-names></name>
+        <name><surname>Mutus</surname><given-names>Josh</given-names></name>
+        <name><surname>Naaman</surname><given-names>Ofer</given-names></name>
+        <name><surname>Neeley</surname><given-names>Matthew</given-names></name>
+        <name><surname>Neill</surname><given-names>Charles</given-names></name>
+        <name><surname>Niu</surname><given-names>Murphy Yuezhen</given-names></name>
+        <name><surname>Ostby</surname><given-names>Eric</given-names></name>
+        <name><surname>Petukhov</surname><given-names>Andre</given-names></name>
+        <name><surname>Platt</surname><given-names>John C.</given-names></name>
+        <name><surname>Quintana</surname><given-names>Chris</given-names></name>
+        <name><surname>Rieffel</surname><given-names>Eleanor G.</given-names></name>
+        <name><surname>Roushan</surname><given-names>Pedram</given-names></name>
+        <name><surname>Rubin</surname><given-names>Nicholas C.</given-names></name>
+        <name><surname>Sank</surname><given-names>Daniel</given-names></name>
+        <name><surname>Satzinger</surname><given-names>Kevin J.</given-names></name>
+        <name><surname>Smelyanskiy</surname><given-names>Vadim</given-names></name>
+        <name><surname>Sung</surname><given-names>Kevin J.</given-names></name>
+        <name><surname>Trevithick</surname><given-names>Matthew D.</given-names></name>
+        <name><surname>Vainsencher</surname><given-names>Amit</given-names></name>
+        <name><surname>Villalonga</surname><given-names>Benjamin</given-names></name>
+        <name><surname>White</surname><given-names>Theodore</given-names></name>
+        <name><surname>Yao</surname><given-names>Z. Jamie</given-names></name>
+        <name><surname>Yeh</surname><given-names>Ping</given-names></name>
+        <name><surname>Zalcman</surname><given-names>Adam</given-names></name>
+        <name><surname>Neven</surname><given-names>Hartmut</given-names></name>
+        <name><surname>Martinis</surname><given-names>John M.</given-names></name>
+      </person-group>
+      <article-title>Quantum supremacy using a programmable superconducting processor</article-title>
+      <source>Nature</source>
+      <year iso-8601-date="2019">2019</year>
+      <volume>574</volume>
+      <issue>7779</issue>
+      <pub-id pub-id-type="doi">10.1038/s41586-019-1666-5</pub-id>
+      <fpage>505</fpage>
+      <lpage>510</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Bayraktar2023">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Bayraktar</surname><given-names>Harun</given-names></name>
+        <name><surname>Charara</surname><given-names>Ali</given-names></name>
+        <name><surname>Clark</surname><given-names>David</given-names></name>
+        <name><surname>Cohen</surname><given-names>Saul</given-names></name>
+        <name><surname>Costa</surname><given-names>Timothy</given-names></name>
+        <name><surname>Fang</surname><given-names>Yao-Lung L.</given-names></name>
+        <name><surname>Gao</surname><given-names>Yang</given-names></name>
+        <name><surname>Guan</surname><given-names>Jack</given-names></name>
+        <name><surname>Gunnels</surname><given-names>John</given-names></name>
+        <name><surname>Haidar</surname><given-names>Azzam</given-names></name>
+        <name><surname>Hehn</surname><given-names>Andreas</given-names></name>
+        <name><surname>Hohnerbach</surname><given-names>Markus</given-names></name>
+        <name><surname>Jones</surname><given-names>Matthew</given-names></name>
+        <name><surname>Lubowe</surname><given-names>Tom</given-names></name>
+        <name><surname>Lyakh</surname><given-names>Dmitry</given-names></name>
+        <name><surname>Morino</surname><given-names>Shinya</given-names></name>
+        <name><surname>Springer</surname><given-names>Paul</given-names></name>
+        <name><surname>Stanwyck</surname><given-names>Sam</given-names></name>
+        <name><surname>Terentyev</surname><given-names>Igor</given-names></name>
+        <name><surname>Varadhan</surname><given-names>Satya</given-names></name>
+        <name><surname>Wong</surname><given-names>Jonathan</given-names></name>
+        <name><surname>Yamaguchi</surname><given-names>Takuma</given-names></name>
+      </person-group>
+      <article-title>cuQuantum SDK: A high-performance library for accelerating quantum science</article-title>
+      <source>2023 IEEE international conference on quantum computing and engineering (QCE)</source>
+      <year iso-8601-date="2023">2023</year>
+      <volume>01</volume>
+      <pub-id pub-id-type="doi">10.1109/QCE57702.2023.00119</pub-id>
+      <fpage>1050</fpage>
+      <lpage>1061</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Pfeifer2015">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Pfeifer</surname><given-names>Robert N. C.</given-names></name>
+        <name><surname>Evenbly</surname><given-names>Glen</given-names></name>
+        <name><surname>Singh</surname><given-names>Sukhwinder</given-names></name>
+        <name><surname>Vidal</surname><given-names>Guifre</given-names></name>
+      </person-group>
+      <article-title>NCON: A tensor network contractor for MATLAB</article-title>
+      <year iso-8601-date="2015">2015</year>
+      <uri>https://arxiv.org/abs/1402.0939</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-MKL">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Intel</surname></name>
+      </person-group>
+      <article-title>oneAPI math kernel library (oneMKL)</article-title>
+      <publisher-name>https://software.intel.com/en-us/intel-mkl</publisher-name>
+    </element-citation>
+  </ref>
+  <ref id="ref-ExaTN">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Lyakh</surname><given-names>Dmitry I.</given-names></name>
+        <name><surname>Nguyen</surname><given-names>Thien</given-names></name>
+        <name><surname>Claudino</surname><given-names>Daniel</given-names></name>
+        <name><surname>Dumitrescu</surname><given-names>Eugene</given-names></name>
+        <name><surname>McCaskey</surname><given-names>Alexander J.</given-names></name>
+      </person-group>
+      <article-title>ExaTN: Scalable GPU-accelerated high-performance processing of general tensor networks at exascale</article-title>
+      <source>Frontiers Appl. Math. Stat.</source>
+      <year iso-8601-date="2022">2022</year>
+      <volume>8</volume>
+      <pub-id pub-id-type="doi">10.3389/fams.2022.838601</pub-id>
+      <fpage>838601</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Jet">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Vincent</surname><given-names>Trevor</given-names></name>
+        <name><surname>O’Riordan</surname><given-names>Lee J.</given-names></name>
+        <name><surname>Andrenkov</surname><given-names>Mikhail</given-names></name>
+        <name><surname>Brown</surname><given-names>Jack</given-names></name>
+        <name><surname>Killoran</surname><given-names>Nathan</given-names></name>
+        <name><surname>Qi</surname><given-names>Haoyu</given-names></name>
+        <name><surname>Dhand</surname><given-names>Ish</given-names></name>
+      </person-group>
+      <article-title>Jet: Fast quantum circuit simulations with parallel task-based tensor-network contraction</article-title>
+      <source>Quantum</source>
+      <year iso-8601-date="2022-05">2022</year><month>05</month>
+      <volume>6</volume>
+      <issn>2521-327X</issn>
+      <pub-id pub-id-type="doi">10.22331/q-2022-05-09-709</pub-id>
+      <fpage>709</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-QTensor">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Lykov</surname><given-names>Danylo</given-names></name>
+        <name><surname>Alexeev</surname><given-names>Yuri</given-names></name>
+        <name><surname>Ibrahim</surname><given-names>Cameron</given-names></name>
+        <name><surname>Galda</surname><given-names>Alexey</given-names></name>
+      </person-group>
+      <article-title>QTensor: Fast QAOA Quantum Simulator</article-title>
+      <source>APS march meeting abstracts</source>
+      <year iso-8601-date="2021-01">2021</year><month>01</month>
+      <volume>2021</volume>
+      <fpage>M34.007</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Garcia2024">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>García</surname><given-names>Marcos Díez</given-names></name>
+        <name><surname>Romero</surname><given-names>Antonio Márquez</given-names></name>
+      </person-group>
+      <article-title>Survey on computational applications of tensor network simulations</article-title>
+      <publisher-name>arXiv</publisher-name>
+      <year iso-8601-date="2024-08">2024</year><month>08</month>
+      <uri>https://arxiv.org/abs/2408.05011</uri>
+      <pub-id pub-id-type="doi">10.48550/ARXIV.2408.05011</pub-id>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
