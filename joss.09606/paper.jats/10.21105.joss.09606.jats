@@ -1,0 +1,645 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">9606</article-id>
+<article-id pub-id-type="doi">10.21105/joss.09606</article-id>
+<title-group>
+<article-title>site-analysis: A Python package for site-projection
+analysis of molecular dynamics trajectories</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0002-3056-8233</contrib-id>
+<name>
+<surname>Morgan</surname>
+<given-names>Benjamin J.</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+<xref ref-type="aff" rid="aff-2"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Department of Chemistry, University of Bath, Claverton
+Down, Bath, BA2 7AY, United Kingdom</institution>
+</institution-wrap>
+</aff>
+<aff id="aff-2">
+<institution-wrap>
+<institution>The Faraday Institution, Quad One, Harwell Science and
+Innovation Campus, Didcot, OX11 0RA, United Kingdom</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2025-05-23">
+<day>23</day>
+<month>5</month>
+<year>2025</year>
+</pub-date>
+<volume>11</volume>
+<issue>122</issue>
+<fpage>9606</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2026</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>Python</kwd>
+<kwd>molecular dynamics</kwd>
+<kwd>ionic conductors</kwd>
+<kwd>diffusion</kwd>
+<kwd>crystallography</kwd>
+<kwd>solid-state ionics</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p>Understanding ionic transport in crystalline solids is important
+  for developing materials for batteries, fuel cells, and other
+  electrochemical devices. Molecular dynamics (MD) simulations provide
+  detailed information about the microscopic dynamics of mobile ions,
+  but extracting mechanistic insights from these complex data can be
+  challenging. In crystalline solids, ionic diffusion can often be
+  considered to proceed by discrete jumps between “sites”—persistent
+  local minima on the potential energy surface.
+  <monospace>site-analysis</monospace> is a Python package that
+  processes MD trajectories to produce time-resolved site-occupation
+  data that provide a coarse-grained description of ion transport. The
+  package implements four site-definition methods—spherical, polyhedral,
+  Voronoi, and dynamic Voronoi—allowing users to choose the approach
+  best suited to their requirements. For polyhedral and dynamic Voronoi
+  sites, <monospace>site-analysis</monospace> implements a
+  reference-based workflow that automates site generation from
+  coordination environment specifications, allowing users to analyse
+  trajectories without manually defining site geometries.
+  <monospace>site-analysis</monospace> integrates with existing
+  computational materials science workflows through the pymatgen
+  ecosystem and provides both atom-centric and site-centric
+  representations of ion dynamics as simple Python data structures.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p>Molecular dynamics (MD) simulations are widely used to study ionic
+  transport in battery materials, solid electrolytes, and ceramic ion
+  conductors
+  (<xref alt="Landgraf et al., 2025" rid="ref-LandgrafEtAl_JAmChemSoc2025" ref-type="bibr">Landgraf
+  et al., 2025</xref>;
+  <xref alt="Mercadier et al., 2023" rid="ref-Mercadier2023" ref-type="bibr">Mercadier
+  et al., 2023</xref>;
+  <xref alt="Morgan, 2021" rid="ref-Morgan2021" ref-type="bibr">Morgan,
+  2021</xref>;
+  <xref alt="Poletayev et al., 2022" rid="ref-PoletayevEtAl_NatureMater2022" ref-type="bibr">Poletayev
+  et al., 2022</xref>). While these simulations produce detailed atomic
+  trajectories, extracting mechanistic understanding from raw trajectory
+  data can be challenging. A productive approach is to seek a
+  coarse-grained description that retains only the essential features of
+  ion transport. In many crystalline solids, ionic transport can be
+  understood as a series of discrete “jumps” between crystallographic
+  sites—persistent local minima on the potential energy surface where
+  mobile ions reside between jumps. This site-hopping perspective
+  motivates a coarse-graining strategy: transform continuous
+  trajectories into sequences of site occupations, capturing only motion
+  between sites while discarding vibrational motion within sites.</p>
+  <p>Transforming MD trajectories into site-occupation sequences
+  requires both defining what constitutes a “site” and implementing
+  algorithms to track site occupancy throughout the simulation. While
+  the concept is straightforward, the practical implementation presents
+  challenges: sites must be defined and occupancy criteria must handle
+  edge cases. Without accessible software tools, each research group
+  must independently implement these methods, leading to duplicated
+  effort and potential inconsistencies in analysis approaches.</p>
+  <p><monospace>site-analysis</monospace> provides a Python framework
+  that implements multiple site-definition methods within a consistent
+  interface. For each analysis timestep in an MD trajectory, the package
+  determines which site (if any) each mobile ion occupies. This
+  information can be accessed in two ways: atom trajectories, which
+  record the sequence of sites visited by each ion (e.g., ion 1 visits
+  sites <monospace>[0, 0, 1, 1, 2, ...]</monospace>), and site
+  trajectories, which record which ions occupy each site over time.
+  These outputs are represented using simple Python lists, which allows
+  easy integration into downstream analysis for computing, for example,
+  site-occupation probabilities, site–site transition frequencies, or
+  details of correlated ion movements.</p>
+  <p>The package provides four site-definition methods—spherical,
+  polyhedral, Voronoi, and dynamic Voronoi:</p>
+  <list list-type="bullet">
+    <list-item>
+      <p><bold>Spherical sites</bold> are defined as spheres of fixed
+      radius centred on crystallographic positions, providing a simple
+      and widely-used approach.</p>
+    </list-item>
+    <list-item>
+      <p><bold>Voronoi sites</bold> divide all space into regions where
+      each point belongs to its nearest site centre. This ensures
+      complete spatial coverage with no gaps or overlaps.</p>
+    </list-item>
+    <list-item>
+      <p><bold>Dynamic Voronoi sites</bold> use Voronoi centres
+      recalculated each frame based on instantaneous positions of
+      coordinating host-framework atoms, accounting for thermal
+      distortions while maintaining complete spatial coverage.</p>
+    </list-item>
+    <list-item>
+      <p><bold>Polyhedral sites</bold> are defined by coordination
+      polyhedra formed by host-framework atoms. The vertex positions
+      update according to the instantaneous positions of the
+      coordinating host-framework atoms, allowing these sites to track
+      changing local environments.</p>
+    </list-item>
+  </list>
+  <p>To assist with analyses using dynamic Voronoi and polyhedral sites,
+  the package provides a reference-based workflow that automates site
+  generation: users provide an ideal reference structure and specify
+  coordination criteria (e.g., “Li ions coordinated by 4 O atoms”), and
+  the software identifies all matching environments and maps them to
+  target structures. This automated approach allows analyses using these
+  dynamic sites without requiring the user to manually identify all
+  relevant coordination environments.</p>
+  <p>The package uses a builder pattern interface for configuration and
+  parameter validation. Analyses can be set up and executed with a few
+  lines of code, with results returned as Python lists that integrate
+  simply into downstream analysis workflows. The software operates on
+  lists of pymatgen <monospace>Structure</monospace> objects, making it
+  compatible with any trajectory source that can produce pymatgen
+  structures.</p>
+  <p>The materials modelling community has developed various tools for
+  site-based trajectory analysis, including
+  <monospace>pymatgen-analysis-diffusion</monospace>
+  (<xref alt="Deng et al., 2016" rid="ref-DengEtAl_ChemMater2016" ref-type="bibr">Deng
+  et al., 2016</xref>;
+  <xref alt="Pymatgen-Analysis-Diffusion, 2021" rid="ref-pymatgen-analysis-diffusion" ref-type="bibr"><italic>Pymatgen-Analysis-Diffusion</italic>,
+  2021</xref>), <monospace>SITATOR</monospace>
+  (<xref alt="Kahle et al., 2019" rid="ref-KahleEtAl_PhysRevMater2019" ref-type="bibr">Kahle
+  et al., 2019</xref>;
+  <xref alt="Sitator, 2020" rid="ref-sitator" ref-type="bibr"><italic>Sitator</italic>,
+  2020</xref>), <monospace>IonDiff</monospace>
+  (<xref alt="López et al., 2024" rid="ref-LopezEtAl_JOpenSourceSoftw2024" ref-type="bibr">López
+  et al., 2024</xref>), and <monospace>gemdat</monospace>
+  (<xref alt="Azizi et al., 2025" rid="ref-GEMDAT" ref-type="bibr">Azizi
+  et al., 2025</xref>). These packages each implement specific schemes
+  for defining sites and assigning occupations, and are often tightly
+  integrated with downstream workflows for particular analysis tasks.
+  <monospace>site-analysis</monospace> complements these tools by
+  focusing on generality: it provides multiple site-definition methods
+  within a consistent interface and produces output using simple data
+  structures that can feed into any downstream analysis. To our
+  knowledge, <monospace>site-analysis</monospace> is unique in
+  implementing geometric sites that dynamically update during the
+  simulation (polyhedral sites and dynamic Voronoi sites) in a publicly
+  available package. We note that the use of dynamic polyhedral sites is
+  particularly valuable for materials with close-packed host-framework
+  structures, where mobile ion coordination environments provide a
+  natural and intuitive basis for describing transport mechanisms
+  (<xref alt="Burbano et al., 2016" rid="ref-Burbano2016" ref-type="bibr">Burbano
+  et al., 2016</xref>;
+  <xref alt="Mercadier et al., 2023" rid="ref-Mercadier2023" ref-type="bibr">Mercadier
+  et al., 2023</xref>;
+  <xref alt="Morgan, 2021" rid="ref-Morgan2021" ref-type="bibr">Morgan,
+  2021</xref>).</p>
+  <p><monospace>site-analysis</monospace> enables researchers to apply
+  site-projection analysis to characterise and quantify mechanisms of
+  ion transport in solid electrolytes. The software provides both
+  atom-centric views (tracking which sites each ion visits) and
+  site-centric views (recording which ions occupy each site over time),
+  supporting different analytical perspectives on the same transport
+  processes. This dual representation, combined with multiple
+  site-definition methods including dynamically-updating geometric
+  sites, provides a flexible toolkit for analysing ionic transport
+  mechanisms across diverse materials.</p>
+  <p>The software has been used to analyse ion-transport mechanisms in
+  lithium-ion and fluoride-ion solid electrolytes
+  (<xref alt="Goldmann et al., 2025" rid="ref-GoldmannEtAl_ChemMater2025" ref-type="bibr">Goldmann
+  et al., 2025</xref>;
+  <xref alt="Hu et al., 2025" rid="ref-Hu2025" ref-type="bibr">Hu et
+  al., 2025</xref>;
+  <xref alt="Krenzer et al., 2023" rid="ref-Krenzer2023" ref-type="bibr">Krenzer
+  et al., 2023</xref>;
+  <xref alt="Mercadier et al., 2023" rid="ref-Mercadier2023" ref-type="bibr">Mercadier
+  et al., 2023</xref>;
+  <xref alt="Morgan, 2021" rid="ref-Morgan2021" ref-type="bibr">Morgan,
+  2021</xref>). The package reproduces functionality from an earlier
+  Fortran code that used dynamically defined coordination polyhedra to
+  study ion-transport and defect distributions
+  (<xref alt="Burbano et al., 2016" rid="ref-Burbano2016" ref-type="bibr">Burbano
+  et al., 2016</xref>;
+  <xref alt="Morgan &amp; Madden, 2011" rid="ref-Morgan2011" ref-type="bibr">Morgan
+  &amp; Madden, 2011</xref>,
+  <xref alt="2012" rid="ref-Morgan2012" ref-type="bibr">2012</xref>,
+  <xref alt="2014b" rid="ref-Morgan2014" ref-type="bibr">2014b</xref>,
+  <xref alt="2014a" rid="ref-Morgan2014b" ref-type="bibr">2014a</xref>),
+  which was itself motivated by earlier studies using projections onto
+  tetrahedral sites
+  (<xref alt="Castiglione et al., 1999" rid="ref-Castiglione1999" ref-type="bibr">Castiglione
+  et al., 1999</xref>;
+  <xref alt="Castiglione &amp; Madden, 2001" rid="ref-Castiglione2001" ref-type="bibr">Castiglione
+  &amp; Madden, 2001</xref>;
+  <xref alt="Marrocchelli et al., 2009" rid="ref-Marrocchelli2009" ref-type="bibr">Marrocchelli
+  et al., 2009</xref>). Documentation and tutorials are available at
+  <ext-link ext-link-type="uri" xlink:href="https://site-analysis.readthedocs.io">https://site-analysis.readthedocs.io</ext-link>.</p>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>B.J.M. acknowledges support from the Royal Society (UF130329 and
+  URF/R/191006) and the Faraday Institution (FIRG016).</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <title>Bibliography</title>
+  <ref id="ref-GEMDAT">
+    <element-citation publication-type="software">
+      <person-group person-group-type="author">
+        <name><surname>Azizi</surname><given-names>Victor</given-names></name>
+        <name><surname>Smeets</surname><given-names>Stef</given-names></name>
+        <name><surname>Lavrinenko</surname><given-names>Anastasia K.</given-names></name>
+        <name><surname>Ciarella</surname><given-names>Simone</given-names></name>
+        <name><surname>Famprikis</surname><given-names>Theodosios</given-names></name>
+        <name><surname>Landgraf</surname><given-names>Victor</given-names></name>
+        <name><surname>Vasileiadis</surname><given-names>Alexandros</given-names></name>
+      </person-group>
+      <article-title>GEMDAT</article-title>
+      <year iso-8601-date="2025">2025</year>
+      <uri>https://github.com/GEMDAT-repos/GEMDAT</uri>
+      <pub-id pub-id-type="doi">10.5281/zenodo.8401669</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-pymatgen-analysis-diffusion">
+    <element-citation>
+      <article-title>Pymatgen-analysis-diffusion</article-title>
+      <year iso-8601-date="2021">2021</year>
+      <uri>https://github.com/materialsvirtuallab/pymatgen-analysis-diffusion</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-sitator">
+    <element-citation>
+      <article-title>Sitator</article-title>
+      <year iso-8601-date="2020">2020</year>
+      <uri>https://github.com/Linux-cpp-lisp/sitator</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-Krenzer2023">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Krenzer</surname><given-names>Georg</given-names></name>
+        <name><surname>Klarbring</surname><given-names>Johan</given-names></name>
+        <name><surname>Tolborg</surname><given-names>Kasper</given-names></name>
+        <name><surname>Rossignol</surname><given-names>Hugo</given-names></name>
+        <name><surname>McCluskey</surname><given-names>Andrew R.</given-names></name>
+        <name><surname>Morgan</surname><given-names>Benjamin J.</given-names></name>
+        <name><surname>Walsh</surname><given-names>Aron</given-names></name>
+      </person-group>
+      <article-title>Nature of the superionic phase transition of lithium nitride from machine learning force fields</article-title>
+      <source>Chemistry of Materials</source>
+      <year iso-8601-date="2023">2023</year>
+      <volume>35</volume>
+      <pub-id pub-id-type="doi">10.1021/acs.chemmater.3c01271</pub-id>
+      <fpage>6133</fpage>
+      <lpage>6140</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-PoletayevEtAl_NatureMater2022">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Poletayev</surname><given-names>Andrey D.</given-names></name>
+        <name><surname>Dawson</surname><given-names>James A.</given-names></name>
+        <name><surname>Islam</surname><given-names>M. Saiful</given-names></name>
+        <name><surname>Lindenberg</surname><given-names>Aaron M.</given-names></name>
+      </person-group>
+      <article-title>Defect-driven anomalous transport in fast-ion conducting solid electrolytes</article-title>
+      <source>Nature Materials</source>
+      <publisher-name>Springer Science; Business Media LLC</publisher-name>
+      <year iso-8601-date="2022-07">2022</year><month>07</month>
+      <volume>21</volume>
+      <issue>9</issue>
+      <uri>https://doi.org/10.1038/s41563-022-01316-z</uri>
+      <pub-id pub-id-type="doi">10.1038/s41563-022-01316-z</pub-id>
+      <fpage>1066</fpage>
+      <lpage>1073</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Mercadier2023">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Mercadier</surname><given-names>Briséis</given-names></name>
+        <name><surname>Coles</surname><given-names>Samuel W.</given-names></name>
+        <name><surname>Duttine</surname><given-names>Mathieu</given-names></name>
+        <name><surname>Legein</surname><given-names>Christophe</given-names></name>
+        <name><surname>Body</surname><given-names>Monique</given-names></name>
+        <name><surname>Borkiewicz</surname><given-names>Olaf J.</given-names></name>
+        <name><surname>Lebedev</surname><given-names>Oleg</given-names></name>
+        <name><surname>Morgan</surname><given-names>Benjamin J.</given-names></name>
+        <name><surname>Masquelier</surname><given-names>Christian</given-names></name>
+        <name><surname>Dambournet</surname><given-names>Damien</given-names></name>
+      </person-group>
+      <article-title>Dynamic lone pairs and fluoride-ion disorder in cubic-BaSnF_4</article-title>
+      <source>Journal of the American Chemical Society</source>
+      <year iso-8601-date="2023">2023</year>
+      <volume>145</volume>
+      <pub-id pub-id-type="doi">10.1021/jacs.3c08232</pub-id>
+      <fpage>17700</fpage>
+      <lpage>17714</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Morgan2021">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Morgan</surname><given-names>Benjamin J.</given-names></name>
+      </person-group>
+      <article-title>Mechanistic origin of superionic lithium diffusion in anion-disordered Li_6PS_5X argyrodites</article-title>
+      <source>Chemistry of Materials</source>
+      <year iso-8601-date="2021">2021</year>
+      <volume>33</volume>
+      <pub-id pub-id-type="doi">10.1021/acs.chemmater.0c03738</pub-id>
+      <fpage>2004</fpage>
+      <lpage>2018</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Burbano2016">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Burbano</surname><given-names>Mario</given-names></name>
+        <name><surname>Carlier</surname><given-names>Dany</given-names></name>
+        <name><surname>Boucher</surname><given-names>Florent</given-names></name>
+        <name><surname>Morgan</surname><given-names>Benjamin J.</given-names></name>
+        <name><surname>Salanne</surname><given-names>Mathieu</given-names></name>
+      </person-group>
+      <article-title>Sparse cyclic excitations explain the low ionic conductivity of stoichiometric Li_7La_3Zr_2O_{12}</article-title>
+      <source>Physical Review Letters</source>
+      <year iso-8601-date="2016">2016</year>
+      <volume>116</volume>
+      <pub-id pub-id-type="doi">10.1103/PhysRevLett.116.135901</pub-id>
+      <fpage>135901</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Morgan2014">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Morgan</surname><given-names>Benjamin J.</given-names></name>
+        <name><surname>Madden</surname><given-names>Paul A.</given-names></name>
+      </person-group>
+      <article-title>Relationships between atomic diffusion mechanisms and ensemble transport coefficients in crystalline polymorphs</article-title>
+      <source>Physical Review Letters</source>
+      <year iso-8601-date="2014">2014</year>
+      <volume>112</volume>
+      <pub-id pub-id-type="doi">10.1103/PhysRevLett.112.145901</pub-id>
+      <fpage>145901</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Morgan2014b">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Morgan</surname><given-names>Benjamin J.</given-names></name>
+        <name><surname>Madden</surname><given-names>Paul A.</given-names></name>
+      </person-group>
+      <article-title>Molecular dynamics simulation of ionic transport at coherent interfaces in fluorite heterostructures</article-title>
+      <source>Physical Review B</source>
+      <year iso-8601-date="2014">2014</year>
+      <volume>89</volume>
+      <pub-id pub-id-type="doi">10.1103/PhysRevB.89.054304</pub-id>
+      <fpage>054304</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Morgan2012">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Morgan</surname><given-names>Benjamin J.</given-names></name>
+        <name><surname>Madden</surname><given-names>Paul A.</given-names></name>
+      </person-group>
+      <article-title>Absence of a space-charge-derived enhancement of ionic conductivity in \beta/\gamma-heterostructured 7H- and 9R-AgI</article-title>
+      <source>Journal of Physics: Condensed Matter</source>
+      <year iso-8601-date="2012">2012</year>
+      <volume>24</volume>
+      <pub-id pub-id-type="doi">10.1088/0953-8984/24/27/275303</pub-id>
+      <fpage>275303</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Morgan2011">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Morgan</surname><given-names>Benjamin J.</given-names></name>
+        <name><surname>Madden</surname><given-names>Paul A.</given-names></name>
+      </person-group>
+      <article-title>Effects of lattice polarity on interfacial space charges and defect disorder in ionically conducting AgI heterostructures</article-title>
+      <source>Physical Review Letters</source>
+      <year iso-8601-date="2011">2011</year>
+      <volume>107</volume>
+      <pub-id pub-id-type="doi">10.1103/PhysRevLett.107.206102</pub-id>
+      <fpage>206102</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Marrocchelli2009">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Marrocchelli</surname><given-names>Dario</given-names></name>
+        <name><surname>Madden</surname><given-names>Paul A.</given-names></name>
+        <name><surname>Norberg</surname><given-names>Stefan T.</given-names></name>
+        <name><surname>Hull</surname><given-names>Stephen</given-names></name>
+      </person-group>
+      <article-title>Cation composition effects on oxide conductivity in the Zr_2Y_2O_7–Y_3NbO_7 system</article-title>
+      <source>Journal of Physics: Condensed Matter</source>
+      <year iso-8601-date="2009">2009</year>
+      <volume>21</volume>
+      <pub-id pub-id-type="doi">10.1088/0953-8984/21/40/405403</pub-id>
+      <fpage>405403</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Castiglione2001">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Castiglione</surname><given-names>M. J.</given-names></name>
+        <name><surname>Madden</surname><given-names>P. A.</given-names></name>
+      </person-group>
+      <article-title>Fluoride ion disorder and clustering in superionic PbF_2</article-title>
+      <source>Journal of Physics: Condensed Matter</source>
+      <year iso-8601-date="2001">2001</year>
+      <volume>13</volume>
+      <pub-id pub-id-type="doi">10.1088/0953-8984/13/44/311</pub-id>
+      <fpage>9963</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Castiglione1999">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Castiglione</surname><given-names>M. J.</given-names></name>
+        <name><surname>Wilson</surname><given-names>Mark</given-names></name>
+        <name><surname>Madden</surname><given-names>P. A.</given-names></name>
+      </person-group>
+      <article-title>Polarization effects in the simulation of lead (ii) fluoride</article-title>
+      <source>Journal of Physics: Condensed Matter</source>
+      <year iso-8601-date="1999">1999</year>
+      <volume>11</volume>
+      <pub-id pub-id-type="doi">10.1088/0953-8984/11/46/303</pub-id>
+      <fpage>9009</fpage>
+      <lpage>9024</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-LandgrafEtAl_JAmChemSoc2025">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Landgraf</surname><given-names>Victor</given-names></name>
+        <name><surname>Tu</surname><given-names>Mengfu</given-names></name>
+        <name><surname>Zhao</surname><given-names>Wenxuan</given-names></name>
+        <name><surname>Lavrinenko</surname><given-names>Anastasia K.</given-names></name>
+        <name><surname>Cheng</surname><given-names>Zhu</given-names></name>
+        <name><surname>Canals</surname><given-names>Jef</given-names></name>
+        <name><surname>Leeuw</surname><given-names>Joris de</given-names></name>
+        <name><surname>Ganapathy</surname><given-names>Swapna</given-names></name>
+        <name><surname>Vasileiadis</surname><given-names>Alexandros</given-names></name>
+        <name><surname>Wagemaker</surname><given-names>Marnix</given-names></name>
+        <name><surname>Famprikis</surname><given-names>Theodosios</given-names></name>
+      </person-group>
+      <article-title>Disorder-mediated ionic conductivity in irreducible solid electrolytes</article-title>
+      <source>J. Am. Chem. Soc.</source>
+      <publisher-name>American Chemical Society (ACS)</publisher-name>
+      <year iso-8601-date="2025-05">2025</year><month>05</month>
+      <volume>147</volume>
+      <issue>22</issue>
+      <pub-id pub-id-type="doi">10.1021/jacs.5c02784</pub-id>
+      <fpage>18840</fpage>
+      <lpage>18852</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Hu2025">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Hu</surname><given-names>Ji</given-names></name>
+        <name><surname>Squires</surname><given-names>Alexander G.</given-names></name>
+        <name><surname>Kondek</surname><given-names>Jędrzej</given-names></name>
+        <name><surname>Johnson</surname><given-names>Michael J.</given-names></name>
+        <name><surname>Youd</surname><given-names>Arthur B.</given-names></name>
+        <name><surname>Vadhva</surname><given-names>Pooja</given-names></name>
+        <name><surname>Paul</surname><given-names>Partha P.</given-names></name>
+        <name><surname>Withers</surname><given-names>Philip J.</given-names></name>
+        <name><surname>Di Michiel</surname><given-names>Marco</given-names></name>
+        <name><surname>Keeble</surname><given-names>Dean S.</given-names></name>
+        <name><surname>Hansen</surname><given-names>Michael Ryan</given-names></name>
+        <name><surname>Scanlon</surname><given-names>David O.</given-names></name>
+        <name><surname>Rettie</surname><given-names>Alexander J. E.</given-names></name>
+      </person-group>
+      <article-title>Enabling ionic transport in Li_3AlP_2: The roles of defects and disorder</article-title>
+      <source>Journal of Materials Chemistry A</source>
+      <year iso-8601-date="2025">2025</year>
+      <volume>13</volume>
+      <pub-id pub-id-type="doi">10.1039/D4TA04347B</pub-id>
+      <fpage>6427</fpage>
+      <lpage>6439</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-KahleEtAl_PhysRevMater2019">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Kahle</surname><given-names>Leonid</given-names></name>
+        <name><surname>Musaelian</surname><given-names>Albert</given-names></name>
+        <name><surname>Marzari</surname><given-names>Nicola</given-names></name>
+        <name><surname>Kozinsky</surname><given-names>Boris</given-names></name>
+      </person-group>
+      <article-title>Unsupervised landmark analysis for jump detection in molecular dynamics simulations</article-title>
+      <source>Phys. Rev. Mater.</source>
+      <publisher-name>American Physical Society (APS)</publisher-name>
+      <year iso-8601-date="2019-05">2019</year><month>05</month>
+      <volume>3</volume>
+      <issue>5</issue>
+      <issn>2475-9953</issn>
+      <pub-id pub-id-type="doi">10.1103/physrevmaterials.3.055404</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-LopezEtAl_JOpenSourceSoftw2024">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>López</surname><given-names>Cibrán</given-names></name>
+        <name><surname>Rurali</surname><given-names>Riccardo</given-names></name>
+        <name><surname>Cazorla</surname><given-names>Claudio</given-names></name>
+      </person-group>
+      <article-title>IonDiff: Command-Line tool to identify ionic diffusion events and hopping correlations in molecular dynamics simulations</article-title>
+      <source>J. Open Source Softw.</source>
+      <publisher-name>The Open Journal</publisher-name>
+      <year iso-8601-date="2024-07">2024</year><month>07</month>
+      <volume>9</volume>
+      <issue>99</issue>
+      <issn>2475-9066</issn>
+      <pub-id pub-id-type="doi">10.21105/joss.06616</pub-id>
+      <fpage>6616</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-DengEtAl_ChemMater2016">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Deng</surname><given-names>Zhi</given-names></name>
+        <name><surname>Zhu</surname><given-names>Zhuoying</given-names></name>
+        <name><surname>Chu</surname><given-names>Iek-Heng</given-names></name>
+        <name><surname>Ong</surname><given-names>Shyue Ping</given-names></name>
+      </person-group>
+      <article-title>Data-driven first-principles methods for the study and design of alkali superionic conductors</article-title>
+      <source>Chem. Mater.</source>
+      <publisher-name>American Chemical Society (ACS)</publisher-name>
+      <year iso-8601-date="2016-09">2016</year><month>09</month>
+      <volume>29</volume>
+      <issue>1</issue>
+      <issn>1520-5002</issn>
+      <pub-id pub-id-type="doi">10.1021/acs.chemmater.6b02648</pub-id>
+      <fpage>281</fpage>
+      <lpage>288</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-GoldmannEtAl_ChemMater2025">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Goldmann</surname><given-names>Benedek A.</given-names></name>
+        <name><surname>Rosenbach</surname><given-names>Carolin</given-names></name>
+        <name><surname>Evans</surname><given-names>Hayden A.</given-names></name>
+        <name><surname>Helm</surname><given-names>Bianca</given-names></name>
+        <name><surname>Wankmiller</surname><given-names>Björn</given-names></name>
+        <name><surname>Maus</surname><given-names>Oliver</given-names></name>
+        <name><surname>Suard</surname><given-names>Emmanuelle</given-names></name>
+        <name><surname>Nazar</surname><given-names>Linda F.</given-names></name>
+        <name><surname>Hansen</surname><given-names>Michael Ryan</given-names></name>
+        <name><surname>Morgan</surname><given-names>Benjamin J.</given-names></name>
+        <name><surname>Islam</surname><given-names>M. Saiful</given-names></name>
+        <name><surname>Zeier</surname><given-names>Wolfgang G.</given-names></name>
+      </person-group>
+      <article-title>Rotational stacking faults in the ionic conductor Li_3ScCl_6</article-title>
+      <source>Chem. Mater.</source>
+      <publisher-name>American Chemical Society (ACS)</publisher-name>
+      <year iso-8601-date="2025-12">2025</year><month>12</month>
+      <volume>37</volume>
+      <issue>24</issue>
+      <issn>1520-5002</issn>
+      <pub-id pub-id-type="doi">10.1021/acs.chemmater.5c02303</pub-id>
+      <fpage>9858</fpage>
+      <lpage>9868</lpage>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
