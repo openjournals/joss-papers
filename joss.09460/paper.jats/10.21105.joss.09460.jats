@@ -1,0 +1,571 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">9460</article-id>
+<article-id pub-id-type="doi">10.21105/joss.09460</article-id>
+<title-group>
+<article-title>spring-batch-db-cluster-partitioning: Database-driven
+clustering with heartbeats and failover for Spring Batch</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0009-0002-4876-802X</contrib-id>
+<name>
+<surname>Chejarla</surname>
+<given-names>Janardhan Reddy</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Independent Researcher, United States</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2025-08-24">
+<day>24</day>
+<month>8</month>
+<year>2025</year>
+</pub-date>
+<volume>11</volume>
+<issue>122</issue>
+<fpage>9460</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2026</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>Java</kwd>
+<kwd>Spring Batch</kwd>
+<kwd>Distributed Systems</kwd>
+<kwd>Job Scheduling</kwd>
+<kwd>Database Coordination</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p>Batch processing of large datasets — transforming, validating, or
+  migrating millions of records in a single run — is a routine
+  requirement across scientific and enterprise computing, with
+  well-documented use in bioinformatics and clinical informatics
+  (<xref alt="Wolstencroft et al., 2013" rid="ref-wolstencroft2013taverna" ref-type="bibr">Wolstencroft
+  et al., 2013</xref>), in the Earth and climate sciences
+  (<xref alt="Cinquini et al., 2014" rid="ref-cinquini2014esgf" ref-type="bibr">Cinquini
+  et al., 2014</xref>), and in financial services
+  (<xref alt="Cogoluègnes et al., 2011" rid="ref-cogoluegnes2011springbatch" ref-type="bibr">Cogoluègnes
+  et al., 2011</xref>). Spring Batch
+  (<xref alt="Spring Batch Project, 2025" rid="ref-springbatch" ref-type="bibr"><italic>Spring
+  Batch Project</italic>, 2025</xref>) is a widely used Java framework
+  for these workloads, providing transactional chunk processing, restart
+  semantics, and a rich programming model. When a single machine cannot
+  process the data fast enough, Spring Batch supports <italic>remote
+  partitioning</italic>: the work is split into partitions and
+  dispatched to worker nodes through a messaging layer such as RabbitMQ
+  or Apache Kafka
+  (<xref alt="Remote Partitioning with Spring Batch and Spring Integration, 2025" rid="ref-spring_integration_remote_partitioning" ref-type="bibr"><italic>Remote
+  Partitioning with Spring Batch and Spring Integration</italic>,
+  2025</xref>).</p>
+  <p>However, operating a highly available message broker solely for
+  partition coordination adds significant infrastructure overhead —
+  deployment, monitoring, and failure handling for a component that is
+  incidental to the batch workload itself. More critically, the
+  message-based model provides no built-in mechanism for the master node
+  to discover how many workers are actually available, or to detect and
+  recover from a worker crash after a partition has been dispatched.</p>
+  <p><monospace>spring-batch-db-cluster-partitioning</monospace> is an
+  open-source Java extension that replaces the messaging layer with the
+  relational database that Spring Batch already requires. It introduces
+  three capabilities absent from the standard remote partitioning model:
+  (1) <bold>proactive node awareness</bold>, allowing the master to
+  query exactly how many workers are active before distributing work;
+  (2) <bold>explicit partition lifecycle tracking</bold>, recording each
+  partition’s state (<monospace>PENDING</monospace>,
+  <monospace>CLAIMED</monospace>, <monospace>COMPLETED</monospace>,
+  <monospace>FAILED</monospace>) transactionally so that no work is
+  silently lost; and (3) <bold>automatic failover</bold>, detecting
+  unresponsive nodes via heartbeat timeouts and reassigning their
+  incomplete partitions to healthy workers without human intervention.
+  By persisting all coordination state in standard SQL tables, the
+  extension eliminates the operational burden of a message broker while
+  simultaneously providing real-time visibility into job progress
+  through ordinary SQL queries.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of Need</title>
+  <p>Spring Batch is used in research-adjacent and enterprise contexts
+  where reproducible, auditable processing of large datasets is
+  essential. In bioinformatics, workflow-based pipelines process
+  sequencing data and clinical datasets at scale
+  (<xref alt="Wolstencroft et al., 2013" rid="ref-wolstencroft2013taverna" ref-type="bibr">Wolstencroft
+  et al., 2013</xref>). In the Earth and climate sciences, federated
+  infrastructures coordinate the ingestion and processing of model
+  output across petabyte-scale archives
+  (<xref alt="Cinquini et al., 2014" rid="ref-cinquini2014esgf" ref-type="bibr">Cinquini
+  et al., 2014</xref>). In financial services, batch processing
+  underpins end-of-day reconciliation, payment processing, and
+  regulatory reporting
+  (<xref alt="Cogoluègnes et al., 2011" rid="ref-cogoluegnes2011springbatch" ref-type="bibr">Cogoluègnes
+  et al., 2011</xref>). In each case, horizontal scale-out —
+  distributing partitions across multiple worker nodes — is a common
+  strategy for meeting processing-time targets.</p>
+  <p>Spring Batch offers two parallelism models
+  (<xref alt="Spring Batch, 2025" rid="ref-springbatch_scaling" ref-type="bibr"><italic>Spring
+  Batch</italic>, 2025</xref>): local multi-threaded partitioning within
+  a single JVM, and remote partitioning across multiple JVMs via a
+  messaging middleware
+  (<xref alt="Remote Partitioning with Spring Batch and Spring Integration, 2025" rid="ref-spring_integration_remote_partitioning" ref-type="bibr"><italic>Remote
+  Partitioning with Spring Batch and Spring Integration</italic>,
+  2025</xref>). Local partitioning is bounded by the resources of a
+  single machine. Remote partitioning removes this ceiling but
+  introduces a critical operational challenge: the master node
+  dispatches partitions through a message queue and has no direct
+  knowledge of how many workers are active, or whether a worker that
+  received a partition has completed, failed, or silently died. If a
+  worker crashes after claiming a partition but before acknowledging
+  completion, the master has no reliable mechanism to detect this and
+  reassign the work. Timeout-based recovery requires careful tuning and
+  still introduces indefinite blocking during failure scenarios
+  (<xref alt="Tanenbaum &amp; Van Steen, 2007" rid="ref-tanenbaum2007distributed" ref-type="bibr">Tanenbaum
+  &amp; Van Steen, 2007</xref>).</p>
+  <p>This extension addresses these gaps by using the relational
+  database as the coordination plane. The design produces several
+  concrete benefits. First, topology visibility: the master queries a
+  <monospace>BATCH_NODES</monospace> table before partitioning, so it
+  knows the exact number of active workers and can distribute work
+  proportionally — enabling partition counts that scale with the
+  available cluster size at runtime. Second, guaranteed state
+  durability: every partition state transition is committed
+  transactionally, so a worker crash leaves a recoverable record rather
+  than a lost message. Third, simplified architecture: teams already
+  operating a production database incur no additional infrastructure to
+  coordinate batch workers. Fourth, operational observability: standard
+  SQL queries expose live job status, partition progress, and node
+  health without specialised tooling.</p>
+  <p>The performance benefit is direct: a job that takes 60 minutes on a
+  single node can complete in approximately 15 minutes across four
+  workers using round-robin distribution, with near-linear speedup for
+  I/O-bound workloads. The extension adds only lightweight SQL
+  operations (heartbeat writes, partition claim updates) whose overhead
+  is negligible relative to the batch workload itself.</p>
+  <p>The target users are Java development teams running Spring Batch
+  workloads that require horizontal scale-out or fault-tolerant
+  execution, particularly in environments where introducing a message
+  broker is undesirable due to operational constraints, compliance
+  requirements, or infrastructure simplicity goals. A Spring-centric
+  implementation was chosen deliberately: this extension uses Spring
+  Batch’s native partitioning API, requiring no changes to existing job
+  or step definitions. Spring Batch has been a complete implementation
+  of JSR-352 (Jakarta Batch)
+  (<xref alt="Java Community Process, 2013" rid="ref-jsr352" ref-type="bibr">Java
+  Community Process, 2013</xref>) since version 3.0, and the JSR-352
+  specification defines closely analogous partitioning artifacts
+  (<monospace>PartitionMapper</monospace>,
+  <monospace>PartitionAnalyzer</monospace>,
+  <monospace>PartitionReducer</monospace>) that mirror Spring Batch’s
+  <monospace>Partitioner</monospace> and aggregator. The coordination
+  mechanism (message broker vs. shared database) is orthogonal to the
+  framework API surface, and the database-driven approach described here
+  could be re-implemented against the JSR-352 partitioning artifacts
+  with the same semantics, in line with the broader Java ecosystem’s
+  emphasis on specification-driven interoperability.</p>
+</sec>
+<sec id="software-design">
+  <title>Software Design</title>
+  <p>The extension is organised around three coordination tables that
+  augment Spring Batch’s existing <monospace>JobRepository</monospace>
+  schema. The <monospace>BATCH_NODES</monospace> table records every
+  active cluster node alongside a periodically refreshed heartbeat
+  timestamp. The <monospace>BATCH_PARTITIONS</monospace> table tracks
+  each partition’s lifecycle — from <monospace>PENDING</monospace>
+  through <monospace>CLAIMED</monospace> to
+  <monospace>COMPLETED</monospace> or <monospace>FAILED</monospace> —
+  with transactional state transitions that prevent double execution.
+  The <monospace>BATCH_JOB_COORDINATION</monospace> table binds a
+  specific job execution to its master node and partitioned step,
+  providing the metadata needed for aggregation and completion
+  detection.</p>
+  <p>When a partitioned step starts, the master node queries
+  <monospace>BATCH_NODES</monospace> to discover currently active
+  workers. It then invokes the user-supplied
+  <monospace>ClusterAwarePartitioner</monospace>, passing the live
+  worker count so that the number of partitions can be tailored to the
+  available cluster size. Partitions are assigned to workers using a
+  configurable strategy — round-robin for even distribution,
+  fixed-node-count for controlled parallelism, or scale-up for dynamic
+  workloads — and persisted to <monospace>BATCH_PARTITIONS</monospace>
+  with a <monospace>PENDING</monospace> status. Each worker node runs a
+  polling loop that claims its assigned partitions transactionally,
+  executes the corresponding Spring Batch step, and updates the
+  partition status upon completion or failure.</p>
+  <p>Failure detection uses a two-phase protocol. Nodes that miss
+  heartbeat updates beyond a configurable threshold are first marked
+  <monospace>UNREACHABLE</monospace> — a transient state that
+  accommodates temporary network hiccups or garbage-collection pauses.
+  Only after a longer cleanup threshold does the system remove the node
+  entry and make its incomplete partitions eligible for reassignment.
+  This separation reduces false positives and avoids unnecessary
+  partition transfers. Partitions marked as transferable are reassigned
+  to healthy nodes, while non-transferable partitions are left in their
+  failed state for manual investigation — giving operators control over
+  the recovery policy.</p>
+  <p>The architecture diagram below illustrates the coordination
+  flow:</p>
+  <fig>
+    <caption><p>Coordination flow between the job launcher, shared
+    database, and worker
+    nodes.<styled-content id="figU003Aarch"></styled-content></p></caption>
+    <graphic mimetype="image" mime-subtype="png" xlink:href="architecture.png" />
+  </fig>
+</sec>
+<sec id="state-of-the-field">
+  <title>State of the Field</title>
+  <p>Scientific workflow systems such as Pegasus
+  (<xref alt="Deelman et al., 2015" rid="ref-deelman2015pegasus" ref-type="bibr">Deelman
+  et al., 2015</xref>), Kepler
+  (<xref alt="Ludäscher et al., 2006" rid="ref-ludascher2006kepler" ref-type="bibr">Ludäscher
+  et al., 2006</xref>), and Taverna
+  (<xref alt="Wolstencroft et al., 2013" rid="ref-wolstencroft2013taverna" ref-type="bibr">Wolstencroft
+  et al., 2013</xref>) provide sophisticated scheduling and provenance
+  tracking for computational pipelines, emphasising reproducibility and
+  durable state. These systems typically operate at the workflow level —
+  orchestrating entire pipelines of heterogeneous tasks — rather than at
+  the intra-step level of a single batch job. Spring Batch occupies a
+  different niche: it is a lightweight, embeddable framework for
+  transactional chunk processing within Java applications
+  (<xref alt="Spring Batch Project, 2025" rid="ref-springbatch" ref-type="bibr"><italic>Spring
+  Batch Project</italic>, 2025</xref>). External orchestrators such as
+  Spring Cloud Data Flow
+  (<xref alt="Spring Cloud Data Flow, 2025" rid="ref-scdf" ref-type="bibr"><italic>Spring
+  Cloud Data Flow</italic>, 2025</xref>) can manage Spring Batch jobs at
+  the deployment level, but they do not address intra-job partition
+  coordination or worker-level failover.</p>
+  <p>Distributed coordination services like ZooKeeper
+  (<xref alt="Hunt et al., 2010" rid="ref-hunt2010zookeeper" ref-type="bibr">Hunt
+  et al., 2010</xref>), Chubby
+  (<xref alt="Burrows, 2006" rid="ref-burrows2006chubby" ref-type="bibr">Burrows,
+  2006</xref>), and consensus protocols like Raft
+  (<xref alt="Ongaro &amp; Ousterhout, 2014" rid="ref-ongaro2014raft" ref-type="bibr">Ongaro
+  &amp; Ousterhout, 2014</xref>) provide general-purpose primitives
+  (leader election, distributed locks, configuration management) that
+  could theoretically underpin a partitioning solution. However,
+  adopting these services introduces the same operational complexity
+  that this extension seeks to avoid: additional infrastructure to
+  deploy, monitor, and secure. By embedding coordination directly in the
+  relational database — a component already present in every Spring
+  Batch deployment — this extension provides a pragmatic middle ground
+  between single-node execution and full distributed-systems
+  infrastructure.</p>
+</sec>
+<sec id="project-maturity">
+  <title>Project Maturity</title>
+  <p>The extension has been published to Maven Central since version
+  1.0.0 and is currently at version 2.0.0, which introduced the scale-up
+  partition strategy, actuator health endpoints, and multi-database
+  support (PostgreSQL, MySQL, Oracle, H2). The repository includes a
+  comprehensive unit and integration test suite executed on every push
+  and pull request via GitHub Actions CI. A companion
+  <monospace>examples/</monospace> module provides a runnable
+  demonstration application with Docker-based database setup, enabling
+  users to validate the core claims — partition distribution, failover,
+  and restart — on a local machine within minutes. Documentation, issue
+  templates, and a contributor guide are maintained in the repository to
+  facilitate external participation. The author is committed to
+  long-term maintenance and actively encourages community contributions
+  through the issue tracker and pull requests.</p>
+</sec>
+<sec id="research-impact">
+  <title>Research Impact</title>
+  <p>By removing the requirement for messaging infrastructure, this
+  extension lowers the barrier to running distributed batch workloads —
+  particularly in academic and research settings where infrastructure
+  resources are constrained. Research teams processing large datasets —
+  for example, genomic analysis pipelines that motivate scientific
+  workflow systems such as Taverna
+  (<xref alt="Wolstencroft et al., 2013" rid="ref-wolstencroft2013taverna" ref-type="bibr">Wolstencroft
+  et al., 2013</xref>) — can achieve horizontal scale-out using only a
+  relational database they already operate, without provisioning
+  additional middleware. The transparent, SQL-queryable coordination
+  state also supports reproducibility: every partition assignment, state
+  transition, and failover event is durably recorded and can be audited
+  after the fact.</p>
+</sec>
+<sec id="limitations">
+  <title>Limitations</title>
+  <p>The extension targets small-to-medium clusters — typically two to
+  approximately twenty nodes — where database throughput is sufficient
+  for heartbeat and partition-tracking queries. Deployments at this
+  scale represent the vast majority of Spring Batch production use
+  cases. For clusters exceeding this range, or workloads requiring
+  sub-second coordination latency, a dedicated coordination service
+  (e.g., ZooKeeper) or a message-broker-based architecture may be more
+  appropriate. The extension also relies on the availability of the
+  shared database; production deployments should use a replicated
+  database with appropriate backup and failover configuration to avoid a
+  single point of failure.</p>
+</sec>
+<sec id="ai-usage-disclosure">
+  <title>AI Usage Disclosure</title>
+  <p>The author confirms that no generative AI or AI-assisted
+  technologies (such as LLMs, automated coding assistants, or AI-based
+  image generators) were used in the development of the underlying
+  software code or the preparation of this manuscript. #
+  Acknowledgements</p>
+  <p>This work builds on the Spring Batch and Spring Boot frameworks.
+  The author thanks the JOSS reviewers for their constructive
+  feedback.</p>
+  <p>Source code: Chejarla
+  (<xref alt="2025" rid="ref-project_repo" ref-type="bibr">2025</xref>).</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <title></title>
+  <ref id="ref-springbatch">
+    <element-citation>
+      <article-title>Spring batch project</article-title>
+      <publisher-name>https://spring.io/projects/spring-batch</publisher-name>
+      <year iso-8601-date="2025">2025</year>
+    </element-citation>
+  </ref>
+  <ref id="ref-springbatch_scaling">
+    <element-citation>
+      <article-title>Spring batch: Scaling and parallel processing</article-title>
+      <publisher-name>https://docs.spring.io/spring-batch/reference/scalability.html</publisher-name>
+      <year iso-8601-date="2025">2025</year>
+    </element-citation>
+  </ref>
+  <ref id="ref-spring_integration_remote_partitioning">
+    <element-citation>
+      <article-title>Remote partitioning with spring batch and spring integration</article-title>
+      <publisher-name>https://docs.spring.io/spring-batch/reference/partitioning.html</publisher-name>
+      <year iso-8601-date="2025">2025</year>
+    </element-citation>
+  </ref>
+  <ref id="ref-scdf">
+    <element-citation>
+      <article-title>Spring cloud data flow</article-title>
+      <publisher-name>https://dataflow.spring.io/</publisher-name>
+      <year iso-8601-date="2025">2025</year>
+    </element-citation>
+  </ref>
+  <ref id="ref-project_repo">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Chejarla</surname><given-names>Janardhan Reddy</given-names></name>
+      </person-group>
+      <article-title>Spring-batch-db-cluster-partitioning</article-title>
+      <publisher-name>https://github.com/jchejarla/spring-batch-db-cluster-partitioning</publisher-name>
+      <year iso-8601-date="2025">2025</year>
+    </element-citation>
+  </ref>
+  <ref id="ref-deelman2015pegasus">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Deelman</surname><given-names>Ewa</given-names></name>
+        <name><surname>Vahi</surname><given-names>Karan</given-names></name>
+        <name><surname>Juve</surname><given-names>Gideon</given-names></name>
+        <name><surname>Rynge</surname><given-names>Mats</given-names></name>
+        <name><surname>Callaghan</surname><given-names>Scott</given-names></name>
+        <name><surname>Maechling</surname><given-names>Philip J.</given-names></name>
+        <name><surname>Mayani</surname><given-names>Rajiv</given-names></name>
+        <name><surname>Chen</surname><given-names>Weiwei</given-names></name>
+        <name><surname>Ferreira da Silva</surname><given-names>Rafael</given-names></name>
+        <name><surname>Livny</surname><given-names>Miron</given-names></name>
+        <name><surname>Wenger</surname><given-names>Kent</given-names></name>
+      </person-group>
+      <article-title>Pegasus: A workflow management system for science automation</article-title>
+      <source>Future Generation Computer Systems</source>
+      <year iso-8601-date="2015">2015</year>
+      <volume>46</volume>
+      <pub-id pub-id-type="doi">10.1016/j.future.2014.10.008</pub-id>
+      <fpage>17</fpage>
+      <lpage>35</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-ludascher2006kepler">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Ludäscher</surname><given-names>Bertram</given-names></name>
+        <name><surname>Altintas</surname><given-names>Ilkay</given-names></name>
+        <name><surname>Berkley</surname><given-names>Chad</given-names></name>
+        <name><surname>Higgins</surname><given-names>Dan</given-names></name>
+        <name><surname>Jaeger</surname><given-names>Efrat</given-names></name>
+        <name><surname>Jones</surname><given-names>Matthew</given-names></name>
+        <name><surname>Lee</surname><given-names>Edward A.</given-names></name>
+        <name><surname>Tao</surname><given-names>Jing</given-names></name>
+        <name><surname>Zhao</surname><given-names>Yang</given-names></name>
+      </person-group>
+      <article-title>Scientific workflow management and the Kepler system</article-title>
+      <source>Concurrency and Computation: Practice and Experience</source>
+      <year iso-8601-date="2006">2006</year>
+      <volume>18</volume>
+      <issue>10</issue>
+      <pub-id pub-id-type="doi">10.1002/cpe.994</pub-id>
+      <fpage>1039</fpage>
+      <lpage>1065</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-wolstencroft2013taverna">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Wolstencroft</surname><given-names>Katherine</given-names></name>
+        <name><surname>Haines</surname><given-names>Robert</given-names></name>
+        <name><surname>Fellows</surname><given-names>Duncan</given-names></name>
+        <name><surname>Williams</surname><given-names>Alan</given-names></name>
+        <name><surname>Withers</surname><given-names>David</given-names></name>
+        <name><surname>Owen</surname><given-names>Stuart</given-names></name>
+        <name><surname>Soiland-Reyes</surname><given-names>Stian</given-names></name>
+        <name><surname>Dunlop</surname><given-names>Ian</given-names></name>
+        <name><surname>Nenadic</surname><given-names>Aleksandra</given-names></name>
+        <name><surname>Fisher</surname><given-names>Paul</given-names></name>
+        <name><surname>Bhagat</surname><given-names>Jiten</given-names></name>
+        <name><surname>Belhajjame</surname><given-names>Khalid</given-names></name>
+        <name><surname>Hardisty</surname><given-names>Alex</given-names></name>
+        <name><surname>Hidalga</surname><given-names>Abraham Nieva de la</given-names></name>
+        <name><surname>Vargas</surname><given-names>Marco Roos</given-names></name>
+        <name><surname>Goble</surname><given-names>Carole</given-names></name>
+      </person-group>
+      <article-title>The Taverna workflow suite: Designing and executing workflows of web services on the desktop, web or in the cloud</article-title>
+      <source>Nucleic Acids Research</source>
+      <year iso-8601-date="2013">2013</year>
+      <volume>41</volume>
+      <issue>W1</issue>
+      <pub-id pub-id-type="doi">10.1093/nar/gkt328</pub-id>
+      <fpage>W557</fpage>
+      <lpage>W561</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-tanenbaum2007distributed">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Tanenbaum</surname><given-names>Andrew S.</given-names></name>
+        <name><surname>Van Steen</surname><given-names>Maarten</given-names></name>
+      </person-group>
+      <source>Distributed systems: Principles and paradigms</source>
+      <publisher-name>Pearson Prentice Hall</publisher-name>
+      <year iso-8601-date="2007">2007</year>
+      <edition>2nd</edition>
+      <isbn>978-0132392273</isbn>
+    </element-citation>
+  </ref>
+  <ref id="ref-hunt2010zookeeper">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Hunt</surname><given-names>Patrick</given-names></name>
+        <name><surname>Konar</surname><given-names>Mahadev</given-names></name>
+        <name><surname>Junqueira</surname><given-names>Flavio P.</given-names></name>
+        <name><surname>Reed</surname><given-names>Benjamin</given-names></name>
+      </person-group>
+      <article-title>ZooKeeper: Wait-free coordination for internet-scale systems</article-title>
+      <source>USENIX annual technical conference (ATC)</source>
+      <year iso-8601-date="2010">2010</year>
+      <uri>https://www.usenix.org/legacy/event/atc10/tech/full_papers/Hunt.pdf</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-burrows2006chubby">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Burrows</surname><given-names>Michael</given-names></name>
+      </person-group>
+      <article-title>The Chubby lock service for loosely-coupled distributed systems</article-title>
+      <source>Proceedings of the 7th USENIX symposium on operating systems design and implementation (OSDI)</source>
+      <year iso-8601-date="2006">2006</year>
+      <uri>https://research.google/pubs/pub27897/</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-ongaro2014raft">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Ongaro</surname><given-names>Diego</given-names></name>
+        <name><surname>Ousterhout</surname><given-names>John</given-names></name>
+      </person-group>
+      <article-title>In search of an understandable consensus algorithm (Raft)</article-title>
+      <source>USENIX annual technical conference (ATC)</source>
+      <year iso-8601-date="2014">2014</year>
+      <uri>https://www.usenix.org/system/files/conference/atc14/atc14-paper-ongaro.pdf</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-cinquini2014esgf">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Cinquini</surname><given-names>Luca</given-names></name>
+        <name><surname>Crichton</surname><given-names>Daniel</given-names></name>
+        <name><surname>Mattmann</surname><given-names>Chris</given-names></name>
+        <name><surname>Harney</surname><given-names>John</given-names></name>
+        <name><surname>Shipman</surname><given-names>Galen</given-names></name>
+        <name><surname>Wang</surname><given-names>Feiyi</given-names></name>
+        <name><surname>Ananthakrishnan</surname><given-names>Rachana</given-names></name>
+        <name><surname>Miller</surname><given-names>Neill</given-names></name>
+        <name><surname>Denvil</surname><given-names>Sebastien</given-names></name>
+        <name><surname>Morgan</surname><given-names>Mark</given-names></name>
+        <name><surname>Pobre</surname><given-names>Zed</given-names></name>
+        <name><surname>Bell</surname><given-names>Gavin M.</given-names></name>
+        <name><surname>Doutriaux</surname><given-names>Charles</given-names></name>
+        <name><surname>Drach</surname><given-names>Robert</given-names></name>
+        <name><surname>Williams</surname><given-names>Dean</given-names></name>
+        <name><surname>Kershaw</surname><given-names>Philip</given-names></name>
+        <name><surname>Pascoe</surname><given-names>Stephen</given-names></name>
+        <name><surname>Gonzalez</surname><given-names>Estanislao</given-names></name>
+        <name><surname>Fiore</surname><given-names>Sandro</given-names></name>
+        <name><surname>Schweitzer</surname><given-names>Roland</given-names></name>
+      </person-group>
+      <article-title>The Earth System Grid Federation: An open infrastructure for access to distributed geospatial data</article-title>
+      <source>Future Generation Computer Systems</source>
+      <year iso-8601-date="2014">2014</year>
+      <volume>36</volume>
+      <pub-id pub-id-type="doi">10.1016/j.future.2013.07.002</pub-id>
+      <fpage>400</fpage>
+      <lpage>417</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-cogoluegnes2011springbatch">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Cogoluègnes</surname><given-names>Arnaud</given-names></name>
+        <name><surname>Templier</surname><given-names>Thierry</given-names></name>
+        <name><surname>Bazoud</surname><given-names>Gaël</given-names></name>
+        <name><surname>Gregory</surname><given-names>Olivier</given-names></name>
+      </person-group>
+      <source>Spring Batch in action</source>
+      <publisher-name>Manning Publications</publisher-name>
+      <year iso-8601-date="2011">2011</year>
+      <isbn>978-1935182955</isbn>
+    </element-citation>
+  </ref>
+  <ref id="ref-jsr352">
+    <element-citation>
+      <person-group person-group-type="author">
+        <string-name>Java Community Process</string-name>
+      </person-group>
+      <article-title>JSR-352: Batch applications for the Java platform</article-title>
+      <publisher-name>https://jcp.org/en/jsr/detail?id=352</publisher-name>
+      <year iso-8601-date="2013">2013</year>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
