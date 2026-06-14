@@ -1,0 +1,539 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">10384</article-id>
+<article-id pub-id-type="doi">10.21105/joss.10384</article-id>
+<title-group>
+<article-title>LinearMPC.jl: A Julia Package for Embedded Linear Model
+Predictive Control</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author" corresp="yes">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0003-0970-0620</contrib-id>
+<name>
+<surname>Arnström</surname>
+<given-names>Daniel</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+<xref ref-type="corresp" rid="cor-1"><sup>*</sup></xref>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Independent Researcher, Sweden</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<author-notes>
+<corresp id="cor-1">* E-mail: <email></email></corresp>
+</author-notes>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2026-03-24">
+<day>24</day>
+<month>3</month>
+<year>2026</year>
+</pub-date>
+<volume>11</volume>
+<issue>122</issue>
+<fpage>10384</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2026</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>Julia</kwd>
+<kwd>model predictive control</kwd>
+<kwd>embedded systems</kwd>
+<kwd>code generation</kwd>
+<kwd>quadratic programming</kwd>
+<kwd>control systems</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p><monospace>LinearMPC.jl</monospace> is a Julia package for model
+  predictive control (MPC) of linear systems. It provides a
+  user-friendly development environment for designing, simulating, and
+  deploying MPC controllers while targeting high-performance embedded
+  implementations. The package bridges the gap between rapid prototyping
+  in a high-level language and deployment on resource-constrained
+  hardware by generating allocation-free, library-free C code that can
+  run on any microcontroller. <monospace>LinearMPC.jl</monospace>
+  supports both online optimization via the dual active-set quadratic
+  programming (QP) solver DAQP
+  (<xref alt="Arnström et al., 2022" rid="ref-ArnstromU003A2022" ref-type="bibr">Arnström
+  et al., 2022</xref>) and explicit MPC solutions computed by the
+  multi-parametric QP solver ParametricDAQP
+  (<xref alt="Arnström &amp; Axehill, 2024" rid="ref-ArnstromU003A2024" ref-type="bibr">Arnström
+  &amp; Axehill, 2024</xref>). Additional features include robust MPC
+  with constraint tightening, state estimation via Kalman filters,
+  hybrid MPC with binary controls, game-theoretic MPC for Nash
+  equilibria, and complexity certification for real-time guarantees.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p>Model predictive control is the dominant advanced control strategy
+  in industry, used in applications ranging from process control to
+  autonomous vehicles and robotics. At each sampling instant, MPC solves
+  an optimization problem that accounts for a dynamical model,
+  constraints, and a performance objective. For linear systems, this
+  optimization problem is a QP. Deploying MPC on embedded systems, such
+  as microcontrollers in automotive, aerospace, and robotic
+  applications, poses several challenges: the controller must execute
+  within strict timing deadlines, the code must be lightweight and
+  allocation-free, and the implementation must be verifiable.</p>
+</sec>
+<sec id="state-of-the-field">
+  <title>State of the field</title>
+  <p>Existing tools address parts of the above-mentioned workflow.
+  <monospace>ModelPredictiveControl.jl</monospace>
+  (<xref alt="Gagnon et al., 2026" rid="ref-ModelPredictiveControl" ref-type="bibr">Gagnon
+  et al., 2026</xref>) provides a high-level Julia interface for MPC
+  design but does not target embedded deployment. Similarly,
+  <monospace>do-mpc</monospace>
+  (<xref alt="Fiedler et al., 2023" rid="ref-FiedlerU003A2023" ref-type="bibr">Fiedler
+  et al., 2023</xref>) provides a high-level Python interface for MPC
+  design, but without any support for code generation to deploy on
+  embedded hardware. The <monospace>acados</monospace> framework
+  (<xref alt="Verschueren et al., 2022" rid="ref-VerschuerenU003A2022" ref-type="bibr">Verschueren
+  et al., 2022</xref>) provides fast embedded solvers for nonlinear
+  optimal control, but is not tailored for <italic>linear</italic> MPC
+  applications. MATLAB’s Model Predictive Control Toolbox offers a
+  mature commercial solution. However, there is a gap for a tool that
+  combines (i) an expressive, high-level Julia interface for rapid
+  prototyping, (ii) generation of lightweight, allocation-free C code
+  for any embedded target, (iii) state-of-the-art explicit MPC
+  computation, and (iv) complexity certification for hard real-time
+  guarantees. <monospace>LinearMPC.jl</monospace> fills this gap by
+  providing a unified workflow from design to deployment for linear
+  MPC.</p>
+</sec>
+<sec id="software-design">
+  <title>Software design</title>
+  <p>The architecture of <monospace>LinearMPC.jl</monospace> follows a
+  layered design
+  (<xref alt="[fig:architecture]" rid="figU003Aarchitecture">[fig:architecture]</xref>):</p>
+  <list list-type="order">
+    <list-item>
+      <p><bold>Model layer.</bold> Users define system dynamics as
+      discrete-time or continuous-time state-space models, transfer
+      functions (via <monospace>ControlSystems.jl</monospace>
+      integration), or nonlinear models that are automatically
+      linearized using <monospace>ForwardDiff.jl</monospace>. Measured
+      disturbances are also supported.</p>
+    </list-item>
+    <list-item>
+      <p><bold>MPC formulation layer.</bold> An expressive API lets
+      users configure the controller: setting objectives with tracking,
+      rate-of-change, and linear cost terms; defining input, output, and
+      general polyhedral constraints (hard or soft); specifying
+      prediction and control horizons with move blocking; and adding
+      prestabilizing feedback for numerical conditioning.</p>
+    </list-item>
+    <list-item>
+      <p><bold>Optimization layer.</bold> The MPC problem is condensed
+      into a dense QP and solved using the DAQP solver
+      (<xref alt="Arnström et al., 2022" rid="ref-ArnstromU003A2022" ref-type="bibr">Arnström
+      et al., 2022</xref>), a dual active-set method specialized for
+      embedded applications. For hybrid systems with binary controls,
+      DAQP’s branch-and-bound capabilities are used. Game-theoretic MPC
+      problems are solved by computing Nash equilibria of coupled
+      QPs.</p>
+    </list-item>
+    <list-item>
+      <p><bold>Explicit MPC layer.</bold> The parametric solution of the
+      QP, a piecewise affine function over polyhedral regions
+      (<xref alt="Bemporad et al., 2002" rid="ref-BemporadU003A2002" ref-type="bibr">Bemporad
+      et al., 2002</xref>), can be computed using ParametricDAQP
+      (<xref alt="Arnström &amp; Axehill, 2024" rid="ref-ArnstromU003A2024" ref-type="bibr">Arnström
+      &amp; Axehill, 2024</xref>), which is approximately 100 times
+      faster than competing solvers. A binary search tree
+      (<xref alt="Tøndel et al., 2003" rid="ref-TondelU003A2003" ref-type="bibr">Tøndel
+      et al., 2003</xref>) is constructed for efficient online point
+      location.</p>
+    </list-item>
+    <list-item>
+      <p><bold>Deployment layer.</bold> The
+      <monospace>codegen</monospace> function generates standalone,
+      allocation-free C code for both online and explicit MPC
+      controllers, including state observers when configured. The
+      generated code depends on no external libraries and can be
+      compiled for any target with a C compiler.</p>
+    </list-item>
+    <list-item>
+      <p><bold>Verification layer.</bold> Complexity certification via
+      the <monospace>ASCertain</monospace> package
+      (<xref alt="Arnström &amp; Axehill, 2022" rid="ref-ArnstromU003A2022b" ref-type="bibr">Arnström
+      &amp; Axehill, 2022</xref>) provides worst-case iteration bounds
+      for the DAQP solver, enabling hard real-time guarantees before
+      deployment.</p>
+    </list-item>
+  </list>
+  <fig>
+    <caption><p>Simplified workflow of
+    <monospace>LinearMPC.jl</monospace>: from model definition and MPC
+    design in Julia to embedded C code
+    deployment.<styled-content id="figU003Aarchitecture"></styled-content></p></caption>
+    <graphic mimetype="application" mime-subtype="pdf" xlink:href="architecture.pdf" />
+  </fig>
+  <p>The central optimization problem solved at each sampling instant is
+  <named-content id="eqU003Ampc" content-type="equation"><disp-formula><alternatives>
+  <tex-math><![CDATA[
+  \begin{aligned}
+      &\underset{u_0,\dots,u_{N-1}}{\text{minimize}}&& \frac{1}{2}\sum_{k=0}^{N-1} {\left((Cx_{k}-r)^T Q (C x_{k}-r) + u_{k}^T R u_{k} + \Delta u_{k}^T R_r \Delta u_k + l_k^T u_k\right)}\\
+      &\text{subject to} && x_{k+1} = F x_k + G u_k, \quad k=0,\dots, N-1\\
+      &&& x_0 = \hat{x} \\
+      &&& \underline{b} \leq A_x x_k + A_u u_k  \leq \overline{b}, \quad k=0, \dots, N-1
+  \end{aligned}]]></tex-math>
+  <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mtable><mml:mtr><mml:mtd columnalign="right" style="text-align: right; padding-right: 0"></mml:mtd><mml:mtd columnalign="left" style="text-align: left; padding-left: 0"><mml:munder><mml:mtext mathvariant="normal">minimize</mml:mtext><mml:mrow><mml:msub><mml:mi>u</mml:mi><mml:mn>0</mml:mn></mml:msub><mml:mo>,</mml:mo><mml:mi>…</mml:mi><mml:mo>,</mml:mo><mml:msub><mml:mi>u</mml:mi><mml:mrow><mml:mi>N</mml:mi><mml:mo>−</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:msub></mml:mrow></mml:munder></mml:mtd><mml:mtd columnalign="right" style="text-align: right; padding-right: 0"></mml:mtd><mml:mtd columnalign="left" style="text-align: left; padding-left: 0"><mml:mfrac><mml:mn>1</mml:mn><mml:mn>2</mml:mn></mml:mfrac><mml:munderover><mml:mo>∑</mml:mo><mml:mrow><mml:mi>k</mml:mi><mml:mo>=</mml:mo><mml:mn>0</mml:mn></mml:mrow><mml:mrow><mml:mi>N</mml:mi><mml:mo>−</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:munderover><mml:mrow><mml:mo stretchy="true" form="prefix">(</mml:mo><mml:mo stretchy="false" form="prefix">(</mml:mo><mml:mi>C</mml:mi><mml:msub><mml:mi>x</mml:mi><mml:mi>k</mml:mi></mml:msub><mml:mo>−</mml:mo><mml:mi>r</mml:mi><mml:msup><mml:mo stretchy="false" form="postfix">)</mml:mo><mml:mi>T</mml:mi></mml:msup><mml:mi>Q</mml:mi><mml:mo stretchy="false" form="prefix">(</mml:mo><mml:mi>C</mml:mi><mml:msub><mml:mi>x</mml:mi><mml:mi>k</mml:mi></mml:msub><mml:mo>−</mml:mo><mml:mi>r</mml:mi><mml:mo stretchy="false" form="postfix">)</mml:mo><mml:mo>+</mml:mo><mml:msubsup><mml:mi>u</mml:mi><mml:mi>k</mml:mi><mml:mi>T</mml:mi></mml:msubsup><mml:mi>R</mml:mi><mml:msub><mml:mi>u</mml:mi><mml:mi>k</mml:mi></mml:msub><mml:mo>+</mml:mo><mml:mi mathvariant="normal">Δ</mml:mi><mml:msubsup><mml:mi>u</mml:mi><mml:mi>k</mml:mi><mml:mi>T</mml:mi></mml:msubsup><mml:msub><mml:mi>R</mml:mi><mml:mi>r</mml:mi></mml:msub><mml:mi mathvariant="normal">Δ</mml:mi><mml:msub><mml:mi>u</mml:mi><mml:mi>k</mml:mi></mml:msub><mml:mo>+</mml:mo><mml:msubsup><mml:mi>l</mml:mi><mml:mi>k</mml:mi><mml:mi>T</mml:mi></mml:msubsup><mml:msub><mml:mi>u</mml:mi><mml:mi>k</mml:mi></mml:msub><mml:mo stretchy="true" form="postfix">)</mml:mo></mml:mrow></mml:mtd></mml:mtr><mml:mtr><mml:mtd columnalign="right" style="text-align: right; padding-right: 0"></mml:mtd><mml:mtd columnalign="left" style="text-align: left; padding-left: 0"><mml:mtext mathvariant="normal">subject to</mml:mtext></mml:mtd><mml:mtd columnalign="right" style="text-align: right; padding-right: 0"></mml:mtd><mml:mtd columnalign="left" style="text-align: left; padding-left: 0"><mml:msub><mml:mi>x</mml:mi><mml:mrow><mml:mi>k</mml:mi><mml:mo>+</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:msub><mml:mo>=</mml:mo><mml:mi>F</mml:mi><mml:msub><mml:mi>x</mml:mi><mml:mi>k</mml:mi></mml:msub><mml:mo>+</mml:mo><mml:mi>G</mml:mi><mml:msub><mml:mi>u</mml:mi><mml:mi>k</mml:mi></mml:msub><mml:mo>,</mml:mo><mml:mspace width="1.0em"></mml:mspace><mml:mi>k</mml:mi><mml:mo>=</mml:mo><mml:mn>0</mml:mn><mml:mo>,</mml:mo><mml:mi>…</mml:mi><mml:mo>,</mml:mo><mml:mi>N</mml:mi><mml:mo>−</mml:mo><mml:mn>1</mml:mn></mml:mtd></mml:mtr><mml:mtr><mml:mtd columnalign="right" style="text-align: right; padding-right: 0"></mml:mtd><mml:mtd columnalign="left" style="text-align: left; padding-left: 0"></mml:mtd><mml:mtd columnalign="right" style="text-align: right; padding-right: 0"></mml:mtd><mml:mtd columnalign="left" style="text-align: left; padding-left: 0"><mml:msub><mml:mi>x</mml:mi><mml:mn>0</mml:mn></mml:msub><mml:mo>=</mml:mo><mml:mover><mml:mi>x</mml:mi><mml:mo accent="true">̂</mml:mo></mml:mover></mml:mtd></mml:mtr><mml:mtr><mml:mtd columnalign="right" style="text-align: right; padding-right: 0"></mml:mtd><mml:mtd columnalign="left" style="text-align: left; padding-left: 0"></mml:mtd><mml:mtd columnalign="right" style="text-align: right; padding-right: 0"></mml:mtd><mml:mtd columnalign="left" style="text-align: left; padding-left: 0"><mml:munder><mml:mi>b</mml:mi><mml:mo accent="true">_</mml:mo></mml:munder><mml:mo>≤</mml:mo><mml:msub><mml:mi>A</mml:mi><mml:mi>x</mml:mi></mml:msub><mml:msub><mml:mi>x</mml:mi><mml:mi>k</mml:mi></mml:msub><mml:mo>+</mml:mo><mml:msub><mml:mi>A</mml:mi><mml:mi>u</mml:mi></mml:msub><mml:msub><mml:mi>u</mml:mi><mml:mi>k</mml:mi></mml:msub><mml:mo>≤</mml:mo><mml:mover><mml:mi>b</mml:mi><mml:mo accent="true">¯</mml:mo></mml:mover><mml:mo>,</mml:mo><mml:mspace width="1.0em"></mml:mspace><mml:mi>k</mml:mi><mml:mo>=</mml:mo><mml:mn>0</mml:mn><mml:mo>,</mml:mo><mml:mi>…</mml:mi><mml:mo>,</mml:mo><mml:mi>N</mml:mi><mml:mo>−</mml:mo><mml:mn>1</mml:mn></mml:mtd></mml:mtr></mml:mtable></mml:math></alternatives></disp-formula></named-content>
+  where <inline-formula><alternatives>
+  <tex-math><![CDATA[\hat{x}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mover><mml:mi>x</mml:mi><mml:mo accent="true">̂</mml:mo></mml:mover></mml:math></alternatives></inline-formula>
+  is the current state estimate and <inline-formula><alternatives>
+  <tex-math><![CDATA[r]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>r</mml:mi></mml:math></alternatives></inline-formula>
+  is the desired reference. The objective weights
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[Q]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>Q</mml:mi></mml:math></alternatives></inline-formula>,
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[R]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>R</mml:mi></mml:math></alternatives></inline-formula>,
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[R_r]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>R</mml:mi><mml:mi>r</mml:mi></mml:msub></mml:math></alternatives></inline-formula>
+  and the constraint matrices <inline-formula><alternatives>
+  <tex-math><![CDATA[A_x]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>A</mml:mi><mml:mi>x</mml:mi></mml:msub></mml:math></alternatives></inline-formula>,
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[A_u]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>A</mml:mi><mml:mi>u</mml:mi></mml:msub></mml:math></alternatives></inline-formula>
+  are configured by the user. Optional terminal costs, cross terms,
+  reference preview, and time-varying linear costs extend this basic
+  formulation.</p>
+</sec>
+<sec id="key-features">
+  <title>Key features</title>
+  <list list-type="bullet">
+    <list-item>
+      <p><bold>Rapid prototyping.</bold> Controllers are designed and
+      tested in Julia with a concise, expressive API. Closed-loop
+      simulations and plotting are built in.</p>
+    </list-item>
+    <list-item>
+      <p><bold>Embedded code generation.</bold> Allocation-free,
+      library-free C code is generated for both online and explicit MPC,
+      including Kalman filter observers.</p>
+    </list-item>
+    <list-item>
+      <p><bold>Explicit MPC.</bold> State-of-the-art computation of
+      piecewise affine control laws, with visualization of critical
+      regions and feedback surfaces.</p>
+    </list-item>
+    <list-item>
+      <p><bold>Robust MPC.</bold> A priori constraint tightening handles
+      bounded process noise and state estimation uncertainty, with
+      guarantees that constraints are satisfied under worst-case
+      disturbances.</p>
+    </list-item>
+    <list-item>
+      <p><bold>Hybrid MPC.</bold> Binary control variables are supported
+      for systems with on/off actuators, solved via branch-and-bound
+      within DAQP.</p>
+    </list-item>
+    <list-item>
+      <p><bold>Game-theoretic MPC.</bold> Generalized Nash equilibria
+      can be computed for multi-agent linear MPC problems where each
+      agent has its own objective.</p>
+    </list-item>
+    <list-item>
+      <p><bold>Complexity certification.</bold> Worst-case solver
+      iteration counts can be certified offline, enabling hard real-time
+      guarantees.</p>
+    </list-item>
+    <list-item>
+      <p><bold>Numerical conditioning.</bold> Prestabilizing feedback
+      mitigates ill-conditioning for unstable systems with long
+      prediction horizons.</p>
+    </list-item>
+  </list>
+</sec>
+<sec id="research-impact-statement">
+  <title>Research impact statement</title>
+  <p><monospace>LinearMPC.jl</monospace> has been used to generate
+  high-performing and real-time-certified MPC controllers for
+  nano-quadcopters
+  (<xref alt="Wikner et al., 2026" rid="ref-WiknerU003A2026" ref-type="bibr">Wikner
+  et al., 2026</xref>), and to handle prioritized constraints in MPC
+  applications
+  (<xref alt="Arnström &amp; Garofalo, 2025" rid="ref-arnstrom2025prioritized" ref-type="bibr">Arnström
+  &amp; Garofalo, 2025</xref>). Moreover, the sister package
+  <monospace>lmpc</monospace>, which is a Python wrapper of
+  <monospace>LinearMPC.jl</monospace>, has been used to investigate
+  novel methods for learning-based control
+  (<xref alt="Schmidtobreick et al., 2026" rid="ref-schmidtobreick2025warm" ref-type="bibr">Schmidtobreick
+  et al., 2026</xref>).</p>
+  <p>Zooming out, the underlying solver <monospace>DAQP</monospace> has
+  been used in several real-world applications, including automotive,
+  robotics, and aerospace applications. The parametric solver
+  <monospace>PDAQP</monospace> has recently been integrated into
+  <monospace>cvxpygen</monospace> to support generating closed-form
+  solutions to parametric optimization problems
+  (<xref alt="Schaller et al., 2025" rid="ref-schaller2025automatic" ref-type="bibr">Schaller
+  et al., 2025</xref>).</p>
+</sec>
+<sec id="example-usage">
+  <title>Example usage</title>
+  <p>The following example demonstrates the core workflow: defining a
+  system, designing an MPC controller, simulating, and generating
+  embedded C code:</p>
+  <code language="julia">using LinearMPC
+
+# Continuous-time inverted pendulum on a cart
+A = [0 1 0 0; 0 -10 9.81 0; 0 0 0 1; 0 -20 39.24 0]
+B = 100*[0; 1.0; 0; 2.0;;]
+C = [1.0 0 0 0; 0 0 1.0 0]
+
+# Create MPC with sample time 0.01, horizon 50/5
+mpc = LinearMPC.MPC(A, B, 0.01; C, Np=50, Nc=5)
+set_objective!(mpc; Q=[1.2^2, 1], R=[0.0], Rr=[1.0])
+set_bounds!(mpc; umin=[-2.0], umax=[2.0])
+
+# Compute a control action
+u = compute_control(mpc, [0,0,0,0], r=[1, 0])
+
+# Simulate closed-loop and generate C code
+sim = Simulation(mpc; x0=zeros(4), r=[1,0], N=100)
+LinearMPC.codegen(mpc; dir=&quot;mpc_codegen&quot;)</code>
+</sec>
+<sec id="ai-usage-disclosure">
+  <title>AI usage disclosure</title>
+  <p>Generative AI (GitHub Copilot, powered by Claude) was used to
+  assist in drafting parts of this manuscript. The core software design
+  decisions, algorithmic implementations, and all technical content were
+  made by the human author. All AI-assisted output was reviewed and
+  edited by the author.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <title></title>
+  <ref id="ref-ArnstromU003A2022">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Arnström</surname><given-names>Daniel</given-names></name>
+        <name><surname>Bemporad</surname><given-names>Alberto</given-names></name>
+        <name><surname>Axehill</surname><given-names>Daniel</given-names></name>
+      </person-group>
+      <article-title>A dual active-set solver for embedded quadratic programming using recursive LDL^{T} updates</article-title>
+      <source>IEEE Transactions on Automatic Control</source>
+      <year iso-8601-date="2022">2022</year>
+      <volume>67</volume>
+      <issue>8</issue>
+      <pub-id pub-id-type="doi">10.1109/TAC.2022.3176430</pub-id>
+      <fpage>4362</fpage>
+      <lpage>4369</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-ArnstromU003A2024">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Arnström</surname><given-names>Daniel</given-names></name>
+        <name><surname>Axehill</surname><given-names>Daniel</given-names></name>
+      </person-group>
+      <article-title>A high-performant multi-parametric quadratic programming solver</article-title>
+      <source>2024 IEEE 63rd conference on decision and control (CDC)</source>
+      <year iso-8601-date="2024">2024</year>
+      <pub-id pub-id-type="doi">10.1109/CDC56724.2024.10886132</pub-id>
+      <fpage>303</fpage>
+      <lpage>308</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-BemporadU003A2002">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Bemporad</surname><given-names>Alberto</given-names></name>
+        <name><surname>Morari</surname><given-names>Manfred</given-names></name>
+        <name><surname>Dua</surname><given-names>Vivek</given-names></name>
+        <name><surname>Pistikopoulos</surname><given-names>Efstratios N.</given-names></name>
+      </person-group>
+      <article-title>The explicit linear quadratic regulator for constrained systems</article-title>
+      <source>Automatica</source>
+      <year iso-8601-date="2002">2002</year>
+      <volume>38</volume>
+      <issue>1</issue>
+      <pub-id pub-id-type="doi">10.1016/S0005-1098(01)00174-1</pub-id>
+      <fpage>3</fpage>
+      <lpage>20</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-TondelU003A2003">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Tøndel</surname><given-names>Petter</given-names></name>
+        <name><surname>Johansen</surname><given-names>Tor Arne</given-names></name>
+        <name><surname>Bemporad</surname><given-names>Alberto</given-names></name>
+      </person-group>
+      <article-title>Evaluation of piecewise affine control via binary search tree</article-title>
+      <source>Automatica</source>
+      <year iso-8601-date="2003">2003</year>
+      <volume>39</volume>
+      <issue>5</issue>
+      <pub-id pub-id-type="doi">10.1016/S0005-1098(02)00308-4</pub-id>
+      <fpage>945</fpage>
+      <lpage>950</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-VerschuerenU003A2022">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Verschueren</surname><given-names>Robin</given-names></name>
+        <name><surname>Frison</surname><given-names>Gianluca</given-names></name>
+        <name><surname>Kouzoupis</surname><given-names>Dimitris</given-names></name>
+        <name><surname>Frey</surname><given-names>Jonathan</given-names></name>
+        <name><surname>Duijkeren</surname><given-names>Niels van</given-names></name>
+        <name><surname>Zanelli</surname><given-names>Andrea</given-names></name>
+        <name><surname>Novoselnik</surname><given-names>Branimir</given-names></name>
+        <name><surname>Albin</surname><given-names>Thivaharan</given-names></name>
+        <name><surname>Quirynen</surname><given-names>Rien</given-names></name>
+        <name><surname>Diehl</surname><given-names>Moritz</given-names></name>
+      </person-group>
+      <article-title>acados—a modular open-source framework for fast embedded optimal control</article-title>
+      <source>Mathematical Programming Computation</source>
+      <year iso-8601-date="2022">2022</year>
+      <volume>14</volume>
+      <issue>1</issue>
+      <pub-id pub-id-type="doi">10.1007/s12532-021-00208-8</pub-id>
+      <fpage>147</fpage>
+      <lpage>183</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-ModelPredictiveControl">
+    <element-citation publication-type="webpage">
+      <person-group person-group-type="author">
+        <name><surname>Gagnon</surname><given-names>Francis</given-names></name>
+        <name><surname>Thivierge</surname><given-names>Alex</given-names></name>
+        <name><surname>Desbiens</surname><given-names>André</given-names></name>
+        <name><surname>Bagge Carlson</surname><given-names>Fredrik</given-names></name>
+      </person-group>
+      <article-title>ModelPredictiveControl.jl: Advanced process control made easy in Julia</article-title>
+      <year iso-8601-date="2026-05-05">2026</year><month>05</month><day>05</day>
+      <uri>https://arxiv.org/abs/2411.09764</uri>
+      <pub-id pub-id-type="doi">10.48550/arXiv.2411.09764</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-ArnstromU003A2022b">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Arnström</surname><given-names>Daniel</given-names></name>
+        <name><surname>Axehill</surname><given-names>Daniel</given-names></name>
+      </person-group>
+      <article-title>A unifying complexity certification framework for active-set methods for convex quadratic programming</article-title>
+      <source>IEEE Transactions on Automatic Control</source>
+      <year iso-8601-date="2022">2022</year>
+      <volume>67</volume>
+      <issue>6</issue>
+      <pub-id pub-id-type="doi">10.1109/TAC.2021.3090749</pub-id>
+      <fpage>2758</fpage>
+      <lpage>2770</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-FiedlerU003A2023">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Fiedler</surname><given-names>Felix</given-names></name>
+        <name><surname>Karg</surname><given-names>Benjamin</given-names></name>
+        <name><surname>Lüken</surname><given-names>Lukas</given-names></name>
+        <name><surname>Brandner</surname><given-names>Dean</given-names></name>
+        <name><surname>Heinlein</surname><given-names>Moritz</given-names></name>
+        <name><surname>Brabender</surname><given-names>Felix</given-names></name>
+        <name><surname>Lucia</surname><given-names>Sergio</given-names></name>
+      </person-group>
+      <article-title>do-mpc: Towards FAIR nonlinear and robust model predictive control</article-title>
+      <source>Control Engineering Practice</source>
+      <publisher-name>Elsevier</publisher-name>
+      <year iso-8601-date="2023">2023</year>
+      <volume>140</volume>
+      <pub-id pub-id-type="doi">10.1016/j.conengprac.2023.105676</pub-id>
+      <fpage>105676</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-WiknerU003A2026">
+    <element-citation publication-type="webpage">
+      <person-group person-group-type="author">
+        <name><surname>Wikner</surname><given-names>Joel</given-names></name>
+        <name><surname>Arnström</surname><given-names>Daniel</given-names></name>
+        <name><surname>Axehill</surname><given-names>Daniel</given-names></name>
+      </person-group>
+      <article-title>On real-time feasibility of high-rate MPC using an active-set method on nano-quadcopters</article-title>
+      <year iso-8601-date="2026-03-10">2026</year><month>03</month><day>10</day>
+      <uri>https://arxiv.org/abs/2603.09342</uri>
+      <pub-id pub-id-type="doi">10.48550/arXiv.2603.09342</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-arnstrom2025prioritized">
+    <element-citation publication-type="webpage">
+      <person-group person-group-type="author">
+        <name><surname>Arnström</surname><given-names>Daniel</given-names></name>
+        <name><surname>Garofalo</surname><given-names>Gianluca</given-names></name>
+      </person-group>
+      <article-title>Prioritized constraints in optimization-based control</article-title>
+      <year iso-8601-date="2025-12-20">2025</year><month>12</month><day>20</day>
+      <uri>https://arxiv.org/abs/2512.18458</uri>
+      <pub-id pub-id-type="doi">10.48550/arXiv.2512.18458</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-schmidtobreick2025warm">
+    <element-citation publication-type="webpage">
+      <person-group person-group-type="author">
+        <name><surname>Schmidtobreick</surname><given-names>Ella J.</given-names></name>
+        <name><surname>Arnström</surname><given-names>Daniel</given-names></name>
+        <name><surname>Häusner</surname><given-names>Paul</given-names></name>
+        <name><surname>Sjölund</surname><given-names>Jens</given-names></name>
+      </person-group>
+      <article-title>Warm-starting active-set solvers using graph neural networks</article-title>
+      <year iso-8601-date="2026-05-19">2026</year><month>05</month><day>19</day>
+      <uri>https://arxiv.org/abs/2511.13174</uri>
+      <pub-id pub-id-type="doi">10.48550/arXiv.2511.13174</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-schaller2025automatic">
+    <element-citation publication-type="webpage">
+      <person-group person-group-type="author">
+        <name><surname>Schaller</surname><given-names>Maximilian</given-names></name>
+        <name><surname>Arnström</surname><given-names>Daniel</given-names></name>
+        <name><surname>Bemporad</surname><given-names>Alberto</given-names></name>
+        <name><surname>Boyd</surname><given-names>Stephen</given-names></name>
+      </person-group>
+      <article-title>Automatic generation of explicit quadratic programming solvers</article-title>
+      <year iso-8601-date="2025-06-21">2025</year><month>06</month><day>21</day>
+      <uri>https://arxiv.org/abs/2506.11513</uri>
+      <pub-id pub-id-type="doi">10.48550/arXiv.2506.11513</pub-id>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
