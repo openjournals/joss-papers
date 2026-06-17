@@ -1,0 +1,828 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">10449</article-id>
+<article-id pub-id-type="doi">10.21105/joss.10449</article-id>
+<title-group>
+<article-title>Metaxy: Record-Level Feature Metadata Management for
+Multimodal ML Pipelines</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0003-1237-6876</contrib-id>
+<name>
+<surname>Gafni</surname>
+<given-names>Daniel</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0002-8684-1163</contrib-id>
+<name>
+<surname>Heiler</surname>
+<given-names>Georg</given-names>
+</name>
+<xref ref-type="aff" rid="aff-2"/>
+<xref ref-type="aff" rid="aff-3"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Anam, United Kingdom</institution>
+</institution-wrap>
+</aff>
+<aff id="aff-2">
+<institution-wrap>
+<institution>Complexity Science Hub Vienna (CSH), Austria</institution>
+</institution-wrap>
+</aff>
+<aff id="aff-3">
+<institution-wrap>
+<institution>Austrian Supply Chain Intelligence Institute (ASCII),
+Austria</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2026-02-16">
+<day>16</day>
+<month>2</month>
+<year>2026</year>
+</pub-date>
+<volume>11</volume>
+<issue>122</issue>
+<fpage>10449</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2026</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>Python</kwd>
+<kwd>machine learning</kwd>
+<kwd>metadata</kwd>
+<kwd>feature engineering</kwd>
+<kwd>reproducibility</kwd>
+<kwd>data lineage</kwd>
+<kwd>incremental computation</kwd>
+<kwd>caching</kwd>
+<kwd>multimodal</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p>Software that processes large datasets often repeats expensive
+  computations when any part of the input data or processing logic
+  changes. Metaxy is about perfecting the art of doing nothing: only
+  compute what changed, save time and money, and accelerate exploration.
+  In machine learning pipelines that handle video, audio, and images,
+  these computations run on Graphics Processing Units (GPUs) that cost
+  10 to 100 times more per hour than standard
+  processors<xref ref-type="fn" rid="fn1">1</xref>. A small change to
+  one processing step can trigger unnecessary recomputation of unrelated
+  steps, wasting both time and money.</p>
+  <p>Metaxy is a Python library that tracks which specific data records
+  need reprocessing after a change, rather than rerunning entire
+  datasets. It builds a dependency graph that connects individual data
+  fields across processing steps. When a researcher modifies one step,
+  Metaxy identifies exactly which records are affected and which can be
+  skipped. This selective approach lets downstream systems avoid
+  redundant GPU work when a change does not affect a record, while
+  preserving complete lineage for reproducibility.</p>
+  <p>The library treats the <italic>metadata store</italic> (which
+  persists version entries), the <italic>compute engine</italic> (which
+  evaluates feature code over dataframes), and the
+  <italic>orchestrator</italic> (which schedules execution) as pluggable
+  abstractions. Concrete integrations for the widely used Python
+  ecosystem ship with the package
+  (<xref alt="Dagster Labs, 2025" rid="ref-dagster" ref-type="bibr">Dagster
+  Labs, 2025</xref>;
+  <xref alt="Gorelli &amp; others, 2025" rid="ref-narwhals" ref-type="bibr">Gorelli
+  &amp; others, 2025</xref>;
+  <xref alt="Ibis Project, 2025" rid="ref-ibis" ref-type="bibr">Ibis
+  Project, 2025</xref>;
+  <xref alt="Moritz et al., 2018" rid="ref-ray" ref-type="bibr">Moritz
+  et al., 2018</xref>), so that any compatible orchestrator can consume
+  Metaxy’s record-level diffs and schedule only the necessary GPU
+  workloads.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of Need</title>
+  <p>Machine learning practitioners iterate rapidly on feature
+  definitions, model architectures, and training strategies.
+  Reproducibility demands that every experiment maintain a clear record
+  of which data and code produced each result. Traditional pipeline
+  tools force a trade-off: rerun entire pipelines to guarantee
+  correctness, or skip tracking to move quickly.</p>
+  <p>This trade-off is especially costly for multimodal pipelines.
+  Consider a video processing system that extracts both audio
+  transcripts and face detections. When a researcher improves the audio
+  denoising algorithm, should the system recompute face detections that
+  depend only on video frames? Existing orchestrators operate at table
+  granularity, treating feature tables as atomic units. They cannot
+  distinguish which fields within a record changed, forcing unnecessary
+  recomputation of all downstream steps.</p>
+  <p>Metaxy resolves this problem through field-level dependency
+  tracking at record granularity. Researchers declare features as Python
+  classes that specify which upstream fields each computation depends
+  on. The system constructs a directed acyclic graph where nodes
+  represent feature fields and edges represent data flow
+  (<xref alt="[fig:anatomy]" rid="figU003Aanatomy">[fig:anatomy]</xref>).
+  For each data record, Metaxy computes version hashes that combine code
+  versions with upstream record versions, propagating changes along
+  graph edges. When resolving incremental updates, the system returns
+  only those records whose upstream dependencies have actually
+  changed.</p>
+  <p>This approach delivers both rapid experimentation and
+  reproducibility. Researchers modify feature definitions freely, and
+  the system identifies exactly which records require reprocessing. The
+  metadata layer preserves complete lineage, enabling retrospective
+  audits of any experiment. By computing diffs before execution, teams
+  quantify the impact of each change and defer updates that do not
+  justify their computational cost.</p>
+  <p>The target audience includes ML engineers working with multimodal
+  data, MLOps teams managing production feature pipelines, and research
+  labs operating under compute budgets.</p>
+  <fig>
+    <caption><p>Metaxy tracks separate version hashes for each field of
+    every record. In this example, the <monospace>audio</monospace> and
+    <monospace>frames</monospace> fields of a video feature propagate
+    independently through downstream features. A change to the audio
+    processing algorithm only triggers recomputation of audio-dependent
+    downstream fields, leaving frame-dependent fields
+    unchanged.<styled-content id="figU003Aanatomy"></styled-content></p></caption>
+    <graphic mimetype="image" mime-subtype="svg+xml" xlink:href="anatomy.svg" />
+  </fig>
+</sec>
+<sec id="state-of-the-field">
+  <title>State of the Field</title>
+  <p>Several tools address aspects of feature management, but none, to
+  our knowledge, provide field-level dependency tracking at record
+  granularity as a standalone metadata layer. DVC
+  (<xref alt="Kuprieiev et al., 2025" rid="ref-dvc" ref-type="bibr">Kuprieiev
+  et al., 2025</xref>) versions datasets at the file level, treating
+  each file as an opaque artifact without tracking individual records or
+  fields within it. Feast
+  (<xref alt="Feast Community, 2025" rid="ref-feast" ref-type="bibr">Feast
+  Community, 2025</xref>) focuses on feature definition,
+  materialization, and online serving. Recent Feast releases include
+  DAG-based feature computation, but Feast does not expose field-level
+  provenance for propagating version changes and deciding which
+  downstream records require recomputation after an upstream
+  modification. Apache Hamilton
+  (<xref alt="Krawczyk &amp; Gilani, 2024" rid="ref-hamilton" ref-type="bibr">Krawczyk
+  &amp; Gilani, 2024</xref>) builds dataflows from Python functions and
+  can report lineage over the resulting DAG, typically at the level of
+  nodes, columns, and dataframe outputs. It does not maintain
+  per-record, per-field provenance for selective downstream
+  invalidation. DataChain
+  (<xref alt="Iterative, Inc., 2025" rid="ref-datachain" ref-type="bibr">Iterative,
+  Inc., 2025</xref>) combines metadata management with a Python-native
+  data processing framework and supports delta processing over new or
+  changed records. However, its incremental model is tied to dataset
+  processing within that framework rather than to a standalone
+  field-level dependency graph that can drive recomputation across
+  multiple compute backends.</p>
+  <p>Metaxy fills the gap by separating metadata from compute: it tracks
+  field-level dependencies at record granularity and propagates version
+  changes topologically through the dependency graph. This separation
+  allows teams to integrate Metaxy with any orchestrator and compute
+  engine, while retaining precise control over which records require
+  reprocessing.</p>
+</sec>
+<sec id="software-design">
+  <title>Software Design</title>
+  <p>Metaxy represents features as declarative models organized into a
+  directed acyclic graph. Each feature declares its identifier columns,
+  computed fields, and dependencies on upstream feature fields. The
+  system constructs a global dependency graph at initialization,
+  enabling downstream version propagation before any data processing
+  occurs.</p>
+  <p>After the graph is built, Metaxy separates versioning into
+  graph-level and record-level work. Graph-level feature hashes are
+  recomputed when feature definitions change: each field hash combines
+  the developer-supplied field code version with the upstream graph
+  structure using a fixed <monospace>hashlib.sha256</monospace>
+  implementation. Developers bump field code versions when they make an
+  algorithmic change. Metaxy makes this boundary explicit because static
+  analysis cannot reliably distinguish a behavior-preserving refactor
+  from a semantic change, and unnecessary invalidation can trigger
+  expensive GPU recomputation.</p>
+  <p>Record-level hashes are computed inside the metadata store. For
+  each data row, the store combines record identifiers with the upstream
+  record versions for only the fields declared as dependencies; this
+  function is configurable and defaults to
+  <monospace>xxhash32</monospace> where the backend supports it. The
+  result is an expected provenance signature for each output record
+  before the compute engine runs. Because each signature is tied to
+  declared field dependencies, changes propagate only along affected
+  paths in the graph. When <monospace>resolve_update</monospace>
+  compares these expected signatures with the append-only signatures
+  already stored, it returns the new or stale records for the
+  orchestrator to schedule. The compute engine then processes only that
+  increment, while records whose relevant upstream dependencies are
+  unchanged are skipped.</p>
+  <p>The metadata store is append-only: version entries are never
+  overwritten, preserving the lineage needed for retrospective audits.
+  Embedded stores suit prototyping while warehouse- and lakehouse-class
+  stores scale to production workloads, all reached through the same
+  feature API. The compute engine is equally pluggable: a
+  backend-agnostic dataframe abstraction lets users swap implementations
+  without touching feature code.</p>
+  <sec id="design-trade-offs">
+    <title>Design Trade-offs</title>
+    <p>Metaxy’s architecture rests on three deliberate design
+    commitments.</p>
+    <p>First, the metadata layer is decoupled from the compute engine
+    and orchestrator by design rather than by compromise: Metaxy is a
+    pluggable library that exposes a record-level dependency graph which
+    any orchestrator can consume. The same version graph drives embedded
+    prototyping, warehouse-scale production, and distributed GPU
+    scheduling without changes to feature definitions, reusing the
+    portable dependency-graph abstraction long studied in build-systems
+    and data-lineage research
+    (<xref alt="Buneman et al., 2001" rid="ref-buneman2001why" ref-type="bibr">Buneman
+    et al., 2001</xref>;
+    <xref alt="Cui &amp; Widom, 2003" rid="ref-cui2003lineage" ref-type="bibr">Cui
+    &amp; Widom, 2003</xref>;
+    <xref alt="Mokhov et al., 2018" rid="ref-mokhov2018build" ref-type="bibr">Mokhov
+    et al., 2018</xref>).</p>
+    <p>Second, record-level hashing and the increment diff are pushed
+    into the metadata store via SQL rather than computed client-side.
+    This yields two concrete benefits: the caller never streams full
+    metadata tables out of the store (only the computed increment
+    crosses the wire), and the hash-and-join work runs inside the store,
+    so <monospace>resolve_update</monospace> stays lightweight enough to
+    invoke from laptops or dashboards while the store scales the compute
+    (<xref alt="Table 1" rid="tabU003Abenchmark">Table 1</xref>),
+    consistent with the principle of colocating incremental computation
+    with its data
+    (<xref alt="Acar et al., 2006" rid="ref-acar2006adaptive" ref-type="bibr">Acar
+    et al., 2006</xref>).</p>
+    <p>Third, Metaxy hashes provenance signatures (code version plus
+    upstream record versions) instead of the raw payloads that
+    content-addressable storage (CAS) would require. CAS is not merely
+    expensive here, it is inapplicable in principle: the increment must
+    be known <italic>before</italic> downstream computation runs, so
+    there is no content to address yet. Hashing the provenance signature
+    lets Metaxy decide staleness without ever materialising the
+    downstream payload, matching the provenance-first view of PROV
+    (<xref alt="Cheney et al., 2009" rid="ref-cheney2009provenance" ref-type="bibr">Cheney
+    et al., 2009</xref>;
+    <xref alt="Moreau et al., 2013" rid="ref-moreau2013prov" ref-type="bibr">Moreau
+    et al., 2013</xref>); users may still attach content-derived
+    versions after the fact through the user-defined data-version hook,
+    for instance to deduplicate identical outputs.</p>
+  </sec>
+</sec>
+<sec id="performance">
+  <title>Performance</title>
+  <p>Per-record hashing and the downstream diff are executed as SQL
+  inside the metadata store, so their throughput is bounded by the
+  vectorised hash kernels of the backend rather than by Python. The
+  benchmark in
+  <ext-link ext-link-type="uri" xlink:href="https://github.com/anam-org/metaxy/tree/main/publications/2026-introducing-metaxy"><monospace>publications/2026-introducing-metaxy/</monospace></ext-link>
+  is implemented as a
+  <ext-link ext-link-type="uri" xlink:href="https://pytest-benchmark.readthedocs.io"><monospace>pytest-benchmark</monospace></ext-link>
+  suite that exercises two feature graphs: a
+  <monospace>simple</monospace> graph (one root with two fields feeding
+  a single-field leaf) and a <monospace>wide</monospace> graph (two
+  roots with four fields each feeding a two-field leaf, so the leaf must
+  join two upstream tables and aggregate eight field versions per
+  record). For each graph and record count
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[N]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>N</mml:mi></mml:math></alternatives></inline-formula>,
+  the benchmark measures <monospace>resolve_update</monospace> in two
+  phases: the initial materialisation
+  (<monospace>resolve_new</monospace>) and, after bumping the upstream
+  <monospace>audio</monospace> provenance for 10% of records, the
+  incremental diff (<monospace>resolve_stale</monospace>).</p>
+  <p>To isolate caching effects between rounds, each measurement runs in
+  <monospace>pytest-benchmark</monospace>’s pedantic mode with a
+  <monospace>setup</monospace> callback that allocates a fresh DuckDB
+  file in its own temporary directory and reseeds it from scratch. The
+  DuckDB buffer pool, temp-table state, and file-system page cache for
+  the new inode are therefore cold at the start of every round, so no
+  round can inherit state from a previous one. The configuration under
+  test sets <monospace>enable_map_datatype = true</monospace> in
+  <monospace>metaxy.toml</monospace>, reflecting the upcoming default;
+  the provenance column is stored and exchanged as a native
+  <monospace>Map</monospace>. We report ten independent rounds per cell
+  on an Apple M2 Max (64 GiB RAM, Python 3.10.19, DuckDB 1.4.3,
+  <monospace>xxhash64</monospace>): the median as a robust central
+  estimate, the 25th–75th percentile interquartile range (IQR) as a
+  non-parametric confidence band, and mean
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[\pm]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>±</mml:mi></mml:math></alternatives></inline-formula>
+  standard deviation for readers preferring a parametric view
+  (<xref alt="Table 1" rid="tabU003Abenchmark">Table 1</xref>).
+  End-to-end wall-clock scales near-linearly with
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[N]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>N</mml:mi></mml:math></alternatives></inline-formula>
+  on both graphs
+  (<xref alt="Table 1" rid="tabU003Abenchmark">Table 1</xref>,
+  <xref alt="[fig:benchmark]" rid="figU003Abenchmark">[fig:benchmark]</xref>);
+  the constant-factor gap between <monospace>simple</monospace> and
+  <monospace>wide</monospace> at any given
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[N]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>N</mml:mi></mml:math></alternatives></inline-formula>
+  reflects the additional upstream join and the richer provenance struct
+  rather than super-linear slowdown, confirming that the SQL pushdown
+  strategy absorbs join width well.</p>
+  <table-wrap>
+    <caption>
+      <p><monospace>resolve_update</monospace> wall-clock time on DuckDB
+      for the <monospace>simple</monospace> and
+      <monospace>wide</monospace> graphs at
+      <inline-formula><alternatives>
+      <tex-math><![CDATA[N]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>N</mml:mi></mml:math></alternatives></inline-formula>
+      records over 10 pedantic rounds per cell (10% change fraction,
+      fresh DuckDB file per round,
+      <monospace>enable_map_datatype = true</monospace>). Times are
+      milliseconds; <monospace>IQR</monospace> is
+      <inline-formula><alternatives>
+      <tex-math><![CDATA[[q_{25}, q_{75}]]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mo stretchy="false" form="prefix">[</mml:mo><mml:msub><mml:mi>q</mml:mi><mml:mn>25</mml:mn></mml:msub><mml:mo>,</mml:mo><mml:msub><mml:mi>q</mml:mi><mml:mn>75</mml:mn></mml:msub><mml:mo stretchy="false" form="postfix">]</mml:mo></mml:mrow></mml:math></alternatives></inline-formula>.
+      <styled-content id="tabU003Abenchmark"></styled-content></p>
+    </caption>
+    <table>
+      <colgroup>
+        <col width="6%" />
+        <col width="8%" />
+        <col width="11%" />
+        <col width="15%" />
+        <col width="15%" />
+        <col width="12%" />
+        <col width="16%" />
+        <col width="17%" />
+      </colgroup>
+      <thead>
+        <tr>
+          <th align="left">scenario</th>
+          <th align="right">N</th>
+          <th align="right">new median (ms)</th>
+          <th align="left">new IQR (ms)</th>
+          <th align="left">new mean <inline-formula><alternatives>
+          <tex-math><![CDATA[\pm]]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>±</mml:mi></mml:math></alternatives></inline-formula>
+          sd (ms)</th>
+          <th align="right">stale median (ms)</th>
+          <th align="left">stale IQR (ms)</th>
+          <th align="left">stale mean <inline-formula><alternatives>
+          <tex-math><![CDATA[\pm]]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>±</mml:mi></mml:math></alternatives></inline-formula>
+          sd (ms)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td align="left">simple</td>
+          <td align="right">10,000</td>
+          <td align="right">497.2</td>
+          <td align="left">[489.6, 546.2]</td>
+          <td align="left">547 <inline-formula><alternatives>
+          <tex-math><![CDATA[\pm]]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>±</mml:mi></mml:math></alternatives></inline-formula>
+          116</td>
+          <td align="right">590.8</td>
+          <td align="left">[558.1, 606.2]</td>
+          <td align="left">585 <inline-formula><alternatives>
+          <tex-math><![CDATA[\pm]]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>±</mml:mi></mml:math></alternatives></inline-formula>
+          32</td>
+        </tr>
+        <tr>
+          <td align="left">simple</td>
+          <td align="right">100,000</td>
+          <td align="right">558.8</td>
+          <td align="left">[536.2, 582.7]</td>
+          <td align="left">583 <inline-formula><alternatives>
+          <tex-math><![CDATA[\pm]]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>±</mml:mi></mml:math></alternatives></inline-formula>
+          81</td>
+          <td align="right">711.6</td>
+          <td align="left">[696.6, 741.6]</td>
+          <td align="left">801 <inline-formula><alternatives>
+          <tex-math><![CDATA[\pm]]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>±</mml:mi></mml:math></alternatives></inline-formula>
+          296</td>
+        </tr>
+        <tr>
+          <td align="left">simple</td>
+          <td align="right">1,000,000</td>
+          <td align="right">1,171.9</td>
+          <td align="left">[1,056.9, 1,370.8]</td>
+          <td align="left">1,225 <inline-formula><alternatives>
+          <tex-math><![CDATA[\pm]]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>±</mml:mi></mml:math></alternatives></inline-formula>
+          203</td>
+          <td align="right">1,270.8</td>
+          <td align="left">[1,243.2, 1,455.3]</td>
+          <td align="left">1,342 <inline-formula><alternatives>
+          <tex-math><![CDATA[\pm]]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>±</mml:mi></mml:math></alternatives></inline-formula>
+          167</td>
+        </tr>
+        <tr>
+          <td align="left">simple</td>
+          <td align="right">10,000,000</td>
+          <td align="right">7,797.9</td>
+          <td align="left">[6,563.7, 8,594.4]</td>
+          <td align="left">7,811 <inline-formula><alternatives>
+          <tex-math><![CDATA[\pm]]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>±</mml:mi></mml:math></alternatives></inline-formula>
+          1,176</td>
+          <td align="right">7,133.4</td>
+          <td align="left">[6,950.9, 7,504.3]</td>
+          <td align="left">7,285 <inline-formula><alternatives>
+          <tex-math><![CDATA[\pm]]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>±</mml:mi></mml:math></alternatives></inline-formula>
+          586</td>
+        </tr>
+        <tr>
+          <td align="left">wide</td>
+          <td align="right">10,000</td>
+          <td align="right">763.8</td>
+          <td align="left">[717.6, 798.9]</td>
+          <td align="left">774 <inline-formula><alternatives>
+          <tex-math><![CDATA[\pm]]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>±</mml:mi></mml:math></alternatives></inline-formula>
+          79</td>
+          <td align="right">834.0</td>
+          <td align="left">[808.1, 855.4]</td>
+          <td align="left">830 <inline-formula><alternatives>
+          <tex-math><![CDATA[\pm]]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>±</mml:mi></mml:math></alternatives></inline-formula>
+          47</td>
+        </tr>
+        <tr>
+          <td align="left">wide</td>
+          <td align="right">100,000</td>
+          <td align="right">861.5</td>
+          <td align="left">[846.6, 882.7]</td>
+          <td align="left">866 <inline-formula><alternatives>
+          <tex-math><![CDATA[\pm]]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>±</mml:mi></mml:math></alternatives></inline-formula>
+          23</td>
+          <td align="right">1,097.9</td>
+          <td align="left">[1,061.1, 1,125.2]</td>
+          <td align="left">1,089 <inline-formula><alternatives>
+          <tex-math><![CDATA[\pm]]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>±</mml:mi></mml:math></alternatives></inline-formula>
+          40</td>
+        </tr>
+        <tr>
+          <td align="left">wide</td>
+          <td align="right">1,000,000</td>
+          <td align="right">1,909.6</td>
+          <td align="left">[1,841.5, 1,956.8]</td>
+          <td align="left">1,908 <inline-formula><alternatives>
+          <tex-math><![CDATA[\pm]]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>±</mml:mi></mml:math></alternatives></inline-formula>
+          69</td>
+          <td align="right">2,408.2</td>
+          <td align="left">[2,279.9, 2,458.5]</td>
+          <td align="left">2,394 <inline-formula><alternatives>
+          <tex-math><![CDATA[\pm]]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>±</mml:mi></mml:math></alternatives></inline-formula>
+          114</td>
+        </tr>
+        <tr>
+          <td align="left">wide</td>
+          <td align="right">10,000,000</td>
+          <td align="right">11,870.8</td>
+          <td align="left">[11,651.2, 12,436.3]</td>
+          <td align="left">12,070 <inline-formula><alternatives>
+          <tex-math><![CDATA[\pm]]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>±</mml:mi></mml:math></alternatives></inline-formula>
+          597</td>
+          <td align="right">14,695.4</td>
+          <td align="left">[14,554.2, 16,532.9]</td>
+          <td align="left">15,290 <inline-formula><alternatives>
+          <tex-math><![CDATA[\pm]]></tex-math>
+          <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>±</mml:mi></mml:math></alternatives></inline-formula>
+          1,052</td>
+        </tr>
+      </tbody>
+    </table>
+  </table-wrap>
+  <fig>
+    <caption><p>Wall-clock time of <monospace>resolve_update</monospace>
+    on DuckDB as a function of record count
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[N]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>N</mml:mi></mml:math></alternatives></inline-formula>
+    for both feature graphs, over 10 pedantic rounds per cell with a
+    fresh DuckDB file per round. Lines show the median and the shaded
+    band spans the 25th–75th percentile IQR. Both axes are logarithmic.
+    Near-linear scaling with <inline-formula><alternatives>
+    <tex-math><![CDATA[N]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>N</mml:mi></mml:math></alternatives></inline-formula>
+    is visible on both graphs; the <monospace>wide</monospace> graph
+    pays a roughly constant-factor penalty for the extra upstream
+    join.<styled-content id="figU003Abenchmark"></styled-content></p></caption>
+    <graphic mimetype="image" mime-subtype="svg+xml" xlink:href="benchmark.svg" />
+  </fig>
+</sec>
+<sec id="quality-control">
+  <title>Quality Control</title>
+  <p>Correctness is validated through automated tests covering three
+  properties. Snapshot testing is used to ensure version computation
+  consistency across Metaxy codebase changes. Incremental update tests
+  verify that the system returns exactly those records whose upstream
+  dependencies changed, neither missing updates nor triggering false
+  positives. Cross-backend tests ensure different metadata store
+  backends produce identical versioning results, matching with the
+  “golden” DuckDB implementation.</p>
+</sec>
+<sec id="ongoing-research-projects">
+  <title>Ongoing Research Projects</title>
+  <p>Example pipelines demonstrate the system’s impact on multimodal
+  workflows. A video processing pipeline defines features for audio
+  transcription and face detection with field-level dependencies. When
+  only the audio processing algorithm changes, the system correctly
+  schedules transcription updates for affected records while leaving
+  face detection metadata unchanged. This selective recomputation is the
+  core value proposition: the metadata layer exposes the exact update
+  set, so teams can schedule only affected records instead of
+  maintaining that decision logic manually.</p>
+  <p>Metaxy has been running in production at Anam on multimodal video
+  pipelines whose training corpora reach the low millions of samples.
+  Before Metaxy, achieving selective recomputation at this scale
+  required manual metadata edits, ad-hoc overrides, and custom
+  per-pipeline bookkeeping; Metaxy standardizes those decisions into a
+  declarative model so that correct, auditable incremental updates
+  become the default path rather than a bespoke engineering effort for
+  each new feature. Combined with the append-only metadata layer
+  introduced above, every experiment remains reproducible, closing a
+  critical gap in machine learning workflows.</p>
+  <p>The system bridges prototyping and production through
+  vendor-neutral abstractions. Researchers define features once and
+  deploy them across embedded stores on laptops, warehouse-class stores
+  in data centers, or managed cloud stores, without modifying feature
+  code. This portability lowers the barrier to disciplined metadata
+  management, making reproducibility the default rather than an
+  afterthought.</p>
+  <p>The project welcomes contributions at
+  <ext-link ext-link-type="uri" xlink:href="https://github.com/anam-org/metaxy">https://github.com/anam-org/metaxy</ext-link>.
+  Documentation is available at
+  <ext-link ext-link-type="uri" xlink:href="https://docs.metaxy.io">https://docs.metaxy.io</ext-link>.</p>
+</sec>
+<sec id="ai-usage-disclosure">
+  <title>AI Usage Disclosure</title>
+  <p>Generative AI tools were used during development for code
+  completion and documentation drafting. All AI-generated content was
+  reviewed and refined by the authors. Large parts of the documentation
+  were written by hand.</p>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>We thank the maintainers of the open-source projects Metaxy builds
+  upon, and the contributors who tested early releases across
+  heterogeneous hardware. Funding and in-kind support were provided by
+  Anam, the Complexity Science Hub Vienna, and the Austrian Supply Chain
+  Intelligence Institute.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <title></title>
+  <ref id="ref-ibis">
+    <element-citation>
+      <person-group person-group-type="author">
+        <string-name>Ibis Project</string-name>
+      </person-group>
+      <article-title>Ibis: Portable DataFrames for different backends</article-title>
+      <publisher-name>https://ibis-project.org</publisher-name>
+      <year iso-8601-date="2025">2025</year>
+    </element-citation>
+  </ref>
+  <ref id="ref-narwhals">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Gorelli</surname><given-names>Marco</given-names></name>
+        <name><surname>others</surname></name>
+      </person-group>
+      <article-title>Narwhals: Write once, run on many DataFrames</article-title>
+      <publisher-name>https://narwhals.readthedocs.io</publisher-name>
+      <year iso-8601-date="2025">2025</year>
+    </element-citation>
+  </ref>
+  <ref id="ref-dagster">
+    <element-citation>
+      <person-group person-group-type="author">
+        <string-name>Dagster Labs</string-name>
+      </person-group>
+      <article-title>Dagster: Data orchestration platform</article-title>
+      <publisher-name>https://dagster.io</publisher-name>
+      <year iso-8601-date="2025">2025</year>
+    </element-citation>
+  </ref>
+  <ref id="ref-ray">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Moritz</surname><given-names>Philipp</given-names></name>
+        <name><surname>Nishihara</surname><given-names>Robert</given-names></name>
+        <name><surname>Wang</surname><given-names>Stephanie</given-names></name>
+        <name><surname>Tumanov</surname><given-names>Alexey</given-names></name>
+        <name><surname>Liaw</surname><given-names>Richard</given-names></name>
+        <name><surname>Liang</surname><given-names>Eric</given-names></name>
+        <name><surname>Paul</surname><given-names>Melanie</given-names></name>
+        <name><surname>Jordan</surname><given-names>Michael I.</given-names></name>
+        <name><surname>Stoica</surname><given-names>Ion</given-names></name>
+      </person-group>
+      <article-title>Ray: A distributed framework for emerging AI applications</article-title>
+      <source>Proceedings of the 13th USENIX symposium on operating systems design and implementation (OSDI)</source>
+      <year iso-8601-date="2018">2018</year>
+      <uri>https://arxiv.org/abs/1712.05889</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-dvc">
+    <element-citation publication-type="software">
+      <person-group person-group-type="author">
+        <name><surname>Kuprieiev</surname><given-names>Ruslan</given-names></name>
+        <name><surname>Petrov</surname><given-names>Dmitry</given-names></name>
+        <name><surname>others</surname></name>
+      </person-group>
+      <article-title>DVC: Data version control</article-title>
+      <publisher-name>https://dvc.org</publisher-name>
+      <year iso-8601-date="2025">2025</year>
+    </element-citation>
+  </ref>
+  <ref id="ref-feast">
+    <element-citation>
+      <person-group person-group-type="author">
+        <string-name>Feast Community</string-name>
+      </person-group>
+      <article-title>Feast: Feature store for machine learning</article-title>
+      <publisher-name>https://feast.dev</publisher-name>
+      <year iso-8601-date="2025">2025</year>
+    </element-citation>
+  </ref>
+  <ref id="ref-hamilton">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Krawczyk</surname><given-names>Stefan</given-names></name>
+        <name><surname>Gilani</surname><given-names>Elijah</given-names></name>
+      </person-group>
+      <article-title>Hamilton: A micro-framework for creating dataflows from Python functions</article-title>
+      <source>Proceedings of the 23rd python in science conference (SciPy 2024)</source>
+      <year iso-8601-date="2024">2024</year>
+      <uri>https://hamilton.apache.org</uri>
+      <pub-id pub-id-type="doi">10.25080/gerudo-f2bc6f59-014</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-datachain">
+    <element-citation>
+      <person-group person-group-type="author">
+        <string-name>Iterative, Inc.</string-name>
+      </person-group>
+      <article-title>DataChain: AI data warehouse for multimodal data</article-title>
+      <publisher-name>https://datachain.ai</publisher-name>
+      <year iso-8601-date="2025">2025</year>
+    </element-citation>
+  </ref>
+  <ref id="ref-mokhov2018build">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Mokhov</surname><given-names>Andrey</given-names></name>
+        <name><surname>Mitchell</surname><given-names>Neil</given-names></name>
+        <name><surname>Peyton Jones</surname><given-names>Simon</given-names></name>
+      </person-group>
+      <article-title>Build systems à la carte</article-title>
+      <source>Proceedings of the ACM on Programming Languages</source>
+      <year iso-8601-date="2018">2018</year>
+      <volume>2</volume>
+      <issue>ICFP</issue>
+      <pub-id pub-id-type="doi">10.1145/3236774</pub-id>
+      <fpage>79:1</fpage>
+      <lpage>79:29</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-acar2006adaptive">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Acar</surname><given-names>Umut A.</given-names></name>
+        <name><surname>Blelloch</surname><given-names>Guy E.</given-names></name>
+        <name><surname>Harper</surname><given-names>Robert</given-names></name>
+      </person-group>
+      <article-title>Adaptive functional programming</article-title>
+      <source>ACM transactions on programming languages and systems (TOPLAS)</source>
+      <year iso-8601-date="2006">2006</year>
+      <volume>28</volume>
+      <pub-id pub-id-type="doi">10.1145/1186632.1186634</pub-id>
+      <fpage>990</fpage>
+      <lpage>1034</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-cui2003lineage">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Cui</surname><given-names>Yingwei</given-names></name>
+        <name><surname>Widom</surname><given-names>Jennifer</given-names></name>
+      </person-group>
+      <article-title>Lineage tracing for general data warehouse transformations</article-title>
+      <source>The VLDB Journal</source>
+      <year iso-8601-date="2003">2003</year>
+      <volume>12</volume>
+      <issue>1</issue>
+      <pub-id pub-id-type="doi">10.1007/s00778-002-0083-8</pub-id>
+      <fpage>41</fpage>
+      <lpage>58</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-buneman2001why">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Buneman</surname><given-names>Peter</given-names></name>
+        <name><surname>Khanna</surname><given-names>Sanjeev</given-names></name>
+        <name><surname>Tan</surname><given-names>Wang-Chiew</given-names></name>
+      </person-group>
+      <article-title>Why and where: A characterization of data provenance</article-title>
+      <source>Proceedings of the 8th international conference on database theory (ICDT)</source>
+      <year iso-8601-date="2001">2001</year>
+      <pub-id pub-id-type="doi">10.1007/3-540-44503-X_20</pub-id>
+      <fpage>316</fpage>
+      <lpage>330</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-cheney2009provenance">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Cheney</surname><given-names>James</given-names></name>
+        <name><surname>Chiticariu</surname><given-names>Laura</given-names></name>
+        <name><surname>Tan</surname><given-names>Wang-Chiew</given-names></name>
+      </person-group>
+      <article-title>Provenance in databases: Why, how, and where</article-title>
+      <source>Foundations and Trends in Databases</source>
+      <year iso-8601-date="2009">2009</year>
+      <volume>1</volume>
+      <issue>4</issue>
+      <pub-id pub-id-type="doi">10.1561/1900000006</pub-id>
+      <fpage>379</fpage>
+      <lpage>474</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-moreau2013prov">
+    <element-citation publication-type="report">
+      <person-group person-group-type="author">
+        <name><surname>Moreau</surname><given-names>Luc</given-names></name>
+        <name><surname>Missier</surname><given-names>Paolo</given-names></name>
+        <name><surname>Belhajjame</surname><given-names>Khalid</given-names></name>
+        <name><surname>B’Far</surname><given-names>Reza</given-names></name>
+        <name><surname>Cheney</surname><given-names>James</given-names></name>
+        <name><surname>Coppens</surname><given-names>Sam</given-names></name>
+        <name><surname>Cresswell</surname><given-names>Stephen</given-names></name>
+        <name><surname>Gil</surname><given-names>Yolanda</given-names></name>
+        <name><surname>Groth</surname><given-names>Paul</given-names></name>
+        <name><surname>Klyne</surname><given-names>Graham</given-names></name>
+        <name><surname>Lebo</surname><given-names>Timothy</given-names></name>
+        <name><surname>McCusker</surname><given-names>Jim</given-names></name>
+        <name><surname>Miles</surname><given-names>Simon</given-names></name>
+        <name><surname>Myers</surname><given-names>James</given-names></name>
+        <name><surname>Sahoo</surname><given-names>Satya</given-names></name>
+        <name><surname>Tilmes</surname><given-names>Curt</given-names></name>
+      </person-group>
+      <article-title>PROV-DM: The PROV Data Model</article-title>
+      <publisher-name>World Wide Web Consortium (W3C)</publisher-name>
+      <year iso-8601-date="2013">2013</year>
+      <uri>https://www.w3.org/TR/prov-dm/</uri>
+    </element-citation>
+  </ref>
+</ref-list>
+<fn-group>
+  <fn id="fn1">
+    <label>1</label><p>AWS EC2 on-demand pricing, 2026-04; the exact
+    ratio depends on the instance families compared, with common
+    CPU-to-GPU comparisons falling in this range and top-end
+    accelerators exceeding it.</p>
+  </fn>
+</fn-group>
+</back>
+</article>
