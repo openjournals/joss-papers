@@ -1,0 +1,643 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">10470</article-id>
+<article-id pub-id-type="doi">10.21105/joss.10470</article-id>
+<title-group>
+<article-title>BordAX: A High-Performance JAX Framework for Programmatic
+Reinforcement Learning</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0009-0006-7495-9793</contrib-id>
+<name>
+<surname>Kniazev</surname>
+<given-names>Roman</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0002-6576-4680</contrib-id>
+<name>
+<surname>Fijalkow</surname>
+<given-names>Nathanaël</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>CNRS, LaBRI, University of Bordeaux, France</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2026-02-12">
+<day>12</day>
+<month>2</month>
+<year>2026</year>
+</pub-date>
+<volume>11</volume>
+<issue>122</issue>
+<fpage>10470</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2026</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>Python</kwd>
+<kwd>JAX</kwd>
+<kwd>reinforcement learning</kwd>
+<kwd>programmatic policies</kwd>
+<kwd>decision trees</kwd>
+<kwd>interpretable machine learning</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p>BordAX is a Python framework for reinforcement learning (RL) built
+  on JAX
+  (<xref alt="Bradbury et al., 2018" rid="ref-jax2018github" ref-type="bibr">Bradbury
+  et al., 2018</xref>). It provides a modular, fully JIT-compilable
+  training pipeline that supports multiple policy representations,
+  including standard multilayer perceptrons (MLPs), differentiable
+  decision trees (DTSemNet,
+  (<xref alt="Panda et al., 2024" rid="ref-panda2024vanilla" ref-type="bibr">Panda
+  et al., 2024</xref>)), and boolean function networks (HyperBool).
+  BordAX currently implements Proximal Policy Optimization (PPO)
+  (<xref alt="Schulman et al., 2017" rid="ref-schulman2017proximal" ref-type="bibr">Schulman
+  et al., 2017</xref>) and Deep Q-Networks (DQN)
+  (<xref alt="Mnih et al., 2015" rid="ref-mnih2015human" ref-type="bibr">Mnih
+  et al., 2015</xref>), and is designed so that additional algorithms
+  can be composed from interchangeable collector, batch-builder, and
+  updater components. The framework supports both Gymnax
+  (<xref alt="Lange, 2022" rid="ref-gymnax2022github" ref-type="bibr">Lange,
+  2022</xref>) environments, which enable full JIT compilation of the
+  training loop via <monospace>jax.lax.scan</monospace>, and standard
+  Gymnasium
+  (<xref alt="Towers et al., 2024" rid="ref-towers2024gymnasium" ref-type="bibr">Towers
+  et al., 2024</xref>) environments. On a CartPole-v1 benchmark with
+  identical hyperparameters, BordAX with Gymnax achieves approximately
+  2.8 times higher throughput than Stable-Baselines3
+  (<xref alt="Raffin et al., 2021" rid="ref-raffin2021stable" ref-type="bibr">Raffin
+  et al., 2021</xref>).</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p>Programmatic Reinforcement Learning (PRL) is a subfield of RL
+  concerned with learning structured, interpretable policies such as
+  decision trees, boolean expressions, or symbolic programs, rather than
+  opaque neural networks
+  (<xref alt="Landajuela et al., 2021" rid="ref-landajuela2021discovering" ref-type="bibr">Landajuela
+  et al., 2021</xref>;
+  <xref alt="Verma et al., 2018" rid="ref-verma2018programmatically" ref-type="bibr">Verma
+  et al., 2018</xref>). Researchers in PRL often need to train and
+  evaluate several types of policy representations under the same
+  algorithmic conditions. Existing RL frameworks are typically built
+  around a fixed neural network policy and do not provide
+  straightforward mechanisms for swapping in non-standard architectures
+  like differentiable decision trees
+  (<xref alt="Silva et al., 2020" rid="ref-silva2020optimization" ref-type="bibr">Silva
+  et al., 2020</xref>) or boolean networks.</p>
+  <p>Stable-Baselines3
+  (<xref alt="Raffin et al., 2021" rid="ref-raffin2021stable" ref-type="bibr">Raffin
+  et al., 2021</xref>) is a widely used PyTorch-based RL library, but
+  its reliance on Python-level iteration and PyTorch’s eager execution
+  model limits throughput. PureJaxRL
+  (<xref alt="Lu, 2023" rid="ref-purejaxrl2023" ref-type="bibr">Lu,
+  2023</xref>) demonstrated that implementing the entire RL training
+  loop in JAX and compiling it end-to-end via XLA yields large speedups,
+  but it is structured as a collection of standalone scripts rather than
+  a reusable library with modular components. Brax
+  (<xref alt="Freeman et al., 2021" rid="ref-brax2021github" ref-type="bibr">Freeman
+  et al., 2021</xref>) provides JIT-compiled environments and training
+  but is focused on continuous control in simulated physics rather than
+  serving as a general-purpose RL framework with pluggable policy
+  types.</p>
+  <p>BordAX addresses these gaps by providing:</p>
+  <list list-type="bullet">
+    <list-item>
+      <p>A modular architecture in which the algorithm is defined as the
+      composition of a data collector, a batch builder, and a parameter
+      updater, making it straightforward to implement new algorithms or
+      modify existing ones.</p>
+    </list-item>
+    <list-item>
+      <p>First-class support for non-neural policy representations
+      (differentiable decision trees and boolean function networks)
+      alongside standard MLPs, enabling controlled comparisons across
+      policy types.</p>
+    </list-item>
+    <list-item>
+      <p>Full JIT compilation of the training loop when using Gymnax
+      environments, and JIT compilation of the update step when using
+      Gymnasium environments.</p>
+    </list-item>
+    <list-item>
+      <p>A clean functional design compatible with JAX transformations
+      (<monospace>jax.jit</monospace>, <monospace>jax.vmap</monospace>,
+      <monospace>jax.grad</monospace>).</p>
+    </list-item>
+  </list>
+  <p>The target audience is researchers working on programmatic or
+  interpretable reinforcement learning who need a fast, modular
+  framework for experimenting with different policy representations and
+  algorithms.</p>
+</sec>
+<sec id="state-of-the-field">
+  <title>State of the field</title>
+  <p>Several frameworks exist for reinforcement learning in Python.</p>
+  <p>Stable-Baselines3
+  (<xref alt="Raffin et al., 2021" rid="ref-raffin2021stable" ref-type="bibr">Raffin
+  et al., 2021</xref>) is among the most widely used. It provides
+  reliable implementations of standard algorithms (PPO, DQN, SAC, TD3,
+  A2C) built on PyTorch. Its design prioritizes usability and
+  correctness, but training throughput is limited by Python-level
+  environment stepping and PyTorch’s eager execution.</p>
+  <p>PureJaxRL
+  (<xref alt="Lu, 2023" rid="ref-purejaxrl2023" ref-type="bibr">Lu,
+  2023</xref>) showed that writing the entire training loop in JAX and
+  compiling it with XLA can yield order-of-magnitude speedups over
+  PyTorch-based frameworks. However, PureJaxRL is organized as
+  individual training scripts rather than a library with reusable,
+  composable components, and it does not support non-neural policy
+  architectures.</p>
+  <p>Brax
+  (<xref alt="Freeman et al., 2021" rid="ref-brax2021github" ref-type="bibr">Freeman
+  et al., 2021</xref>) provides JIT-compiled physics simulation
+  environments and training utilities for continuous control. It is
+  tightly coupled to its own environment interface and is not designed
+  as a general-purpose RL framework with interchangeable policy
+  types.</p>
+  <p>Gymnax
+  (<xref alt="Lange, 2022" rid="ref-gymnax2022github" ref-type="bibr">Lange,
+  2022</xref>) offers JAX-based reimplementations of classic RL
+  environments, enabling <monospace>jax.vmap</monospace> vectorization
+  and <monospace>jax.lax.scan</monospace> loop compilation. It provides
+  environments but not training infrastructure.</p>
+  <p>BordAX builds on Gymnax and JAX to provide a complete, modular
+  training framework. Unlike PureJaxRL, BordAX factors the training
+  pipeline into composable components (collectors, batch builders,
+  updaters, loss functions) defined through abstract interfaces,
+  allowing new algorithms to be added by implementing a small number of
+  well-defined functions. Unlike Stable-Baselines3, BordAX achieves
+  significantly higher throughput through JIT compilation. Unlike any of
+  the above, BordAX includes built-in support for non-neural policy
+  representations (differentiable decision trees and boolean function
+  networks), which are relevant for research on interpretable RL
+  (<xref alt="Silva et al., 2020" rid="ref-silva2020optimization" ref-type="bibr">Silva
+  et al., 2020</xref>;
+  <xref alt="Topin et al., 2021" rid="ref-topin2021iterative" ref-type="bibr">Topin
+  et al., 2021</xref>;
+  <xref alt="Verma et al., 2018" rid="ref-verma2018programmatically" ref-type="bibr">Verma
+  et al., 2018</xref>).</p>
+</sec>
+<sec id="software-design">
+  <title>Software Design</title>
+  <p>BordAX is organized into five modules:</p>
+  <list list-type="bullet">
+    <list-item>
+      <p><bold>Agents</bold> define the policy and value function
+      interfaces. The abstract <monospace>Agent</monospace> class
+      specifies <monospace>init</monospace>,
+      <monospace>policy</monospace>, <monospace>action</monospace>, and
+      <monospace>value</monospace> methods. Concrete implementations
+      include <monospace>MLPPolicyValue</monospace> for discrete action
+      spaces and <monospace>MLPPolicyValueContinuous</monospace> for
+      continuous action spaces. Each agent accepts a
+      <monospace>policy_architecture</monospace> parameter that selects
+      among MLP, DTSemNet (differentiable decision tree), or HyperBool
+      (boolean function network) policy heads, all implemented as Flax
+      (<xref alt="Heek et al., 2020" rid="ref-flax2020github" ref-type="bibr">Heek
+      et al., 2020</xref>) modules. A <monospace>DQNAgent</monospace>
+      provides Q-value estimation for off-policy learning.</p>
+    </list-item>
+    <list-item>
+      <p><bold>Algorithms</bold> are defined as named tuples of three
+      components: a <monospace>Collector</monospace>, a
+      <monospace>BatchBuilder</monospace>, and an
+      <monospace>Updater</monospace>. Factory functions
+      <monospace>ppo_algo()</monospace> and
+      <monospace>dqn_algo()</monospace> wire these components together
+      with appropriate hyperparameters and loss functions. This
+      decomposition means that implementing a new algorithm requires
+      writing at most three small, focused components. The
+      <monospace>Algorithm.train_step</monospace> method orchestrates a
+      single training iteration: collect data, build batches, and update
+      parameters.</p>
+    </list-item>
+    <list-item>
+      <p><bold>Data</bold> provides the data collection and batching
+      pipeline. <monospace>OnPolicyCollector</monospace> gathers
+      rollouts using <monospace>jax.lax.scan</monospace> for
+      JIT-compiled environments or a Python loop for Gymnasium
+      environments. <monospace>EpsGreedyCollector</monospace> implements
+      epsilon-greedy exploration for DQN. Batch builders are composable:
+      <monospace>FullBufferBatch</monospace>,
+      <monospace>MiniBatch</monospace>, and
+      <monospace>NormalizeAdvantagesTargets</monospace> can be chained
+      via <monospace>ComposedBatchBuilder</monospace>. A
+      <monospace>ReplayBuffer</monospace> provides ring-buffer storage
+      for off-policy methods.</p>
+    </list-item>
+    <list-item>
+      <p><bold>Environments</bold> provide an
+      <monospace>EnvAdapter</monospace> abstraction over Gymnax and
+      Gymnasium. <monospace>EnvGymnaxAdapter</monospace> wraps Gymnax
+      environments with <monospace>jax.vmap</monospace> for vectorized
+      execution and <monospace>jax.jit</monospace> for compilation.
+      <monospace>EnvGymnasiumAdapter</monospace> wraps standard
+      Gymnasium environments, handling the JAX-to-NumPy boundary. Both
+      expose the same <monospace>reset</monospace>,
+      <monospace>step</monospace>, <monospace>action_space</monospace>,
+      and <monospace>obs_space</monospace> interface.</p>
+    </list-item>
+    <list-item>
+      <p><bold>Training</bold> provides the
+      <monospace>Trainer</monospace> class, which manages the training
+      loop including initialization, warmup (for off-policy methods),
+      epoch execution, evaluation, logging (with optional Weights &amp;
+      Biases integration), and checkpointing (via Orbax). When the
+      environment is JIT-compilable and the algorithm is on-policy, the
+      entire <monospace>train_step</monospace> is JIT-compiled.
+      Otherwise, only the <monospace>update</monospace> step is
+      JIT-compiled.</p>
+    </list-item>
+  </list>
+  <p>A key design decision is the use of pure functional state passing
+  throughout the framework. All state (environment state, training
+  state, optimizer state, replay buffer) is passed explicitly, with no
+  hidden mutation. This makes the code compatible with JAX’s functional
+  transformation model and ensures that the training loop can be
+  compiled end-to-end when conditions allow.</p>
+  <p>Loss functions are implemented as callable classes inheriting from
+  <monospace>LossFn</monospace>. PPO uses a composite loss comprising
+  <monospace>SurrogateLoss</monospace> (clipped policy gradient),
+  <monospace>ValueLoss</monospace>, and
+  <monospace>EntropyLoss</monospace>, each accepting schedule functions
+  for their coefficients. DQN uses <monospace>DQNLoss</monospace> with a
+  configurable base loss (squared error or Huber loss). Optimization is
+  handled by Optax
+  (<xref alt="Hessel et al., 2020" rid="ref-optax2020github" ref-type="bibr">Hessel
+  et al., 2020</xref>), and probability distributions are provided by
+  Distrax
+  (<xref alt="Budden et al., 2021" rid="ref-distrax2021github" ref-type="bibr">Budden
+  et al., 2021</xref>).</p>
+</sec>
+<sec id="research-impact-statement">
+  <title>Research impact statement</title>
+  <p>BordAX was developed to support research on programmatic
+  reinforcement learning. Its modular design enables systematic
+  comparison of different policy representations (neural networks,
+  decision trees, boolean functions) under identical algorithmic and
+  environmental conditions. The framework is publicly available on
+  GitHub under the MIT license and includes automated tests with 77%
+  code coverage.</p>
+  <p>On a CartPole-v1 benchmark using PPO with identical hyperparameters
+  across five random seeds and 51,200 timesteps (Apple M3 Pro, JAX
+  0.9.0, SB3 2.8.0), BordAX with Gymnax completes training in 3.73
+  seconds (13,709 steps/s), compared to 10.40 seconds (4,923 steps/s)
+  for Stable-Baselines3, a 2.8x throughput improvement. With Gymnasium
+  environments, BordAX achieves 9,468 steps/s (1.9x speedup),
+  demonstrating that JAX-based optimization of the update step alone
+  provides a meaningful improvement. The benchmark script is included in
+  the repository for reproducibility.</p>
+</sec>
+<sec id="author-contributions">
+  <title>Author Contributions</title>
+  <p>Roman Kniazev designed and implemented the BordAX framework,
+  including the core architecture, algorithmic components, and test
+  suite. Nathanaël Fijalkow provided supervision and research direction
+  throughout the project.</p>
+</sec>
+<sec id="ai-usage-disclosure">
+  <title>AI usage disclosure</title>
+  <p>GitHub Copilot was used to assist with code generation,
+  documentation drafting, and paper authoring during the development of
+  this project. All AI-generated content was reviewed, edited, and
+  validated by the human authors, who made all core design and
+  architectural decisions.</p>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>The authors acknowledge the developers of JAX, Flax, Optax, Gymnax,
+  Distrax, and the broader JAX ecosystem, on which BordAX is built.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <title></title>
+  <ref id="ref-jax2018github">
+    <element-citation publication-type="software">
+      <person-group person-group-type="author">
+        <name><surname>Bradbury</surname><given-names>James</given-names></name>
+        <name><surname>Frostig</surname><given-names>Roy</given-names></name>
+        <name><surname>Hawkins</surname><given-names>Peter</given-names></name>
+        <name><surname>Johnson</surname><given-names>Matthew James</given-names></name>
+        <name><surname>Katariya</surname><given-names>Yash</given-names></name>
+        <name><surname>Leary</surname><given-names>Chris</given-names></name>
+        <name><surname>Maclaurin</surname><given-names>Dougal</given-names></name>
+        <name><surname>Necula</surname><given-names>George</given-names></name>
+        <name><surname>Paszke</surname><given-names>Adam</given-names></name>
+        <name><surname>VanderPlas</surname><given-names>Jake</given-names></name>
+        <name><surname>Wanderman-Milne</surname><given-names>Skye</given-names></name>
+        <name><surname>Zhang</surname><given-names>Qiao</given-names></name>
+      </person-group>
+      <article-title>JAX: Composable transformations of Python+NumPy programs</article-title>
+      <year iso-8601-date="2018">2018</year>
+      <uri>http://github.com/jax-ml/jax</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-flax2020github">
+    <element-citation publication-type="software">
+      <person-group person-group-type="author">
+        <name><surname>Heek</surname><given-names>Jonathan</given-names></name>
+        <name><surname>Levskaya</surname><given-names>Anselm</given-names></name>
+        <name><surname>Oliver</surname><given-names>Avital</given-names></name>
+        <name><surname>Ritter</surname><given-names>Marvin</given-names></name>
+        <name><surname>Rondepierre</surname><given-names>Bertrand</given-names></name>
+        <name><surname>Steiner</surname><given-names>Andreas</given-names></name>
+        <name><surname>Zee</surname><given-names>Marc van</given-names></name>
+      </person-group>
+      <article-title>Flax: A neural network library and ecosystem for JAX</article-title>
+      <year iso-8601-date="2020">2020</year>
+      <uri>http://github.com/google/flax</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-optax2020github">
+    <element-citation publication-type="software">
+      <person-group person-group-type="author">
+        <name><surname>Hessel</surname><given-names>Matteo</given-names></name>
+        <name><surname>Budden</surname><given-names>David</given-names></name>
+        <name><surname>Viola</surname><given-names>Fabio</given-names></name>
+        <name><surname>Rosca</surname><given-names>Mihaela</given-names></name>
+        <name><surname>Sezener</surname><given-names>Eren</given-names></name>
+        <name><surname>Hennigan</surname><given-names>Tom</given-names></name>
+      </person-group>
+      <article-title>Optax: Composable gradient transformation and optimisation, in JAX</article-title>
+      <year iso-8601-date="2020">2020</year>
+      <uri>http://github.com/deepmind/optax</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-gymnax2022github">
+    <element-citation publication-type="software">
+      <person-group person-group-type="author">
+        <name><surname>Lange</surname><given-names>Robert Tjarko</given-names></name>
+      </person-group>
+      <article-title>gymnax: A JAX-based reinforcement learning environment library</article-title>
+      <year iso-8601-date="2022">2022</year>
+      <uri>http://github.com/RobertTLange/gymnax</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-schulman2017proximal">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Schulman</surname><given-names>John</given-names></name>
+        <name><surname>Wolski</surname><given-names>Filip</given-names></name>
+        <name><surname>Dhariwal</surname><given-names>Prafulla</given-names></name>
+        <name><surname>Radford</surname><given-names>Alec</given-names></name>
+        <name><surname>Klimov</surname><given-names>Oleg</given-names></name>
+      </person-group>
+      <article-title>Proximal policy optimization algorithms</article-title>
+      <source>arXiv preprint arXiv:1707.06347</source>
+      <year iso-8601-date="2017">2017</year>
+      <uri>https://arxiv.org/abs/1707.06347</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-mnih2015human">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Mnih</surname><given-names>Volodymyr</given-names></name>
+        <name><surname>Kavukcuoglu</surname><given-names>Koray</given-names></name>
+        <name><surname>Silver</surname><given-names>David</given-names></name>
+        <name><surname>Rusu</surname><given-names>Andrei A.</given-names></name>
+        <name><surname>Veness</surname><given-names>Joel</given-names></name>
+        <name><surname>Bellemare</surname><given-names>Marc G.</given-names></name>
+        <name><surname>Graves</surname><given-names>Alex</given-names></name>
+        <name><surname>Riedmiller</surname><given-names>Martin</given-names></name>
+        <name><surname>Fidjeland</surname><given-names>Andreas K.</given-names></name>
+        <name><surname>Ostrovski</surname><given-names>Georg</given-names></name>
+        <name><surname>Petersen</surname><given-names>Stig</given-names></name>
+        <name><surname>Beattie</surname><given-names>Charles</given-names></name>
+        <name><surname>Sadik</surname><given-names>Amir</given-names></name>
+        <name><surname>Antonoglou</surname><given-names>Ioannis</given-names></name>
+        <name><surname>King</surname><given-names>Helen</given-names></name>
+        <name><surname>Kumaran</surname><given-names>Dharshan</given-names></name>
+        <name><surname>Wierstra</surname><given-names>Daan</given-names></name>
+        <name><surname>Legg</surname><given-names>Shane</given-names></name>
+        <name><surname>Hassabis</surname><given-names>Demis</given-names></name>
+      </person-group>
+      <article-title>Human-level control through deep reinforcement learning</article-title>
+      <source>Nature</source>
+      <year iso-8601-date="2015">2015</year>
+      <volume>518</volume>
+      <issue>7540</issue>
+      <pub-id pub-id-type="doi">10.1038/nature14236</pub-id>
+      <fpage>529</fpage>
+      <lpage>533</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-raffin2021stable">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Raffin</surname><given-names>Antonin</given-names></name>
+        <name><surname>Hill</surname><given-names>Ashley</given-names></name>
+        <name><surname>Gleave</surname><given-names>Adam</given-names></name>
+        <name><surname>Kanervisto</surname><given-names>Anssi</given-names></name>
+        <name><surname>Ernestus</surname><given-names>Maximilian</given-names></name>
+        <name><surname>Dormann</surname><given-names>Noah</given-names></name>
+      </person-group>
+      <article-title>Stable-Baselines3: Reliable reinforcement learning implementations</article-title>
+      <source>Journal of Machine Learning Research</source>
+      <year iso-8601-date="2021">2021</year>
+      <volume>22</volume>
+      <issue>268</issue>
+      <uri>http://jmlr.org/papers/v22/20-1364.html</uri>
+      <fpage>1</fpage>
+      <lpage>8</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-towers2024gymnasium">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Towers</surname><given-names>Mark</given-names></name>
+        <name><surname>Kwiatkowski</surname><given-names>Ariel</given-names></name>
+        <name><surname>Terry</surname><given-names>Jordan</given-names></name>
+        <name><surname>Balis</surname><given-names>John U</given-names></name>
+        <name><surname>De Cola</surname><given-names>Gianluca</given-names></name>
+        <name><surname>Deleu</surname><given-names>Tristan</given-names></name>
+        <name><surname>Goulão</surname><given-names>Manuel</given-names></name>
+        <name><surname>Kallinteris</surname><given-names>Andreas</given-names></name>
+        <name><surname>Krimmel</surname><given-names>Markus</given-names></name>
+        <name><surname>KG</surname><given-names>Arjun</given-names></name>
+        <name><surname>others</surname></name>
+      </person-group>
+      <article-title>Gymnasium: A standard interface for reinforcement learning environments</article-title>
+      <source>arXiv preprint arXiv:2407.17032</source>
+      <year iso-8601-date="2024">2024</year>
+    </element-citation>
+  </ref>
+  <ref id="ref-verma2018programmatically">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Verma</surname><given-names>Abhinav</given-names></name>
+        <name><surname>Murali</surname><given-names>Vijayaraghavan</given-names></name>
+        <name><surname>Singh</surname><given-names>Rishabh</given-names></name>
+        <name><surname>Kohli</surname><given-names>Pushmeet</given-names></name>
+        <name><surname>Chaudhuri</surname><given-names>Swarat</given-names></name>
+      </person-group>
+      <article-title>Programmatically interpretable reinforcement learning</article-title>
+      <source>Proceedings of the 35th international conference on machine learning</source>
+      <publisher-name>PMLR</publisher-name>
+      <year iso-8601-date="2018">2018</year>
+      <fpage>5045</fpage>
+      <lpage>5054</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-silva2020optimization">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Silva</surname><given-names>Andrew</given-names></name>
+        <name><surname>Killian</surname><given-names>Taylor</given-names></name>
+        <name><surname>Jimenez</surname><given-names>Ivan</given-names></name>
+        <name><surname>Son</surname><given-names>Sung-Hyun</given-names></name>
+        <name><surname>Gombolay</surname><given-names>Matthew</given-names></name>
+      </person-group>
+      <article-title>Optimization methods for interpretable differentiable decision trees applied to reinforcement learning</article-title>
+      <source>Proceedings of the twenty third international conference on artificial intelligence and statistics</source>
+      <person-group person-group-type="editor">
+        <name><surname>Chiappa</surname><given-names>Silvia</given-names></name>
+        <name><surname>Calandra</surname><given-names>Roberto</given-names></name>
+      </person-group>
+      <publisher-name>PMLR</publisher-name>
+      <year iso-8601-date="2020">2020</year>
+      <volume>108</volume>
+      <uri>https://proceedings.mlr.press/v108/silva20a.html</uri>
+      <fpage>1855</fpage>
+      <lpage>1865</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-panda2024vanilla">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Panda</surname><given-names>Subrat Prasad</given-names></name>
+        <name><surname>Genest</surname><given-names>Blaise</given-names></name>
+        <name><surname>Easwaran</surname><given-names>Arvind</given-names></name>
+        <name><surname>Suganthan</surname><given-names>Ponnuthurai Nagaratnam</given-names></name>
+      </person-group>
+      <article-title>Vanilla gradient descent for oblique decision trees</article-title>
+      <source>ECAI 2024 - 27th european conference on artificial intelligence</source>
+      <year iso-8601-date="2024">2024</year>
+      <volume>392</volume>
+      <uri>https://doi.org/10.3233/FAIA240607</uri>
+      <pub-id pub-id-type="doi">10.3233/FAIA240607</pub-id>
+      <fpage>1140</fpage>
+      <lpage>1147</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-topin2021iterative">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Topin</surname><given-names>Nicholay</given-names></name>
+        <name><surname>Milani</surname><given-names>Stephanie</given-names></name>
+        <name><surname>Fang</surname><given-names>Fei</given-names></name>
+        <name><surname>Veloso</surname><given-names>Manuela</given-names></name>
+      </person-group>
+      <article-title>Iterative bounding MDPs: Learning interpretable policies via non-interpretable methods</article-title>
+      <source>Proceedings of the AAAI Conference on Artificial Intelligence</source>
+      <year iso-8601-date="2021">2021</year>
+      <volume>35</volume>
+      <issue>11</issue>
+      <pub-id pub-id-type="doi">10.1609/aaai.v35i11.17192</pub-id>
+      <fpage>9923</fpage>
+      <lpage>9931</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-landajuela2021discovering">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Landajuela</surname><given-names>Mikel</given-names></name>
+        <name><surname>Petersen</surname><given-names>Brenden K.</given-names></name>
+        <name><surname>Kim</surname><given-names>Sookyung</given-names></name>
+        <name><surname>Santiago</surname><given-names>Claudio P.</given-names></name>
+        <name><surname>Glatt</surname><given-names>Ruben</given-names></name>
+        <name><surname>Mundhenk</surname><given-names>Nathan</given-names></name>
+        <name><surname>Pettit</surname><given-names>Jacob F.</given-names></name>
+        <name><surname>Faissol</surname><given-names>Daniel</given-names></name>
+      </person-group>
+      <article-title>Discovering symbolic policies with deep reinforcement learning</article-title>
+      <source>Proceedings of the 38th International Conference on Machine Learning</source>
+      <publisher-name>PMLR</publisher-name>
+      <year iso-8601-date="2021">2021</year>
+      <fpage>5979</fpage>
+      <lpage>5989</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-purejaxrl2023">
+    <element-citation publication-type="software">
+      <person-group person-group-type="author">
+        <name><surname>Lu</surname><given-names>Chris</given-names></name>
+      </person-group>
+      <article-title>PureJaxRL: High-performance reinforcement learning in pure JAX</article-title>
+      <year iso-8601-date="2023">2023</year>
+      <uri>https://github.com/luchris429/purejaxrl</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-brax2021github">
+    <element-citation publication-type="software">
+      <person-group person-group-type="author">
+        <name><surname>Freeman</surname><given-names>C. Daniel</given-names></name>
+        <name><surname>Frey</surname><given-names>Erik</given-names></name>
+        <name><surname>Raichuk</surname><given-names>Anton</given-names></name>
+        <name><surname>Girgin</surname><given-names>Sertan</given-names></name>
+        <name><surname>Mordatch</surname><given-names>Igor</given-names></name>
+        <name><surname>Bachem</surname><given-names>Olivier</given-names></name>
+      </person-group>
+      <article-title>Brax – a differentiable physics engine for large scale rigid body simulation</article-title>
+      <year iso-8601-date="2021">2021</year>
+      <uri>http://github.com/google/brax</uri>
+      <pub-id pub-id-type="doi">10.48550/arXiv.2106.13281</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-distrax2021github">
+    <element-citation publication-type="software">
+      <person-group person-group-type="author">
+        <name><surname>Budden</surname><given-names>David</given-names></name>
+        <name><surname>Hessel</surname><given-names>Matteo</given-names></name>
+        <name><surname>Quan</surname><given-names>John</given-names></name>
+        <name><surname>Kapturowski</surname><given-names>Steven</given-names></name>
+        <name><surname>Baumli</surname><given-names>Kate</given-names></name>
+        <name><surname>Bhupatiraju</surname><given-names>Surya</given-names></name>
+        <name><surname>Guy</surname><given-names>Aurelia</given-names></name>
+        <name><surname>King</surname><given-names>Michael</given-names></name>
+      </person-group>
+      <article-title>Distrax: Probability distributions in JAX</article-title>
+      <year iso-8601-date="2021">2021</year>
+      <uri>http://github.com/google-deepmind/distrax</uri>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
