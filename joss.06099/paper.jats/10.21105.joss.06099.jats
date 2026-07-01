@@ -1,0 +1,393 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">6099</article-id>
+<article-id pub-id-type="doi">10.21105/joss.06099</article-id>
+<title-group>
+<article-title>faer: A linear algebra library for the Rust programming
+language</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0002-5657-0710</contrib-id>
+<name>
+<surname>Kazdadi</surname>
+<given-names>Sarah Quiñones El</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Independent Researcher, France</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2023-10-01">
+<day>1</day>
+<month>10</month>
+<year>2023</year>
+</pub-date>
+<volume>11</volume>
+<issue>123</issue>
+<fpage>6099</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2026</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>Rust</kwd>
+<kwd>linear algebra</kwd>
+<kwd>math</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p><monospace>faer</monospace> is a portable high performance dense
+  linear algebra library written in Rust. The library offers a
+  convenient high level API for performing matrix decompositions and
+  solving linear systems. This API is built on top of a lower level API
+  that gives the user more control over the memory allocation and
+  multithreading settings.</p>
+  <p>Supported platforms include the ones supported by Rust. Explicit
+  SIMD instructions are currently used for x86-64 and Aarch64 (NEON),
+  with plans for SVE/SME and RVV optimizations once intrinsics for those
+  are stabilized in Rust, possibly earlier than that if we allow usage
+  of a Just-In-Time (JIT)
+  backend<xref ref-type="fn" rid="fn1">1</xref>.</p>
+  <p>The library provides a <monospace>Mat</monospace> type, allowing
+  for quick and simple construction and manipulation of matrices, as
+  well as lightweight view types <monospace>MatRef</monospace> and
+  <monospace>MatMut</monospace> for building memory views over existing
+  data.</p>
+  <p>These views are currently used to represent different kinds of
+  matrices, such as generic rectangular matrices,
+  symmetric/Hermitian/triangular (where only half of the matrix is
+  stored) square matrices. In the future, we plan to make use of the
+  robust Rust type-system to better express the properties of those
+  matrices, and prevent accidental misuse of the library’s API.</p>
+  <p>Multiple scalar types are supported, and the library code is
+  generic over the data type. Native floating point types
+  <monospace>f32</monospace>,
+  <monospace>f64</monospace><xref ref-type="fn" rid="fn2">2</xref>,
+  <monospace>c32</monospace>, and <monospace>c64</monospace> are
+  supported out of the box, as well as any user-defined types that
+  satisfy the requested interface, such as extended precision real
+  numbers (double-double or multi-precision floats), complex numbers
+  using the aforementioned types as the base element, dual/hyper-dual
+  numbers<xref ref-type="fn" rid="fn3">3</xref>.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p>Rust was chosen as the language for the library since it allows
+  full control over the memory layout of data and exposes low level CPU
+  intrinsics for SIMD<xref ref-type="fn" rid="fn4">4</xref>
+  computations. Additionally, its memory safety features make it a
+  perfect candidate for writing efficient and parallel code, since the
+  compiler statically checks for errors that are common in other low
+  level languages, such as data races and fatal use-after-free
+  errors.</p>
+  <p>Rust also allows compatibility with the C ABI, allowing for simple
+  interoperability with C, and most other languages by extension. Once a
+  design has been properly fleshed out, we plan to expose a C API, along
+  with bindings to other languages (C, C++, Python and Julia bindings
+  are currently planned).</p>
+  <p>Aside from <monospace>faer</monospace>, the Rust ecosystem lacks
+  high performance matrix factorization libraries that aren’t C library
+  wrappers, which presents a distribution challenge and can impede
+  generic programming.</p>
+</sec>
+<sec id="features">
+  <title>Features</title>
+  <p><monospace>faer</monospace> supports vectorization of arbitrary
+  SIMD user types by deinterleaving Array of Structures (AoS) data to
+  Structure of Arrays (SoA) in registers on the fly. This helps keep the
+  API simple in that it doesn’t need to accomodate SoA storage in
+  memory, and is often also benefitial from a memory locality point of
+  view.</p>
+  <p>The library generically implements algorithms for matrix
+  multiplication, based on the approach of Van Zee &amp; van de Geijn
+  (<xref alt="2015" rid="ref-BLIS1" ref-type="bibr">2015</xref>). For
+  native types, <monospace>faer</monospace> uses SIMD explicitly
+  depending on the detected CPU features, to dispatch instructions to
+  several precompiled variants for operations that can make use of these
+  features. An interesting alternative would be to compile the code JIT,
+  which could improve compilation times and reduce binary size. But
+  there are also possible downsides that have to be weighed against
+  these advantages, such as increasing the startup time to optimize and
+  assemble the code, as well as the gap in maturity between
+  ahead-of-time compilation (currently backed by LLVM), and JIT
+  compilation, for which the Rust ecosystem is still developing. The
+  library then uses matrix multiplication as a building block to
+  implement commonly used matrix decompositions, based on state of the
+  art algorithms in order to guarantee numerical robustness:
+  - Cholesky (LLT, LDLT and Bunch-Kaufman LDLT),
+  - QR (with and without column pivoting),
+  - LU (with partial and full pivoting),
+  - SVD (with or without singular vectors, thin or full), and
+  - eigenvalue decomposition (with or without eigenvectors).</p>
+  <p>For algorithms that are memory-bound and don’t make much use of
+  matrix multiplication, <monospace>faer</monospace> uses optimized
+  fused kernels<xref ref-type="fn" rid="fn5">5</xref>. This can
+  immensely improve the performance of QR decomposition with column
+  pivoting, LU decomposition with full pivoting, as well as reduction to
+  condensed form to prepare matrices for SVD or eigenvalue
+  decomposition, as described by Van Zee et al.
+  (<xref alt="2012" rid="ref-10.1145U002F2382585.2382587" ref-type="bibr">2012</xref>).</p>
+  <p>State of the art algorithms are used for each decomposition,
+  allowing performance that matches or even surpasses other low level
+  libraries such as OpenBLAS (Wang et al.
+  (<xref alt="2013" rid="ref-10.1145U002F2503210.2503219" ref-type="bibr">2013</xref>)),
+  LAPACK
+  (<xref alt="Anderson et al., 1999" rid="ref-lapack99" ref-type="bibr">Anderson
+  et al., 1999</xref>), and Eigen
+  (<xref alt="Guennebaud et al., 2010" rid="ref-eigenweb" ref-type="bibr">Guennebaud
+  et al., 2010</xref>).</p>
+  <p>To achieve high performance parallelism,
+  <monospace>faer</monospace> uses the Rayon library
+  (<xref alt="Rayon developers, 2015" rid="ref-rayon" ref-type="bibr">Rayon
+  developers, 2015</xref>) as a backend, and has shown to be competitive
+  with other frameworks such as OpenMP
+  (<xref alt="Chandra et al., 2001" rid="ref-chandra2001parallel" ref-type="bibr">Chandra
+  et al., 2001</xref>) and Intel Thread Building Blocks
+  (<xref alt="Pheatt, 2008" rid="ref-tbb" ref-type="bibr">Pheatt,
+  2008</xref>).</p>
+</sec>
+<sec id="performance">
+  <title>Performance</title>
+  <p>Here we present the benchmarks for a representative subset of
+  operations that showcase our improvements over the current state of
+  the art.</p>
+  <p>The benchmarks were run on an 11th Gen Intel(R) Core(TM) i5-11400 @
+  2.60GHz with 12 threads. Eigen is compiled with the
+  <monospace>-fopenmp</monospace> flag to enable parallelism.</p>
+  <fig id="matmul_perf">
+    <caption><p><inline-formula><alternatives>
+    <tex-math><![CDATA[n^3]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msup><mml:mi>n</mml:mi><mml:mn>3</mml:mn></mml:msup></mml:math></alternatives></inline-formula>
+    over run time of matrix multiplication. Higher is
+    better</p></caption>
+    <graphic mimetype="application" mime-subtype="pdf" xlink:href="https://github.com/sarah-quinones/faer-rs/files/13344473/matmul.pdf" />
+  </fig>
+  <fig id="qr_perf">
+    <caption><p><inline-formula><alternatives>
+    <tex-math><![CDATA[n^3]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msup><mml:mi>n</mml:mi><mml:mn>3</mml:mn></mml:msup></mml:math></alternatives></inline-formula>
+    over run time of QR decomposition. Higher is better</p></caption>
+    <graphic mimetype="application" mime-subtype="pdf" xlink:href="https://github.com/sarah-quinones/faer-rs/files/13344474/qr.pdf" />
+  </fig>
+  <fig id="evd_perf">
+    <caption><p><inline-formula><alternatives>
+    <tex-math><![CDATA[n^3]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msup><mml:mi>n</mml:mi><mml:mn>3</mml:mn></mml:msup></mml:math></alternatives></inline-formula>
+    over run time of eigenvalue decomposition. Higher is
+    better</p></caption>
+    <graphic mimetype="application" mime-subtype="pdf" xlink:href="https://github.com/sarah-quinones/faer-rs/files/13344472/evd.pdf" />
+  </fig>
+</sec>
+<sec id="future-work">
+  <title>Future work</title>
+  <p>We have so far focused mainly on dense matrix algorithms, which
+  will eventually form the foundation of supernodal sparse
+  decompositions. Sparse algorithm implementations will be showcased in
+  a future paper.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <title></title>
+  <ref id="ref-BLIS1">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Van Zee</surname><given-names>Field G.</given-names></name>
+        <name><surname>van de Geijn</surname><given-names>Robert A.</given-names></name>
+      </person-group>
+      <article-title>BLIS: A framework for rapidly instantiating BLAS functionality</article-title>
+      <source>ACM Transactions on Mathematical Software</source>
+      <year iso-8601-date="2015">2015</year>
+      <volume>41</volume>
+      <issue>3</issue>
+      <pub-id pub-id-type="doi">10.1145/2764454</pub-id>
+      <fpage>14:1</fpage>
+      <lpage>14:33</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-10.1145U002F2503210.2503219">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Wang</surname><given-names>Qian</given-names></name>
+        <name><surname>Zhang</surname><given-names>Xianyi</given-names></name>
+        <name><surname>Zhang</surname><given-names>Yunquan</given-names></name>
+        <name><surname>Yi</surname><given-names>Qing</given-names></name>
+      </person-group>
+      <article-title>AUGEM: Automatically generate high performance dense linear algebra kernels on X86 CPUs</article-title>
+      <source>Proceedings of the international conference on high performance computing, networking, storage and analysis</source>
+      <publisher-name>Association for Computing Machinery</publisher-name>
+      <publisher-loc>New York, NY, USA</publisher-loc>
+      <year iso-8601-date="2013">2013</year>
+      <isbn>9781450323789</isbn>
+      <uri>https://doi.org/10.1145/2503210.2503219</uri>
+      <pub-id pub-id-type="doi">10.1145/2503210.2503219</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-lapack99">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Anderson</surname><given-names>E.</given-names></name>
+        <name><surname>Bai</surname><given-names>Z.</given-names></name>
+        <name><surname>Bischof</surname><given-names>C.</given-names></name>
+        <name><surname>Blackford</surname><given-names>S.</given-names></name>
+        <name><surname>Demmel</surname><given-names>J.</given-names></name>
+        <name><surname>Dongarra</surname><given-names>J.</given-names></name>
+        <name><surname>Du Croz</surname><given-names>J.</given-names></name>
+        <name><surname>Greenbaum</surname><given-names>A.</given-names></name>
+        <name><surname>Hammarling</surname><given-names>S.</given-names></name>
+        <name><surname>McKenney</surname><given-names>A.</given-names></name>
+        <name><surname>Sorensen</surname><given-names>D.</given-names></name>
+      </person-group>
+      <source>LAPACK users’ guide</source>
+      <publisher-name>Society for Industrial and Applied Mathematics</publisher-name>
+      <publisher-loc>Philadelphia, PA</publisher-loc>
+      <year iso-8601-date="1999">1999</year>
+      <edition>Third</edition>
+      <isbn>0-89871-447-8</isbn>
+    </element-citation>
+  </ref>
+  <ref id="ref-eigenweb">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Guennebaud</surname><given-names>Gaël</given-names></name>
+        <name><surname>Jacob</surname><given-names>Benoît</given-names></name>
+        <name><surname>others</surname></name>
+      </person-group>
+      <article-title>Eigen v3</article-title>
+      <year iso-8601-date="2010">2010</year>
+      <uri>http://eigen.tuxfamily.org</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-rayon">
+    <element-citation>
+      <person-group person-group-type="author">
+        <string-name>Rayon developers</string-name>
+      </person-group>
+      <article-title>Rayon</article-title>
+      <year iso-8601-date="2015">2015</year>
+      <uri>https://github.com/rayon-rs/rayon</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-10.1145U002F2382585.2382587">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Van Zee</surname><given-names>Field G.</given-names></name>
+        <name><surname>van de Geijn</surname><given-names>Robert A.</given-names></name>
+        <name><surname>Quintana-Ortı́</surname><given-names>Gregorio</given-names></name>
+        <name><surname>Elizondo</surname><given-names>G. Joseph</given-names></name>
+      </person-group>
+      <article-title>Families of algorithms for reducing a matrix to condensed form</article-title>
+      <source>ACM Transactions on Mathematical Software</source>
+      <publisher-name>Association for Computing Machinery</publisher-name>
+      <publisher-loc>New York, NY, USA</publisher-loc>
+      <year iso-8601-date="2012-11">2012</year><month>11</month>
+      <volume>39</volume>
+      <issue>1</issue>
+      <issn>0098-3500</issn>
+      <uri>https://doi.org/10.1145/2382585.2382587</uri>
+      <pub-id pub-id-type="doi">10.1145/2382585.2382587</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-chandra2001parallel">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Chandra</surname><given-names>Rohit</given-names></name>
+        <name><surname>Dagum</surname><given-names>Leo</given-names></name>
+        <name><surname>Kohr</surname><given-names>David</given-names></name>
+        <name><surname>Menon</surname><given-names>Ramesh</given-names></name>
+        <name><surname>Maydan</surname><given-names>Dror</given-names></name>
+        <name><surname>McDonald</surname><given-names>Jeff</given-names></name>
+      </person-group>
+      <source>Parallel programming in OpenMP</source>
+      <publisher-name>Morgan Kaufmann</publisher-name>
+      <year iso-8601-date="2001">2001</year>
+    </element-citation>
+  </ref>
+  <ref id="ref-tbb">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Pheatt</surname><given-names>Chuck</given-names></name>
+      </person-group>
+      <article-title>Intel® threading building blocks</article-title>
+      <source>J. Comput. Sci. Coll.</source>
+      <publisher-name>Consortium for Computing Sciences in Colleges</publisher-name>
+      <publisher-loc>Evansville, IN, USA</publisher-loc>
+      <year iso-8601-date="2008-04">2008</year><month>04</month>
+      <volume>23</volume>
+      <issue>4</issue>
+      <issn>1937-4771</issn>
+      <pub-id pub-id-type="doi">10.1016/b978-0-12-803761-4.00011-3</pub-id>
+      <fpage>298</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+</ref-list>
+<fn-group>
+  <fn id="fn1">
+    <label>1</label><p>Inline assembly is not entirely appropriate for
+    our use case since it’s hard to make it generic enough for all the
+    operations and types that we wish to support.</p>
+  </fn>
+  <fn id="fn2">
+    <label>2</label><p>IEEE 754-2008, with no implicit
+    <monospace>fusedMultiplyAdd</monospace> contractions and with slight
+    differences around NaN handling. See the
+    <ext-link ext-link-type="uri" xlink:href="https://github.com/rust-lang/rust/issues/128288">float
+    semantics</ext-link> tracking issue for more information.</p>
+  </fn>
+  <fn id="fn3">
+    <label>3</label><p>These support at least for the simpler matrix
+    decompositions (Cholesky, LU, QR). It’s not clear yet how to handle
+    iterative algorithms like the SVD and Eigendecomposition.</p>
+  </fn>
+  <fn id="fn4">
+    <label>4</label><p>Single instruction, multiple data operations that
+    CPUs can use to parallelize data processing at the instruction
+    level.</p>
+  </fn>
+  <fn id="fn5">
+    <label>5</label><p>For example, computing
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[A x]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>A</mml:mi><mml:mi>x</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>
+    and <inline-formula><alternatives>
+    <tex-math><![CDATA[A^\top y]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msup><mml:mi>A</mml:mi><mml:mi>⊤</mml:mi></mml:msup><mml:mi>y</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>
+    with a single pass over <inline-formula><alternatives>
+    <tex-math><![CDATA[A]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>A</mml:mi></mml:math></alternatives></inline-formula>,
+    rather than two.</p>
+  </fn>
+</fn-group>
+</back>
+</article>
