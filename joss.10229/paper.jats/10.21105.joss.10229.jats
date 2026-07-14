@@ -1,0 +1,1010 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">10229</article-id>
+<article-id pub-id-type="doi">10.21105/joss.10229</article-id>
+<title-group>
+<article-title>Uno: a composable framework for nonlinearly constrained
+optimization</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author" corresp="yes">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0002-1131-7631</contrib-id>
+<name>
+<surname>Vanaret</surname>
+<given-names>Charlie</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+<xref ref-type="corresp" rid="cor-1"><sup>*</sup></xref>
+</contrib>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0002-3403-5450</contrib-id>
+<name>
+<surname>Montoison</surname>
+<given-names>Alexis</given-names>
+</name>
+<xref ref-type="aff" rid="aff-2"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Applied Optimization Department, Zuse-Institut Berlin,
+Germany</institution>
+</institution-wrap>
+</aff>
+<aff id="aff-2">
+<institution-wrap>
+<institution>Mathematics and Computer Science Division, Argonne National
+Laboratory, USA</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<author-notes>
+<corresp id="cor-1">* E-mail: <email></email></corresp>
+</author-notes>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2026-07-14">
+<day>14</day>
+<month>7</month>
+<year>2026</year>
+</pub-date>
+<volume>11</volume>
+<issue>123</issue>
+<fpage>10229</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2026</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>nonlinear programming</kwd>
+<kwd>constrained optimization</kwd>
+<kwd>sequential quadratic programming</kwd>
+<kwd>interior-point methods</kwd>
+<kwd>Lagrange-Newton methods</kwd>
+<kwd>optimization frameworks</kwd>
+<kwd>scientific computing</kwd>
+<kwd>Julia</kwd>
+<kwd>Python</kwd>
+<kwd>C</kwd>
+<kwd>Fortran</kwd>
+<kwd>AMPL</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p>Uno is a composable software framework for nonlinearly constrained
+  optimization written in modern C<monospace>++</monospace>. It unifies
+  the workflows of Lagrange-Newton methods, i.e., gradient-based
+  algorithms that iteratively solve the KKT optimality conditions using
+  Newton’s method. The central idea is to decompose these methods into
+  reusable, interchangeable components (constraint reformulation, step
+  computation, globalization techniques, and acceptance criteria) so
+  that classical and hybrid algorithms can be assembled, compared, and
+  tested within a single framework rather than reimplemented as separate
+  solvers. As of July 2026, Uno supports sequential (convex and
+  nonconvex) quadratic programming, interior-point (barrier) methods,
+  sequential linear programming, and unconstrained optimization. For
+  full mathematical details of the algorithms implemented in Uno, see
+  Vanaret &amp; Leyffer
+  (<xref alt="2026" rid="ref-VanaretLeyffer2026" ref-type="bibr">2026</xref>).</p>
+  <p>Uno has interfaces to Julia, Python, C, Fortran, and AMPL, enabling
+  interoperability across scientific computing environments. Precompiled
+  artifacts are available on GitHub, and the solver can be accessed
+  directly via <monospace>UnoSolver.jl</monospace> in Julia or
+  <monospace>unopy</monospace> in Python.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p>Nonlinearly constrained optimization is central to engineering,
+  optimal control
+  (<xref alt="Lewis et al., 2012" rid="ref-lewis2012optimal" ref-type="bibr">Lewis
+  et al., 2012</xref>), machine learning
+  (<xref alt="Sra et al., 2011" rid="ref-sra2011optimization" ref-type="bibr">Sra
+  et al., 2011</xref>), scientific modeling
+  (<xref alt="Nocedal &amp; Wright, 2006" rid="ref-nocedal2006" ref-type="bibr">Nocedal
+  &amp; Wright, 2006</xref>), and plays a key role in mixed-integer
+  nonlinear optimization
+  (<xref alt="Lee &amp; Leyffer, 2011" rid="ref-lee2011" ref-type="bibr">Lee
+  &amp; Leyffer, 2011</xref>). The major solution paradigms (sequential
+  quadratic programming, interior-point methods, and augmented
+  Lagrangian methods) are usually developed and implemented as separate
+  solver families. Yet they share the same building blocks: step
+  computation, constraint handling, Hessian models, and globalization
+  strategies. Because these building blocks are rigid inside monolithic
+  codes, algorithmic ideas are typically tested at the level of
+  <italic>complete solvers</italic> rather than <italic>building
+  blocks</italic>: evaluating a new globalization strategy or Hessian
+  approximation means reimplementing an entire solver or intrusively
+  modifying an existing one.</p>
+  <p>Uno targets two audiences. For <bold>algorithm developers and
+  optimization researchers</bold>, it makes the building blocks explicit
+  and recombinable across paradigms, so that a single new strategy can
+  be swapped into an otherwise state-of-the-art method and benchmarked
+  in isolation. For <bold>practitioners and end users</bold>, it exposes
+  those building blocks, pre-assembled into presets that reproduce
+  established solvers, behind multiple language interfaces. Because
+  these presets live in a single framework with a common interface,
+  users can identify the most suitable method for a given class of
+  problems by reconfiguring strategies within Uno, rather than
+  installing and benchmarking several independent solvers.</p>
+  <p>The gap Uno fills is the absence of a framework in which
+  <italic>production-grade</italic> algorithmic components can be
+  composed across solver paradigms under a unified abstraction.</p>
+</sec>
+<sec id="state-of-the-field">
+  <title>State of the field</title>
+  <p>Popular solvers such as IPOPT
+  (<xref alt="Wächter &amp; Biegler, 2006" rid="ref-wachter2006implementation" ref-type="bibr">Wächter
+  &amp; Biegler, 2006</xref>), KNITRO
+  (<xref alt="Byrd et al., 2006" rid="ref-byrd2006" ref-type="bibr">Byrd
+  et al., 2006</xref>), SNOPT
+  (<xref alt="Gill et al., 2005" rid="ref-gill2005" ref-type="bibr">Gill
+  et al., 2005</xref>), and WORHP
+  (<xref alt="Büskens &amp; Wassel, 2012" rid="ref-buskens2012esa" ref-type="bibr">Büskens
+  &amp; Wassel, 2012</xref>) are robust and efficient but monolithic:
+  parameter tuning is exposed while internal components remain rigid.
+  They are designed for end users rather than algorithmic
+  experimentation, and testing a new variant usually requires intrusive
+  modification or reimplementation. A notable exception among production
+  codes is MadNLP.jl
+  (<xref alt="Shin et al., 2024" rid="ref-shin2024accelerating" ref-type="bibr">Shin
+  et al., 2024</xref>), an actively developed Julia solver, though it
+  remains focused on interior-point methods.</p>
+  <p>Frameworks that do emphasize modularity occupy a different niche.
+  General-purpose libraries such as
+  <monospace>scipy.optimize</monospace>, NLopt, pyOpt, and pyOptSparse
+  let users select among complete solvers, but they do not expose the
+  <italic>internal</italic> algorithmic components for recombination.
+  Closest in spirit is modOpt
+  (<xref alt="Joshy &amp; Hwang, 2026" rid="ref-joshy2026modopt" ref-type="bibr">Joshy
+  &amp; Hwang, 2026</xref>), a Python environment that builds
+  optimization algorithms from self-contained modules (line searches,
+  Hessian approximations, merit functions) with an educational
+  focus.</p>
+  <p>Uno is distinct on three counts. First, its components are
+  production-grade algorithmic building blocks compiled in modern
+  C<monospace>++</monospace>. Second, it expresses these paradigms as
+  instances of one generic Lagrange-Newton method, so the same
+  components are reused across all of them rather than confined to a
+  single method. Third, its presets reproduce state-of-the-art solvers
+  at competitive performance (see below), so a component swapped into
+  Uno is measured against a credible baseline rather than a teaching
+  reference.</p>
+</sec>
+<sec id="software-design">
+  <title>Software design</title>
+  <p>Within Uno, strategies are organized into a coherent hierarchy,
+  illustrated in the wheel of strategies
+  (<xref alt="[fig:wheel]" rid="figU003Awheel">[fig:wheel]</xref>). The
+  outer ring lists the high-level <italic>layers</italic> of a
+  Lagrange-Newton method (for example, constraint reformulation and
+  globalization); the middle ring lists the algorithmic
+  <italic>ingredients</italic> that Uno combines automatically to
+  realize each layer; and the inner ring lists the concrete
+  <italic>strategies</italic> available for each ingredient. Strategies
+  currently implemented in Uno are highlighted in green.</p>
+  <p>In Uno’s object-oriented architecture, the ingredients of
+  <xref alt="[fig:wheel]" rid="figU003Awheel">[fig:wheel]</xref> are
+  abstract classes whose interfaces are implemented by subclasses (the
+  strategies). Uno’s simplified UML diagram is shown in
+  <xref alt="[fig:umldiagram]" rid="figU003Aumldiagram">[fig:umldiagram]</xref>:
+  inheritance is represented as dashed lines with white arrows,
+  composition as solid lines with black diamonds; abstract classes are
+  written in italic and subclasses in bold. This architecture separates
+  the mathematical logic of the algorithm (problem reformulation,
+  subproblem definition, globalization) from the computational aspects
+  (evaluating the model’s functions, solving the subproblems).</p>
+  <p>Uno implements a generic Lagrange-Newton method in which the
+  abstract classes interact and exchange data while remaining agnostic
+  to the underlying strategies. Strategies are selected by the user at
+  runtime via options. Uno also provides <italic>presets</italic>:
+  particular combinations of strategies and hyperparameters that
+  correspond to state-of-the-art solvers. Two presets are currently
+  available: an <monospace>ipopt</monospace> preset mimicking the IPOPT
+  solver
+  (<xref alt="Wächter &amp; Biegler, 2006" rid="ref-wachter2006implementation" ref-type="bibr">Wächter
+  &amp; Biegler, 2006</xref>) (a <italic>line-search restoration filter
+  interior-point method with exact Hessian and primal-dual inertia
+  correction</italic>), and a <monospace>filtersqp</monospace> preset
+  mimicking the filterSQP solver
+  (<xref alt="Fletcher &amp; Leyffer, 1998" rid="ref-fletcher1998user" ref-type="bibr">Fletcher
+  &amp; Leyffer, 1998</xref>) (a <italic>trust-region restoration filter
+  SQP method with exact Hessian and no inertia correction</italic>). In
+  principle all combinations of strategies can be generated, although
+  some are not yet supported (e.g., an interior-point method with a
+  trust-region globalization mechanism). When no preset is specified,
+  Uno automatically dispatches to the <monospace>filtersqp</monospace>
+  or <monospace>ipopt</monospace> preset based on the problem size,
+  sparing users the choice of the underlying method. Acting as an
+  oracle, this selection mechanism can be readily extended to dispatch
+  to new presets as they become available.</p>
+  <fig>
+    <caption><p>Unification framework: wheel of
+    strategies.<styled-content id="figU003Awheel"></styled-content></p></caption>
+    <graphic mimetype="application" mime-subtype="pdf" xlink:href="wheel.pdf" />
+  </fig>
+  <p>These two presets perform on a par with the state-of-the-art
+  solvers IPOPT (Uno is slightly less robust) and filterSQP (Uno is
+  slightly more robust) in terms of function evaluations on a set of 429
+  small CUTE instances with fewer than 100 variables and constraints
+  (<xref alt="Bongartz et al., 1995" rid="ref-bongartz1995cute" ref-type="bibr">Bongartz
+  et al., 1995</xref>) translated to AMPL by Vanderbei. An up-to-date
+  performance profile is maintained on Uno’s documentation page. This
+  benchmark shows that Uno’s composability does not come at the cost of
+  performance: assembling a method from modular components reproduces
+  the behavior of the hand-written solvers it mimics.</p>
+  <p>Subproblem solvers are treated as interchangeable components that
+  can be plugged in or swapped out without modifying the algorithmic
+  logic, letting users match the solver to their problem structure,
+  licensing constraints, or performance requirements. Uno currently
+  interfaces several established LP, QP, and linear solvers: BQPD
+  (<xref alt="Fletcher, 2000" rid="ref-fletcher2000stable" ref-type="bibr">Fletcher,
+  2000</xref>), HiGHS
+  (<xref alt="Huangfu &amp; Hall, 2018" rid="ref-huangfu2018parallelizing" ref-type="bibr">Huangfu
+  &amp; Hall, 2018</xref>), MUMPS
+  (<xref alt="Amestoy et al., 2000" rid="ref-amestoy2000mumps" ref-type="bibr">Amestoy
+  et al., 2000</xref>), MA27
+  (<xref alt="I. S. Duff &amp; Reid, 1983" rid="ref-duffma27" ref-type="bibr">I.
+  S. Duff &amp; Reid, 1983</xref>), MA57
+  (<xref alt="Iain S. Duff, 2004" rid="ref-duff2004ma57" ref-type="bibr">Iain
+  S. Duff, 2004</xref>), MA86
+  (<xref alt="J. Hogg &amp; Scott, 2010" rid="ref-hogg2010indefinite" ref-type="bibr">J.
+  Hogg &amp; Scott, 2010</xref>), SSIDS
+  (<xref alt="J. D. Hogg et al., 2016" rid="ref-hogg2016sparse" ref-type="bibr">J.
+  D. Hogg et al., 2016</xref>), and <monospace>Krylov.jl</monospace>
+  (<xref alt="Montoison &amp; Orban, 2023" rid="ref-montoison2023krylov" ref-type="bibr">Montoison
+  &amp; Orban, 2023</xref>).</p>
+</sec>
+<sec id="interfaces">
+  <title>Interfaces</title>
+  <p>To make Uno accessible to a wide range of users, we provide
+  multiple language interfaces.</p>
+  <p>The AMPL Solver Library
+  (<xref alt="Gay, 1997" rid="ref-gay1997hooking" ref-type="bibr">Gay,
+  1997</xref>) interface gives access to the AMPL
+  (<xref alt="Fourer et al., 1989" rid="ref-fourer1989" ref-type="bibr">Fourer
+  et al., 1989</xref>) modeling language for optimization. It is
+  distributed as a binary that takes a compiled AMPL model (.nl file) as
+  input, allowing users to solve problems without directly interacting
+  with the C<monospace>++</monospace> core.</p>
+  <p>The C interface provides direct access to Uno’s core functionality
+  while maximizing interoperability with other programming languages and
+  tools. The optimization process is expressed as the interaction
+  between two independent opaque objects: a model describing the
+  optimization problem and a solver holding the algorithmic
+  configuration and execution state. The interface is therefore centered
+  around two main structures:</p>
+  <list list-type="bullet">
+    <list-item>
+      <p><bold>Model</bold>: represents an optimization problem and
+      stores information about variables, bounds, constraints, the
+      objective function, and derivative information. Users create a
+      model and set its components (objective, constraints, derivatives,
+      initial primal-dual point).</p>
+    </list-item>
+    <list-item>
+      <p><bold>Solver</bold>: represents the algorithm used to solve a
+      given model. Users set solver options, attach callbacks, and
+      access results such as primal and dual solutions, residuals,
+      iteration counts, and performance metrics.</p>
+    </list-item>
+  </list>
+  <p>The Fortran interface provides access to Uno through the C API
+  using <monospace>iso_c_binding</monospace>. It is split into two
+  files: <monospace>uno_c.f90</monospace> for low-level C bindings, and
+  <monospace>uno_fortran.f90</monospace> for Fortran-friendly wrappers
+  that handle string arguments. The interface can be included directly
+  in a source file or wrapped in a module for cleaner
+  <monospace>use</monospace> statements. It is provided as source rather
+  than a precompiled Fortran module (.mod) to maximize portability and
+  interoperability across compilers and platforms.</p>
+  <p>The Julia interface is distributed as the registered package
+  <monospace>UnoSolver.jl</monospace>. It integrates Uno into the Julia
+  optimization ecosystem through:</p>
+  <list list-type="bullet">
+    <list-item>
+      <p>a thin wrapper around the full C API,</p>
+    </list-item>
+    <list-item>
+      <p>an interface to <monospace>NLPModels.jl</monospace> for solving
+      problems following the NLPModels API, such as
+      <monospace>ADNLPModels.jl</monospace> or
+      <monospace>ExaModels.jl</monospace>,</p>
+    </list-item>
+    <list-item>
+      <p>an interface to <monospace>MathOptInterface.jl</monospace> for
+      handling JuMP models.</p>
+    </list-item>
+  </list>
+  <p>Precompiled artifacts are downloaded automatically, making the
+  package plug-and-play without requiring user compilation.</p>
+  <p>The Python interface is registered on PyPI as
+  <monospace>unopy</monospace>, providing Uno bindings via precompiled
+  wheels on most platforms.</p>
+  <p>MATLAB and Rust interfaces are also under development, further
+  expanding Uno’s accessibility.</p>
+  <p>Looking ahead, we plan to integrate Uno as a continuous relaxation
+  solver within MINLP frameworks such as SCIP
+  (<xref alt="Bestuzheva et al., 2023" rid="ref-bolusani2024scip" ref-type="bibr">Bestuzheva
+  et al., 2023</xref>), which will require efficient reoptimization that
+  reuses internal solver state (active sets, factorizations,
+  preallocated workspace) across structurally similar solves.</p>
+</sec>
+<sec id="research-impact-statement">
+  <title>Research impact statement</title>
+  <p>Uno has demonstrated value both as a research tool and as a
+  dependency of established software. Its original authors used it to
+  prototype a novel globalization strategy, the funnel method
+  (<xref alt="Kiessling et al., 2025" rid="ref-kiessling2025unified" ref-type="bibr">Kiessling
+  et al., 2025</xref>). It has since been used as the lower-level solver
+  in derivative-free bilevel optimization
+  (<xref alt="Cesaroni et al., 2026" rid="ref-cesaroni2026derivative" ref-type="bibr">Cesaroni
+  et al., 2026</xref>), been benchmarked on Euclidean problems with
+  bound constraints
+  (<xref alt="Baran et al., 2026" rid="ref-baran2026riemannian" ref-type="bibr">Baran
+  et al., 2026</xref>), and been cited in
+  (<xref alt="Cederberg et al., 2026" rid="ref-cederberg2026disciplined" ref-type="bibr">Cederberg
+  et al., 2026</xref>;
+  <xref alt="Desef, 2025" rid="ref-desef2025optimization" ref-type="bibr">Desef,
+  2025</xref>;
+  <xref alt="Gruss, 2024" rid="ref-gruss2024estimation" ref-type="bibr">Gruss,
+  2024</xref>).</p>
+  <p>Uno is currently available as a nonlinear optimization solver
+  in:</p>
+  <list list-type="bullet">
+    <list-item>
+      <p>Julia:</p>
+      <list list-type="bullet">
+        <list-item>
+          <p>the <monospace>JuMP.jl</monospace> ecosystem
+          (<xref alt="Dunning et al., 2017" rid="ref-dunning2017jump" ref-type="bibr">Dunning
+          et al., 2017</xref>),</p>
+        </list-item>
+        <list-item>
+          <p><monospace>control-toolbox</monospace>, a collection of
+          Julia packages for mathematical control and its applications
+          (<xref alt="Caillau et al., 2024" rid="ref-OptimalControl_jl" ref-type="bibr">Caillau
+          et al., 2024</xref>),</p>
+        </list-item>
+      </list>
+    </list-item>
+    <list-item>
+      <p>C++:</p>
+      <list list-type="bullet">
+        <list-item>
+          <p><ext-link ext-link-type="uri" xlink:href="https://github.com/casadi/casadi">CasADi</ext-link>,
+          an open-source tool for nonlinear optimization and algorithmic
+          differentiation
+          (<xref alt="Andersson et al., 2019" rid="ref-Andersson2019" ref-type="bibr">Andersson
+          et al., 2019</xref>),</p>
+        </list-item>
+      </list>
+    </list-item>
+    <list-item>
+      <p>Python:</p>
+      <list list-type="bullet">
+        <list-item>
+          <p><ext-link ext-link-type="uri" xlink:href="https://github.com/mdolab/pyoptsparse">pyOptSparse</ext-link>,
+          an object-oriented framework for formulating and solving
+          nonlinear constrained optimization problems
+          (<xref alt="Wu et al., 2020" rid="ref-Wu2020" ref-type="bibr">Wu
+          et al., 2020</xref>),</p>
+        </list-item>
+        <list-item>
+          <p><ext-link ext-link-type="uri" xlink:href="https://github.com/cvxgrp/DNLP">DNLP</ext-link>,
+          an extension of CVXPY to general nonlinear programming
+          (<xref alt="Cederberg et al., 2026" rid="ref-cederberg2026disciplined" ref-type="bibr">Cederberg
+          et al., 2026</xref>),</p>
+        </list-item>
+      </list>
+    </list-item>
+    <list-item>
+      <p>Fortran:</p>
+      <list list-type="bullet">
+        <list-item>
+          <p><ext-link ext-link-type="uri" xlink:href="https://github.com/ralna/cuTEst">CUTEst</ext-link>,
+          the Constrained and Unconstrained Testing Environment with
+          safe threads for optimization software
+          (<xref alt="Gould et al., 2015" rid="ref-gould2015cutest" ref-type="bibr">Gould
+          et al., 2015</xref>),</p>
+        </list-item>
+        <list-item>
+          <p>IMPL © /IMPL-DATA © by Industrial Algorithms Limited, a
+          modeling and solving platform used in the process
+          industries.</p>
+        </list-item>
+      </list>
+    </list-item>
+  </list>
+  <fig>
+    <caption><p>Uno’s UML
+    diagram.<styled-content id="figU003Aumldiagram"></styled-content></p></caption>
+    <graphic mimetype="application" mime-subtype="pdf" xlink:href="uml_diagram.pdf" />
+  </fig>
+</sec>
+<sec id="acknowledgments">
+  <title>Acknowledgments</title>
+  <p>This work was supported by the Applied Mathematics activity of the
+  U.S. Department of Energy Office of Science, Advanced Scientific
+  Computing Research, under Contract No. DE-AC02-06CH11357. This work
+  was also supported in part by NSF CSSI Grant No. 2104068.</p>
+</sec>
+<sec id="ai-usage-disclosure">
+  <title>AI usage disclosure</title>
+  <p>No generative AI was used in the creation of the software,
+  interfaces, implementation of algorithms, or documentation. ChatGPT
+  was used to check spelling, grammar, and clarity of the English text
+  in this paper.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <title></title>
+  <ref id="ref-wachter2006implementation">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Wächter</surname><given-names>Andreas</given-names></name>
+        <name><surname>Biegler</surname><given-names>Lorenz T</given-names></name>
+      </person-group>
+      <article-title>On the implementation of an interior-point filter line-search algorithm for large-scale nonlinear programming</article-title>
+      <source>Mathematical programming</source>
+      <publisher-name>Springer</publisher-name>
+      <year iso-8601-date="2006">2006</year>
+      <volume>106</volume>
+      <issue>1</issue>
+      <pub-id pub-id-type="doi">10.1007/s10107-004-0559-y</pub-id>
+      <fpage>25</fpage>
+      <lpage>57</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-fletcher1998user">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Fletcher</surname><given-names>Roger</given-names></name>
+        <name><surname>Leyffer</surname><given-names>Sven</given-names></name>
+      </person-group>
+      <article-title>User manual for filterSQP</article-title>
+      <source>Numerical Analysis Report NA/181, Department of Mathematics, University of Dundee, Dundee, Scotland</source>
+      <year iso-8601-date="1998">1998</year>
+      <volume>35</volume>
+    </element-citation>
+  </ref>
+  <ref id="ref-byrd2006">
+    <element-citation publication-type="chapter">
+      <person-group person-group-type="author">
+        <name><surname>Byrd</surname><given-names>Richard H</given-names></name>
+        <name><surname>Nocedal</surname><given-names>Jorge</given-names></name>
+        <name><surname>Waltz</surname><given-names>Richard A</given-names></name>
+      </person-group>
+      <article-title>KNITRO: An integrated package for nonlinear optimization</article-title>
+      <source>Large-scale nonlinear optimization</source>
+      <publisher-name>Springer</publisher-name>
+      <year iso-8601-date="2006">2006</year>
+      <pub-id pub-id-type="doi">10.1007/0-387-30065-1_4</pub-id>
+      <fpage>35</fpage>
+      <lpage>59</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-gill2005">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Gill</surname><given-names>Philip E</given-names></name>
+        <name><surname>Murray</surname><given-names>Walter</given-names></name>
+        <name><surname>Saunders</surname><given-names>Michael A</given-names></name>
+      </person-group>
+      <article-title>SNOPT: An SQP algorithm for large-scale constrained optimization</article-title>
+      <source>SIAM review</source>
+      <publisher-name>SIAM</publisher-name>
+      <year iso-8601-date="2005">2005</year>
+      <volume>47</volume>
+      <issue>1</issue>
+      <pub-id pub-id-type="doi">10.1137/S0036144504446096</pub-id>
+      <fpage>99</fpage>
+      <lpage>131</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-VanaretLeyffer2026">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Vanaret</surname><given-names>Charlie</given-names></name>
+        <name><surname>Leyffer</surname><given-names>Sven</given-names></name>
+      </person-group>
+      <article-title>Implementing a unified solver for nonlinearly constrained optimization</article-title>
+      <source>Mathematical Programming Computation</source>
+      <year iso-8601-date="2026">2026</year>
+      <pub-id pub-id-type="doi">10.1007/s12532-026-00310-9</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-nocedal2006">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Nocedal</surname><given-names>Jorge</given-names></name>
+        <name><surname>Wright</surname><given-names>Stephen J</given-names></name>
+      </person-group>
+      <source>Numerical optimization</source>
+      <publisher-name>Springer</publisher-name>
+      <year iso-8601-date="2006">2006</year>
+      <pub-id pub-id-type="doi">10.1007/978-0-387-40065-5</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-lee2011">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Lee</surname><given-names>Jon</given-names></name>
+        <name><surname>Leyffer</surname><given-names>Sven</given-names></name>
+      </person-group>
+      <source>Mixed integer nonlinear programming</source>
+      <publisher-name>Springer Science &amp; Business Media</publisher-name>
+      <year iso-8601-date="2011">2011</year>
+      <pub-id pub-id-type="doi">10.1007/978-1-4614-1927-3</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-fourer1989">
+    <element-citation publication-type="chapter">
+      <person-group person-group-type="author">
+        <name><surname>Fourer</surname><given-names>Robert</given-names></name>
+        <name><surname>Gay</surname><given-names>David M</given-names></name>
+        <name><surname>Kernighan</surname><given-names>Brian W</given-names></name>
+      </person-group>
+      <article-title>AMPL: A mathematical programming language</article-title>
+      <source>Algorithms and model formulations in mathematical programming</source>
+      <person-group person-group-type="editor">
+        <name><surname>Wallace</surname><given-names>Stein W</given-names></name>
+      </person-group>
+      <publisher-name>Springer</publisher-name>
+      <year iso-8601-date="1989">1989</year>
+      <pub-id pub-id-type="doi">10.1007/978-3-642-83724-1_12</pub-id>
+      <fpage>150</fpage>
+      <lpage>151</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-gay1997hooking">
+    <element-citation publication-type="report">
+      <person-group person-group-type="author">
+        <name><surname>Gay</surname><given-names>David M</given-names></name>
+      </person-group>
+      <article-title>Hooking your solver to AMPL</article-title>
+      <publisher-name>Technical Report 93-10, AT&amp;T Bell Laboratories, Murray Hill, NJ, 1993, revised</publisher-name>
+      <year iso-8601-date="1997">1997</year>
+    </element-citation>
+  </ref>
+  <ref id="ref-bongartz1995cute">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Bongartz</surname><given-names>Ingrid</given-names></name>
+        <name><surname>Conn</surname><given-names>Andrew R</given-names></name>
+        <name><surname>Gould</surname><given-names>Nick</given-names></name>
+        <name><surname>Toint</surname><given-names>Ph L</given-names></name>
+      </person-group>
+      <article-title>CUTE: Constrained and unconstrained testing environment</article-title>
+      <source>ACM Transactions on Mathematical Software (TOMS)</source>
+      <publisher-name>ACM New York, NY, USA</publisher-name>
+      <year iso-8601-date="1995">1995</year>
+      <volume>21</volume>
+      <issue>1</issue>
+      <pub-id pub-id-type="doi">10.1145/200979.201043</pub-id>
+      <fpage>123</fpage>
+      <lpage>160</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-kiessling2025unified">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Kiessling</surname><given-names>David</given-names></name>
+        <name><surname>Leyffer</surname><given-names>Sven</given-names></name>
+        <name><surname>Vanaret</surname><given-names>Charlie</given-names></name>
+      </person-group>
+      <article-title>A unified funnel restoration SQP algorithm</article-title>
+      <source>Mathematical Programming</source>
+      <publisher-name>Springer</publisher-name>
+      <year iso-8601-date="2025">2025</year>
+      <pub-id pub-id-type="doi">10.1007/s10107-025-02284-3</pub-id>
+      <fpage>1</fpage>
+      <lpage>45</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-shin2024accelerating">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Shin</surname><given-names>Sungho</given-names></name>
+        <name><surname>Anitescu</surname><given-names>Mihai</given-names></name>
+        <name><surname>Pacaud</surname><given-names>François</given-names></name>
+      </person-group>
+      <article-title>Accelerating optimal power flow with GPUs: SIMD abstraction of nonlinear programs and condensed-space interior-point methods</article-title>
+      <source>Electric Power Systems Research</source>
+      <publisher-name>Elsevier</publisher-name>
+      <year iso-8601-date="2024">2024</year>
+      <volume>236</volume>
+      <pub-id pub-id-type="doi">10.1016/j.epsr.2024.110651</pub-id>
+      <fpage>110651</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-buskens2012esa">
+    <element-citation publication-type="chapter">
+      <person-group person-group-type="author">
+        <name><surname>Büskens</surname><given-names>Christof</given-names></name>
+        <name><surname>Wassel</surname><given-names>Dennis</given-names></name>
+      </person-group>
+      <article-title>The ESA NLP solver WORHP</article-title>
+      <source>Modeling and optimization in space engineering</source>
+      <publisher-name>Springer</publisher-name>
+      <year iso-8601-date="2012">2012</year>
+      <pub-id pub-id-type="doi">10.1007/978-1-4614-4469-5_4</pub-id>
+      <fpage>85</fpage>
+      <lpage>110</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-fletcher2000stable">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Fletcher</surname><given-names>Roger</given-names></name>
+      </person-group>
+      <article-title>Stable reduced Hessian updates for indefinite quadratic programming</article-title>
+      <source>Mathematical Programming</source>
+      <publisher-name>Springer</publisher-name>
+      <year iso-8601-date="2000">2000</year>
+      <volume>87</volume>
+      <issue>2</issue>
+      <pub-id pub-id-type="doi">10.1007/s101070050113</pub-id>
+      <fpage>251</fpage>
+      <lpage>264</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-huangfu2018parallelizing">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Huangfu</surname><given-names>QHJAJ</given-names></name>
+        <name><surname>Hall</surname><given-names>JA Julian</given-names></name>
+      </person-group>
+      <article-title>Parallelizing the dual revised simplex method</article-title>
+      <source>Mathematical Programming Computation</source>
+      <publisher-name>Springer</publisher-name>
+      <year iso-8601-date="2018">2018</year>
+      <volume>10</volume>
+      <issue>1</issue>
+      <pub-id pub-id-type="doi">10.1007/s12532-017-0130-5</pub-id>
+      <fpage>119</fpage>
+      <lpage>142</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-amestoy2000mumps">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Amestoy</surname><given-names>Patrick R</given-names></name>
+        <name><surname>Duff</surname><given-names>Iain S</given-names></name>
+        <name><surname>L’Excellent</surname><given-names>Jean-Yves</given-names></name>
+        <name><surname>Koster</surname><given-names>Jacko</given-names></name>
+      </person-group>
+      <article-title>MUMPS: A general purpose distributed memory sparse solver</article-title>
+      <source>International workshop on applied parallel computing</source>
+      <publisher-name>Springer</publisher-name>
+      <year iso-8601-date="2000">2000</year>
+      <pub-id pub-id-type="doi">10.1007/3-540-70734-4_16</pub-id>
+      <fpage>121</fpage>
+      <lpage>130</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-duffma27">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Duff</surname><given-names>I. S.</given-names></name>
+        <name><surname>Reid</surname><given-names>J. K.</given-names></name>
+      </person-group>
+      <article-title>The multifrontal solution of indefinite sparse symmetric linear equations</article-title>
+      <source>ACM Trans. Math. Softw.</source>
+      <year iso-8601-date="1983">1983</year>
+      <volume>9</volume>
+      <issue>3</issue>
+      <pub-id pub-id-type="doi">10.1145/356044.356047</pub-id>
+      <fpage>302</fpage>
+      <lpage>325</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-duff2004ma57">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Duff</surname><given-names>Iain S</given-names></name>
+      </person-group>
+      <article-title>MA57—a code for the solution of sparse symmetric definite and indefinite systems</article-title>
+      <source>ACM Transactions on Mathematical Software (TOMS)</source>
+      <year iso-8601-date="2004">2004</year>
+      <volume>30</volume>
+      <issue>2</issue>
+      <pub-id pub-id-type="doi">10.1145/992200.992202</pub-id>
+      <fpage>118</fpage>
+      <lpage>144</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-bolusani2024scip">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Bestuzheva</surname><given-names>Ksenia</given-names></name>
+        <name><surname>Besançon</surname><given-names>Mathieu</given-names></name>
+        <name><surname>Chen</surname><given-names>Wei-Kun</given-names></name>
+        <name><surname>Chmiela</surname><given-names>Antonia</given-names></name>
+        <name><surname>Donkiewicz</surname><given-names>Tim</given-names></name>
+        <name><surname>Van Doornmalen</surname><given-names>Jasper</given-names></name>
+        <name><surname>Eifler</surname><given-names>Leon</given-names></name>
+        <name><surname>Gaul</surname><given-names>Oliver</given-names></name>
+        <name><surname>Gamrath</surname><given-names>Gerald</given-names></name>
+        <name><surname>Gleixner</surname><given-names>Ambros</given-names></name>
+        <name><surname>others</surname></name>
+      </person-group>
+      <article-title>Enabling research through the SCIP optimization suite 8.0</article-title>
+      <source>ACM Transactions on Mathematical Software</source>
+      <publisher-name>ACM New York, NY</publisher-name>
+      <year iso-8601-date="2023">2023</year>
+      <volume>49</volume>
+      <issue>2</issue>
+      <pub-id pub-id-type="doi">10.1145/3585516</pub-id>
+      <fpage>1</fpage>
+      <lpage>21</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-hogg2016sparse">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Hogg</surname><given-names>Jonathan D</given-names></name>
+        <name><surname>Ovtchinnikov</surname><given-names>Evgueni</given-names></name>
+        <name><surname>Scott</surname><given-names>Jennifer A</given-names></name>
+      </person-group>
+      <article-title>A sparse symmetric indefinite direct solver for GPU architectures</article-title>
+      <source>ACM Transactions on Mathematical Software (TOMS)</source>
+      <publisher-name>ACM New York, NY, USA</publisher-name>
+      <year iso-8601-date="2016">2016</year>
+      <volume>42</volume>
+      <issue>1</issue>
+      <pub-id pub-id-type="doi">10.1145/2756548</pub-id>
+      <fpage>1</fpage>
+      <lpage>25</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-montoison2023krylov">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Montoison</surname><given-names>Alexis</given-names></name>
+        <name><surname>Orban</surname><given-names>Dominique</given-names></name>
+      </person-group>
+      <article-title>Krylov.jl: A Julia basket of hand-picked Krylov methods</article-title>
+      <source>The Journal of Open Source Software</source>
+      <publisher-name>Open Journals</publisher-name>
+      <year iso-8601-date="2023">2023</year>
+      <volume>8</volume>
+      <issue>89</issue>
+      <pub-id pub-id-type="doi">10.21105/joss.05187</pub-id>
+      <fpage>5187</fpage>
+      <lpage>5187</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Andersson2019">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Andersson</surname><given-names>Joel A E</given-names></name>
+        <name><surname>Gillis</surname><given-names>Joris</given-names></name>
+        <name><surname>Horn</surname><given-names>Greg</given-names></name>
+        <name><surname>Rawlings</surname><given-names>James B</given-names></name>
+        <name><surname>Diehl</surname><given-names>Moritz</given-names></name>
+      </person-group>
+      <article-title>CasADi – A software framework for nonlinear optimization and optimal control</article-title>
+      <source>Mathematical Programming Computation</source>
+      <publisher-name>Springer</publisher-name>
+      <year iso-8601-date="2019">2019</year>
+      <volume>11</volume>
+      <issue>1</issue>
+      <pub-id pub-id-type="doi">10.1007/s12532-018-0139-4</pub-id>
+      <fpage>1</fpage>
+      <lpage>36</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-cesaroni2026derivative">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Cesaroni</surname><given-names>Edoardo</given-names></name>
+        <name><surname>Liuzzi</surname><given-names>Giampaolo</given-names></name>
+        <name><surname>Lucidi</surname><given-names>Stefano</given-names></name>
+      </person-group>
+      <article-title>Derivative-free bilevel optimization with inexact lower-level solutions</article-title>
+      <source>arXiv preprint arXiv:2603.20759</source>
+      <year iso-8601-date="2026">2026</year>
+      <pub-id pub-id-type="doi">10.48550/arXiv.2603.20759</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-baran2026riemannian">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Baran</surname><given-names>Mateusz</given-names></name>
+        <name><surname>Bergmann</surname><given-names>Ronny</given-names></name>
+        <name><surname>Przybysz</surname><given-names>Patryk</given-names></name>
+      </person-group>
+      <article-title>A Riemannian quasi-Newton algorithm for optimization with Euclidean bounds</article-title>
+      <source>arXiv preprint arXiv:2605.10573</source>
+      <year iso-8601-date="2026">2026</year>
+      <pub-id pub-id-type="doi">10.48550/arXiv.2605.10573</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-desef2025optimization">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Desef</surname><given-names>Benjamin</given-names></name>
+      </person-group>
+      <article-title>Optimization techniques in quantum information</article-title>
+      <source>arXiv preprint arXiv:2512.15831</source>
+      <year iso-8601-date="2025">2025</year>
+      <pub-id pub-id-type="doi">10.48550/arXiv.2512.15831</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-gruss2024estimation">
+    <element-citation publication-type="thesis">
+      <person-group person-group-type="author">
+        <name><surname>Gruss</surname><given-names>Lucas</given-names></name>
+      </person-group>
+      <article-title>Estimation avancée à horizon glissant, état et paramètres, pour la conduite du coeur des réacteurs PWR</article-title>
+      <publisher-name>Ecole nationale supérieure Mines-Télécom Atlantique</publisher-name>
+      <year iso-8601-date="2024">2024</year>
+      <pub-id pub-id-type="doi">10.70675/58a06f96z5f38z4254zad92z861e4b453806</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-cederberg2026disciplined">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Cederberg</surname><given-names>Daniel</given-names></name>
+        <name><surname>Zhang</surname><given-names>William</given-names></name>
+        <name><surname>Nobel</surname><given-names>Parth</given-names></name>
+        <name><surname>Boyd</surname><given-names>Stephen</given-names></name>
+      </person-group>
+      <article-title>Disciplined nonlinear programming</article-title>
+      <source>arXiv preprint arXiv:2606.02896</source>
+      <year iso-8601-date="2026">2026</year>
+      <pub-id pub-id-type="doi">10.48550/arXiv.2606.02896</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-joshy2026modopt">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Joshy</surname><given-names>Anugrah Jo</given-names></name>
+        <name><surname>Hwang</surname><given-names>John T</given-names></name>
+      </person-group>
+      <article-title>modOpt: A modular development environment and library for optimization algorithms</article-title>
+      <source>Advances in Engineering Software</source>
+      <publisher-name>Elsevier</publisher-name>
+      <year iso-8601-date="2026">2026</year>
+      <volume>213</volume>
+      <pub-id pub-id-type="doi">10.1016/j.advengsoft.2025.104084</pub-id>
+      <fpage>104084</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-lewis2012optimal">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Lewis</surname><given-names>Frank L</given-names></name>
+        <name><surname>Vrabie</surname><given-names>Draguna</given-names></name>
+        <name><surname>Syrmos</surname><given-names>Vassilis L</given-names></name>
+      </person-group>
+      <source>Optimal control</source>
+      <publisher-name>John Wiley &amp; Sons</publisher-name>
+      <year iso-8601-date="2012">2012</year>
+      <pub-id pub-id-type="doi">10.1002/9781118122631</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-sra2011optimization">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Sra</surname><given-names>Suvrit</given-names></name>
+        <name><surname>Nowozin</surname><given-names>Sebastian</given-names></name>
+        <name><surname>Wright</surname><given-names>Stephen J</given-names></name>
+      </person-group>
+      <source>Optimization for machine learning</source>
+      <publisher-name>MIT press</publisher-name>
+      <year iso-8601-date="2011">2011</year>
+      <pub-id pub-id-type="doi">10.7551/mitpress/8996.001.0001</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-dunning2017jump">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Dunning</surname><given-names>Iain</given-names></name>
+        <name><surname>Huchette</surname><given-names>Joey</given-names></name>
+        <name><surname>Lubin</surname><given-names>Miles</given-names></name>
+      </person-group>
+      <article-title>JuMP: A modeling language for mathematical optimization</article-title>
+      <source>SIAM review</source>
+      <publisher-name>SIAM</publisher-name>
+      <year iso-8601-date="2017">2017</year>
+      <volume>59</volume>
+      <issue>2</issue>
+      <pub-id pub-id-type="doi">10.1137/15M1020575</pub-id>
+      <fpage>295</fpage>
+      <lpage>320</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Wu2020">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Wu</surname><given-names>Ella</given-names></name>
+        <name><surname>Kenway</surname><given-names>Gaetan</given-names></name>
+        <name><surname>Mader</surname><given-names>Charles A.</given-names></name>
+        <name><surname>Jasa</surname><given-names>John</given-names></name>
+        <name><surname>Martins</surname><given-names>Joaquim R. R. A.</given-names></name>
+      </person-group>
+      <article-title>pyOptSparse: A Python framework for large-scale constrained nonlinear optimization of sparse systems</article-title>
+      <source>Journal of Open Source Software</source>
+      <publisher-name>The Open Journal</publisher-name>
+      <year iso-8601-date="2020">2020</year>
+      <volume>5</volume>
+      <issue>54</issue>
+      <pub-id pub-id-type="doi">10.21105/joss.02564</pub-id>
+      <fpage>2564</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-gould2015cutest">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Gould</surname><given-names>Nicholas IM</given-names></name>
+        <name><surname>Orban</surname><given-names>Dominique</given-names></name>
+        <name><surname>Toint</surname><given-names>Philippe L</given-names></name>
+      </person-group>
+      <article-title>CUTEst: A constrained and unconstrained testing environment with safe threads for mathematical optimization</article-title>
+      <source>Computational optimization and applications</source>
+      <publisher-name>Springer</publisher-name>
+      <year iso-8601-date="2015">2015</year>
+      <volume>60</volume>
+      <issue>3</issue>
+      <pub-id pub-id-type="doi">10.1007/s10589-014-9687-3</pub-id>
+      <fpage>545</fpage>
+      <lpage>557</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-OptimalControl_jl">
+    <element-citation publication-type="software">
+      <person-group person-group-type="author">
+        <name><surname>Caillau</surname><given-names>Jean-Baptiste</given-names></name>
+        <name><surname>Cots</surname><given-names>Olivier</given-names></name>
+        <name><surname>Gergaud</surname><given-names>Joseph</given-names></name>
+        <name><surname>Martinon</surname><given-names>Pierre</given-names></name>
+        <name><surname>Sed</surname><given-names>Sophia</given-names></name>
+      </person-group>
+      <article-title>OptimalControl.jl: a Julia package to model and solve optimal control problems with ODE’s</article-title>
+      <year iso-8601-date="2024">2024</year>
+      <uri>https://control-toolbox.org/OptimalControl.jl</uri>
+      <pub-id pub-id-type="doi">10.5281/zenodo.13336563</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-hogg2010indefinite">
+    <element-citation publication-type="report">
+      <person-group person-group-type="author">
+        <name><surname>Hogg</surname><given-names>J</given-names></name>
+        <name><surname>Scott</surname><given-names>J</given-names></name>
+      </person-group>
+      <article-title>An indefinite sparse direct solver for multicore machines</article-title>
+      <publisher-name>Tech. Rep. TR-RAL-2010-011, Rutherford Appleton Laboratory, Chilton, Oxfordshire, UK</publisher-name>
+      <year iso-8601-date="2010">2010</year>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
