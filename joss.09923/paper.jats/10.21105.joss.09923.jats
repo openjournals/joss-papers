@@ -1,0 +1,436 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">9923</article-id>
+<article-id pub-id-type="doi">10.21105/joss.09923</article-id>
+<title-group>
+<article-title>solana-pqzk-fullchain: Full on-chain verification of
+ZK-STARK proofs and post-quantum signatures on Solana</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author" corresp="yes">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0009-0003-5327-9455</contrib-id>
+<name>
+<surname>Yano</surname>
+<given-names>Jotaro</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+<xref ref-type="corresp" rid="cor-1"><sup>*</sup></xref>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Independent Researcher, Japan</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<author-notes>
+<corresp id="cor-1">* E-mail: <email></email></corresp>
+</author-notes>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2025-12-08">
+<day>8</day>
+<month>12</month>
+<year>2025</year>
+</pub-date>
+<volume>11</volume>
+<issue>123</issue>
+<fpage>9923</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2026</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>Solana</kwd>
+<kwd>zero-knowledge proofs</kwd>
+<kwd>STARK</kwd>
+<kwd>post-quantum cryptography</kwd>
+<kwd>SLH-DSA (SPHINCS+)</kwd>
+<kwd>ML-KEM (Kyber)</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p><monospace>solana-pqzk-fullchain</monospace> is an open-source,
+  research-oriented reference implementation that demonstrates
+  <bold>fully on-chain verification</bold> of (i) a <bold>hash-based
+  zero-knowledge proof</bold> (a STARK) and (ii) a <bold>post-quantum
+  digital signature</bold> (SLH-DSA / SPHINCS+) on <bold>Solana
+  L1</bold>
+  (<xref alt="Yano, 2025" rid="ref-pqzkFullchain" ref-type="bibr">Yano,
+  2025</xref>). The repository contains an on-chain verifier program
+  (Anchor/SBF), a minimal off-chain STARK prover (Winterfell), a
+  TypeScript CLI demo that runs an end-to-end flow (encrypt → prove →
+  sign → upload → finalize → verify → receive), and benchmarking
+  utilities that record transaction-level compute units (CUs) for each
+  verification phase. These measurements cover the implemented
+  message-verification flow and do not include persistent post-quantum
+  (PQ) account binding or a dedicated stateful PQ-account migration
+  transaction.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p>Public blockchains preserve artifacts indefinitely, which creates a
+  “record now, break later” risk profile for protocols whose security
+  relies on assumptions that may be weakened by future capabilities,
+  including Shor-type quantum attacks on discrete-log based systems
+  (<xref alt="Shor, 1999" rid="ref-Shor1999" ref-type="bibr">Shor,
+  1999</xref>). This concern is relevant not only to transaction
+  authentication, but also to proof systems used to verify on-chain
+  computation. In relation to existing work, practical deployments often
+  favor verifier-efficient proof systems, while
+  <monospace>solana-pqzk-fullchain</monospace> targets a
+  Solana-specific, post-quantum-oriented end-to-end workflow. A fuller
+  comparison with related approaches and component libraries is given in
+  the following State of the field section.</p>
+  <p>Solana is a useful platform for studying the feasibility of fully
+  on-chain verification of STARK proofs and post-quantum signatures
+  because it exposes explicit transaction compute accounting and strict
+  runtime constraints (compute-unit limits, bounded stack, explicit
+  heap-frame requests, and transaction/instruction size limits) that
+  directly shape what can be verified on L1
+  (<xref alt="Solana Foundation, 2025a" rid="ref-SolanaFees" ref-type="bibr">Solana
+  Foundation, 2025a</xref>,
+  <xref alt="2025b" rid="ref-SolanaComputeBudget" ref-type="bibr">2025b</xref>,
+  <xref alt="2025c" rid="ref-SolanaTxSizeLimit" ref-type="bibr">2025c</xref>).
+  However, implementing a full verifier pipeline on Solana L1 is
+  non-trivial: hashing costs dominate, stack pressure can trigger SBF
+  failures, memory allocation must be controlled, and large inputs
+  require denial-of-service (DoS) and fee-aware streaming.</p>
+  <p><monospace>solana-pqzk-fullchain</monospace> addresses this gap by
+  providing a complete, reproducible software stack focused on
+  <bold>engineering practicality</bold> rather than proposing a new
+  proof system:</p>
+  <list list-type="bullet">
+    <list-item>
+      <p><bold>Cross-program invocation (CPI)-friendly on-chain verifier
+      surface:</bold> a Solana program that verifies an <bold>SLH-DSA
+      (FIPS 205) signature</bold> and a <bold>Winterfell STARK
+      proof</bold> in separate phases to enable early rejection of
+      malformed or unauthorized payloads
+      (<xref alt="Meta, 2025" rid="ref-winterfell" ref-type="bibr">Meta,
+      2025</xref>;
+      <xref alt="National Institute of Standards and Technology, 2024b" rid="ref-FIPS205" ref-type="bibr">National
+      Institute of Standards and Technology, 2024b</xref>;
+      <xref alt="Yano, 2025" rid="ref-pqzkFullchain" ref-type="bibr">Yano,
+      2025</xref>).</p>
+    </list-item>
+    <list-item>
+      <p><bold>Binding of proofs to application artifacts:</bold> the
+      verifier derives public inputs from the SHA-256 hash of the
+      ciphertext and verifies a minimal AIR (affine counter) as a
+      baseline mechanism for binding a proof to the uploaded ciphertext
+      (<xref alt="Yano, 2025" rid="ref-pqzkFullchain" ref-type="bibr">Yano,
+      2025</xref>).</p>
+    </list-item>
+    <list-item>
+      <p><bold>DoS- and fee-aware streaming uploads:</bold> payloads are
+      uploaded in bounded chunks with fixed-offset appends and a rolling
+      SHA-256 hash chain, so invalid uploads can be rejected with
+      constant work per chunk
+      (<xref alt="Yano, 2025" rid="ref-pqzkFullchain" ref-type="bibr">Yano,
+      2025</xref>).</p>
+    </list-item>
+    <list-item>
+      <p><bold>Runtime-aware adaptations for Solana SBF:</bold> patched
+      components route SHA-256 hashing through Solana’s
+      <monospace>hashv</monospace> system call, suppress inlining in
+      Fast Reed–Solomon Interactive Oracle Proofs of Proximity (FRI)
+      hotspots to respect stack limits, and use a bump allocator
+      synchronized to the requested heap frame for predictable memory
+      behavior
+      (<xref alt="Yano, 2025" rid="ref-pqzkFullchain" ref-type="bibr">Yano,
+      2025</xref>).</p>
+    </list-item>
+    <list-item>
+      <p><bold>End-to-end demo and benchmarking:</bold> the repository
+      includes a demo encryption path using a Kyber768/ML-KEM-style key
+      encapsulation mechanism (KEM) to establish shared key material,
+      HKDF-SHA-256 to derive an AEAD key, and AES-256-GCM to encrypt the
+      payload, plus scripts that repeatedly run the pipeline and log
+      per-transaction compute units for the verification phases
+      (<xref alt="National Institute of Standards and Technology, 2024a" rid="ref-FIPS203" ref-type="bibr">National
+      Institute of Standards and Technology, 2024a</xref>;
+      <xref alt="Yano, 2025" rid="ref-pqzkFullchain" ref-type="bibr">Yano,
+      2025</xref>).</p>
+    </list-item>
+  </list>
+  <p>This package is intended for researchers and engineers who need a
+  reproducible baseline to (a) evaluate the feasibility and cost of
+  PQ-oriented verification on Solana L1, (b) experiment with engineering
+  levers (hashing path, stack discipline, heap sizing, streaming I/O),
+  and (c) integrate a verifier via CPI into other Solana programs.</p>
+</sec>
+<sec id="state-of-the-field">
+  <title>State of the field</title>
+  <p>In current blockchain practice, transaction authentication still
+  commonly relies on classical digital signatures, including ECDSA- and
+  EdDSA-family schemes. In zero-knowledge deployments, succinct
+  pairing-based SNARKs such as Groth16 and PLONK are often favored when
+  proof size, verifier efficiency, and overall deployment simplicity are
+  dominant concerns
+  (<xref alt="Gabizon et al., 2019" rid="ref-PLONK" ref-type="bibr">Gabizon
+  et al., 2019</xref>;
+  <xref alt="Groth, 2016" rid="ref-Groth16" ref-type="bibr">Groth,
+  2016</xref>). By contrast, STARKs are transparent and primarily
+  hash-based, which makes them attractive from a post-quantum-oriented
+  perspective, but they generally come with heavier proof and
+  verification costs, larger artifacts, and more demanding off-chain
+  workflows
+  (<xref alt="Ben-Sasson et al., 2018b" rid="ref-STARKePrint2018" ref-type="bibr">Ben-Sasson
+  et al., 2018b</xref>,
+  <xref alt="2018a" rid="ref-FRI" ref-type="bibr">2018a</xref>).</p>
+  <p>Standardized post-quantum signatures include both hash-based and
+  lattice-based families, with different trade-offs in assumptions,
+  artifact size, and runtime cost. In
+  <monospace>solana-pqzk-fullchain</monospace>, SLH-DSA is used because
+  its hash-based design aligns naturally with the post-quantum-oriented
+  framing of a hash-based STARK verifier. This choice does not imply
+  that lattice-based signatures are unsuitable; rather, it reflects a
+  conceptually aligned reference design for this software stack.</p>
+  <p>This repository builds on existing component libraries, including
+  upstream cryptographic software such as Winterfell, rather than
+  replacing them. Its contribution is a Solana-specific reference
+  workflow that combines on-chain verification, a runnable CLI demo, and
+  reproducible benchmarking materials. The contribution is therefore not
+  a new proof or signature algorithm, but the integration and
+  measurement needed to study this workflow on Solana L1.</p>
+  <p>This “build vs. contribute” choice is intentional. Existing
+  component libraries provide important building blocks, but they do not
+  by themselves provide a reproducible Solana L1 reference stack for
+  this exact end-to-end problem.</p>
+</sec>
+<sec id="software-design">
+  <title>Software design</title>
+  <p>The software is organized as an end-to-end reference stack for
+  Solana L1: an on-chain verifier program (Anchor/SBF), an off-chain
+  prover workflow, a CLI demo, and benchmark scripts. Verification is
+  split into two phases—(1) SLH-DSA signature verification and (2) STARK
+  proof verification—to reject unauthorized or malformed payloads before
+  paying the higher STARK verification cost. Large inputs are handled
+  via bounded, chunked uploads with constant work per chunk (including a
+  rolling SHA-256 chain) to fit Solana transaction/account limits and
+  improve predictability under adversarial inputs. To operate within
+  Solana’s SBF constraints, the implementation routes SHA-256 hashing
+  through Solana’s <monospace>hashv</monospace> system call and manages
+  stack/heap usage in line with requested heap frames.</p>
+</sec>
+<sec id="research-impact-statement">
+  <title>Research impact statement</title>
+  <p>This project provides credible near-term significance as a
+  reproducible baseline for evaluating post-quantum–oriented
+  verification on Solana L1. At the time of writing, we are not aware of
+  many publicly available Solana L1 reference implementations that
+  verify both a STARK proof and an NIST-standard post-quantum signature
+  (SLH-DSA, FIPS 205) fully on-chain in a single end-to-end pipeline.
+  The repository includes a runnable CLI demo and benchmark utilities
+  that record transaction-level compute units for each verification
+  phase, enabling others to reproduce results and compare engineering
+  trade-offs (hashing strategy, memory settings, and I/O chunking). The
+  documented adaptations for the Solana SBF environment are intended to
+  help developers who are considering STARK verification or PQ
+  signatures, and to support future CPI-friendly reuse.</p>
+</sec>
+<sec id="ai-usage-disclosure">
+  <title>AI usage disclosure</title>
+  <p>Generative AI (ChatGPT) was used in a limited way. The core
+  software design and implementation were created by the author. ChatGPT
+  was occasionally used for small code snippets/boilerplate (e.g.,
+  helper functions or simple CLI handling); all AI-suggested code was
+  reviewed, edited, and tested by the author. For the paper and
+  documentation, the technical content and structure were written by the
+  author, and ChatGPT was used to improve English wording. The author
+  reviewed and corrected the final manuscript and takes responsibility
+  for the code and paper.</p>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>This project builds on the Winterfell STARK ecosystem
+  (<xref alt="Meta, 2025" rid="ref-winterfell" ref-type="bibr">Meta,
+  2025</xref>) and references the NIST post-quantum standards for ML-KEM
+  and SLH-DSA
+  (<xref alt="National Institute of Standards and Technology, 2024a" rid="ref-FIPS203" ref-type="bibr">National
+  Institute of Standards and Technology, 2024a</xref>,
+  <xref alt="2024b" rid="ref-FIPS205" ref-type="bibr">2024b</xref>). It
+  also relies on Solana’s public documentation for compute budgeting and
+  transaction constraints
+  (<xref alt="Solana Foundation, 2025a" rid="ref-SolanaFees" ref-type="bibr">Solana
+  Foundation, 2025a</xref>,
+  <xref alt="2025b" rid="ref-SolanaComputeBudget" ref-type="bibr">2025b</xref>,
+  <xref alt="2025c" rid="ref-SolanaTxSizeLimit" ref-type="bibr">2025c</xref>).
+  No specific financial support was received for this work. The author
+  declares no conflicts of interest.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <title></title>
+  <ref id="ref-pqzkFullchain">
+    <element-citation publication-type="software">
+      <person-group person-group-type="author">
+        <name><surname>Yano</surname><given-names>Jotaro</given-names></name>
+      </person-group>
+      <article-title>Pqzk-labs/solana-pqzk-fullchain: Full on-chain ZK-STARK + PQC verification on solana</article-title>
+      <year iso-8601-date="2025">2025</year>
+      <uri>https://github.com/pqzk-labs/solana-pqzk-fullchain</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-Shor1999">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Shor</surname><given-names>Peter W.</given-names></name>
+      </person-group>
+      <article-title>Polynomial-time algorithms for prime factorization and discrete logarithms on a quantum computer</article-title>
+      <source>SIAM Review</source>
+      <year iso-8601-date="1999">1999</year>
+      <volume>41</volume>
+      <issue>2</issue>
+      <pub-id pub-id-type="doi">10.1137/S0036144598347011</pub-id>
+      <fpage>303</fpage>
+      <lpage>332</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Groth16">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Groth</surname><given-names>Jens</given-names></name>
+      </person-group>
+      <article-title>On the size of pairing-based non-interactive arguments</article-title>
+      <source>Advances in cryptology – EUROCRYPT 2016</source>
+      <year iso-8601-date="2016">2016</year>
+      <volume>9665</volume>
+      <pub-id pub-id-type="doi">10.1007/978-3-662-49896-5_11</pub-id>
+      <fpage>305</fpage>
+      <lpage>326</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-PLONK">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Gabizon</surname><given-names>Ariel</given-names></name>
+        <name><surname>Williamson</surname><given-names>Zachary J.</given-names></name>
+        <name><surname>Ciobotaru</surname><given-names>Oana</given-names></name>
+      </person-group>
+      <article-title>PLONK: Permutations over lagrange-bases for oecumenical noninteractive arguments of knowledge</article-title>
+      <publisher-name>IACR Cryptology ePrint Archive, Report 2019/953</publisher-name>
+      <year iso-8601-date="2019">2019</year>
+      <uri>https://eprint.iacr.org/2019/953</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-STARKePrint2018">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Ben-Sasson</surname><given-names>Eli</given-names></name>
+        <name><surname>Bentov</surname><given-names>Iddo</given-names></name>
+        <name><surname>Horesh</surname><given-names>Yinon</given-names></name>
+        <name><surname>Riabzev</surname><given-names>Michael</given-names></name>
+      </person-group>
+      <article-title>Scalable, transparent, and post-quantum secure computational integrity</article-title>
+      <publisher-name>Cryptology ePrint Archive, Report 2018/046</publisher-name>
+      <year iso-8601-date="2018">2018</year>
+      <uri>https://eprint.iacr.org/2018/046</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-FRI">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Ben-Sasson</surname><given-names>Eli</given-names></name>
+        <name><surname>Bentov</surname><given-names>Iddo</given-names></name>
+        <name><surname>Horesh</surname><given-names>Yinon</given-names></name>
+        <name><surname>Riabzev</surname><given-names>Michael</given-names></name>
+      </person-group>
+      <article-title>Fast Reed-Solomon interactive oracle proofs of proximity</article-title>
+      <source>45th international colloquium on automata, languages, and programming (ICALP 2018)</source>
+      <year iso-8601-date="2018">2018</year>
+      <pub-id pub-id-type="doi">10.4230/LIPIcs.ICALP.2018.14</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-FIPS203">
+    <element-citation publication-type="report">
+      <person-group person-group-type="author">
+        <string-name>National Institute of Standards and Technology</string-name>
+      </person-group>
+      <article-title>Module-lattice-based key-encapsulation mechanism standard (FIPS 203)</article-title>
+      <publisher-name>NIST</publisher-name>
+      <year iso-8601-date="2024">2024</year>
+      <uri>https://nvlpubs.nist.gov/nistpubs/fips/nist.fips.203.pdf</uri>
+      <pub-id pub-id-type="doi">10.6028/NIST.FIPS.203</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-FIPS205">
+    <element-citation publication-type="report">
+      <person-group person-group-type="author">
+        <string-name>National Institute of Standards and Technology</string-name>
+      </person-group>
+      <article-title>Stateless hash-based digital signature standard (FIPS 205)</article-title>
+      <publisher-name>NIST</publisher-name>
+      <year iso-8601-date="2024">2024</year>
+      <uri>https://nvlpubs.nist.gov/nistpubs/fips/nist.fips.205.pdf</uri>
+      <pub-id pub-id-type="doi">10.6028/NIST.FIPS.205</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-winterfell">
+    <element-citation publication-type="software">
+      <person-group person-group-type="author">
+        <string-name>Meta</string-name>
+      </person-group>
+      <article-title>Winterfell: A STARK prover and verifier for arbitrary computations</article-title>
+      <year iso-8601-date="2025">2025</year>
+      <uri>https://github.com/facebook/winterfell</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-SolanaFees">
+    <element-citation>
+      <person-group person-group-type="author">
+        <string-name>Solana Foundation</string-name>
+      </person-group>
+      <article-title>Fees</article-title>
+      <year iso-8601-date="2025">2025</year>
+      <uri>https://solana.com/docs/core/fees</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-SolanaComputeBudget">
+    <element-citation>
+      <person-group person-group-type="author">
+        <string-name>Solana Foundation</string-name>
+      </person-group>
+      <article-title>How to optimize compute requested</article-title>
+      <year iso-8601-date="2025">2025</year>
+      <uri>https://solana.com/developers/guides/advanced/how-to-request-optimal-compute</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-SolanaTxSizeLimit">
+    <element-citation>
+      <person-group person-group-type="author">
+        <string-name>Solana Foundation</string-name>
+      </person-group>
+      <article-title>Transactions</article-title>
+      <year iso-8601-date="2025">2025</year>
+      <uri>https://solana.com/docs/core/transactions</uri>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
