@@ -1,0 +1,599 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">10106</article-id>
+<article-id pub-id-type="doi">10.21105/joss.10106</article-id>
+<title-group>
+<article-title>hughes2d: Approximating solutions to the Hughes
+pedestrian-flow model</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0002-9382-6746</contrib-id>
+<name>
+<surname>Girard</surname>
+<given-names>Théo</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Institut Denis Poisson, Université de Tours,
+France</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2025-12-02">
+<day>2</day>
+<month>12</month>
+<year>2025</year>
+</pub-date>
+<volume>11</volume>
+<issue>123</issue>
+<fpage>10106</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2026</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>Python</kwd>
+<kwd>non-linear discontinuous PDE</kwd>
+<kwd>pedestrian evacuation</kwd>
+<kwd>macroscopic crowd dynamics</kwd>
+<kwd>finite volume scheme</kwd>
+<kwd>fast marching method</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p><monospace>hughes2d</monospace> is an open-source Python package
+  for simulation pedestrian crowds in two dimensions. More specifically,
+  the package is designed to compute approximations of the Hughes model
+  introduced in Hughes
+  (<xref alt="2002" rid="ref-Hug02" ref-type="bibr">2002</xref>) and
+  other related models. The Hughes model is a macroscopic model – there
+  are no particles here, the crowd is represented by a density function-
+  coupling two non-linear partial differential equations.</p>
+</sec>
+<sec id="state-of-the-field">
+  <title>State of the field</title>
+  <p>The mathematical modeling of a pedestrian crowd is a rapidly
+  developing topic over the past few decades. Multiple software packages
+  exist for simulating crowds of pedestrians – both open source
+  (<xref alt="Chraibi et al., n.d." rid="ref-JuPedSim" ref-type="bibr">Chraibi
+  et al., n.d.</xref>;
+  <xref alt="Kleinmeier et al., 2019" rid="ref-vadere" ref-type="bibr">Kleinmeier
+  et al., 2019</xref>;
+  <xref alt="Maury &amp; Faure, 2018" rid="ref-Cromosim" ref-type="bibr">Maury
+  &amp; Faure, 2018</xref>;
+  <xref alt="Wouter van Toll, 2020" rid="ref-UMANS" ref-type="bibr">Wouter
+  van Toll, 2020</xref>;
+  <xref alt="Yamashita et al., 2013" rid="ref-CrowdWalk" ref-type="bibr">Yamashita
+  et al., 2013</xref>) and proprietary (PTV viswalk, MassMotion). We
+  defer to
+  <ext-link ext-link-type="uri" xlink:href="https://github.com/pozapas/awesome-crowdynamics">awesome-crowdynamics
+  repository</ext-link> for an exhaustive list of the available
+  packages. However, to the best of our knowledge, all these
+  developments deal with microscopic simulations, meaning that a finite,
+  potentially huge, number of particles are simulated. Here, we have
+  developed a Python package for macroscopic simulations of pedestrian
+  evacuations, specifically for the seminal Hughes pedestrian flow
+  model, where the crowd is modeled as a fluid density and not as a
+  finite number of particles.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p>The Hughes model has been thoroughly studied during the last two
+  decades (see
+  <xref alt="Amadori et al., 2023" rid="ref-survey" ref-type="bibr">Amadori
+  et al., 2023</xref>), but at the moment, no general mathematical
+  result of existence of solutions in 2D for this model exists. While
+  example numerical solutions to the Hughes model can be found in
+  literature (e.g.,
+  <xref alt="Twarogowska et al., 2014" rid="ref-Goatin2014" ref-type="bibr">Twarogowska
+  et al., 2014</xref>), these are not supported by a publicly available
+  and reusable codebase. This package is aimed at providing a reliable
+  and open-source solution to approximate the behavior of the Hughes
+  model. We also hope that this package will help formulating
+  conjectures in the future.</p>
+</sec>
+<sec id="software-design">
+  <title>Software design</title>
+  <p>The <monospace>hughes2d</monospace> package provides a way to
+  produce simulation of macroscopic pedestrian models without having to
+  learn the mathematical theory related to the underlying PDEs. Indeed,
+  for the Hughes model, particular attention must be dedicated to the
+  choice of numerical schemes: an adapted finite volume scheme for
+  discontinuous scalar conservation law and a fast marching algorithm
+  for the eikonal equation. In fact, the design choices and numerical
+  schemes implemented here result from collaborations and discussions
+  with many mathematicians (B. Andreianov, V. Perrollaz, F. Peru, and A.
+  Sylla, to name a few). Additionally, instead of the common choice of
+  square meshes, we extend the range of applications by employing a
+  numerical scheme working on a triangular grid.</p>
+</sec>
+<sec id="mathematical-introduction-to-the-hughes-model">
+  <title>Mathematical introduction to the Hughes model</title>
+  <p>The model consists of a system of two equations set on a bounded
+  domain <inline-formula><alternatives>
+  <tex-math><![CDATA[\Omega \subset \mathbb{R}^2]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi mathvariant="normal">Ω</mml:mi><mml:mo>⊂</mml:mo><mml:msup><mml:mi>ℝ</mml:mi><mml:mn>2</mml:mn></mml:msup></mml:mrow></mml:math></alternatives></inline-formula>.
+  The first PDE is a vector-directed <bold>scalar conservation
+  law</bold> with discontinuous flux. The second is an <bold>eikonal
+  equation</bold> with a discontinuous source term. See the introduction
+  of Section 4.5.1 in Girard
+  (<xref alt="2025" rid="ref-Gir25" ref-type="bibr">2025</xref>) for the
+  presentation of the numerical schemes used in this package.</p>
+  <sec id="the-scalar-conservation-law">
+    <title>The scalar conservation law</title>
+    <p>The first equation models the flow of a density
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[\rho(t,x)]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>ρ</mml:mi><mml:mo stretchy="false" form="prefix">(</mml:mo><mml:mi>t</mml:mi><mml:mo>,</mml:mo><mml:mi>x</mml:mi><mml:mo stretchy="false" form="postfix">)</mml:mo></mml:mrow></mml:math></alternatives></inline-formula>
+    representing the density of pedestrians at time
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[t]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>t</mml:mi></mml:math></alternatives></inline-formula>
+    and location <inline-formula><alternatives>
+    <tex-math><![CDATA[x]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>x</mml:mi></mml:math></alternatives></inline-formula>.
+    It is bounded between <inline-formula><alternatives>
+    <tex-math><![CDATA[0]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mn>0</mml:mn></mml:math></alternatives></inline-formula>
+    and a given <inline-formula><alternatives>
+    <tex-math><![CDATA[\rho_{\max} >0]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>ρ</mml:mi><mml:mi>max</mml:mi><mml:mo>&#8289;</mml:mo></mml:msub><mml:mo>&gt;</mml:mo><mml:mn>0</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>.
+    In order to describe the model, we use the underlying microscopic
+    problem as heuristics. We assume that the pedestrians move with the
+    speed of agents <inline-formula><alternatives>
+    <tex-math><![CDATA[v(t,x)]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>v</mml:mi><mml:mo stretchy="false" form="prefix">(</mml:mo><mml:mi>t</mml:mi><mml:mo>,</mml:mo><mml:mi>x</mml:mi><mml:mo stretchy="false" form="postfix">)</mml:mo></mml:mrow></mml:math></alternatives></inline-formula>
+    at time <inline-formula><alternatives>
+    <tex-math><![CDATA[t]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>t</mml:mi></mml:math></alternatives></inline-formula>
+    and location <inline-formula><alternatives>
+    <tex-math><![CDATA[x]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>x</mml:mi></mml:math></alternatives></inline-formula>
+    following a unitary direction field <inline-formula><alternatives>
+    <tex-math><![CDATA[\vec{V}(t,x) \in \mathcal{S}_1]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mover><mml:mi>V</mml:mi><mml:mo accent="true">→</mml:mo></mml:mover><mml:mo stretchy="false" form="prefix">(</mml:mo><mml:mi>t</mml:mi><mml:mo>,</mml:mo><mml:mi>x</mml:mi><mml:mo stretchy="false" form="postfix">)</mml:mo><mml:mo>∈</mml:mo><mml:msub><mml:mi>𝒮</mml:mi><mml:mn>1</mml:mn></mml:msub></mml:mrow></mml:math></alternatives></inline-formula>.
+    We choose the speed of agents given by
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[v(\rho(t,x))]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>v</mml:mi><mml:mo stretchy="false" form="prefix">(</mml:mo><mml:mi>ρ</mml:mi><mml:mo stretchy="false" form="prefix">(</mml:mo><mml:mi>t</mml:mi><mml:mo>,</mml:mo><mml:mi>x</mml:mi><mml:mo stretchy="false" form="postfix">)</mml:mo><mml:mo stretchy="false" form="postfix">)</mml:mo></mml:mrow></mml:math></alternatives></inline-formula>
+    where <inline-formula><alternatives>
+    <tex-math><![CDATA[v]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>v</mml:mi></mml:math></alternatives></inline-formula>
+    is a decreasing function defined on <inline-formula><alternatives>
+    <tex-math><![CDATA[[0,\rho_{\max}]]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mo stretchy="false" form="prefix">[</mml:mo><mml:mn>0</mml:mn><mml:mo>,</mml:mo><mml:msub><mml:mi>ρ</mml:mi><mml:mi>max</mml:mi><mml:mo>&#8289;</mml:mo></mml:msub><mml:mo stretchy="false" form="postfix">]</mml:mo></mml:mrow></mml:math></alternatives></inline-formula>
+    such that <disp-formula><alternatives>
+    <tex-math><![CDATA[ v(0)=: v_{\max} \textrm{ and } v(\rho_{\max})= 0.]]></tex-math>
+    <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>v</mml:mi><mml:mo stretchy="false" form="prefix">(</mml:mo><mml:mn>0</mml:mn><mml:mo stretchy="false" form="postfix">)</mml:mo><mml:mo>=</mml:mo><mml:mo>:</mml:mo><mml:msub><mml:mi>v</mml:mi><mml:mi>max</mml:mi><mml:mo>&#8289;</mml:mo></mml:msub><mml:mrow><mml:mspace width="0.333em"></mml:mspace><mml:mtext mathvariant="normal"> and </mml:mtext><mml:mspace width="0.333em"></mml:mspace></mml:mrow><mml:mi>v</mml:mi><mml:mo stretchy="false" form="prefix">(</mml:mo><mml:msub><mml:mi>ρ</mml:mi><mml:mi>max</mml:mi><mml:mo>&#8289;</mml:mo></mml:msub><mml:mo stretchy="false" form="postfix">)</mml:mo><mml:mo>=</mml:mo><mml:mn>0</mml:mn><mml:mi>.</mml:mi></mml:mrow></mml:math></alternatives></disp-formula>
+    A classical example of such a speed function is
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[v(\rho) = v_{\max}\frac{\rho_{\max}-\rho}{\rho_{\max}}]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>v</mml:mi><mml:mo stretchy="false" form="prefix">(</mml:mo><mml:mi>ρ</mml:mi><mml:mo stretchy="false" form="postfix">)</mml:mo><mml:mo>=</mml:mo><mml:msub><mml:mi>v</mml:mi><mml:mi>max</mml:mi><mml:mo>&#8289;</mml:mo></mml:msub><mml:mfrac><mml:mrow><mml:msub><mml:mi>ρ</mml:mi><mml:mi>max</mml:mi><mml:mo>&#8289;</mml:mo></mml:msub><mml:mo>−</mml:mo><mml:mi>ρ</mml:mi></mml:mrow><mml:msub><mml:mi>ρ</mml:mi><mml:mi>max</mml:mi><mml:mo>&#8289;</mml:mo></mml:msub></mml:mfrac></mml:mrow></mml:math></alternatives></inline-formula>.
+    This corresponds to the very classical Lighthill-Whitham-Richards
+    (LWR) model for traffic flows (see
+    <xref alt="Lighthill &amp; Whitham, 1955" rid="ref-LW55" ref-type="bibr">Lighthill
+    &amp; Whitham, 1955</xref>;
+    <xref alt="Richards, 1956" rid="ref-Ric56" ref-type="bibr">Richards,
+    1956</xref>).</p>
+  </sec>
+  <sec id="the-eikonal-equation">
+    <title>The eikonal equation</title>
+    <p>The second equation of the model characterizes the unitary
+    direction field <inline-formula><alternatives>
+    <tex-math><![CDATA[\vec{V}(t,x)]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mover><mml:mi>V</mml:mi><mml:mo accent="true">→</mml:mo></mml:mover><mml:mo stretchy="false" form="prefix">(</mml:mo><mml:mi>t</mml:mi><mml:mo>,</mml:mo><mml:mi>x</mml:mi><mml:mo stretchy="false" form="postfix">)</mml:mo></mml:mrow></mml:math></alternatives></inline-formula>
+    depending on the density <inline-formula><alternatives>
+    <tex-math><![CDATA[\rho]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>ρ</mml:mi></mml:math></alternatives></inline-formula>
+    in the whole domain. We assume that the pedestrians want to minimize
+    their exit time while also trying to avoid high density regions. In
+    order to model this situation, we use an optimal control problem. We
+    suppose that the density <inline-formula><alternatives>
+    <tex-math><![CDATA[\rho(\cdot) \in \mathcal{C}^1(\bar \Omega)]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>ρ</mml:mi><mml:mo stretchy="false" form="prefix">(</mml:mo><mml:mi>⋅</mml:mi><mml:mo stretchy="false" form="postfix">)</mml:mo><mml:mo>∈</mml:mo><mml:msup><mml:mi>𝒞</mml:mi><mml:mn>1</mml:mn></mml:msup><mml:mo stretchy="false" form="prefix">(</mml:mo><mml:mover><mml:mi mathvariant="normal">Ω</mml:mi><mml:mo accent="true">‾</mml:mo></mml:mover><mml:mo stretchy="false" form="postfix">)</mml:mo></mml:mrow></mml:math></alternatives></inline-formula>
+    stays constant in time (this assumption is quite controversial).
+    Then, for any <inline-formula><alternatives>
+    <tex-math><![CDATA[x \in \Omega]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>x</mml:mi><mml:mo>∈</mml:mo><mml:mi mathvariant="normal">Ω</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>,
+    we define the value function by <disp-formula><alternatives>
+    <tex-math><![CDATA[ \phi(x) = \inf_{X \in \mathcal{A}_x} \int_0^{+\infty} \mathbb{1}_{\Omega}(X(t))g(\rho(X(t))) \textrm{d} t,]]></tex-math>
+    <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>ϕ</mml:mi><mml:mo stretchy="false" form="prefix">(</mml:mo><mml:mi>x</mml:mi><mml:mo stretchy="false" form="postfix">)</mml:mo><mml:mo>=</mml:mo><mml:munder><mml:mi>inf</mml:mi><mml:mo>&#8289;</mml:mo><mml:mrow><mml:mi>X</mml:mi><mml:mo>∈</mml:mo><mml:msub><mml:mi>𝒜</mml:mi><mml:mi>x</mml:mi></mml:msub></mml:mrow></mml:munder><mml:msubsup><mml:mo>∫</mml:mo><mml:mn>0</mml:mn><mml:mrow><mml:mi>+</mml:mi><mml:mi>∞</mml:mi></mml:mrow></mml:msubsup><mml:msub><mml:mn>𝟙</mml:mn><mml:mi mathvariant="normal">Ω</mml:mi></mml:msub><mml:mo stretchy="false" form="prefix">(</mml:mo><mml:mi>X</mml:mi><mml:mo stretchy="false" form="prefix">(</mml:mo><mml:mi>t</mml:mi><mml:mo stretchy="false" form="postfix">)</mml:mo><mml:mo stretchy="false" form="postfix">)</mml:mo><mml:mi>g</mml:mi><mml:mo stretchy="false" form="prefix">(</mml:mo><mml:mi>ρ</mml:mi><mml:mo stretchy="false" form="prefix">(</mml:mo><mml:mi>X</mml:mi><mml:mo stretchy="false" form="prefix">(</mml:mo><mml:mi>t</mml:mi><mml:mo stretchy="false" form="postfix">)</mml:mo><mml:mo stretchy="false" form="postfix">)</mml:mo><mml:mo stretchy="false" form="postfix">)</mml:mo><mml:mtext mathvariant="normal">d</mml:mtext><mml:mi>t</mml:mi><mml:mo>,</mml:mo></mml:mrow></mml:math></alternatives></disp-formula>
+    where <inline-formula><alternatives>
+    <tex-math><![CDATA[A_x]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>A</mml:mi><mml:mi>x</mml:mi></mml:msub></mml:math></alternatives></inline-formula>
+    denotes the set of admissible trajectories and
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[g]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>g</mml:mi></mml:math></alternatives></inline-formula>
+    is an increasing function modeling the discomfort of an agent
+    standing in a high density region. A very classical result of the
+    theory of viscosity solution for the Hamilton-Jacobi-Bellman (HJB)
+    equations is that solving the optimal control problem above is in
+    fact equivalent to solving the eikonal equation:</p>
+    <p><disp-formula><alternatives>
+    <tex-math><![CDATA[
+     \left\lbrace \begin{matrix}
+     |\nabla \phi (x) | = \frac{g(\rho(x))}{v(\rho(x))} && x \in \Omega\\
+     \phi(x) = 0 && x \in \partial\Omega
+     \end{matrix}\right.
+     ]]></tex-math>
+    <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mo stretchy="true" form="prefix">{</mml:mo><mml:mtable><mml:mtr><mml:mtd columnalign="center" style="text-align: center"><mml:mo stretchy="false" form="prefix">|</mml:mo><mml:mi>∇</mml:mi><mml:mi>ϕ</mml:mi><mml:mo stretchy="false" form="prefix">(</mml:mo><mml:mi>x</mml:mi><mml:mo stretchy="false" form="postfix">)</mml:mo><mml:mo stretchy="false" form="prefix">|</mml:mo><mml:mo>=</mml:mo><mml:mfrac><mml:mrow><mml:mi>g</mml:mi><mml:mo stretchy="false" form="prefix">(</mml:mo><mml:mi>ρ</mml:mi><mml:mo stretchy="false" form="prefix">(</mml:mo><mml:mi>x</mml:mi><mml:mo stretchy="false" form="postfix">)</mml:mo><mml:mo stretchy="false" form="postfix">)</mml:mo></mml:mrow><mml:mrow><mml:mi>v</mml:mi><mml:mo stretchy="false" form="prefix">(</mml:mo><mml:mi>ρ</mml:mi><mml:mo stretchy="false" form="prefix">(</mml:mo><mml:mi>x</mml:mi><mml:mo stretchy="false" form="postfix">)</mml:mo><mml:mo stretchy="false" form="postfix">)</mml:mo></mml:mrow></mml:mfrac></mml:mtd><mml:mtd columnalign="center" style="text-align: center"></mml:mtd><mml:mtd columnalign="center" style="text-align: center"><mml:mi>x</mml:mi><mml:mo>∈</mml:mo><mml:mi mathvariant="normal">Ω</mml:mi></mml:mtd></mml:mtr><mml:mtr><mml:mtd columnalign="center" style="text-align: center"><mml:mi>ϕ</mml:mi><mml:mo stretchy="false" form="prefix">(</mml:mo><mml:mi>x</mml:mi><mml:mo stretchy="false" form="postfix">)</mml:mo><mml:mo>=</mml:mo><mml:mn>0</mml:mn></mml:mtd><mml:mtd columnalign="center" style="text-align: center"></mml:mtd><mml:mtd columnalign="center" style="text-align: center"><mml:mi>x</mml:mi><mml:mo>∈</mml:mo><mml:mi>∂</mml:mi><mml:mi mathvariant="normal">Ω</mml:mi></mml:mtd></mml:mtr></mml:mtable></mml:mrow></mml:math></alternatives></disp-formula></p>
+  </sec>
+  <sec id="the-hughes-model-definition">
+    <title>The Hughes model definition</title>
+    <p>We define the direction field <inline-formula><alternatives>
+    <tex-math><![CDATA[\vec{V}(t,x)]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mover><mml:mi>V</mml:mi><mml:mo accent="true">→</mml:mo></mml:mover><mml:mo stretchy="false" form="prefix">(</mml:mo><mml:mi>t</mml:mi><mml:mo>,</mml:mo><mml:mi>x</mml:mi><mml:mo stretchy="false" form="postfix">)</mml:mo></mml:mrow></mml:math></alternatives></inline-formula>
+    by choosing the unitary descending gradient of
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[\phi]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>ϕ</mml:mi></mml:math></alternatives></inline-formula>.
+    <disp-formula><alternatives>
+    <tex-math><![CDATA[ \vec{V}(t,x) = \dot{X}^\star_x(0) = -\frac{\nabla \phi(x)}{|\nabla \phi(x)|}.]]></tex-math>
+    <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mover><mml:mi>V</mml:mi><mml:mo accent="true">→</mml:mo></mml:mover><mml:mo stretchy="false" form="prefix">(</mml:mo><mml:mi>t</mml:mi><mml:mo>,</mml:mo><mml:mi>x</mml:mi><mml:mo stretchy="false" form="postfix">)</mml:mo><mml:mo>=</mml:mo><mml:msubsup><mml:mover><mml:mi>X</mml:mi><mml:mo accent="true">̇</mml:mo></mml:mover><mml:mi>x</mml:mi><mml:mo>⋆</mml:mo></mml:msubsup><mml:mo stretchy="false" form="prefix">(</mml:mo><mml:mn>0</mml:mn><mml:mo stretchy="false" form="postfix">)</mml:mo><mml:mo>=</mml:mo><mml:mi>−</mml:mi><mml:mfrac><mml:mrow><mml:mi>∇</mml:mi><mml:mi>ϕ</mml:mi><mml:mo stretchy="false" form="prefix">(</mml:mo><mml:mi>x</mml:mi><mml:mo stretchy="false" form="postfix">)</mml:mo></mml:mrow><mml:mrow><mml:mo stretchy="false" form="prefix">|</mml:mo><mml:mi>∇</mml:mi><mml:mi>ϕ</mml:mi><mml:mo stretchy="false" form="prefix">(</mml:mo><mml:mi>x</mml:mi><mml:mo stretchy="false" form="postfix">)</mml:mo><mml:mo stretchy="false" form="prefix">|</mml:mo></mml:mrow></mml:mfrac><mml:mi>.</mml:mi></mml:mrow></mml:math></alternatives></disp-formula>
+    Then the complete model introduced in Hughes
+    (<xref alt="2002" rid="ref-Hug02" ref-type="bibr">2002</xref>) is
+    defined by:</p>
+    <p><disp-formula><alternatives>
+    <tex-math><![CDATA[
+     \left\lbrace \begin{matrix}
+     \partial_t \rho + \mathbf{div}(\vec{V}(t,x) v(t,x) \rho(t,x)) = 0 \\
+     \vec{V}(t,x) = -\frac{\nabla \phi}{|\nabla \phi|} \\
+     |\nabla \phi (t,x) | = \frac{g(\rho(t,x))}{v(\rho(t,x))} && x \in \Omega\\
+     \phi(t,x) = 0 && x \in \partial\Omega.
+     \end{matrix}\right.
+    ]]></tex-math>
+    <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mo stretchy="true" form="prefix">{</mml:mo><mml:mtable><mml:mtr><mml:mtd columnalign="center" style="text-align: center"><mml:msub><mml:mi>∂</mml:mi><mml:mi>t</mml:mi></mml:msub><mml:mi>ρ</mml:mi><mml:mo>+</mml:mo><mml:mrow><mml:mi>𝐝</mml:mi><mml:mi>𝐢</mml:mi><mml:mi>𝐯</mml:mi></mml:mrow><mml:mo stretchy="false" form="prefix">(</mml:mo><mml:mover><mml:mi>V</mml:mi><mml:mo accent="true">→</mml:mo></mml:mover><mml:mo stretchy="false" form="prefix">(</mml:mo><mml:mi>t</mml:mi><mml:mo>,</mml:mo><mml:mi>x</mml:mi><mml:mo stretchy="false" form="postfix">)</mml:mo><mml:mi>v</mml:mi><mml:mo stretchy="false" form="prefix">(</mml:mo><mml:mi>t</mml:mi><mml:mo>,</mml:mo><mml:mi>x</mml:mi><mml:mo stretchy="false" form="postfix">)</mml:mo><mml:mi>ρ</mml:mi><mml:mo stretchy="false" form="prefix">(</mml:mo><mml:mi>t</mml:mi><mml:mo>,</mml:mo><mml:mi>x</mml:mi><mml:mo stretchy="false" form="postfix">)</mml:mo><mml:mo stretchy="false" form="postfix">)</mml:mo><mml:mo>=</mml:mo><mml:mn>0</mml:mn></mml:mtd></mml:mtr><mml:mtr><mml:mtd columnalign="center" style="text-align: center"><mml:mover><mml:mi>V</mml:mi><mml:mo accent="true">→</mml:mo></mml:mover><mml:mo stretchy="false" form="prefix">(</mml:mo><mml:mi>t</mml:mi><mml:mo>,</mml:mo><mml:mi>x</mml:mi><mml:mo stretchy="false" form="postfix">)</mml:mo><mml:mo>=</mml:mo><mml:mi>−</mml:mi><mml:mfrac><mml:mrow><mml:mi>∇</mml:mi><mml:mi>ϕ</mml:mi></mml:mrow><mml:mrow><mml:mo stretchy="false" form="prefix">|</mml:mo><mml:mi>∇</mml:mi><mml:mi>ϕ</mml:mi><mml:mo stretchy="false" form="prefix">|</mml:mo></mml:mrow></mml:mfrac></mml:mtd></mml:mtr><mml:mtr><mml:mtd columnalign="center" style="text-align: center"><mml:mo stretchy="false" form="prefix">|</mml:mo><mml:mi>∇</mml:mi><mml:mi>ϕ</mml:mi><mml:mo stretchy="false" form="prefix">(</mml:mo><mml:mi>t</mml:mi><mml:mo>,</mml:mo><mml:mi>x</mml:mi><mml:mo stretchy="false" form="postfix">)</mml:mo><mml:mo stretchy="false" form="prefix">|</mml:mo><mml:mo>=</mml:mo><mml:mfrac><mml:mrow><mml:mi>g</mml:mi><mml:mo stretchy="false" form="prefix">(</mml:mo><mml:mi>ρ</mml:mi><mml:mo stretchy="false" form="prefix">(</mml:mo><mml:mi>t</mml:mi><mml:mo>,</mml:mo><mml:mi>x</mml:mi><mml:mo stretchy="false" form="postfix">)</mml:mo><mml:mo stretchy="false" form="postfix">)</mml:mo></mml:mrow><mml:mrow><mml:mi>v</mml:mi><mml:mo stretchy="false" form="prefix">(</mml:mo><mml:mi>ρ</mml:mi><mml:mo stretchy="false" form="prefix">(</mml:mo><mml:mi>t</mml:mi><mml:mo>,</mml:mo><mml:mi>x</mml:mi><mml:mo stretchy="false" form="postfix">)</mml:mo><mml:mo stretchy="false" form="postfix">)</mml:mo></mml:mrow></mml:mfrac></mml:mtd><mml:mtd columnalign="center" style="text-align: center"></mml:mtd><mml:mtd columnalign="center" style="text-align: center"><mml:mi>x</mml:mi><mml:mo>∈</mml:mo><mml:mi mathvariant="normal">Ω</mml:mi></mml:mtd></mml:mtr><mml:mtr><mml:mtd columnalign="center" style="text-align: center"><mml:mi>ϕ</mml:mi><mml:mo stretchy="false" form="prefix">(</mml:mo><mml:mi>t</mml:mi><mml:mo>,</mml:mo><mml:mi>x</mml:mi><mml:mo stretchy="false" form="postfix">)</mml:mo><mml:mo>=</mml:mo><mml:mn>0</mml:mn></mml:mtd><mml:mtd columnalign="center" style="text-align: center"></mml:mtd><mml:mtd columnalign="center" style="text-align: center"><mml:mi>x</mml:mi><mml:mo>∈</mml:mo><mml:mi>∂</mml:mi><mml:mi mathvariant="normal">Ω</mml:mi><mml:mi>.</mml:mi></mml:mtd></mml:mtr></mml:mtable></mml:mrow></mml:math></alternatives></disp-formula></p>
+    <disp-quote>
+      <p><bold>Remark:</bold> Here, we chose to present the Hughes model
+      without any wall around or inside the domain for the sake of
+      brevity. Keep in mind that for a domain with walls and exits, both
+      equations should be solved with a mixed boundary condition, i.e.,
+      Neumann non-crossing conditions on the walls and Dirichlet
+      free-exit boundary conditions on the exits.</p>
+    </disp-quote>
+    <p>For an overview of the mathematical results regarding the Hughes
+    model, we refer the reader to Amadori et al.
+    (<xref alt="2023" rid="ref-survey" ref-type="bibr">2023</xref>).</p>
+    <disp-quote>
+      <p><bold>Remark:</bold> the <monospace>hughes2d</monospace>
+      package also includes a numerical scheme for other models,
+      including the Colombo-Garavello-Lécureux-Mercier model (see
+      <xref alt="Colombo et al., 2011" rid="ref-CGLM11" ref-type="bibr">Colombo
+      et al., 2011</xref>).</p>
+    </disp-quote>
+  </sec>
+</sec>
+<sec id="examples">
+  <title>Examples</title>
+  <p>We present a simple simulation using the Hughes model in a room
+  with exits located at the end of two corridors. More precisely, we use
+  the setting: <disp-formula><alternatives>
+  <tex-math><![CDATA[
+      \bar\Omega := [-2,0]\times [3,4] \cup [0,10]\times [0,7] \cup [10,12] \times [3,4],
+      ]]></tex-math>
+  <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mover><mml:mi mathvariant="normal">Ω</mml:mi><mml:mo accent="true">‾</mml:mo></mml:mover><mml:mo>:=</mml:mo><mml:mo stretchy="false" form="prefix">[</mml:mo><mml:mi>−</mml:mi><mml:mn>2</mml:mn><mml:mo>,</mml:mo><mml:mn>0</mml:mn><mml:mo stretchy="false" form="postfix">]</mml:mo><mml:mo>×</mml:mo><mml:mo stretchy="false" form="prefix">[</mml:mo><mml:mn>3</mml:mn><mml:mo>,</mml:mo><mml:mn>4</mml:mn><mml:mo stretchy="false" form="postfix">]</mml:mo><mml:mo>∪</mml:mo><mml:mo stretchy="false" form="prefix">[</mml:mo><mml:mn>0</mml:mn><mml:mo>,</mml:mo><mml:mn>10</mml:mn><mml:mo stretchy="false" form="postfix">]</mml:mo><mml:mo>×</mml:mo><mml:mo stretchy="false" form="prefix">[</mml:mo><mml:mn>0</mml:mn><mml:mo>,</mml:mo><mml:mn>7</mml:mn><mml:mo stretchy="false" form="postfix">]</mml:mo><mml:mo>∪</mml:mo><mml:mo stretchy="false" form="prefix">[</mml:mo><mml:mn>10</mml:mn><mml:mo>,</mml:mo><mml:mn>12</mml:mn><mml:mo stretchy="false" form="postfix">]</mml:mo><mml:mo>×</mml:mo><mml:mo stretchy="false" form="prefix">[</mml:mo><mml:mn>3</mml:mn><mml:mo>,</mml:mo><mml:mn>4</mml:mn><mml:mo stretchy="false" form="postfix">]</mml:mo><mml:mo>,</mml:mo></mml:mrow></mml:math></alternatives></disp-formula>
+  <disp-formula><alternatives>
+  <tex-math><![CDATA[
+      \mathcal{E} := \lbrace -2\rbrace \times [3,4] \cup \lbrace 12\rbrace \times [3,4], \;\;
+    \mathcal{W} := \partial \Omega \setminus \mathcal{E},
+    ]]></tex-math>
+  <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>ℰ</mml:mi><mml:mo>:=</mml:mo><mml:mo stretchy="false" form="prefix">{</mml:mo><mml:mi>−</mml:mi><mml:mn>2</mml:mn><mml:mo stretchy="false" form="postfix">}</mml:mo><mml:mo>×</mml:mo><mml:mo stretchy="false" form="prefix">[</mml:mo><mml:mn>3</mml:mn><mml:mo>,</mml:mo><mml:mn>4</mml:mn><mml:mo stretchy="false" form="postfix">]</mml:mo><mml:mo>∪</mml:mo><mml:mo stretchy="false" form="prefix">{</mml:mo><mml:mn>12</mml:mn><mml:mo stretchy="false" form="postfix">}</mml:mo><mml:mo>×</mml:mo><mml:mo stretchy="false" form="prefix">[</mml:mo><mml:mn>3</mml:mn><mml:mo>,</mml:mo><mml:mn>4</mml:mn><mml:mo stretchy="false" form="postfix">]</mml:mo><mml:mo>,</mml:mo><mml:mspace width="0.278em"></mml:mspace><mml:mspace width="0.278em"></mml:mspace><mml:mi>𝒲</mml:mi><mml:mo>:=</mml:mo><mml:mi>∂</mml:mi><mml:mi mathvariant="normal">Ω</mml:mi><mml:mo>\</mml:mo><mml:mi>ℰ</mml:mi><mml:mo>,</mml:mo></mml:mrow></mml:math></alternatives></disp-formula>
+  <disp-formula><alternatives>
+  <tex-math><![CDATA[
+      \rho_0(x) := 0.7\times \mathbb{1}_{B((7,2.5),2.4)}, \; \;
+      c(\rho) = 1 +5\rho.
+  ]]></tex-math>
+  <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mi>ρ</mml:mi><mml:mn>0</mml:mn></mml:msub><mml:mo stretchy="false" form="prefix">(</mml:mo><mml:mi>x</mml:mi><mml:mo stretchy="false" form="postfix">)</mml:mo><mml:mo>:=</mml:mo><mml:mn>0.7</mml:mn><mml:mo>×</mml:mo><mml:msub><mml:mn>𝟙</mml:mn><mml:mrow><mml:mi>B</mml:mi><mml:mo stretchy="false" form="prefix">(</mml:mo><mml:mo stretchy="false" form="prefix">(</mml:mo><mml:mn>7</mml:mn><mml:mo>,</mml:mo><mml:mn>2.5</mml:mn><mml:mo stretchy="false" form="postfix">)</mml:mo><mml:mo>,</mml:mo><mml:mn>2.4</mml:mn><mml:mo stretchy="false" form="postfix">)</mml:mo></mml:mrow></mml:msub><mml:mo>,</mml:mo><mml:mspace width="0.278em"></mml:mspace><mml:mspace width="0.278em"></mml:mspace><mml:mi>c</mml:mi><mml:mo stretchy="false" form="prefix">(</mml:mo><mml:mi>ρ</mml:mi><mml:mo stretchy="false" form="postfix">)</mml:mo><mml:mo>=</mml:mo><mml:mn>1</mml:mn><mml:mo>+</mml:mo><mml:mn>5</mml:mn><mml:mi>ρ</mml:mi><mml:mi>.</mml:mi></mml:mrow></mml:math></alternatives></disp-formula>
+  Videos corresponding to various numerical experiments (including this
+  one) are available at
+  <ext-link ext-link-type="uri" xlink:href="https://theorgirard.github.io/simulations">https://theorgirard.github.io/simulations</ext-link>
+  (see also
+  <xref alt="Girard, 2026" rid="ref-videoGirardHughes26" ref-type="bibr">Girard,
+  2026</xref>).</p>
+  <p>In the simulation (see Figure 1 below), the following distinctive
+  features of the Hughes model can be observed:</p>
+  <list list-type="bullet">
+    <list-item>
+      <p><bold>Repartition of the density between the different
+      exits.</bold> Notice that after the time
+      <inline-formula><alternatives>
+      <tex-math><![CDATA[t=10]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>t</mml:mi><mml:mo>=</mml:mo><mml:mn>10</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>s,
+      the total density of pedestrian appears to be separated in two
+      different groups, one for each exit.</p>
+    </list-item>
+    <list-item>
+      <p><bold>Geometry of the congestion figures.</bold> Notice that
+      after <inline-formula><alternatives>
+      <tex-math><![CDATA[t=15]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>t</mml:mi><mml:mo>=</mml:mo><mml:mn>15</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>s,
+      the density profiles do not seem to evolve much. The room
+      evacuates at a slow pace and the density profile for different
+      times “look alike” until the end of the evacuation.</p>
+    </list-item>
+    <list-item>
+      <p><bold>Regularization of the density in time.</bold> Starting at
+      <inline-formula><alternatives>
+      <tex-math><![CDATA[t=1]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>t</mml:mi><mml:mo>=</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>s,
+      we can observe that the density seems to be continuous on the
+      boundary of the support of the initial datum. This regularization
+      in time could be a key property in order to give a mathematical
+      proof of existence of a solution.</p>
+    </list-item>
+  </list>
+</sec>
+<sec id="research-impact-statement">
+  <title>Research impact statement</title>
+  <p>From a mathematical point of view, the simulation using the Hughes
+  model suggests that there indeed exist solutions to the problem (a
+  mathematical fact that is not proven at the moment). The package can
+  be used (and is already used) in order to visualize and test
+  mathematical conjectures. By making an open source software, we also
+  want to highlight the scientific interest of macroscopic pedestrian
+  models. The hughes2d package is intented as a bridge between
+  scientific communities. On one hand, we hope that more people in the
+  mathematical pedestrian crowds community will take an interest in open
+  source development and contribute to the project. On the other hand,
+  by providing easily accessible ways of approximating the solutions to
+  a family of PDE models, we hope that some non-mathematician scientists
+  will take an interest in this family of models and contribute to the
+  present package in multiple original directions. A numerical
+  comparison of the simulation using <monospace>hughes2d</monospace>
+  with other models is already on-going (see the
+  <ext-link ext-link-type="uri" xlink:href="https://conferences.cirm-math.fr/3512.html">BOUM
+  project</ext-link>). Most of the meshing tools and solvers for PDEs
+  developed here for approximating the Hughes model are not specific to
+  the PDEs involved; most of the codebase could be easily reused and
+  incorporated in other macroscopic pedestrian crowd projects.</p>
+  <fig>
+    <caption><p>Sample simulation of a pedestrian density using the
+    Hughes model in the 2D domain <inline-formula><alternatives>
+    <tex-math><![CDATA[\bar\Omega]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mover><mml:mi mathvariant="normal">Ω</mml:mi><mml:mo accent="true">‾</mml:mo></mml:mover></mml:math></alternatives></inline-formula></p></caption>
+    <graphic mimetype="application" mime-subtype="pdf" xlink:href="figure_demo.pdf" />
+  </fig>
+</sec>
+<sec id="ai-usage-disclosure">
+  <title>AI usage disclosure</title>
+  <p>No generative AI tools were used in the development of this
+  software, the writing of this manuscript, or the preparation of
+  supporting materials.</p>
+</sec>
+<sec id="acknowledgments">
+  <title>Acknowledgments</title>
+  <p>This research was partially funded by l’Agence Nationale de la
+  Recherche (ANR), project ANR-22-CE40-0010 COSS. I want to thank deeply
+  Vincent Perrollaz for motivating me to publish this software and for
+  acting as a beta tester. I also want to thank Carine Lucas for
+  counseling me about open-source licenses and standards.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <title></title>
+  <ref id="ref-Hug02">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Hughes</surname><given-names>Roger L.</given-names></name>
+      </person-group>
+      <article-title>A continuum theory for the flow of pedestrians</article-title>
+      <source>Transportation Research Part B-methodological</source>
+      <year iso-8601-date="2002">2002</year>
+      <volume>36</volume>
+      <pub-id pub-id-type="doi">10.1016/S0191-2615(01)00015-7</pub-id>
+      <fpage>507</fpage>
+      <lpage>535</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-survey">
+    <element-citation publication-type="chapter">
+      <person-group person-group-type="author">
+        <name><surname>Amadori</surname><given-names>Debora</given-names></name>
+        <name><surname>Andreianov</surname><given-names>Boris</given-names></name>
+        <name><surname>Di Francesco</surname><given-names>Marco</given-names></name>
+        <name><surname>Fagioli</surname><given-names>Simone</given-names></name>
+        <name><surname>Girard</surname><given-names>Théo</given-names></name>
+        <name><surname>Goatin</surname><given-names>Paola</given-names></name>
+        <name><surname>Markowich</surname><given-names>Peter</given-names></name>
+        <name><surname>Pietschmann</surname><given-names>Jan F.</given-names></name>
+        <name><surname>Rosini</surname><given-names>Massimiliano D.</given-names></name>
+        <name><surname>Russo</surname><given-names>Giovanni</given-names></name>
+        <name><surname>Stivaletta</surname><given-names>Graziano</given-names></name>
+        <name><surname>Wolfram</surname><given-names>Marie-Therese</given-names></name>
+      </person-group>
+      <article-title>The mathematical theory of Hughes’ model: a survey of results</article-title>
+      <source>Crowd Dynamics, Volume 4 : Analytics and Human Factors in Crowd Modeling</source>
+      <publisher-name>Springer</publisher-name>
+      <year iso-8601-date="2023">2023</year>
+      <pub-id pub-id-type="doi">10.1007/978-3-031-46359-4_2</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-LW55">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Lighthill</surname><given-names>Michael J</given-names></name>
+        <name><surname>Whitham</surname><given-names>Gerald Beresford</given-names></name>
+      </person-group>
+      <article-title>On kinematic waves. II. A theory of traffic flow on long crowded roads</article-title>
+      <source>Proceedings of the Royal Society of London A: Mathematical, Physical and Engineering Sciences</source>
+      <publisher-name>The Royal Society</publisher-name>
+      <year iso-8601-date="1955">1955</year>
+      <volume>229</volume>
+      <issue>1178</issue>
+      <pub-id pub-id-type="doi">10.1098/rspa.1955.0089</pub-id>
+      <fpage>317</fpage>
+      <lpage>345</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Ric56">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Richards</surname><given-names>Paul I</given-names></name>
+      </person-group>
+      <article-title>Shock waves on the highway</article-title>
+      <source>Operations research</source>
+      <publisher-name>INFORMS</publisher-name>
+      <year iso-8601-date="1956">1956</year>
+      <volume>4</volume>
+      <issue>1</issue>
+      <pub-id pub-id-type="doi">10.1287/opre.4.1.42</pub-id>
+      <fpage>42</fpage>
+      <lpage>51</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-CGLM11">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Colombo</surname><given-names>Rinaldo M.</given-names></name>
+        <name><surname>Garavello</surname><given-names>Mauro</given-names></name>
+        <name><surname>Lécureux-Mercier</surname><given-names>Magali</given-names></name>
+      </person-group>
+      <article-title>A class of nonlocal models for pedestrian traffic</article-title>
+      <source>Mathematical Models and Methods in Applied Sciences</source>
+      <year iso-8601-date="2011">2011</year>
+      <volume>22</volume>
+      <pub-id pub-id-type="doi">10.1142/s0218202511500230</pub-id>
+      <fpage>1150023</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Gir25">
+    <element-citation publication-type="thesis">
+      <person-group person-group-type="author">
+        <name><surname>Girard</surname><given-names>Théo</given-names></name>
+      </person-group>
+      <article-title>Discontinuités dans les équations d’Hamilton-Jacobi-Bellman et dans les lois de conservation scalaires rencontrées dans les modèles de dynamique piétonnière</article-title>
+      <publisher-name>Université de Tours</publisher-name>
+      <year iso-8601-date="2025">2025</year>
+      <uri>https://hal.science/tel-05275359</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-Goatin2014">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Twarogowska</surname><given-names>Monika</given-names></name>
+        <name><surname>Goatin</surname><given-names>Paola</given-names></name>
+        <name><surname>Duvigneau</surname><given-names>Regis</given-names></name>
+      </person-group>
+      <article-title>Comparative study of macroscopic pedestrian models</article-title>
+      <source>Transportation Research Procedia</source>
+      <year iso-8601-date="2014">2014</year>
+      <volume>2</volume>
+      <issn>2352-1465</issn>
+      <pub-id pub-id-type="doi">10.1016/j.trpro.2014.09.063</pub-id>
+      <fpage>477</fpage>
+      <lpage>485</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-vadere">
+    <element-citation publication-type="software">
+      <person-group person-group-type="author">
+        <name><surname>Kleinmeier</surname><given-names>Benedikt</given-names></name>
+        <name><surname>Zönnchen</surname><given-names>Benedikt</given-names></name>
+        <name><surname>Gödel</surname><given-names>Marion</given-names></name>
+        <name><surname>Köster</surname><given-names>Gerta</given-names></name>
+      </person-group>
+      <article-title>Vadere: An open-source simulation framework to promote interdisciplinary understanding</article-title>
+      <source>Collective Dynamics, vol. 4</source>
+      <year iso-8601-date="2019">2019</year>
+      <pub-id pub-id-type="doi">10.17815/cd.2019.21</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-JuPedSim">
+    <element-citation publication-type="software">
+      <person-group person-group-type="author">
+        <name><surname>Chraibi</surname><given-names>Mohcine</given-names></name>
+        <name><surname>Kratz</surname><given-names>Kai</given-names></name>
+        <name><surname>Schrödter</surname><given-names>Tobias</given-names></name>
+        <string-name>the JuPedSim Development Team</string-name>
+      </person-group>
+      <article-title>JuPedSim</article-title>
+      <uri>https://jupedsim.org</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-UMANS">
+    <element-citation publication-type="software">
+      <person-group person-group-type="author">
+        <name><surname>Wouter van Toll</surname><given-names>Axel López</given-names><suffix>Fabien Grzeskowiak</suffix></name>
+      </person-group>
+      <article-title>Generalized microscopic crowd simulation using costs in velocity space</article-title>
+      <year iso-8601-date="2020">2020</year>
+      <pub-id pub-id-type="doi">10.1145/3384382.3384532</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-Cromosim">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Maury</surname><given-names>B.</given-names></name>
+        <name><surname>Faure</surname><given-names>S.</given-names></name>
+      </person-group>
+      <source>Crowds in equations: An introduction to the microscopic modeling of crowds</source>
+      <publisher-name>World Scientific</publisher-name>
+      <year iso-8601-date="2018">2018</year>
+      <pub-id pub-id-type="doi">10.1142/q0163</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-CrowdWalk">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Yamashita</surname><given-names>Tomohisa</given-names></name>
+        <name><surname>Okada</surname><given-names>Takashi</given-names></name>
+        <name><surname>Noda</surname><given-names>Itsuki</given-names></name>
+      </person-group>
+      <article-title>Implementation of simulation environment for exhaustive analysis of huge-scale pedestrian flow</article-title>
+      <source>SICE Journal of Control, Measurement, and System Integration</source>
+      <publisher-name>Taylor &amp; Francis</publisher-name>
+      <year iso-8601-date="2013-03">2013</year><month>03</month>
+      <volume>6</volume>
+      <issue>2</issue>
+      <pub-id pub-id-type="doi">10.9746/jcmsi.6.137</pub-id>
+      <fpage>137</fpage>
+      <lpage>146</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-videoGirardHughes26">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Girard</surname><given-names>Théo</given-names></name>
+      </person-group>
+      <article-title>A few macroscopic pedestrian crowd simulations with the hughes2d package.</article-title>
+      <publisher-name>Zenodo</publisher-name>
+      <year iso-8601-date="2026-04">2026</year><month>04</month>
+      <uri>https://doi.org/10.5281/zenodo.19613348</uri>
+      <pub-id pub-id-type="doi">10.5281/zenodo.19613348</pub-id>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
