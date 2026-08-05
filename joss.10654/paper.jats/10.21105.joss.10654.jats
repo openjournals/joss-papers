@@ -1,0 +1,749 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">10654</article-id>
+<article-id pub-id-type="doi">10.21105/joss.10654</article-id>
+<title-group>
+<article-title>Ndvi2Gif: A Python Package for Multi-Seasonal Remote
+Sensing Analysis with Google Earth Engine</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0002-2757-7112</contrib-id>
+<name>
+<surname>Díaz</surname>
+<given-names>Diego García</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Laboratorio de SIG y Teledetección de la Estación Biológica
+de Doñana (LAST-EBD), CSIC, Spain</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2025-12-28">
+<day>28</day>
+<month>12</month>
+<year>2025</year>
+</pub-date>
+<volume>11</volume>
+<issue>123</issue>
+<fpage>10654</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2026</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>Python</kwd>
+<kwd>remote sensing</kwd>
+<kwd>Google Earth Engine</kwd>
+<kwd>time series analysis</kwd>
+<kwd>vegetation monitoring</kwd>
+<kwd>SAR processing</kwd>
+<kwd>phenology</kwd>
+<kwd>NDVI</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p>Google Earth Engine (GEE) is a cloud-based platform for
+  planetary-scale geospatial analysis
+  (<xref alt="Gorelick et al., 2017" rid="ref-Gorelick2017" ref-type="bibr">Gorelick
+  et al., 2017</xref>). <monospace>Ndvi2Gif</monospace> is a Python
+  package built on top of GEE and <monospace>geemap</monospace>
+  (<xref alt="Wu, 2020" rid="ref-Wu2020" ref-type="bibr">Wu,
+  2020</xref>) that simplifies the generation and analysis of
+  multi-temporal composite images from satellite and climate reanalysis
+  data. The package provides unified access to 7 satellite platforms
+  (Sentinel-1/2/3, Landsat 4–9, MODIS) and climate reanalysis data
+  (ERA5-Land, CHIRPS), with 53 predefined spectral and radar indices
+  plus 48 climate variables. Beyond compositing, the package includes
+  modules for Synthetic Aperture Radar (SAR) preprocessing, time series
+  and phenology analysis, land cover classification, and hydroperiod
+  analysis of surface water dynamics.</p>
+  <p>The core idea behind <monospace>Ndvi2Gif</monospace> is the
+  <bold>multi-seasonal statistical composite</bold>. Instead of handling
+  the thousands of individual scenes a satellite records over an area,
+  the user obtains a compact summary in which each year is represented
+  by a fixed set of seasonal or monthly snapshots (for example, one
+  image per month). Each snapshot condenses all the observations in that
+  period into a single representative value —such as the median,
+  maximum, or a chosen percentile— which suppresses clouds and data
+  gaps. This makes long-term comparisons across the chosen temporal
+  windows straightforward: one can, for example, map changes in the
+  maximum flooded area each winter over several decades, track how the
+  timing of vegetation green-up shifts from year to year, or follow the
+  annual evolution of burned area —anywhere on the planet. Summary
+  statistics for user-defined areas, such as field plots or protected
+  sites, can also be extracted directly, leaving the results ready to
+  analyse without further GIS processing.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p>Generating multi-temporal composites in GEE requires 30–40 lines of
+  boilerplate per sensor for collection filtering, cloud masking,
+  scaling to reflectance, and temporal aggregation. Using
+  <monospace>Ndvi2Gif</monospace>, this reduces to:</p>
+  <code language="python">from ndvi2gif import NdviSeasonality
+
+ndvi = NdviSeasonality(roi=roi, start_year=2013, end_year=2013,
+                       sat='Landsat', index='ndvi', periods=4)
+collection = ndvi.get_year_composite()</code>
+  <p>This simplification extends across 7 satellite platforms, 53
+  spectral and radar indices, 48 climate variables, multiple temporal
+  aggregation methods, and flexible region of interest (ROI)
+  specifications—all through a unified API that inherits
+  <monospace>geemap</monospace>’s interactive mapping capabilities. The
+  architectural decisions and design philosophy that enable this
+  simplification are detailed in the sections below.
+  <xref alt="[fig:workflow]" rid="figU003Aworkflow">[fig:workflow]</xref>
+  provides an overview of the package’s workflow and capabilities.</p>
+  <fig>
+    <caption><p><monospace>Ndvi2Gif</monospace> workflow architecture
+    and capabilities. Color coding: Blue — input data sources and ROI
+    specification; Green — processing operations; Purple — main analysis
+    classes; Orange — download-ready output
+    products.<styled-content id="figU003Aworkflow"></styled-content></p></caption>
+    <graphic mimetype="image" mime-subtype="png" xlink:href="ndvi2gif_workflow.png" />
+  </fig>
+</sec>
+<sec id="state-of-the-field">
+  <title>State of the Field</title>
+  <p>Remote sensing analysis using Google Earth Engine (GEE) has been
+  widely facilitated by several Python-based libraries. Packages such as
+  <monospace>geemap</monospace>
+  (<xref alt="Wu, 2020" rid="ref-Wu2020" ref-type="bibr">Wu,
+  2020</xref>) provide interactive mapping and user-friendly access to
+  Earth Engine data, while <monospace>eemont</monospace>
+  (<xref alt="Montero, 2021" rid="ref-Montero2021" ref-type="bibr">Montero,
+  2021</xref>) focuses on preprocessing utilities and spectral index
+  computation while preserving the native
+  <monospace>ee.ImageCollection</monospace> temporal structure.
+  <monospace>wxee</monospace>
+  (<xref alt="Zuspan, 2021" rid="ref-Zuspan2021" ref-type="bibr">Zuspan,
+  2021</xref>) emphasizes interoperability with the scientific Python
+  ecosystem by exporting Earth Engine data into xarray objects for
+  sequential time series analysis.</p>
+  <p>While these tools significantly lower the entry barrier to GEE,
+  they are primarily designed as general-purpose interfaces or
+  extensible utility layers. As a result, researchers conducting
+  long-term ecological or phenological studies often need to implement
+  substantial custom code to ensure consistent temporal alignment,
+  multi-seasonal comparability, and reproducibility across decades of
+  observations.</p>
+  <p><monospace>Ndvi2Gif</monospace> addresses this gap by adopting a
+  distinct design philosophy centered on <bold>band-based temporal
+  organization</bold>, where each image represents a temporal unit
+  (typically a year) and bands encode fixed intra-annual periods (e.g.,
+  months or seasons). This approach enables direct multi-decadal queries
+  across consistent seasonal windows, which is difficult to achieve
+  efficiently using the native collection-based paradigm.</p>
+  <p>Contributing this functionality to existing packages would require
+  fundamental changes to their core temporal abstractions and design
+  goals. <monospace>Ndvi2Gif</monospace> therefore complements, rather
+  than replaces, existing GEE Python tools by providing a specialized
+  framework tailored to multi-seasonal ecological analysis, phenology
+  validation, and operational environmental monitoring.</p>
+</sec>
+<sec id="key-features">
+  <title>Key features</title>
+  <sec id="multi-platform-data-access">
+    <title>Multi-platform data access</title>
+    <p><monospace>Ndvi2Gif</monospace> provides unified access to
+    optical, SAR, and climate reanalysis datasets through a consistent
+    interface
+    (<xref alt="Table 1" rid="tabU003Adatasets">Table 1</xref>).</p>
+    <table-wrap>
+      <caption>
+        <p>Supported satellite and reanalysis datasets.
+        <styled-content id="tabU003Adatasets"></styled-content></p>
+      </caption>
+      <table>
+        <colgroup>
+          <col width="16%" />
+          <col width="25%" />
+          <col width="16%" />
+          <col width="19%" />
+          <col width="25%" />
+        </colgroup>
+        <thead>
+          <tr>
+            <th align="left">Platform</th>
+            <th align="left">Collection</th>
+            <th align="left">Resolution</th>
+            <th align="left">Coverage</th>
+            <th align="left">Variables</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td align="left">Sentinel-2</td>
+            <td align="left">S2 SR HARMONIZED</td>
+            <td align="left">10/20m</td>
+            <td align="left">2015–present</td>
+            <td align="left">36 optical</td>
+          </tr>
+          <tr>
+            <td align="left">Sentinel-3</td>
+            <td align="left">OLCI</td>
+            <td align="left">300m</td>
+            <td align="left">2016–present</td>
+            <td align="left">36 optical</td>
+          </tr>
+          <tr>
+            <td align="left">Landsat</td>
+            <td align="left">L4–L9 Col. 2</td>
+            <td align="left">30m</td>
+            <td align="left">1982–present</td>
+            <td align="left">27 optical</td>
+          </tr>
+          <tr>
+            <td align="left">MODIS</td>
+            <td align="left">Terra/Aqua</td>
+            <td align="left">500m</td>
+            <td align="left">2000–present</td>
+            <td align="left">27 optical</td>
+          </tr>
+          <tr>
+            <td align="left">Sentinel-1</td>
+            <td align="left">GRD ARD</td>
+            <td align="left">10m</td>
+            <td align="left">2014–present</td>
+            <td align="left">7 SAR</td>
+          </tr>
+          <tr>
+            <td align="left">ERA5-Land</td>
+            <td align="left">Hourly/Monthly</td>
+            <td align="left">11km</td>
+            <td align="left">1950–present</td>
+            <td align="left">47 climate</td>
+          </tr>
+          <tr>
+            <td align="left">CHIRPS</td>
+            <td align="left">Daily</td>
+            <td align="left">5.5km</td>
+            <td align="left">1981–present</td>
+            <td align="left">Precipitation</td>
+          </tr>
+        </tbody>
+      </table>
+    </table-wrap>
+    <p>26 optical indices are available across all optical sensors.
+    Sentinel-2 adds 9 Red-Edge indices and 1 SWIR index (36 total);
+    Sentinel-3 adds 10 water quality indices (36 total); Landsat and
+    MODIS add 1 SWIR index (27 total). SAR indices are exclusive to
+    Sentinel-1.</p>
+  </sec>
+  <sec id="flexible-region-of-interest">
+    <title>Flexible region of interest</title>
+    <p>The library supports multiple ROI specification formats, enabling
+    seamless integration with existing workflows and the eLTER research
+    network
+    (<xref alt="Wohner et al., 2019" rid="ref-Wohner2019" ref-type="bibr">Wohner
+    et al., 2019</xref>).</p>
+    <table-wrap>
+      <caption>
+        <p>Supported region of interest formats.
+        <styled-content id="tabU003Aroi"></styled-content></p>
+      </caption>
+      <table>
+        <thead>
+          <tr>
+            <th align="left">Format</th>
+            <th align="left">Example</th>
+            <th align="left">Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td align="left">Shapefile</td>
+            <td align="left"><monospace>'study_area.shp'</monospace></td>
+            <td align="left">Local vector file</td>
+          </tr>
+          <tr>
+            <td align="left">GeoJSON</td>
+            <td align="left"><monospace>'boundaries.geojson'</monospace></td>
+            <td align="left">GeoJSON file</td>
+          </tr>
+          <tr>
+            <td align="left">DEIMS ID</td>
+            <td align="left"><monospace>'deimsid:8eda49e9...'</monospace></td>
+            <td align="left">eLTER site</td>
+          </tr>
+          <tr>
+            <td align="left">S2 tile</td>
+            <td align="left"><monospace>'s2:29SQB'</monospace></td>
+            <td align="left">MGRS tile code</td>
+          </tr>
+          <tr>
+            <td align="left">Landsat WRS</td>
+            <td align="left"><monospace>'wrs:200,32'</monospace></td>
+            <td align="left">Path and Row</td>
+          </tr>
+          <tr>
+            <td align="left">ee.Geometry</td>
+            <td align="left"><monospace>ee.Geometry.Point()</monospace></td>
+            <td align="left">GEE geometry</td>
+          </tr>
+          <tr>
+            <td align="left"><monospace>geemap</monospace></td>
+            <td align="left"><monospace>Map.draw_features</monospace></td>
+            <td align="left">Interactive selection</td>
+          </tr>
+        </tbody>
+      </table>
+    </table-wrap>
+  </sec>
+  <sec id="advanced-sar-processing">
+    <title>Advanced SAR processing</title>
+    <p>The <monospace>S1ARDProcessor</monospace> module implements a
+    complete Analysis Ready Data (ARD) pipeline for Sentinel-1 imagery,
+    based on Vollrath et al.
+    (<xref alt="2020" rid="ref-Vollrath2020" ref-type="bibr">2020</xref>).
+    This addresses a critical limitation of the default Sentinel-1
+    products available in Google Earth Engine, which do not include
+    radiometric terrain correction or advanced speckle filtering.</p>
+    <p>The ARD workflow includes:</p>
+    <list list-type="bullet">
+      <list-item>
+        <p><bold>Radiometric terrain correction</bold> using an
+        angular-based approach with configurable digital elevation
+        models (Copernicus and SRTM), essential for reducing topographic
+        effects in mountainous or heterogeneous terrain.</p>
+      </list-item>
+      <list-item>
+        <p><bold>Speckle filtering</bold> using multiple algorithms
+        (Refined Lee, Lee, Gamma MAP, Lee Sigma, Boxcar), allowing users
+        to balance noise reduction and edge preservation depending on
+        the application.</p>
+      </list-item>
+      <list-item>
+        <p><bold>Scattering model selection</bold>, supporting both
+        volume scattering (vegetation-dominated surfaces) and surface
+        scattering (bare soil or water).</p>
+      </list-item>
+    </list>
+    <p>This preprocessing enables the reliable use of SAR-derived
+    indices for vegetation structure monitoring, surface moisture
+    assessment, and land cover analysis in areas where optical data are
+    limited by cloud cover.</p>
+  </sec>
+  <sec id="time-series-and-phenology-analysis">
+    <title>Time series and phenology analysis</title>
+    <p>The <monospace>TimeSeriesAnalyzer</monospace> module extracts,
+    analyses, and visualises temporal dynamics from multi-seasonal
+    composite stacks, operating on temporally aligned bands within each
+    yearly image to ensure consistency across years and reduce
+    sensitivity to irregular acquisition frequency.</p>
+    <p>The module supports:</p>
+    <list list-type="bullet">
+      <list-item>
+        <p><bold>Trend detection and significance testing</bold>,
+        including non-parametric Mann–Kendall tests, Sen’s slope
+        estimation, and linear regression with confidence intervals.</p>
+      </list-item>
+      <list-item>
+        <p><bold>Phenological metrics extraction</bold>, such as Start
+        of Season (SOS), End of Season (EOS), Peak of Season (POS),
+        season length, amplitude, and growth and senescence rates,
+        derived from smoothed seasonal trajectories.</p>
+      </list-item>
+      <list-item>
+        <p><bold>Seasonal and interannual comparison</bold>, enabling
+        direct assessment of variability and long-term change across
+        fixed temporal windows.</p>
+      </list-item>
+      <list-item>
+        <p><bold>Integrated visual diagnostics</bold>, producing
+        multi-panel dashboards that combine time series plots, seasonal
+        distributions, trend summaries, autocorrelation, and data
+        quality indicators.</p>
+      </list-item>
+    </list>
+    <p>This design allows researchers to move seamlessly from data
+    extraction to exploratory and quantitative temporal analysis within
+    a single, reproducible workflow, and is particularly suited to
+    long-term ecological monitoring, phenology validation, and
+    climate–vegetation interaction studies.</p>
+    <p>Complementing this point- and region-based analysis, the
+    <monospace>SpatialPhenologyAnalyzer</monospace> module computes
+    per-pixel phenological rasters (SOS, POS, EOS, season length,
+    amplitude, and growth and senescence rates) across the entire region
+    of interest, running entirely server-side on Google Earth Engine. In
+    addition to threshold- and derivative-based extraction, it provides
+    a per-pixel harmonic (Fourier) regression that reconstructs a smooth
+    seasonal trajectory, offering a scalable, Earth Engine-native
+    alternative to double-logistic curve fitting. Results can be
+    returned as one map per year or as a multi-year aggregate, enabling
+    spatially explicit phenology mapping and validation over large
+    areas.</p>
+  </sec>
+  <sec id="machine-learning-classification">
+    <title>Machine learning classification</title>
+    <p>The <monospace>LandCoverClassifier</monospace> module provides
+    supervised and unsupervised land cover classification workflows
+    based on multi-temporal composite stacks generated by
+    <monospace>NdviSeasonality</monospace>. Supported supervised
+    algorithms include Random Forest, Support Vector Machines (SVM),
+    CART, Naive Bayes, and Gradient Tree Boost, while unsupervised
+    approaches include K-means and Cascade K-means clustering.</p>
+    <p>The module supports feature stack generation from multi-seasonal
+    indices, optional normalization, training and validation dataset
+    handling, and accuracy assessment through confusion matrices and
+    standard performance metrics. Feature importance analysis is also
+    available for supervised classifiers, enabling interpretation of
+    which temporal periods or indices contribute most strongly to
+    classification results.</p>
+  </sec>
+  <sec id="hydroperiod-analysis">
+    <title>Hydroperiod analysis</title>
+    <p>The <monospace>HydroperiodAnalyzer</monospace> module computes
+    surface water dynamics and flooding metrics from multi-temporal
+    optical composites. Working directly on
+    <monospace>NdviSeasonality</monospace> outputs, it derives
+    pixel-level hydroperiod statistics without requiring external
+    hydrological data.</p>
+    <p>The module computes:</p>
+    <list list-type="bullet">
+      <list-item>
+        <p><bold>Flood days</bold> — total number of days classified as
+        flooded within a period</p>
+      </list-item>
+      <list-item>
+        <p><bold>Valid days</bold> — observation count after cloud
+        masking, enabling data quality assessment</p>
+      </list-item>
+      <list-item>
+        <p><bold>Normalized flood days</bold> — flood days relative to
+        valid observations, correcting for gaps in coverage</p>
+      </list-item>
+      <list-item>
+        <p><bold>First and last day flooded</bold> — timing metrics for
+        flood onset and recession</p>
+      </list-item>
+      <list-item>
+        <p><bold>Anomalies</bold> — deviation from the long-term mean
+        hydroperiod, useful for detecting exceptional flood or drought
+        years. The reference mean can be computed either from the years
+        selected in the analysis or from all available cycles in the
+        chosen dataset, giving users control over the baseline
+        period</p>
+      </list-item>
+    </list>
+    <p>By default, hydrological cycles run from 1 September to 31
+    August, following the standard hydrological year convention, but the
+    cycle boundaries are fully configurable to accommodate other
+    definitions (e.g., calendar year, wet season onset).</p>
+    <p>This functionality is particularly suited to Mediterranean
+    wetlands and seasonally inundated ecosystems where surface water
+    dynamics are highly variable and cloud cover frequently limits
+    optical observation.</p>
+  </sec>
+</sec>
+<sec id="software-design">
+  <title>Software Design</title>
+  <p><monospace>Ndvi2Gif</monospace> preserves the native
+  <monospace>ee.ImageCollection</monospace> abstraction but implements a
+  <bold>hierarchical band-based approach</bold>: each collection element
+  corresponds to a year, and bands encode fixed intra-annual sub-periods
+  (months, biweekly intervals, or seasons). A 40-year monthly analysis
+  produces 40 images with 12 bands each, rather than 480 individual
+  images.</p>
+  <p>This design enables queries such as: <italic>What is the mean
+  cyanobacteria index (NDCI) detected from Sentinel-2 during August
+  across the last 10 years?</italic> by simply calling
+  <monospace>collection.select('august').mean()</monospace>, or
+  <italic>In which week of the year does chlorophyll detected from
+  Sentinel-3 peak?</italic> by computing
+  <monospace>collection.max().bandNames()</monospace>.</p>
+  <p>This architecture trades increased per-image band dimensionality
+  for drastically simpler, more reproducible seasonal queries. This
+  trade-off is well suited to long-term ecological and phenological
+  analysis, but less appropriate for applications focused on
+  high-frequency pixel-level forecasting.</p>
+  <p>Beyond temporal organization, <monospace>Ndvi2Gif</monospace>
+  integrates complete Sentinel-1 ARD preprocessing, automated phenology
+  metrics extraction, land cover classification, zonal statistics, and
+  <monospace>geemap</monospace>-based visualization within a unified
+  API.</p>
+</sec>
+<sec id="research-impact-statement">
+  <title>Research Impact Statement</title>
+  <p><monospace>Ndvi2Gif</monospace> has demonstrated realized research
+  impact through peer-reviewed publications, operational research
+  infrastructure, and downstream software integration since its initial
+  release in May 2020. The package has been applied in calibration and
+  validation studies of Earth Observation products for phenology and
+  surface water monitoring at the Doñana protected area
+  (<xref alt="Díaz-Delgado &amp; García-Díaz, 2024" rid="ref-DiazDelgado2024" ref-type="bibr">Díaz-Delgado
+  &amp; García-Díaz, 2024</xref>).</p>
+  <p><monospace>Ndvi2Gif</monospace> serves as a foundational component
+  of <monospace>geeltermap</monospace>, a Python mapping application
+  providing operational environmental monitoring tools for the eLTER
+  network
+  (<xref alt="Díaz-Delgado et al., 2024" rid="ref-DiazDelgado2024b" ref-type="bibr">Díaz-Delgado
+  et al., 2024</xref>). <monospace>geeltermap</monospace> integrates
+  <monospace>PhenoApp</monospace> for phenology monitoring
+  (<xref alt="García-Díaz &amp; Díaz-Delgado, 2023" rid="ref-Garcia2023" ref-type="bibr">García-Díaz
+  &amp; Díaz-Delgado, 2023</xref>), <monospace>FloodApp</monospace> for
+  flood extent analysis, and <monospace>LSTApp</monospace> for land
+  surface temperature assessment.</p>
+  <p>The package is currently used as a core analytical tool in the
+  eLTER network infrastructure and the SUMHAL biodiversity monitoring
+  initiative in Spanish protected areas, demonstrating readiness for
+  reproducible multi-temporal remote sensing analysis.</p>
+  <p>Beyond these research applications, <monospace>Ndvi2Gif</monospace>
+  has achieved substantial community uptake. It has been downloaded more
+  than 26,000 times from PyPI and more than 66,000 times from
+  conda-forge, where it is distributed through a community-maintained
+  feedstock, and its repository has been forked more than a dozen times
+  and starred by over 40 users. The package has been disseminated to the
+  geospatial community through a talk at PyCon ES
+  2021<xref ref-type="fn" rid="fn1">1</xref>, a hands-on tutorial
+  delivered to eLTER technical
+  staff<xref ref-type="fn" rid="fn2">2</xref>, and a presentation at the
+  2026 congress of the Spanish Association of Remote Sensing (AET) in
+  Cáceres
+  (<xref alt="García-Díaz, 2026" rid="ref-GarciaDiaz2026" ref-type="bibr">García-Díaz,
+  2026</xref>); it was also featured among community contributors in an
+  ESA Earth Observation Open Science
+  showcase<xref ref-type="fn" rid="fn3">3</xref>. At LAST-EBD (CSIC) the
+  package is used routinely to answer spatial and remote-sensing queries
+  raised by researchers across the Estación Biológica de Doñana, and
+  these real-world requests directly drive the incorporation of new
+  functionality, forming a user-need feedback loop that has guided much
+  of the package’s evolution. Two further studies based on
+  <monospace>Ndvi2Gif</monospace> are currently in preparation,
+  addressing wetland hydroperiod dynamics in the Danube basin and
+  cyanobacterial blooms in Spanish reservoirs. The project is openly
+  maintained with regular tagged releases, comprehensive documentation,
+  and contribution guidelines that welcome third-party involvement.</p>
+</sec>
+<sec id="ai-usage-disclosure">
+  <title>AI Usage Disclosure</title>
+  <p><monospace>Ndvi2Gif</monospace> was initially developed in May 2020
+  and underwent sustained development through 2024 before
+  current-generation AI coding assistants became widely available. The
+  core scientific methodology, architectural design decisions, and
+  algorithmic implementations represent the author’s original
+  intellectual contributions. AI tools are currently used as development
+  assistants for refactoring, documentation, debugging, and test
+  implementation, while all strategic decisions regarding software
+  architecture and scientific approach remain under the author’s
+  direction.</p>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>The author thanks the Google Earth Engine team and community, and
+  especially acknowledges Qiusheng Wu for <monospace>geemap</monospace>,
+  which serves as the primary foundation of
+  <monospace>Ndvi2Gif</monospace>, and for his continued contributions
+  to open-source geospatial software.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <title></title>
+  <ref id="ref-Gorelick2017">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Gorelick</surname><given-names>Noel</given-names></name>
+        <name><surname>Hancher</surname><given-names>Matt</given-names></name>
+        <name><surname>Dixon</surname><given-names>Mike</given-names></name>
+        <name><surname>Ilyushchenko</surname><given-names>Simon</given-names></name>
+        <name><surname>Thau</surname><given-names>David</given-names></name>
+        <name><surname>Moore</surname><given-names>Rebecca</given-names></name>
+      </person-group>
+      <article-title>Google earth engine: Planetary-scale geospatial analysis for everyone</article-title>
+      <source>Remote Sensing of Environment</source>
+      <publisher-name>Elsevier</publisher-name>
+      <year iso-8601-date="2017">2017</year>
+      <volume>202</volume>
+      <pub-id pub-id-type="doi">10.1016/j.rse.2017.06.031</pub-id>
+      <fpage>18</fpage>
+      <lpage>27</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Wu2020">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Wu</surname><given-names>Qiusheng</given-names></name>
+      </person-group>
+      <article-title>Geemap: A python package for interactive mapping with google earth engine</article-title>
+      <source>Journal of Open Source Software</source>
+      <publisher-name>The Open Journal</publisher-name>
+      <year iso-8601-date="2020">2020</year>
+      <volume>5</volume>
+      <issue>51</issue>
+      <pub-id pub-id-type="doi">10.21105/joss.02305</pub-id>
+      <fpage>2305</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Wohner2019">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Wohner</surname><given-names>Christoph</given-names></name>
+        <name><surname>Peterseil</surname><given-names>Johannes</given-names></name>
+        <name><surname>Oggioni</surname><given-names>Alessandro</given-names></name>
+        <name><surname>Bertrand</surname><given-names>Nicolas</given-names></name>
+        <name><surname>Schentz</surname><given-names>Herbert</given-names></name>
+      </person-group>
+      <article-title>DEIMS-SDR–a web portal to document research sites and their associated data</article-title>
+      <source>Ecological Informatics</source>
+      <publisher-name>Elsevier</publisher-name>
+      <year iso-8601-date="2019">2019</year>
+      <volume>51</volume>
+      <pub-id pub-id-type="doi">10.1016/j.ecoinf.2019.01.005</pub-id>
+      <fpage>135</fpage>
+      <lpage>140</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Vollrath2020">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Vollrath</surname><given-names>Andreas</given-names></name>
+        <name><surname>Mullissa</surname><given-names>Adugna</given-names></name>
+        <name><surname>Reiche</surname><given-names>Johannes</given-names></name>
+      </person-group>
+      <article-title>Angular-based radiometric slope correction for sentinel-1 on google earth engine</article-title>
+      <source>Remote Sensing</source>
+      <publisher-name>MDPI</publisher-name>
+      <year iso-8601-date="2020">2020</year>
+      <volume>12</volume>
+      <issue>11</issue>
+      <pub-id pub-id-type="doi">10.3390/rs12111867</pub-id>
+      <fpage>1867</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Montero2021">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Montero</surname><given-names>David</given-names></name>
+      </person-group>
+      <article-title>Eemont: A python package that extends google earth engine</article-title>
+      <source>Journal of Open Source Software</source>
+      <publisher-name>The Open Journal</publisher-name>
+      <year iso-8601-date="2021">2021</year>
+      <volume>6</volume>
+      <issue>62</issue>
+      <pub-id pub-id-type="doi">10.21105/joss.03168</pub-id>
+      <fpage>3168</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Zuspan2021">
+    <element-citation publication-type="software">
+      <person-group person-group-type="author">
+        <name><surname>Zuspan</surname><given-names>Aaron</given-names></name>
+      </person-group>
+      <article-title>Wxee: A python interface between earth engine and xarray</article-title>
+      <year iso-8601-date="2021">2021</year>
+      <uri>https://github.com/aazuspan/wxee</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-DiazDelgado2024">
+    <element-citation publication-type="report">
+      <person-group person-group-type="author">
+        <name><surname>Díaz-Delgado</surname><given-names>Ricardo</given-names></name>
+        <name><surname>García-Díaz</surname><given-names>Diego</given-names></name>
+      </person-group>
+      <article-title>In-situ validation of land surface phenology, land surface temperature and surface water derived from earth observation products: Doñana protected area as a potential cal/val supersite</article-title>
+      <publisher-name>eLTER Plus Project</publisher-name>
+      <year iso-8601-date="2024">2024</year>
+      <pub-id pub-id-type="doi">10.62880/rars25009</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-Garcia2023">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>García-Díaz</surname><given-names>Diego</given-names></name>
+        <name><surname>Díaz-Delgado</surname><given-names>Ricardo</given-names></name>
+      </person-group>
+      <article-title>PhenoApp: A google earth engine based tool for monitoring phenology</article-title>
+      <source>Revista de Teledetección</source>
+      <year iso-8601-date="2023">2023</year>
+      <issue>61</issue>
+      <pub-id pub-id-type="doi">10.4995/raet.2023.18767</pub-id>
+      <fpage>73</fpage>
+      <lpage>81</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-GarciaDiaz2026">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>García-Díaz</surname><given-names>Diego</given-names></name>
+      </person-group>
+      <article-title>Ndvi2Gif: Análisis multi-estacional mediante google earth engine</article-title>
+      <source>XXI congreso de la asociación española de teledetección (AET): Teledetección multidisciplinar: Miradas diversas, soluciones comunes</source>
+      <publisher-name>Universidad de Extremadura, Servicio de Publicaciones</publisher-name>
+      <year iso-8601-date="2026">2026</year>
+      <volume>2</volume>
+      <pub-id pub-id-type="doi">10.17398/3101-7177.2.100</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-DiazDelgado2024b">
+    <element-citation publication-type="report">
+      <person-group person-group-type="author">
+        <name><surname>Díaz-Delgado</surname><given-names>Ricardo</given-names></name>
+        <name><surname>García-Díaz</surname><given-names>Diego</given-names></name>
+        <name><surname>Marangi</surname><given-names>Catia</given-names></name>
+        <name><surname>Silver</surname><given-names>Michael</given-names></name>
+        <name><surname>Oggioni</surname><given-names>Alessandro</given-names></name>
+        <name><surname>Tagliolato Acquaviva D’Aragona</surname><given-names>Paolo</given-names></name>
+        <name><surname>Karnieli</surname><given-names>Arnon</given-names></name>
+        <name><surname>Peterseil</surname><given-names>Johannes</given-names></name>
+        <name><surname>Vicario</surname><given-names>Saverio</given-names></name>
+        <name><surname>Anttila</surname><given-names>Sanna</given-names></name>
+        <name><surname>Böttcher</surname><given-names>Kristin</given-names></name>
+        <name><surname>Bolton</surname><given-names>William</given-names></name>
+        <name><surname>Wohner</surname><given-names>Christoph</given-names></name>
+        <name><surname>Minic</surname><given-names>Vojislava</given-names></name>
+      </person-group>
+      <article-title>eLTER PLUS deliverable D4.4 - piloting of eLTER specific downstream services contributing to eLTER standard observation variables</article-title>
+      <publisher-name>eLTER PLUS Project</publisher-name>
+      <year iso-8601-date="2024">2024</year>
+      <pub-id pub-id-type="doi">10.5281/zenodo.14889212</pub-id>
+    </element-citation>
+  </ref>
+</ref-list>
+<fn-group>
+  <fn id="fn1">
+    <label>1</label><p>https://www.youtube.com/watch?v=vGEzSq0JLpM</p>
+  </fn>
+  <fn id="fn2">
+    <label>2</label><p>https://www.youtube.com/watch?v=kJkX6aVXBws</p>
+  </fn>
+  <fn id="fn3">
+    <label>3</label><p>https://eo4society.esa.int/2020/08/26/eo-open-science-enthusiastic-community/</p>
+  </fn>
+</fn-group>
+</back>
+</article>
