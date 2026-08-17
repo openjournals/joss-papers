@@ -1,0 +1,487 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">10575</article-id>
+<article-id pub-id-type="doi">10.21105/joss.10575</article-id>
+<title-group>
+<article-title>Joule Profiler: A phase-based energy measurement
+tool</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author" equal-contrib="yes">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0009-0005-0777-9090</contrib-id>
+<name>
+<surname>Woirhaye</surname>
+<given-names>Jérémy</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+<xref ref-type="aff" rid="aff-2"/>
+</contrib>
+<contrib contrib-type="author" equal-contrib="yes">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0009-0005-5164-8063</contrib-id>
+<name>
+<surname>Gibier</surname>
+<given-names>François</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+<xref ref-type="aff" rid="aff-2"/>
+</contrib>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0003-1771-8791</contrib-id>
+<name>
+<surname>Rouvoy</surname>
+<given-names>Romain</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+<xref ref-type="aff" rid="aff-2"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Inria, France</institution>
+</institution-wrap>
+</aff>
+<aff id="aff-2">
+<institution-wrap>
+<institution>University of Lille, France</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2026-03-30">
+<day>30</day>
+<month>3</month>
+<year>2026</year>
+</pub-date>
+<volume>11</volume>
+<issue>124</issue>
+<fpage>10575</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2026</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>energy measurement</kwd>
+<kwd>profiling</kwd>
+<kwd>Intel RAPL</kwd>
+<kwd>NVIDIA NVML</kwd>
+<kwd>Linux</kwd>
+<kwd>Rust</kwd>
+<kwd>green computing</kwd>
+<kwd>phase-based profiling</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p>Joule Profiler is a lightweight Linux command-line tool for
+  profiling a program’s energy consumption on bare-metal computing
+  environments with minimal instrumentation overhead. It enables users
+  to break a program’s execution into user-defined phases (e.g., data
+  loading, computation) and attribute energy use to each phase. The tool
+  detects phase triggers from program output and automatically queries
+  available hardware sources such as Intel RAPL (CPUs) or NVML (GPUs) to
+  report system-wide energy consumption.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p>Energy use in computing is a growing concern across research and
+  industry. Software running in clouds, data centers, and edge devices
+  contributes significantly to global energy consumption. Improving
+  efficiency requires tools that measure energy during execution.
+  Hardware counters on modern CPUs and GPUs (e.g., Intel RAPL) enable
+  software-based energy measurement without external devices.</p>
+  <p>Researchers and developers need simple tools to measure the energy
+  use of code segments without complex infrastructure. Joule Profiler
+  addresses this with phase-based profiling that integrates easily into
+  workflows.</p>
+</sec>
+<sec id="state-of-the-field">
+  <title>State of the field</title>
+  <p>Existing tools such as PowerAPI
+  (<xref alt="Fieni et al., 2024" rid="ref-powerapi" ref-type="bibr">Fieni
+  et al., 2024</xref>), Alumet
+  (<xref alt="Raffin &amp; Trystram, 2025" rid="ref-alumet" ref-type="bibr">Raffin
+  &amp; Trystram, 2025</xref>), Scaphandre
+  (<xref alt="Hubblo contributors, 2021" rid="ref-scaphandre" ref-type="bibr">Hubblo
+  contributors, 2021</xref>), and EnergiBridge
+  (<xref alt="Sallou et al., 2023" rid="ref-sallou_energibridge_2024" ref-type="bibr">Sallou
+  et al., 2023</xref>) monitor energy using these counters, often
+  focusing on distributed and system-level observability. JouleIt
+  (<xref alt="powerapi-ng contributors, 2022" rid="ref-jouleit" ref-type="bibr">powerapi-ng
+  contributors, 2022</xref>), which inspired this work, demonstrated a
+  light wrapper approach but lacked phase decomposition, GPU support,
+  and modularity.</p>
+  <p>These solutions are better suited for system-level monitoring, not
+  fine-grained analysis of program phases. Joule Profiler, in contrast,
+  is designed for lightweight, single-invocation use, enabling energy
+  attribution to specific program phases.</p>
+</sec>
+<sec id="software-design">
+  <title>Software design</title>
+  <sec id="phase-based-profiling">
+    <title>Phase-based profiling</title>
+    <fig id="figU003Aphases">
+      <caption><p>Process lifecycle illustrating sequential
+      phases</p></caption>
+      <graphic mimetype="image" mime-subtype="png" xlink:href="phases.png" />
+    </fig>
+    <p>Traditional energy measurement provides either total energy or
+    periodic power readings, leaving unclear which code regions are most
+    energy-intensive. Joule Profiler enables phase-based profiling,
+    letting users decompose execution into logical phases with minimal
+    code changes by watching standard output for phase markers.</p>
+    <p>Joule Profiler scans standard output for user-defined patterns to
+    detect phase boundaries. Developers can insert print statements at
+    important program points if needed, enabling phase identification
+    without intrusive instrumentation.</p>
+    <p>When a phase marker is detected, Joule Profiler records energy
+    counter values at that boundary. After execution, it computes
+    per-phase energy by subtracting these values.</p>
+  </sec>
+  <sec id="software-architecture">
+    <title>Software architecture</title>
+    <p>Joule Profiler has been designed to be modular. These modules
+    collect energy and performance metrics from multiple hardware
+    sources while keeping overhead low. To simplify extension and
+    maintenance, the measurement logic is isolated from the
+    hardware-specific implementations. Joule Profiler accesses RAPL
+    counters via the <monospace>perf_event</monospace> interface
+    (<xref alt="Linux Kernel Documentation, n.d.-a" rid="ref-linux_perf_event" ref-type="bibr">Linux
+    Kernel Documentation, n.d.-a</xref>), which exposes hardware
+    performance monitoring facilities. If
+    <monospace>perf_event</monospace> is unavailable, the tool falls
+    back to the powercap interface in Linux <monospace>sysfs</monospace>
+    (<xref alt="Linux Kernel Documentation, n.d.-b" rid="ref-linux_powercap" ref-type="bibr">Linux
+    Kernel Documentation, n.d.-b</xref>). For NVIDIA GPUs, it uses the
+    <italic>NVIDIA Management Library</italic> (NVML)
+    (<xref alt="NVIDIA, n.d." rid="ref-nvidia_nvml" ref-type="bibr">NVIDIA,
+    n.d.</xref>) to retrieve power consumption on compatible hardware.
+    Joule Profiler can also collect hardware performance counters via
+    <monospace>perf_event</monospace>, allowing energy measurements to
+    be correlated with performance events or split proportionally when
+    multiple components contribute, as shown in
+    Figure~<xref alt="[fig:archi]" rid="figU003Aarchi">[fig:archi]</xref>.</p>
+    <fig id="figU003Aarchi">
+      <caption><p>Software architecture of Joule Profiler, showing the
+      orchestrator coordinating measurement sources (RAPL, Nvidia-NVML,
+      perf events) and exporting results to Terminal, JSON, and CSV
+      formats.</p></caption>
+      <graphic mimetype="image" mime-subtype="png" xlink:href="archi.png" />
+    </fig>
+    <p>Internally, the tool is structured into layers. The core layer
+    handles the main logic: detecting phases, aggregating metrics, and
+    coordinating the measurement sources. Each source runs as an
+    asynchronous task, enabling parallel data collection and maintaining
+    temporal precision. The <italic>Command-Line Interface</italic>
+    (CLI) layer manages user interaction, parses configuration options,
+    and displays results. A source abstraction layer encapsulates each
+    hardware backend, such as RAPL, NVML, or performance counters, in a
+    separate module. This separation eases future integration of new
+    sources without affecting the rest of the system. This design allows
+    Joule Profiler to run on a large diversity of bare-metal machines
+    based on Intel and AMD processors. While Joule Profiler can also be
+    used in virtual environments, users are encouraged to check the
+    availability of measurement sources.</p>
+  </sec>
+</sec>
+<sec id="software-assessment">
+  <title>Software assessment</title>
+  <p>To validate its measurements, Joule Profiler was compared with the
+  reference tools perf
+  (<xref alt="Linux perf developers, 2024" rid="ref-perfwiki" ref-type="bibr">Linux
+  perf developers, 2024</xref>) and Alumet
+  (<xref alt="Raffin &amp; Trystram, 2025" rid="ref-alumet" ref-type="bibr">Raffin
+  &amp; Trystram, 2025</xref>), both of which use RAPL counters but
+  employ different strategies. This checks whether Joule Profiler
+  introduces measurement bias.</p>
+  <p>Three scenarios were tested: (1) Parallel runs of Joule Profiler
+  and perf (with CPU load) or Alumet (with GPU load) alongside a sleep
+  command, ensuring identical hardware activity and measurement noise;
+  (2) Sequential execution of Joule Profiler, perf, and Alumet with
+  workload pinned to a single CPU core, to compare overhead and
+  variability; and (3) A custom workload with periodic output tokens for
+  testing phase detection precision.</p>
+  <p>Experiments used Grid’5000 nodes: Chirop (Intel Xeon, RAPL, 512 GiB
+  RAM) and Chifflot (NVIDIA Tesla V100, NVML, 192 GiB RAM). Energy was
+  measured from RAPL (PACKAGE, DRAM) and NVML (GPU).
+  <monospace>perf_event</monospace> was used for access. Hyper-threading
+  was disabled, and the CPU frequency governor was set to performance to
+  reduce variability.</p>
+  <sec id="total-energy-comparison">
+    <title>Total energy comparison</title>
+    <sec id="parallel-execution">
+      <title>Parallel execution</title>
+      <p>We performed 4,000 measurements to achieve 80% power and
+      applied a <italic>Two One-Sided Tests</italic> (TOST) procedure
+      with an equivalence margin of 0.1% of the reference tool’s mean to
+      assess statistical equivalence.</p>
+      <fig id="figU003Arapl_energy_distribution">
+        <caption><p><italic>Empirical Cumulative Distribution
+        Function</italic> (ECDF) of energy measurements (J) across RAPL
+        domains (DRAM, PACKAGE) comparing perf and Joule Profiler, and
+        GPU comparing Alumet and Joule Profiler.</p></caption>
+        <graphic mimetype="application" mime-subtype="pdf" xlink:href="full_comparison_parallel.pdf" />
+      </fig>
+      <fig id="figU003Arapl_bland_altman">
+        <caption><p>Bland–Altman analysis of energy measurements (J)
+        across RAPL domains (DRAM, PACKAGE) comparing perf and Joule
+        Profiler, and GPU comparing Alumet and Joule
+        Profiler.</p></caption>
+        <graphic mimetype="image" mime-subtype="png" xlink:href="full_comparison_parallel2.png" />
+      </fig>
+      <p><xref alt="[fig:rapl_energy_distribution]" rid="figU003Arapl_energy_distribution">[fig:rapl_energy_distribution]</xref>
+      and
+      <xref alt="[fig:rapl_bland_altman]" rid="figU003Arapl_bland_altman">[fig:rapl_bland_altman]</xref>
+      show close agreement between Joule Profiler and the reference
+      tools. For <monospace>DRAM-0</monospace>, the bias is 0.013 J with
+      96.8% of measurements within the <italic>Limits of
+      Agreement</italic> (LoA). For <monospace>PACKAGE-0</monospace>,
+      the bias is 0.046 J with 95.8% within LoA, though variability
+      increases at high energy values, consistent with known RAPL noise
+      at the package level. For <monospace>GPU-0</monospace>, the bias
+      is 1.39 J with 94.5% within LoA, reflecting the higher natural
+      variability of GPU power sampling (coefficient of variation ~1.95%
+      for both tools). The Pearson correlation between Joule Profiler
+      and perf exceeded 99.9% for both RAPL domains and reached 99.5%
+      against Alumet for GPU. The TOST null hypotheses of
+      non-equivalence were rejected for all domains, confirming that
+      Joule Profiler does not introduce a significant measurement
+      bias.</p>
+    </sec>
+    <sec id="sequential-execution">
+      <title>Sequential execution</title>
+      <p>A sequential execution (2,000 runs) was used to compare the
+      tool’s overhead and variability. All tools produced nearly
+      identical distributions, with differences of &lt;0.1% (RAPL) and
+      &lt;0.5% (GPU), indicating minimal overhead.</p>
+      <fig id="figU003Asequential_comparison">
+        <caption><p>Energy distribution (J) across RAPL domains (DRAM,
+        PACKAGE) and GPU comparing perf, Alumet, and Joule
+        Profiler.</p></caption>
+        <graphic mimetype="application" mime-subtype="pdf" xlink:href="full_comparison_sequential.pdf" />
+      </fig>
+      <p><xref alt="[fig:sequential_comparison]" rid="figU003Asequential_comparison">[fig:sequential_comparison]</xref>
+      presents the energy distributions of perf, Joule Profiler, and
+      Alumet across sequential runs for RAPL domains and the GPU. In the
+      parallel scenario, all tools report nearly identical values, with
+      differences of less than 0.1% for RAPL domains and 0.5% for the
+      GPU. The sequential execution results show that Joule Profiler
+      does not introduce a significant overhead compared to Alumet and
+      perf.</p>
+    </sec>
+  </sec>
+  <sec id="phase-attribution-precision">
+    <title>Phase attribution precision</title>
+    <p>To evaluate the temporal accuracy of output-based phase
+    detection, we used a custom program that printed periodic tokens at
+    frequencies from 100 Hz to 1,000 Hz. We compared the print timestamp
+    with the timestamp at which Joule Profiler detected each token. This
+    was repeated 40 times at each frequency, with 10,000 measures per
+    iteration, to achieve 80% statistical power.</p>
+    <fig id="figU003Aphase_delay">
+      <caption><p>Median, first and last quartiles delay between phase
+      detection time and real phase start.</p></caption>
+      <graphic mimetype="application" mime-subtype="pdf" xlink:href="phase_delay_comparison.pdf" />
+    </fig>
+    <p><xref alt="[fig:phase_delay]" rid="figU003Aphase_delay">[fig:phase_delay]</xref>
+    shows that the baseline median detection delay is approximately 25
+    µs and remains stable across all frequencies. Joule Profiler
+    introduces an additional median delay of 11 µs, with a coefficient
+    of variation increasing from 23% below 800 Hz to 28% at 1,000 Hz.
+    Under CPU load (stress-ng), the baseline delay drops to 2 µs, and
+    Joule Profiler to 3 µs, confirming that idle-state latency is the
+    primary source of delay. These results confirm that output-based
+    instrumentation is viable for workloads with phase durations
+    exceeding 1 ms, consistent with the RAPL counter’s 1,000 Hz refresh
+    rate.</p>
+  </sec>
+</sec>
+<sec id="research-impact-statement">
+  <title>Research impact statement</title>
+  <p>Joule Profiler was initially developed at
+  <ext-link ext-link-type="uri" xlink:href="https://www.inria.fr/fr">Inria</ext-link>
+  and the
+  <ext-link ext-link-type="uri" xlink:href="https://www.univ-lille.fr">University
+  of Lille</ext-link> to benchmark
+  <italic>Function-as-a-Service</italic> (FaaS) workloads by isolating
+  per-phase energy consumption and studying the impact of FaaS
+  environment configurations. Since then, it has also been used as a
+  reference tool for monitoring CI/CD workloads, providing detailed
+  analysis of the energy consumption of build workflows. It is currently
+  being extended to support distributed settings in the context of
+  federated learning.</p>
+  <p>All validation experiments used the Grid’5000/SLICES-FR testbed, a
+  shared French research infrastructure. Joule Profiler is intentionally
+  compatible with its hardware and workflows. Joule Profiler is intended
+  to be executed in bare-metal environments that expose the required
+  sources (RAPL, NVML) under Linux.</p>
+  <p>Joule Profiler is open source (MIT) at
+  <ext-link ext-link-type="uri" xlink:href="https://github.com/joule-profiler/joule-profiler">https://github.com/joule-profiler/joule-profiler</ext-link>,
+  with versioned releases and documentation.</p>
+</sec>
+<sec id="ai-usage-disclosure">
+  <title>AI usage disclosure</title>
+  <p>This submission used generative AI tools only during early project
+  stages.</p>
+  <p><bold>Tool identification.</bold>
+  The authors used Claude Sonnet 4.5 (Anthropic) as a generative AI
+  assistant during the project bootstrap phase.</p>
+  <p><bold>Scope of assistance.</bold>
+  AI assisted with repository structure, initial boilerplate, and early
+  organizational guidance.</p>
+  <p><bold>Human verification and oversight.</bold>
+  All AI outputs were reviewed and validated by the authors, who made
+  all key decisions and ensured compliance with standards.</p>
+  <p>The authors take full responsibility for the accuracy, originality,
+  and integrity of the submitted work.</p>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>This work received support from the France 2030 program under grant
+  agreement <monospace>ANR-23-PECL-0003</monospace>
+  (<ext-link ext-link-type="uri" xlink:href="https://carecloud.irisa.fr">CARECloud</ext-link>
+  project of the
+  <ext-link ext-link-type="uri" xlink:href="https://pepr-cloud.fr/">PEPR
+  CLOUD</ext-link> research program), and from the Inria–Qarnot PULSE
+  project
+  (<ext-link ext-link-type="uri" xlink:href="https://defi-pulse.github.io/">https://defi-pulse.github.io/</ext-link>).
+  Experiments were carried out using the Grid’5000 testbed, supported by
+  a scientific interest group hosted by Inria and including CNRS,
+  RENATER, and several universities (see
+  <ext-link ext-link-type="uri" xlink:href="https://www.grid5000.fr">https://www.grid5000.fr</ext-link>).</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <title></title>
+  <ref id="ref-alumet">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Raffin</surname><given-names>Guillaume</given-names></name>
+        <name><surname>Trystram</surname><given-names>Denis</given-names></name>
+      </person-group>
+      <article-title>Dissecting the software-based measurement of CPU energy consumption: A comparative analysis</article-title>
+      <source>IEEE Transactions on Parallel and Distributed Systems</source>
+      <year iso-8601-date="2025">2025</year>
+      <volume>36</volume>
+      <issue>1</issue>
+      <pub-id pub-id-type="doi">10.1109/TPDS.2024.3492336</pub-id>
+      <fpage>96</fpage>
+      <lpage>107</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-scaphandre">
+    <element-citation>
+      <person-group person-group-type="author">
+        <string-name>Hubblo contributors</string-name>
+      </person-group>
+      <article-title>Scaphandre: Energy Consumption Metrics Agent for Linux</article-title>
+      <year iso-8601-date="2021">2021</year>
+      <uri>https://github.com/hubblo-org/scaphandre</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-powerapi">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Fieni</surname><given-names>Guillaume</given-names></name>
+        <name><surname>Acero</surname><given-names>Daniel Romero</given-names></name>
+        <name><surname>Rust</surname><given-names>Pierre</given-names></name>
+        <name><surname>Rouvoy</surname><given-names>Romain</given-names></name>
+      </person-group>
+      <article-title>PowerAPI: A Python framework for building software-defined power meters</article-title>
+      <source>Journal of Open Source Software</source>
+      <publisher-name>Open Journals</publisher-name>
+      <year iso-8601-date="2024-06">2024</year><month>06</month>
+      <volume>9</volume>
+      <issue>98</issue>
+      <uri>https://hal.science/hal-04601379</uri>
+      <pub-id pub-id-type="doi">10.21105/joss.06670</pub-id>
+      <fpage>6670</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-linux_powercap">
+    <element-citation>
+      <person-group person-group-type="author">
+        <string-name>Linux Kernel Documentation</string-name>
+      </person-group>
+      <article-title>Power capping framework</article-title>
+      <publisher-name>https://docs.kernel.org/power/powercap/powercap.html</publisher-name>
+    </element-citation>
+  </ref>
+  <ref id="ref-nvidia_nvml">
+    <element-citation>
+      <person-group person-group-type="author">
+        <string-name>NVIDIA</string-name>
+      </person-group>
+      <article-title>NVIDIA management library (NVML) documentation</article-title>
+      <publisher-name>https://docs.nvidia.com/deploy/nvml-api/</publisher-name>
+    </element-citation>
+  </ref>
+  <ref id="ref-linux_perf_event">
+    <element-citation>
+      <person-group person-group-type="author">
+        <string-name>Linux Kernel Documentation</string-name>
+      </person-group>
+      <article-title>Perf events and tool security</article-title>
+      <publisher-name>https://docs.kernel.org/admin-guide/perf-security.html</publisher-name>
+    </element-citation>
+  </ref>
+  <ref id="ref-perfwiki">
+    <element-citation publication-type="webpage">
+      <person-group person-group-type="author">
+        <string-name>Linux perf developers</string-name>
+      </person-group>
+      <article-title>Perf: Linux profiling with performance counters</article-title>
+      <year iso-8601-date="2024">2024</year>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2026-03-16">2026</year><month>03</month><day>16</day></date-in-citation>
+      <uri>https://perfwiki.github.io/main/</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-sallou_energibridge_2024">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Sallou</surname><given-names>June</given-names></name>
+        <name><surname>Cruz</surname><given-names>Luís</given-names></name>
+        <name><surname>Durieux</surname><given-names>Thomas</given-names></name>
+      </person-group>
+      <article-title>EnergiBridge: Empowering software sustainability through cross-platform energy measurement</article-title>
+      <year iso-8601-date="2023">2023</year>
+      <pub-id pub-id-type="doi">10.48550/arXiv.2312.13897</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-jouleit">
+    <element-citation publication-type="software">
+      <person-group person-group-type="author">
+        <string-name>powerapi-ng contributors</string-name>
+      </person-group>
+      <article-title>JouleIt: A bash script for measuring energy consumption on Linux</article-title>
+      <year iso-8601-date="2022">2022</year>
+      <uri>https://github.com/powerapi-ng/jouleit</uri>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
