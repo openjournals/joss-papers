@@ -1,0 +1,656 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">10124</article-id>
+<article-id pub-id-type="doi">10.21105/joss.10124</article-id>
+<title-group>
+<article-title>pycopm: An open-source tool to tailor OPM Flow geological
+models</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author" corresp="yes">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0002-3343-1005</contrib-id>
+<name>
+<surname>Landa-Marbán</surname>
+<given-names>David</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+<xref ref-type="corresp" rid="cor-1"><sup>*</sup></xref>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>NORCE Research AS, Bergen, Norway</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<author-notes>
+<corresp id="cor-1">* E-mail: <email></email></corresp>
+</author-notes>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2026-05-11">
+<day>11</day>
+<month>5</month>
+<year>2026</year>
+</pub-date>
+<volume>11</volume>
+<issue>124</issue>
+<fpage>10124</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2026</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>Coarsening</kwd>
+<kwd>OPM Flow</kwd>
+<kwd>Refinement</kwd>
+<kwd>Submodels</kwd>
+<kwd>Transformations</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p>Reservoir simulations help the energy industry make better
+  decisions by predicting how fluids like oil, gas, water, hydrogen, and
+  carbon dioxide will flow underground. To keep these predictions
+  accurate, engineers often need to update geological models quickly as
+  new information becomes available. <monospace>pycopm</monospace> is a
+  tool designed to make this process faster and easier. It allows users
+  to adjust geological models in several ways, such as simplifying
+  complex grids, focusing on specific parts of a reservoir, or changing
+  the shape and position of the model (Figure
+  <xref alt="[pycopm-graphical-abstract]" rid="pycopm-graphical-abstract">[pycopm-graphical-abstract]</xref>).
+  These capabilities help engineers test different scenarios
+  efficiently. Although <monospace>pycopm</monospace> was first used on
+  two well‑known public datasets, it has since become useful in many
+  other situations because of its easy‑to‑use features and recent
+  extensions. Today, it supports studies involving model refinement,
+  comparing coarse and detailed models, analyzing interactions between
+  nearby sites, and speeding up troubleshooting in large
+  simulations.</p>
+  <fig>
+    <caption><p>Graphical representation of pycopm’s functionality
+    (<ext-link ext-link-type="uri" xlink:href="https://cssr-tools.github.io/pycopm/examples.html#graphical-abstract">here</ext-link>
+    are details to reproduce this).
+    <styled-content id="pycopm-graphical-abstract"></styled-content>}</p></caption>
+    <graphic mimetype="image" mime-subtype="png" xlink:href="paper.png" />
+  </fig>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p>The first step in reservoir simulations is to choose a simulation
+  model, which serves as the computational representation of a
+  geological model, incorporating properties such as heterogeneity,
+  physics, fluid properties, boundary conditions, and wells. Once the
+  spatial model is designed, it is discretized into cells containing
+  average properties of the continuous reservoir model. All this
+  information is then communicated to the simulator, which internally
+  solves conservation equations (mass, momentum, and energy) and
+  constitutive equations (e.g., saturation functions, well models) to
+  perform the predictions. OPM Flow is an open-source simulator for
+  subsurface applications such as hydrocarbon recovery,
+  CO<inline-formula><alternatives>
+  <tex-math><![CDATA[_2]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi></mml:mi><mml:mn>2</mml:mn></mml:msub></mml:math></alternatives></inline-formula>
+  storage, and H<inline-formula><alternatives>
+  <tex-math><![CDATA[_2]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi></mml:mi><mml:mn>2</mml:mn></mml:msub></mml:math></alternatives></inline-formula>
+  storage
+  (<xref alt="Rasmussen et al., 2021" rid="ref-RassmussenU003A2021" ref-type="bibr">Rasmussen
+  et al., 2021</xref>). The input files of OPM Flow follow the
+  industry-standard Eclipse format. The different functionalities are
+  defined using keywords in a main input deck with the .DATA extension,
+  while additional information is typically provided in supplementary
+  .INC files, including tables for saturation functions and PVT
+  (pressure-volume-temperature) properties, as well as the grid
+  discretization. We refer to the
+  <ext-link ext-link-type="uri" xlink:href="https://opm-project.org/?page_id=955">OPM
+  Flow manual</ext-link> for an introduction to OPM Flow and all
+  supported keywords.</p>
+  <p>Simulation models can be substantial, typically encompassing
+  millions of cells, and can be quite complex due to the number of wells
+  and faults, defined by cell indices in the x, y, and z direction (i,
+  j, and k nomenclature). While manually modifying small input decks is
+  feasible, it becomes impractical for large models. In addition, these
+  models commonly rely on corner‑point grids defined through pillars and
+  horizons, and they may include further geometric modifications
+  specified through deck keywords. Such representations are not
+  intuitive to manipulate, particularly for users who are not familiar
+  with the internal structure of simulation decks.</p>
+  <p>These challenges inspired the development of
+  <monospace>pycopm</monospace>, a user-friendly Python tool designed to
+  tailor geological models from provided input decks.
+  <monospace>pycopm</monospace> is intended for researchers, engineers,
+  and students who need to apply model transformations such as
+  coarsening, refinement, submodel extraction, and structural
+  adjustments. The coarsening and refinement capabilities are especially
+  relevant in current workflows, since multi‑fidelity modeling has
+  become an active and widely adopted research direction that requires
+  the flexibility to generate models with different levels of
+  complexity.</p>
+</sec>
+<sec id="state-of-the-field">
+  <title>State of the field</title>
+  <p>Two key properties in a reservoir model are its storage capacity,
+  measured by pore volume, and the ability of fluids to flow between
+  cells, known as transmissibilities. Therefore, these properties must
+  be properly handled when generating a new model. While grid
+  refinements and transformations do not pose a significant issue,
+  submodels and grid coarsening present challenges due to the lack of
+  unique methods for addressing these properties. In other words, the
+  approach depends on the specific model, and while there are a few
+  methods in the literature, this remains an active area of
+  research.</p>
+  <p>Two of the most widely used commercial software suites in reservoir
+  modeling are
+  <ext-link ext-link-type="uri" xlink:href="https://www.slb.com/products-and-services/delivering-digital-at-scale/software/petrel-subsurface-software">Petrel</ext-link>
+  and
+  <ext-link ext-link-type="uri" xlink:href="https://www.aspentech.com/en/products/sse/aspen-rms">Aspen
+  RMS</ext-link>. Petrel provides an integrated, end-to-end environment
+  that spans workflows from seismic interpretation to reservoir
+  simulation, enabling users to construct simulation-ready models with
+  customized gridding strategies. Aspen RMS, while also capable of
+  handling 3D and 4D seismic data and integrating these into reservoir
+  models, is more strongly focused on geological modeling and reservoir
+  characterization. Despite their extensive capabilities, both platforms
+  are highly complex and demand significant user expertise, often
+  involving steep learning curves. Additionally, their use is
+  constrained by proprietary licensing models, which can limit
+  accessibility and reproducibility, particularly in academic and open
+  research contexts.</p>
+  <p><ext-link ext-link-type="uri" xlink:href="https://github.com/OPM/opm-upscaling">opm-upscaling</ext-link>
+  is part of the
+  <ext-link ext-link-type="uri" xlink:href="https://opm-project.org/?page_id=23">OPM
+  initiative</ext-link>, and provides a set of C++ tools focused on
+  single-phase and steady-state upscaling of capillary pressure and
+  relative permeability. However, it does not include functionality for
+  grid refinement or affine transformations, and its upscaling routines
+  operate mainly on the grid structure. As a result, users must manually
+  adjust the remaining components of the deck to match the new i, j, and
+  k indices. Examples include updating the locations of wells, numerical
+  aquifers, and other model elements.</p>
+  <p><ext-link ext-link-type="uri" xlink:href="https://resinsight.org">ResInsight</ext-link>
+  is an open-source C++ tool designed for postprocessing reservoir
+  models and simulations. It can export modified simulation grids and
+  supports operations such as grid refinement and submodel extraction.
+  Nevertheless, it does not generate an updated input deck reflecting
+  the modified i, j, and k coordinates. It also lacks built-in
+  capabilities for model coarsening or for applying general affine
+  transformations. Users on macOS may encounter installation challenges,
+  and the software has difficulty handling models with very small cell
+  dimensions (below 1 mm) or with very large cell counts (greater than
+  100 million).</p>
+  <p>To the author’s knowledge, prior to the development of
+  <monospace>pycopm</monospace> there was no integrated Python-based
+  solution that combined coarsening, refinement, submodel extraction,
+  and geometric transformations for modifying geological models
+  compatible with OPM Flow. Python offers a significantly more
+  accessible environment than C++, which lowers the entry barrier for
+  researchers, engineers, and students who need flexible model
+  manipulation tools. <monospace>pycopm</monospace> offers flexibility
+  in selecting different approaches, allowing end-users to compare
+  methods and choose the one that best fits their needs. For additional
+  information about the different approaches implemented in
+  <monospace>pycopm</monospace> for coarsenings, refinements, submodels,
+  and transformations, see the section on
+  <ext-link ext-link-type="uri" xlink:href="https://cssr-tools.github.io/pycopm/theory.html">theory</ext-link>
+  in <monospace>pycopm</monospace>’s documentation.</p>
+</sec>
+<sec id="software-design">
+  <title>Software design</title>
+  <p><monospace>pycopm</monospace> leverages well-established and
+  excellent Python libraries. The Python package numpy
+  (<xref alt="Harris et al., 2020" rid="ref-2020NumPy-Array" ref-type="bibr">Harris
+  et al., 2020</xref>) forms the basis for performing array operations.
+  The Shapely package
+  (<xref alt="Gillies et al., 2025" rid="ref-Gillies_Shapely_2025" ref-type="bibr">Gillies
+  et al., 2025</xref>), particularly the
+  <monospace>contains_xy</monospace> method, is fundamental for submodel
+  implementation used to locate grid cells within a given polygon. To
+  parse the output binary files of OPM Flow, the
+  <ext-link ext-link-type="uri" xlink:href="https://pypi.org/project/opm/">opm</ext-link>
+  Python libraries are utilized. The primary methods developed in
+  <monospace>pycopm</monospace> include handling of corner-point grids,
+  upscaling transmissibilities in complex models with faults
+  (non-neighboring connections) and inactive cells, projecting pore
+  volumes on submodel boundaries, interpolating to extend the definition
+  of i, j, and k dependent properties (e.g., wells, faults) in grid
+  refinement, and parsing and writing input decks.</p>
+  <p>While graphical user interfaces (GUIs) are generally more intuitive
+  for beginners, command-line interfaces (CLIs) offer advantages in
+  speed and efficiency, enable powerful automation and scripting,
+  provide fine-grained control, require minimal computational resources,
+  and integrate naturally with modern AI-driven workflows. Therefore,
+  interaction with the tool is performed through a terminal executable
+  named <monospace>pycopm</monospace>, which provides a set of
+  command-line flags (29 at the time of writing; see the online
+  documentation for the
+  <ext-link ext-link-type="uri" xlink:href="https://cssr-tools.github.io/pycopm/introduction.html#overview">current
+  list</ext-link>). These flags control the desired functionality, such
+  as specifying the input deck, defining how the model should be
+  modified, and selecting the output file name. This design enables
+  users to chain multiple operations by further editing the generated
+  decks. For example, a user may refine a model first and subsequently
+  extract a submodel. An illustrative example is provided in
+  <ext-link ext-link-type="uri" xlink:href="https://github.com/cssr-tools/pycopm/blob/main/tests/test_4_submodel.py">test_4_submodel.py</ext-link>
+  in the project repository. Advanced users who are familiar with Python
+  can access the underlying functionality directly through Python
+  scripts. This provides greater flexibility for integrating the tool
+  into more sophisticated workflows and for customizing model
+  transformations to meet specific research or engineering needs.</p>
+  <p>Internally, <monospace>pycopm</monospace> is structured as a
+  modular Python package with clearly defined subpackages, each
+  responsible for a specific aspect of the workflow. These include:</p>
+  <list list-type="bullet">
+    <list-item>
+      <p>input parsing and deck processing,</p>
+    </list-item>
+    <list-item>
+      <p>grid construction and transformations,</p>
+    </list-item>
+    <list-item>
+      <p>property mapping and upscaling,</p>
+    </list-item>
+    <list-item>
+      <p>file generation and output writing, and</p>
+    </list-item>
+    <list-item>
+      <p>execution and workflow control.</p>
+    </list-item>
+  </list>
+  <p>This separation of concerns enhances maintainability and
+  extensibility, allowing developers to modify or extend individual
+  components without affecting the overall system. The primary design
+  goal of <monospace>pycopm</monospace> is to provide flexibility for
+  handling and modifying reservoir models, rather than focusing on
+  support for multiple data deck formats or maximizing raw computational
+  performance. This flexibility is enabled by its Python-based
+  implementation and modular architecture.</p>
+</sec>
+<sec id="research-impact-statement">
+  <title>Research impact statement</title>
+  <p><monospace>pycopm</monospace> is already being adopted across
+  several projects at NORCE Research AS and Equinor ASA. The user base
+  is growing, with increased activity observed across multiple
+  locations. GitHub traffic insights also show a steady rise in
+  repository clones, indicating expanding interest and usage.</p>
+  <p>The software has supported several research publications,
+  including:</p>
+  <list list-type="bullet">
+    <list-item>
+      <p>Sandve et al.
+      (<xref alt="2024" rid="ref-2024sandve" ref-type="bibr">2024</xref>),
+      where it was used to coarsen the Drogon model for history
+      matching,</p>
+    </list-item>
+    <list-item>
+      <p>Nilsen et al.
+      (<xref alt="2025" rid="ref-nilsen2025" ref-type="bibr">2025</xref>),
+      which applied coarsening of the same model to optimize operations
+      using wind energy,</p>
+    </list-item>
+    <list-item>
+      <p>Sandve et al.
+      (<xref alt="2025" rid="ref-Sandve2025" ref-type="bibr">2025</xref>),
+      where submodel extraction and coarsening were applied to the Troll
+      aquifer model to analyze pressure interference, and</p>
+    </list-item>
+    <list-item>
+      <p>Landa-Marbán et al.
+      (<xref alt="2025" rid="ref-landamarbán2025" ref-type="bibr">2025</xref>),
+      which used coarsening of the Troll aquifer model to optimize well
+      placement in CO<inline-formula><alternatives>
+      <tex-math><![CDATA[_2]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi></mml:mi><mml:mn>2</mml:mn></mml:msub></mml:math></alternatives></inline-formula>
+      storage simulations.</p>
+    </list-item>
+  </list>
+  <p><monospace>pycopm</monospace> is part of the software suite
+  developed within the
+  <ext-link ext-link-type="uri" xlink:href="https://cssr.no">Centre for
+  Sustainable Subsurface Resources</ext-link> and maintained under the
+  <ext-link ext-link-type="uri" xlink:href="https://github.com/cssr-tools">cssr-tools</ext-link>
+  GitHub organization. A key objective of these tools is to support
+  research outputs that adhere to the FAIR principles (Findable,
+  Accessible, Interoperable, Reusable) originally formalized in
+  Wilkinson et al.
+  (<xref alt="2016" rid="ref-Wilkinson2016" ref-type="bibr">2016</xref>).
+  These principles have not been consistently implemented in subsurface
+  research in recent years
+  (<xref alt="Liu et al., 2026" rid="ref-liu2025" ref-type="bibr">Liu et
+  al., 2026</xref>), limiting the long-term impact and reproducibility
+  of published results. To address this, significant effort has been
+  dedicated to building comprehensive online documentation that enables
+  users to reproduce figures, tables, and computational workflows from
+  recent publications. For example, the
+  <ext-link ext-link-type="uri" xlink:href="https://cssr-tools.github.io/expreccs/tccs-13.html#">TCCS-13</ext-link>
+  documentation includes step‑by‑step terminal commands required to
+  generate the results presented in Landa-Marbán et al.
+  (<xref alt="2025" rid="ref-landamarbán2025" ref-type="bibr">2025</xref>).
+  This ensures that published work is not only transparent but also
+  directly reusable by other researchers, enhancing scientific rigor and
+  accelerating future developments.</p>
+  <p>Looking ahead to increase the research impact, the plan for
+  <monospace>pycopm</monospace>’s future development includes extending
+  its functionality to support additional keywords from input decks
+  beyond those in geological models, on which
+  <monospace>pycopm</monospace> has been successfully tested
+  (<ext-link ext-link-type="uri" xlink:href="https://github.com/OPM/opm-tests/tree/master/drogon">Drogon</ext-link>,
+  <ext-link ext-link-type="uri" xlink:href="https://github.com/OPM/opm-tests/tree/master/norne">Norne</ext-link>,
+  <ext-link ext-link-type="uri" xlink:href="https://co2datashare.org/dataset/smeaheia-dataset">Smeaheia</ext-link>,
+  <ext-link ext-link-type="uri" xlink:href="https://github.com/OPM/opm-data/tree/master/spe10model2">SPE10</ext-link>,
+  <ext-link ext-link-type="uri" xlink:href="https://arxiv.org/abs/2508.08670">Troll
+  aquifer model</ext-link>). This support will be added as
+  <monospace>pycopm</monospace> is applied in further models, and
+  external contributions to the tool are welcomed. Additionally,
+  extending <monospace>pycopm</monospace>’s capabilities includes
+  implementing a feature to generate a single input deck by combining
+  geological models from different input decks.</p>
+</sec>
+<sec id="ai-usage-disclosure">
+  <title>AI usage disclosure</title>
+  <p>No generative AI tools were used in the original development of the
+  software submitted to JOSS. Microsoft M365 Copilot, based on a GPT-5
+  reasoning model, was used to review and improve the writing of the
+  manuscript. During the JOSS review, Copilot was also used to assist
+  with expanding the API documentation, modernizing the code, optimizing
+  performance, extending the test suite, and increasing test coverage of
+  command-line argument validation. All AI-assisted suggestions and
+  changes were reviewed, edited, and validated by the author, who takes
+  full responsibility for the resulting manuscript and software.</p>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>The author acknowledges funding from the
+  <ext-link ext-link-type="uri" xlink:href="https://cssr.no">Center for
+  Sustainable Subsurface Resources (CSSR)</ext-link>, grant nr. 331841,
+  supported by the Research Council of Norway, research partners NORCE
+  Norwegian Research Centre and the University of Bergen, and user
+  partners Equinor ASA, Harbour Energy, Sumitomo Corporation, Earth
+  Science Analytics, GCE Ocean Technology, and SLB Scandinavia. The
+  author also acknowledges funding from the
+  <ext-link ext-link-type="uri" xlink:href="https://www.norceresearch.no/en/projects/expansion-of-resources-for-co2-storage-on-the-horda-platform-expreccs">Expansion
+  of Resources for CO2 Storage on the Horda Platform (ExpReCCS)
+  project</ext-link>, grant nr. 336294, supported by the Research
+  Council of Norway, Equinor ASA, A/S Norske Shell, and Harbour Energy
+  Norge AS. The author extends sincere gratitude to Tor Harald Sandve
+  and Sarah Gasda for their valuable insights that significantly
+  enhanced the development of <monospace>pycopm</monospace>.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <title></title>
+  <ref id="ref-RassmussenU003A2021">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Rasmussen</surname><given-names>Atgeirr Flø</given-names></name>
+        <name><surname>Sandve</surname><given-names>Tor Harald</given-names></name>
+        <name><surname>Bao</surname><given-names>Kai</given-names></name>
+        <name><surname>Lauser</surname><given-names>Andreas</given-names></name>
+        <name><surname>Hove</surname><given-names>Joakim</given-names></name>
+        <name><surname>Skaflestad</surname><given-names>Bård</given-names></name>
+        <name><surname>Klöfkorn</surname><given-names>Robert</given-names></name>
+        <name><surname>Blatt</surname><given-names>Markus</given-names></name>
+        <name><surname>Rustad</surname><given-names>Alf Birger</given-names></name>
+        <name><surname>Sævareid</surname><given-names>Ove</given-names></name>
+        <name><surname>Lie</surname><given-names>Knut-Andreas</given-names></name>
+        <name><surname>Thune</surname><given-names>Andreas</given-names></name>
+      </person-group>
+      <article-title>The open porous media flow reservoir simulator</article-title>
+      <source>Computers &amp; Mathematics with Applications</source>
+      <year iso-8601-date="2021">2021</year>
+      <volume>81</volume>
+      <issn>0898-1221</issn>
+      <uri>https://www.sciencedirect.com/science/article/pii/S0898122120302182</uri>
+      <pub-id pub-id-type="doi">10.1016/j.camwa.2020.05.014</pub-id>
+      <fpage>159</fpage>
+      <lpage>185</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-2020NumPy-Array">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Harris</surname><given-names>Charles R.</given-names></name>
+        <name><surname>Millman</surname><given-names>K. Jarrod</given-names></name>
+        <name><surname>Walt</surname><given-names>Stéfan J van der</given-names></name>
+        <name><surname>Gommers</surname><given-names>Ralf</given-names></name>
+        <name><surname>Virtanen</surname><given-names>Pauli</given-names></name>
+        <name><surname>Cournapeau</surname><given-names>David</given-names></name>
+        <name><surname>Wieser</surname><given-names>Eric</given-names></name>
+        <name><surname>Taylor</surname><given-names>Julian</given-names></name>
+        <name><surname>Berg</surname><given-names>Sebastian</given-names></name>
+        <name><surname>Smith</surname><given-names>Nathaniel J.</given-names></name>
+        <name><surname>Kern</surname><given-names>Robert</given-names></name>
+        <name><surname>Picus</surname><given-names>Matti</given-names></name>
+        <name><surname>Hoyer</surname><given-names>Stephan</given-names></name>
+        <name><surname>Kerkwijk</surname><given-names>Marten H. van</given-names></name>
+        <name><surname>Brett</surname><given-names>Matthew</given-names></name>
+        <name><surname>Haldane</surname><given-names>Allan</given-names></name>
+        <name><surname>Fernández del Río</surname><given-names>Jaime</given-names></name>
+        <name><surname>Wiebe</surname><given-names>Mark</given-names></name>
+        <name><surname>Peterson</surname><given-names>Pearu</given-names></name>
+        <name><surname>Gérard-Marchant</surname><given-names>Pierre</given-names></name>
+        <name><surname>Sheppard</surname><given-names>Kevin</given-names></name>
+        <name><surname>Reddy</surname><given-names>Tyler</given-names></name>
+        <name><surname>Weckesser</surname><given-names>Warren</given-names></name>
+        <name><surname>Abbasi</surname><given-names>Hameer</given-names></name>
+        <name><surname>Gohlke</surname><given-names>Christoph</given-names></name>
+        <name><surname>Oliphant</surname><given-names>Travis E.</given-names></name>
+      </person-group>
+      <article-title>Array programming with NumPy</article-title>
+      <source>Nature</source>
+      <year iso-8601-date="2020">2020</year>
+      <volume>585</volume>
+      <pub-id pub-id-type="doi">10.1038/s41586-020-2649-2</pub-id>
+      <fpage>357</fpage>
+      <lpage>362</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Gillies_Shapely_2025">
+    <element-citation publication-type="software">
+      <person-group person-group-type="author">
+        <name><surname>Gillies</surname><given-names>Sean</given-names></name>
+        <name><surname>Wel</surname><given-names>Casper van der</given-names></name>
+        <name><surname>Van den Bossche</surname><given-names>Joris</given-names></name>
+        <name><surname>Taves</surname><given-names>Mike W.</given-names></name>
+        <name><surname>Arnott</surname><given-names>Joshua</given-names></name>
+        <name><surname>Ward</surname><given-names>Brendan C.</given-names></name>
+        <name><surname>others</surname></name>
+      </person-group>
+      <article-title>Shapely</article-title>
+      <year iso-8601-date="2025-01">2025</year><month>01</month>
+      <uri>https://github.com/shapely/shapely</uri>
+      <pub-id pub-id-type="doi">10.5281/zenodo.5597138</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-2024sandve">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Sandve</surname><given-names>T. H.</given-names></name>
+        <name><surname>Lorentzen</surname><given-names>R. J.</given-names></name>
+        <name><surname>Landa-Marbán</surname><given-names>D.</given-names></name>
+        <name><surname>Fossum</surname><given-names>K.</given-names></name>
+      </person-group>
+      <article-title>Closed-loop reservoir management using fast data-calibrated coarse models</article-title>
+      <source></source>
+      <publisher-name>European Association of Geoscientists &amp;amp; Engineers</publisher-name>
+      <year iso-8601-date="2024">2024</year>
+      <volume>2024</volume>
+      <issue>1</issue>
+      <issn>2214-4609</issn>
+      <uri>https://www.earthdoc.org/content/papers/10.3997/2214-4609.202437071</uri>
+      <pub-id pub-id-type="doi">10.3997/2214-4609.202437071</pub-id>
+      <fpage>1</fpage>
+      <lpage>15</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-nilsen2025">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Nilsen</surname><given-names>Mathias M.</given-names></name>
+        <name><surname>Lorentzen</surname><given-names>Rolf J.</given-names></name>
+        <name><surname>Leeuwenburgh</surname><given-names>Olwijn</given-names></name>
+        <name><surname>Stordal</surname><given-names>Andreas S.</given-names></name>
+        <name><surname>Barros</surname><given-names>Eduardo</given-names></name>
+      </person-group>
+      <article-title>Closed-loop workflow for short-term optimization of wind-powered reservoir management</article-title>
+      <source>Cleaner Energy Systems</source>
+      <year iso-8601-date="2025">2025</year>
+      <volume>12</volume>
+      <issn>2772-7831</issn>
+      <uri>https://www.sciencedirect.com/science/article/pii/S2772783125000445</uri>
+      <pub-id pub-id-type="doi">10.1016/j.cles.2025.100213</pub-id>
+      <fpage>100213</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-landamarbán2025">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Landa-Marbán</surname><given-names>David</given-names></name>
+        <name><surname>Sandve</surname><given-names>Tor Harald</given-names></name>
+        <name><surname>Gasda</surname><given-names>Sarah Eileen</given-names></name>
+      </person-group>
+      <article-title>A coarsening approach to the troll aquifer model</article-title>
+      <year iso-8601-date="2025">2025</year>
+      <uri>https://arxiv.org/abs/2508.08670</uri>
+      <pub-id pub-id-type="doi">10.48550/arXiv.2508.08670</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-Sandve2025">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Sandve</surname><given-names>T. H.</given-names></name>
+        <name><surname>Boon</surname><given-names>W.</given-names></name>
+        <name><surname>Landa-Marbán</surname><given-names>D.</given-names></name>
+        <name><surname>Tveit</surname><given-names>S.</given-names></name>
+        <name><surname>Gasda</surname><given-names>S. E.</given-names></name>
+      </person-group>
+      <article-title>Multi-scale simulation strategies for managing pressure interference in multi-site CO2 storage in large regional aquifers</article-title>
+      <source></source>
+      <publisher-name>European Association of Geoscientists &amp;amp; Engineers</publisher-name>
+      <year iso-8601-date="2025">2025</year>
+      <volume>2025</volume>
+      <issue>1</issue>
+      <issn>2214-4609</issn>
+      <uri>https://www.earthdoc.org/content/papers/10.3997/2214-4609.202521134</uri>
+      <pub-id pub-id-type="doi">10.3997/2214-4609.202521134</pub-id>
+      <fpage>1</fpage>
+      <lpage>4</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-liu2025">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Liu</surname><given-names>Na</given-names></name>
+        <name><surname>Both</surname><given-names>Jakub Wiktor</given-names></name>
+        <name><surname>Ersland</surname><given-names>Geir</given-names></name>
+        <name><surname>Nordbotten</surname><given-names>Jan Martin</given-names></name>
+        <name><surname>Fernø</surname><given-names>Martin A.</given-names></name>
+      </person-group>
+      <article-title>Trends in porous media laboratory imaging and open science practices</article-title>
+      <source>Advances in Colloid and Interface Science</source>
+      <year iso-8601-date="2026">2026</year>
+      <volume>352</volume>
+      <issn>0001-8686</issn>
+      <uri>https://www.sciencedirect.com/science/article/pii/S0001868626000564</uri>
+      <pub-id pub-id-type="doi">10.1016/j.cis.2026.103831</pub-id>
+      <fpage>103831</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Wilkinson2016">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Wilkinson</surname><given-names>Mark D.</given-names></name>
+        <name><surname>Dumontier</surname><given-names>Michel</given-names></name>
+        <name><surname>Aalbersberg</surname><given-names>IJsbrand Jan</given-names></name>
+        <name><surname>Appleton</surname><given-names>Gabrielle</given-names></name>
+        <name><surname>Axton</surname><given-names>Myles</given-names></name>
+        <name><surname>Baak</surname><given-names>Arie</given-names></name>
+        <name><surname>Blomberg</surname><given-names>Niklas</given-names></name>
+        <name><surname>Boiten</surname><given-names>Jan-Willem</given-names></name>
+        <name><surname>Silva Santos</surname><given-names>Luiz Bonino da</given-names></name>
+        <name><surname>Bourne</surname><given-names>Philip E.</given-names></name>
+        <name><surname>Bouwman</surname><given-names>Jildau</given-names></name>
+        <name><surname>Brookes</surname><given-names>Anthony J.</given-names></name>
+        <name><surname>Clark</surname><given-names>Tim</given-names></name>
+        <name><surname>Crosas</surname><given-names>Mercè</given-names></name>
+        <name><surname>Dillo</surname><given-names>Ingrid</given-names></name>
+        <name><surname>Dumon</surname><given-names>Olivier</given-names></name>
+        <name><surname>Edmunds</surname><given-names>Scott</given-names></name>
+        <name><surname>Evelo</surname><given-names>Chris T.</given-names></name>
+        <name><surname>Finkers</surname><given-names>Richard</given-names></name>
+        <name><surname>Gonzalez-Beltran</surname><given-names>Alejandra</given-names></name>
+        <name><surname>Gray</surname><given-names>Alasdair J. G.</given-names></name>
+        <name><surname>Groth</surname><given-names>Paul</given-names></name>
+        <name><surname>Goble</surname><given-names>Carole</given-names></name>
+        <name><surname>Grethe</surname><given-names>Jeffrey S.</given-names></name>
+        <name><surname>Heringa</surname><given-names>Jaap</given-names></name>
+        <name><surname>Hoen</surname><given-names>Peter A. C ’t</given-names></name>
+        <name><surname>Hooft</surname><given-names>Rob</given-names></name>
+        <name><surname>Kuhn</surname><given-names>Tobias</given-names></name>
+        <name><surname>Kok</surname><given-names>Ruben</given-names></name>
+        <name><surname>Kok</surname><given-names>Joost</given-names></name>
+        <name><surname>Lusher</surname><given-names>Scott J.</given-names></name>
+        <name><surname>Martone</surname><given-names>Maryann E.</given-names></name>
+        <name><surname>Mons</surname><given-names>Albert</given-names></name>
+        <name><surname>Packer</surname><given-names>Abel L.</given-names></name>
+        <name><surname>Persson</surname><given-names>Bengt</given-names></name>
+        <name><surname>Rocca-Serra</surname><given-names>Philippe</given-names></name>
+        <name><surname>Roos</surname><given-names>Marco</given-names></name>
+        <name><surname>Schaik</surname><given-names>Rene van</given-names></name>
+        <name><surname>Sansone</surname><given-names>Susanna-Assunta</given-names></name>
+        <name><surname>Schultes</surname><given-names>Erik</given-names></name>
+        <name><surname>Sengstag</surname><given-names>Thierry</given-names></name>
+        <name><surname>Slater</surname><given-names>Ted</given-names></name>
+        <name><surname>Strawn</surname><given-names>George</given-names></name>
+        <name><surname>Swertz</surname><given-names>Morris A.</given-names></name>
+        <name><surname>Thompson</surname><given-names>Mark</given-names></name>
+        <name><surname>Lei</surname><given-names>Johan van der</given-names></name>
+        <name><surname>Mulligen</surname><given-names>Erik van</given-names></name>
+        <name><surname>Velterop</surname><given-names>Jan</given-names></name>
+        <name><surname>Waagmeester</surname><given-names>Andra</given-names></name>
+        <name><surname>Wittenburg</surname><given-names>Peter</given-names></name>
+        <name><surname>Wolstencroft</surname><given-names>Katherine</given-names></name>
+        <name><surname>Zhao</surname><given-names>Jun</given-names></name>
+        <name><surname>Mons</surname><given-names>Barend</given-names></name>
+      </person-group>
+      <article-title>The FAIR guiding principles for scientific data management and stewardship</article-title>
+      <source>Scientific Data</source>
+      <year iso-8601-date="2016">2016</year>
+      <volume>3</volume>
+      <issue>1</issue>
+      <isbn>2052-4463</isbn>
+      <uri>https://doi.org/10.1038/sdata.2016.18</uri>
+      <pub-id pub-id-type="doi">10.1038/sdata.2016.18</pub-id>
+      <fpage>160018</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
