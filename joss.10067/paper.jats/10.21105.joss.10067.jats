@@ -1,0 +1,877 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">10067</article-id>
+<article-id pub-id-type="doi">10.21105/joss.10067</article-id>
+<title-group>
+<article-title>ReProspect - A framework for reproducible prospecting of
+CUDA applications</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author" equal-contrib="yes" corresp="yes">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0009-0006-2839-7072</contrib-id>
+<name>
+<surname>Tomasetti</surname>
+<given-names>Romin</given-names>
+</name>
+<email>romin.tomasetti@uliege.be</email>
+<xref ref-type="aff" rid="aff-1"/>
+<xref ref-type="corresp" rid="cor-1"><sup>*</sup></xref>
+</contrib>
+<contrib contrib-type="author" equal-contrib="yes">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0003-4993-0527</contrib-id>
+<name>
+<surname>Arnst</surname>
+<given-names>Maarten</given-names>
+</name>
+<email>maarten.arnst@uliege.be</email>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>University of Liège, Belgium</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<author-notes>
+<corresp id="cor-1">* E-mail: <email>romin.tomasetti@uliege.be</email></corresp>
+</author-notes>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2025-12-31">
+<day>31</day>
+<month>12</month>
+<year>2025</year>
+</pub-date>
+<volume>11</volume>
+<issue>125</issue>
+<fpage>10067</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2026</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>CUDA</kwd>
+<kwd>reproducibility</kwd>
+<kwd>API tracing</kwd>
+<kwd>kernel profiling</kwd>
+<kwd>binary analysis</kwd>
+<kwd>HPC</kwd>
+<kwd>Kokkos</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p><monospace>ReProspect</monospace> is a Python framework for
+  prospecting CUDA code, designed to ensure reproducibility through a
+  fully programmatic approach. Prospecting encompasses three
+  complementary ways of characterizing CUDA-based libraries and software
+  components: how they interact with the CUDA runtime through API
+  tracing, how kernels perform through kernel profiling, and how source
+  constructs translate into machine code through binary analysis.</p>
+  <p><monospace>ReProspect</monospace> builds on NVIDIA tools: Nsight
+  Systems, Nsight Compute, and the CUDA binary utilities. It streamlines
+  data collection and extraction using these tools, and it complements
+  them with new functionalities for programmatic analysis of these data,
+  thus making it possible to encapsulate the entire prospecting analysis
+  in a single Python script.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p>HPC software development strives to achieve performance and sustain
+  it over time as hardware and software continue to evolve. Yet the
+  modern programming landscape relies on complex software stacks and
+  compiler toolchains that make it increasingly difficult to reason
+  about code behavior. Developers therefore need tools that support
+  continuous assessment of their code and help them unravel the
+  implications of their design decisions and changes.</p>
+  <p>Beyond <italic>ad hoc</italic> investigations, fully programmatic
+  tools allow analyses to be integrated across the development cycle and
+  open a range of new use cases. For instance, they support
+  collaborative development by enabling developers to share concise,
+  reproducible analyses that motivate design decisions and help
+  reviewers grasp the impact of proposed changes. They also enable new
+  types of tests in CI/CD pipelines that go beyond traditional
+  output-correctness validation — such as confirming expected API call
+  sequences for key library functionalities, verifying memory traffic
+  for custom data layouts via kernel profiling, or validating the
+  presence of specific instruction patterns in machine code. Finally,
+  they can act as a framework for structuring research artifacts and
+  documenting analyses, enabling others to reproduce and build upon
+  prior work more effectively.</p>
+  <p>For the CUDA stack, NVIDIA provides a set of proprietary tools
+  guaranteed to be up-to-date with their software and hardware. The
+  runtime analysis tools Nsight Systems
+  (<xref alt="NVIDIA Corporation, 2026d" rid="ref-nsys2026" ref-type="bibr">NVIDIA
+  Corporation, 2026d</xref>) and Nsight Compute
+  (<xref alt="NVIDIA Corporation, 2026c" rid="ref-ncu2026" ref-type="bibr">NVIDIA
+  Corporation, 2026c</xref>) are designed for API tracing and kernel
+  profiling, respectively. They both provide a GUI for exploring the
+  results, as well as a low-level Python API for accessing the raw data.
+  The CUDA binary utilities
+  (<xref alt="NVIDIA Corporation, 2026a" rid="ref-binary2026" ref-type="bibr">NVIDIA
+  Corporation, 2026a</xref>) provide command-line access to machine code
+  (SASS or PTX
+  (<xref alt="NVIDIA Corporation, 2026f" rid="ref-ptx2026" ref-type="bibr">NVIDIA
+  Corporation, 2026f</xref>)) and other information embedded in the
+  binaries. However, while these tools allow raw data to be extracted,
+  they do not themselves provide the infrastructure for effective
+  programmatic analysis.</p>
+  <p>There is thus a need for a framework that builds on the NVIDIA
+  tools and augments them to enable fully programmatic analysis.
+  <monospace>ReProspect</monospace> addresses this need and is designed
+  to support the aforementioned new use cases. It allows developers to
+  write well-structured, concise Python scripts focused on analysis
+  results. It structures the collected data to be readily amenable to
+  test assertions, and introduces new capabilities such as matchers for
+  instruction sequence patterns in machine code extracted from
+  binaries.</p>
+</sec>
+<sec id="state-of-the-field">
+  <title>State of the field</title>
+  <p>Several well-established open-source tools are already available.
+  Caliper
+  (<xref alt="Boehme et al., 2016" rid="ref-boehme2016" ref-type="bibr">Boehme
+  et al., 2016</xref>) can intercept CUDA API calls through the NVIDIA
+  CUPTI library
+  (<xref alt="NVIDIA Corporation, 2026b" rid="ref-cupti2026" ref-type="bibr">NVIDIA
+  Corporation, 2026b</xref>). It can interface with the Python package
+  Hatchet
+  (<xref alt="Bhatele et al., 2019" rid="ref-bhatele2019" ref-type="bibr">Bhatele
+  et al., 2019</xref>) to organize results into a hierarchical data
+  structure. Thicket
+  (<xref alt="Brink et al., 2023" rid="ref-brink2023" ref-type="bibr">Brink
+  et al., 2023</xref>) adds kernel profiling support through Nsight
+  Compute, with a primary focus on exploratory data analysis of
+  multi-run performance experiments. HPCToolkit
+  (<xref alt="Zhou et al., 2021" rid="ref-zhou2021" ref-type="bibr">Zhou
+  et al., 2021</xref>) is another comprehensive suite designed for
+  large-scale parallel systems. It includes CUDA API tracing through
+  CUPTI and kernel profiling through PAPI
+  (<xref alt="Terpstra et al., 2010" rid="ref-terpstra2010" ref-type="bibr">Terpstra
+  et al., 2010</xref>), and it has binary analysis capabilities to
+  attribute performance data to calling contexts. It has a visual
+  interface, and it can output raw performance data for programmatic
+  analysis, <italic>e.g.</italic> using Hatchet. Score-P
+  (<xref alt="Knüpfer et al., 2012" rid="ref-knupfer2012" ref-type="bibr">Knüpfer
+  et al., 2012</xref>) integrates multiple performance analysis tools in
+  a common infrastructure. It can record CUDA API calls and GPU
+  activities through CUPTI and provides standardized data formats. By
+  contrast, <monospace>ReProspect</monospace> focuses on concise
+  programmatic analysis of individual units of functionality based on
+  the outputs of NVIDIA tools.</p>
+  <p>Several tools that operate on SASS embedded in CUDA binaries
+  already exist, each with a distinct focus. CuAssembler
+  (<xref alt="Cloudcores, 2023" rid="ref-cuassembler-2023" ref-type="bibr">Cloudcores,
+  2023</xref>) and CuAsmRL
+  (<xref alt="He &amp; Yoneki, 2025" rid="ref-he-2025" ref-type="bibr">He
+  &amp; Yoneki, 2025</xref>) focus on modifying the SASS code. NVBit
+  (<xref alt="Villa et al., 2019" rid="ref-villa-2019" ref-type="bibr">Villa
+  et al., 2019</xref>) is a dynamic instrumentation library for CUDA
+  binaries. However, none of these tools provides a SASS matching
+  framework.</p>
+  <p>Miasm
+  (<xref alt="Desclaux, 2012" rid="ref-desclaux-2012" ref-type="bibr">Desclaux,
+  2012</xref>) is a Python reverse-engineering framework for CPU
+  assembly: it can lift instructions into an intermediate representation
+  (IR) to support higher-level analysis and binary modification. The
+  Miasm expressions are conceptually close to the
+  <monospace>ReProspect</monospace> matching framework. However, CPU
+  assembly differs significantly from SASS, which depends on the
+  architecture generation and embeds more information, such as
+  scheduling control codes, thread predicates, and memory space
+  specifiers.</p>
+</sec>
+<sec id="software-design">
+  <title>Software design</title>
+  <p><monospace>ReProspect</monospace> is organized into three main
+  components: API tracing, kernel profiling, and binary analysis
+  (<xref alt="[fig:overview]" rid="figU003Aoverview">[fig:overview]</xref>).</p>
+  <p>Each component is designed to allow the entire analysis to be
+  encapsulated into a concise Python script. This includes launching the
+  underlying analysis tool, collecting the output into Python data
+  structures, and performing the subsequent analysis.</p>
+  <fig>
+    <caption><p>Overview of
+    <monospace>ReProspect</monospace>.<styled-content id="figU003Aoverview"></styled-content></p></caption>
+    <graphic mimetype="image" mime-subtype="svg+xml" xlink:href="overview.svg" />
+  </fig>
+  <sec id="api-tracing-and-kernel-profiling">
+    <title>API tracing and kernel profiling</title>
+    <p>The <monospace>ReProspect</monospace>
+    <monospace>Command</monospace> and <monospace>Session</monospace>
+    classes streamline launching Nsight Systems and Nsight Compute to
+    collect a focused set of metrics most relevant for the analysis. The
+    collected data are gathered in a <monospace>Report</monospace>,
+    queryable by NVTX range annotations
+    (<xref alt="NVIDIA Corporation, 2026e" rid="ref-nvtx2026" ref-type="bibr">NVIDIA
+    Corporation, 2026e</xref>), readily amenable to test assertions.</p>
+    <p>To avoid unnecessary re-runs, <monospace>ReProspect</monospace>
+    provides a <monospace>Cacher</monospace> that can serve the
+    <monospace>Report</monospace> from a database.</p>
+    <p>The following snippet illustrates how the design allows a kernel
+    profiling analysis to be scripted concisely, up to a test
+    assertion—here, that the global stores of a kernel that fills a
+    buffer with values of type <monospace>char</monospace> are fully
+    coalesced:</p>
+    <code language="python">metrics = (*L1TEXCache.GlobalStore.Instructions.create(),
+           *L1TEXCache.GlobalStore.Requests.create(),
+           *L1TEXCache.GlobalStore.Sectors.create())
+
+nc = Session(command=Command(executable=executable, metrics=metrics,
+                             output=workdir / executable.name,
+                             nvtx_includes=('domain@start_end_range',)))
+nc.run(cwd=workdir)
+
+results = Report(command=nc.command).extract_results_in_range(metrics=metrics)
+_, m = results.query_single_next_metrics(accessors=('kernel_range',))
+assert m['L1/TEX cache global store requests'] \
+    == m['L1/TEX cache global store sass instructions']
+assert m['L1/TEX cache global store sectors'] \
+    == m['L1/TEX cache global store requests']</code>
+    <p>The same design serves API tracing: the corresponding
+    <monospace>Report</monospace> retrieves event records from the
+    relational database generated by Nsight Systems, with accessors for
+    selecting event records by NVTX range and for correlating them with
+    data across database tables.</p>
+  </sec>
+  <sec id="binary-analysis">
+    <title>Binary analysis</title>
+    <p><monospace>ReProspect</monospace> provides a set of tools for
+    extracting and analysing the content of CUDA binaries.</p>
+    <p>The <monospace>CuObjDump</monospace> and
+    <monospace>NVDisasm</monospace> classes drive and parse the output
+    of the underlying CUDA binary utilities to retrieve the SASS code
+    and resource usage of kernels (<italic>e.g.</italic> registers,
+    constant memory).</p>
+    <p>The <monospace>ELF</monospace> class decodes ELF-formatted
+    sections to extract complementary information, including the symbol
+    table, toolchain metadata (from the <italic>.note.nv.tkinfo</italic>
+    section), and kernel attributes such as launch bounds (from the
+    <italic>.nv.info.&lt;kernel&gt;</italic> section)
+    (<xref alt="Hayes et al., 2019" rid="ref-hayes-2019-decoding-cubin" ref-type="bibr">Hayes
+    et al., 2019</xref>).</p>
+    <p>Beyond data extraction, <monospace>ReProspect</monospace>
+    provides an extensible framework for inspecting machine code for
+    expected instruction patterns. This framework is structured as a
+    hierarchy of matchers. At the lowest levels, matchers analyse
+    instructions and their components (opcodes, modifiers, and
+    operands). These matchers can be composed into instruction sequence
+    matchers, enabling the identification of more intricate
+    patterns.</p>
+    <p>One of the key challenges with SASS matching is the evolution of
+    the CUDA instruction set and compiler toolchains.
+    <monospace>ReProspect</monospace> addresses this challenge by
+    abstracting away architecture- and toolchain-specific details at
+    each level of the matcher hierarchy. For example,
+    <monospace>AddressMatcher</monospace> matches a memory address
+    operand, adjusting the expected address format for the target
+    architecture. Then, at the instruction level,
+    <monospace>LoadMatcher</monospace> matches loads from memory; it
+    uses <monospace>AddressMatcher</monospace> for the memory address
+    and thus needs only to adjust the opcode and modifiers for the
+    target architecture. By extending this hierarchical design to
+    instruction sequence and basic block matchers,
+    <monospace>ReProspect</monospace> enables robust, composable
+    matching across CUDA architectures and compiler toolchains.</p>
+    <p>The following snippet illustrates how matchers can be composed to
+    assert the presence or absence of a 16-bit floating-point code path,
+    <italic>e.g.</italic> in the SASS codes in
+    <xref alt="Table 1" rid="tableU003Ahfmax">Table 1</xref>:</p>
+    <code language="python">arch = NVIDIAArch(...)
+instructions = Decoder(...)
+cfg = ControlFlow.analyze(instructions)
+
+matcher_ldg = instructions_contain(instructions_are(
+    LoadGlobalMatcher(arch, size=16, extend='U', readonly=False),
+    LoadGlobalMatcher(arch, size=16, extend='U', readonly=False),
+))
+blk, matched_ldg = BasicBlockMatcher(matcher_ldg).match(cfg=cfg)
+
+matcher_hmnmx2 = instructions_contain(instruction_is(
+    Fp16MinMaxMatcher(pmax=True))
+    .with_operand(index=1, operand=f'{matched_ldg[0].operands[0]}.H0_H0')
+    .with_operand(index=2, operand=f'{matched_ldg[1].operands[0]}.H0_H0')
+    .with_operand(index=0, operand=RegisterMatcher(special=False))
+)
+matched_hmnmx2 = matcher_hmnmx2.match(blk.instructions[matcher_ldg.next_index:])</code>
+    <table-wrap>
+      <caption>
+        <p>Comparison of the SASS code generated for the
+        <monospace>sm_100</monospace> architecture for the 16-bit
+        <monospace>__half</monospace> (left) <italic>vs</italic> 32-bit
+        <monospace>float</monospace> (right) maximum function.
+        <styled-content id="tableU003Ahfmax"></styled-content></p>
+      </caption>
+      <table>
+        <colgroup>
+          <col width="53%" />
+          <col width="47%" />
+        </colgroup>
+        <thead>
+          <tr>
+            <th><code language="c">__hmax(const __half, const __half)</code></th>
+            <th><code language="c">fmax(const float, const float)</code></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code language="sass">LDG.E.U16 R2, desc[UR6][R2.64]
+LDG.E.U16 R5, desc[UR6][R4.64]
+...
+HMNMX2 R5, R2.H0_H0, R5.H0_H0, !PT
+...
+
+
+
+STG.E.U16 desc[UR6][R6.64], R5</code></td>
+            <td><code language="sass">LDG.E.U16 R2, desc[UR6][R2.64]
+LDG.E.U16 R4, desc[UR6][R4.64]
+...
+HADD2.F32 R6, -RZ, R2.H0_H0
+HADD2.F32 R7, -RZ, R4.H0_H0
+FMNMX R6, R6, R7, !PT
+F2FP.F16.F32.PACK_AB R3, RZ, R6
+...
+STG.E.U16 desc[UR6][R6.64], R3</code></td>
+          </tr>
+        </tbody>
+      </table>
+    </table-wrap>
+    <p>The binary analysis targeting SASS rather than PTX is a
+    trade-off. PTX is fully documented
+    (<xref alt="NVIDIA Corporation, 2026f" rid="ref-ptx2026" ref-type="bibr">NVIDIA
+    Corporation, 2026f</xref>) and architecture-independent, but it is
+    an intermediate representation. SASS is the machine code the
+    hardware executes; assertions on SASS thus characterize the final
+    instructions and their scheduling. Inspecting SASS is also relevant
+    for kernel profiling: performance metrics are directly associated
+    with executed instructions, whereas interpreting them at a higher
+    level requires correlation, such as through compiler-emitted line
+    information. However, SASS is only partially documented and
+    architecture-specific; the architecture-aware matcher hierarchy
+    addresses architecture differences.</p>
+  </sec>
+</sec>
+<sec id="research-impact-statement">
+  <title>Research impact statement</title>
+  <p>Three getting-started examples in the documentation demonstrate the
+  components end to end. The API tracing example programmatically
+  verifies the sequence of runtime calls that realize a diamond-shaped
+  dependency among four asynchronous kernel launches. The kernel
+  profiling example analyzes the performance effect of a restructuring
+  of a fill kernel and encodes the findings in test assertions. The
+  binary analysis example asserts the SASS instructions to which an
+  atomic function call compiles, with a single matcher specification
+  that adapts across CUDA architectures. Run in CI/CD pipelines, such
+  assertions can detect when an analysis ceases to hold as toolchains
+  and libraries evolve.</p>
+  <p><monospace>ReProspect</monospace> has been successfully used as a
+  support for contributions to the open-source Kokkos library
+  (<xref alt="Trott et al., 2022" rid="ref-ctrott-2022" ref-type="bibr">Trott
+  et al., 2022</xref>) and the development of an in-house finite element
+  code built on top of the open-source Trilinos library
+  (<xref alt="Mayr et al., 2026" rid="ref-mayr-2026" ref-type="bibr">Mayr
+  et al., 2026</xref>)
+  (<xref alt="Arnst &amp; Tomasetti, 2024" rid="ref-arnst-24" ref-type="bibr">Arnst
+  &amp; Tomasetti, 2024</xref>)
+  (<xref alt="Tomasetti &amp; Arnst, 2024" rid="ref-tomasetti-24" ref-type="bibr">Tomasetti
+  &amp; Arnst, 2024</xref>).</p>
+  <p>The
+  <ext-link ext-link-type="uri" xlink:href="https://github.com/uliegecsm/reprospect/blob/30cf1b8569191a776dc81d2abd26c74cec5e47b2/examples/"><monospace>examples</monospace>
+  directory</ext-link> contains several case studies inspired by these
+  research efforts.</p>
+  <p>The documentation provides detailed instructions for building and
+  running the tests and examples.</p>
+  <sec id="kokkosview-allocation">
+    <title><monospace>Kokkos::View</monospace> allocation</title>
+    <p>CUDA API tracing provides insight into microbenchmarking results
+    assessing the behavior of <monospace>Kokkos::View</monospace>
+    allocation.</p>
+    <p>See
+    <ext-link ext-link-type="uri" xlink:href="https://github.com/uliegecsm/reprospect/blob/30cf1b8569191a776dc81d2abd26c74cec5e47b2/examples/kokkos/view/example_allocation_tracing.py">online
+    example</ext-link> and
+    <ext-link ext-link-type="uri" xlink:href="https://github.com/kokkos/kokkos/issues/8441">Kokkos
+    issue</ext-link>.</p>
+  </sec>
+  <sec id="impact-of-kokkoscomplex-alignment">
+    <title>Impact of <monospace>Kokkos::complex</monospace>
+    alignment</title>
+    <p>Our in-house finite element code uses complex arithmetic for
+    frequency-domain electromagnetism simulations. This example combines
+    kernel profiling and SASS analysis to assess how aligning
+    <monospace>Kokkos::complex&lt;double&gt;</monospace> to 8 or 16
+    bytes impacts memory instructions and traffic.</p>
+    <p>See
+    <ext-link ext-link-type="uri" xlink:href="https://github.com/uliegecsm/reprospect/blob/30cf1b8569191a776dc81d2abd26c74cec5e47b2/examples/kokkos/complex/example_alignment.py">online
+    example</ext-link>.</p>
+  </sec>
+  <sec id="dynamic-dispatch-for-virtual-functions-on-device">
+    <title>Dynamic dispatch for virtual functions on device</title>
+    <p>This example uses <monospace>ReProspect</monospace> to create a
+    research artifact that reproduces the dynamic dispatch instruction
+    pattern identified by
+    (<xref alt="Zhang et al., 2021" rid="ref-zhang-2021" ref-type="bibr">Zhang
+    et al., 2021</xref>).</p>
+    <p>See
+    <ext-link ext-link-type="uri" xlink:href="https://github.com/uliegecsm/reprospect/blob/30cf1b8569191a776dc81d2abd26c74cec5e47b2/examples/cuda/virtual_functions/example_dispatch.py">online
+    example</ext-link>.</p>
+  </sec>
+  <sec id="atomics-with-desul">
+    <title>Atomics with <monospace>desul</monospace></title>
+    <p>Kokkos provides extended atomic support through the
+    <monospace>desul</monospace> library
+    (<xref alt="Trott et al., 2022" rid="ref-ctrott-2022" ref-type="bibr">Trott
+    et al., 2022</xref>), which maps atomic operations to one of several
+    methods with varying performance. The choice of the method depends
+    on intricate logic, and must be tested. A micro-benchmarking
+    approach is feasible, but requires the physical device and suffers
+    from runtime variability. Yet, the machine code already contains
+    information about the selected code paths. This case study
+    demonstrates how to verify which method is chosen by matching an
+    instruction sequence pattern.</p>
+    <p>See
+    <ext-link ext-link-type="uri" xlink:href="https://github.com/uliegecsm/reprospect/blob/30cf1b8569191a776dc81d2abd26c74cec5e47b2/examples/kokkos/atomic/desul.py">online
+    example</ext-link>.</p>
+  </sec>
+</sec>
+<sec id="ai-usage-disclosure">
+  <title>AI usage disclosure</title>
+  <p>No AI was used for the design of the code. Alongside traditional
+  tools such as <monospace>pylint</monospace> and
+  <monospace>mypy</monospace>, <monospace>Claude</monospace> and
+  <monospace>CoPilot</monospace> were used as assistants to improve
+  implementation details of individual functions. AI helped improve the
+  clarity of the manuscript and the documentation.</p>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>This work was supported by the Fonds de la Recherche Scientifique
+  (F.R.S.-FNRS, Belgium) through a Research Fellowship.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <title></title>
+  <ref id="ref-arnst-24">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Arnst</surname><given-names>Maarten</given-names></name>
+        <name><surname>Tomasetti</surname><given-names>Romin</given-names></name>
+      </person-group>
+      <article-title>Design patterns and performance analysis of polymorphism in multiphysics FE assembly on GPU</article-title>
+      <publisher-name>https://hdl.handle.net/2268/314521</publisher-name>
+      <publisher-loc>Baltimore, United States</publisher-loc>
+      <year iso-8601-date="2024">2024</year>
+    </element-citation>
+  </ref>
+  <ref id="ref-bhatele2019">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Bhatele</surname><given-names>Abhinav</given-names></name>
+        <name><surname>Brink</surname><given-names>Stephanie</given-names></name>
+        <name><surname>Gamblin</surname><given-names>Todd</given-names></name>
+      </person-group>
+      <article-title>Hatchet: Pruning the overgrowth in parallel profiles</article-title>
+      <source>Proceedings of the international conference for high performance computing, networking, storage and analysis</source>
+      <publisher-name>Association for Computing Machinery</publisher-name>
+      <publisher-loc>New York, NY, USA</publisher-loc>
+      <year iso-8601-date="2019">2019</year>
+      <isbn>9781450362290</isbn>
+      <pub-id pub-id-type="doi">10.1145/3295500.3356219</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-binary2026">
+    <element-citation>
+      <person-group person-group-type="author">
+        <string-name>NVIDIA Corporation</string-name>
+      </person-group>
+      <article-title>CUDA Binary Utilities Version 13.3</article-title>
+      <publisher-name>https://docs.nvidia.com/cuda/archive/13.3.0/cuda-binary-utilities/index.html</publisher-name>
+      <year iso-8601-date="2026">2026</year>
+    </element-citation>
+  </ref>
+  <ref id="ref-boehme2016">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Boehme</surname><given-names>David</given-names></name>
+        <name><surname>Gamblin</surname><given-names>Todd</given-names></name>
+        <name><surname>Beckingsale</surname><given-names>David</given-names></name>
+        <name><surname>Bremer</surname><given-names>Peer-Timo</given-names></name>
+        <name><surname>Gimenez</surname><given-names>Alfredo</given-names></name>
+        <name><surname>LeGendre</surname><given-names>Matthew</given-names></name>
+        <name><surname>Pearce</surname><given-names>Olga</given-names></name>
+        <name><surname>Schulz</surname><given-names>Martin</given-names></name>
+      </person-group>
+      <article-title>Caliper: Performance introspection for HPC software stacks</article-title>
+      <source>SC ’16: Proceedings of the international conference for high performance computing, networking, storage and analysis</source>
+      <year iso-8601-date="2016">2016</year>
+      <pub-id pub-id-type="doi">10.1109/SC.2016.46</pub-id>
+      <fpage>550</fpage>
+      <lpage>560</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-brink2023">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Brink</surname><given-names>Stephanie</given-names></name>
+        <name><surname>McKinsey</surname><given-names>Michael</given-names></name>
+        <name><surname>Boehme</surname><given-names>David</given-names></name>
+        <name><surname>Scully-Allison</surname><given-names>Connor</given-names></name>
+        <name><surname>Lumsden</surname><given-names>Ian</given-names></name>
+        <name><surname>Hawkins</surname><given-names>Daryl</given-names></name>
+        <name><surname>Burgess</surname><given-names>Treece</given-names></name>
+        <name><surname>Lama</surname><given-names>Vanessa</given-names></name>
+        <name><surname>Lüttgau</surname><given-names>Jakob</given-names></name>
+        <name><surname>Isaacs</surname><given-names>Katherine E.</given-names></name>
+        <name><surname>Taufer</surname><given-names>Michela</given-names></name>
+        <name><surname>Pearce</surname><given-names>Olga</given-names></name>
+      </person-group>
+      <article-title>Thicket: Seeing the performance experiment forest for the individual run trees</article-title>
+      <source>Proceedings of the 32nd international symposium on high-performance parallel and distributed computing</source>
+      <publisher-name>Association for Computing Machinery</publisher-name>
+      <publisher-loc>New York, NY, USA</publisher-loc>
+      <year iso-8601-date="2023">2023</year>
+      <isbn>9798400701559</isbn>
+      <pub-id pub-id-type="doi">10.1145/3588195.3592989</pub-id>
+      <fpage>281</fpage>
+      <lpage>293</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-ctrott-2022">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Trott</surname><given-names>Christian R.</given-names></name>
+        <name><surname>Lebrun-Grandié</surname><given-names>Damien</given-names></name>
+        <name><surname>Arndt</surname><given-names>Daniel</given-names></name>
+        <name><surname>Ciesko</surname><given-names>Jan</given-names></name>
+        <name><surname>Dang</surname><given-names>Vinh</given-names></name>
+        <name><surname>Ellingwood</surname><given-names>Nathan</given-names></name>
+        <name><surname>Gayatri</surname><given-names>Rahulkumar</given-names></name>
+        <name><surname>Harvey</surname><given-names>Evan</given-names></name>
+        <name><surname>Hollman</surname><given-names>Daisy S.</given-names></name>
+        <name><surname>Ibanez</surname><given-names>Dan</given-names></name>
+        <name><surname>Liber</surname><given-names>Nevin</given-names></name>
+        <name><surname>Madsen</surname><given-names>Jonathan</given-names></name>
+        <name><surname>Miles</surname><given-names>Jeff</given-names></name>
+        <name><surname>Poliakoff</surname><given-names>David</given-names></name>
+        <name><surname>Powell</surname><given-names>Amy</given-names></name>
+        <name><surname>Rajamanickam</surname><given-names>Sivasankaran</given-names></name>
+        <name><surname>Simberg</surname><given-names>Mikael</given-names></name>
+        <name><surname>Sunderland</surname><given-names>Dan</given-names></name>
+        <name><surname>Turcksin</surname><given-names>Bruno</given-names></name>
+        <name><surname>Wilke</surname><given-names>Jeremiah</given-names></name>
+      </person-group>
+      <article-title>Kokkos 3: Programming model extensions for the exascale era</article-title>
+      <source>IEEE Transactions on Parallel and Distributed Systems</source>
+      <year iso-8601-date="2022-01">2022</year><month>01</month>
+      <volume>33</volume>
+      <issue>4</issue>
+      <pub-id pub-id-type="doi">10.1109/TPDS.2021.3097283</pub-id>
+      <fpage>805</fpage>
+      <lpage>817</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-cupti2026">
+    <element-citation>
+      <person-group person-group-type="author">
+        <string-name>NVIDIA Corporation</string-name>
+      </person-group>
+      <article-title>NVIDIA CUDA Profiling Tools Interface (CUPTI) - CUDA Toolkit Version 13.3</article-title>
+      <publisher-name>https://developer.nvidia.com/cupti-ctk13_3</publisher-name>
+      <year iso-8601-date="2026">2026</year>
+    </element-citation>
+  </ref>
+  <ref id="ref-hayes-2019-decoding-cubin">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Hayes</surname><given-names>Ari B.</given-names></name>
+        <name><surname>Hua</surname><given-names>Fei</given-names></name>
+        <name><surname>Huang</surname><given-names>Jin</given-names></name>
+        <name><surname>Chen</surname><given-names>Yanhao</given-names></name>
+        <name><surname>Zhang</surname><given-names>Eddy Z.</given-names></name>
+      </person-group>
+      <article-title>Decoding CUDA binary - file format</article-title>
+      <publisher-name>Zenodo</publisher-name>
+      <year iso-8601-date="2019-02">2019</year><month>02</month>
+      <uri>https://doi.org/10.5281/zenodo.2339027</uri>
+      <pub-id pub-id-type="doi">10.5281/zenodo.2339027</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-knupfer2012">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Knüpfer</surname><given-names>Andreas</given-names></name>
+        <name><surname>Rössel</surname><given-names>Christian</given-names></name>
+        <name><surname>Mey</surname><given-names>Dieter an</given-names></name>
+        <name><surname>Biersdorff</surname><given-names>Scott</given-names></name>
+        <name><surname>Diethelm</surname><given-names>Kai</given-names></name>
+        <name><surname>Eschweiler</surname><given-names>Dominic</given-names></name>
+        <name><surname>Geimer</surname><given-names>Markus</given-names></name>
+        <name><surname>Gerndt</surname><given-names>Michael</given-names></name>
+        <name><surname>Lorenz</surname><given-names>Daniel</given-names></name>
+        <name><surname>Malony</surname><given-names>Allen</given-names></name>
+        <name><surname>Nagel</surname><given-names>Wolfgang E.</given-names></name>
+        <name><surname>Oleynik</surname><given-names>Yury</given-names></name>
+        <name><surname>Philippen</surname><given-names>Peter</given-names></name>
+        <name><surname>Saviankou</surname><given-names>Pavel</given-names></name>
+        <name><surname>Schmidl</surname><given-names>Dirk</given-names></name>
+        <name><surname>Shende</surname><given-names>Sameer</given-names></name>
+        <name><surname>Tschüter</surname><given-names>Ronny</given-names></name>
+        <name><surname>Wagner</surname><given-names>Michael</given-names></name>
+        <name><surname>Wesarg</surname><given-names>Bert</given-names></name>
+        <name><surname>Wolf</surname><given-names>Felix</given-names></name>
+      </person-group>
+      <article-title>Score-P: A joint performance measurement run-time infrastructure for Periscope, Scalasca, TAU, and Vampir</article-title>
+      <source>Tools for High Performance Computing 2011</source>
+      <person-group person-group-type="editor">
+        <name><surname>Brunst</surname><given-names>Holger</given-names></name>
+        <name><surname>Müller</surname><given-names>Matthias S.</given-names></name>
+        <name><surname>Nagel</surname><given-names>Wolfgang E.</given-names></name>
+        <name><surname>Resch</surname><given-names>Michael M.</given-names></name>
+      </person-group>
+      <publisher-name>Springer Berlin Heidelberg</publisher-name>
+      <publisher-loc>Berlin, Heidelberg</publisher-loc>
+      <year iso-8601-date="2012">2012</year>
+      <isbn>978-3-642-31476-6</isbn>
+      <pub-id pub-id-type="doi">10.1007/978-3-642-31476-6_7</pub-id>
+      <fpage>79</fpage>
+      <lpage>91</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-mayr-2026">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Mayr</surname><given-names>Matthias</given-names></name>
+        <name><surname>Heinlein</surname><given-names>Alexander</given-names></name>
+        <name><surname>Glusa</surname><given-names>Christian</given-names></name>
+        <name><surname>Rajamanickam</surname><given-names>Siva</given-names></name>
+        <name><surname>Arnst</surname><given-names>Maarten</given-names></name>
+        <name><surname>Bartlett</surname><given-names>Roscoe</given-names></name>
+        <name><surname>Berger-Vergiat</surname><given-names>Luc</given-names></name>
+        <name><surname>Boman</surname><given-names>Erik</given-names></name>
+        <name><surname>Devine</surname><given-names>Karen</given-names></name>
+        <name><surname>Harper</surname><given-names>Graham</given-names></name>
+        <name><surname>Heroux</surname><given-names>Michael</given-names></name>
+        <name><surname>Hoemmen</surname><given-names>Mark</given-names></name>
+        <name><surname>Hu</surname><given-names>Jonathan</given-names></name>
+        <name><surname>Kelley</surname><given-names>Brian</given-names></name>
+        <name><surname>Kim</surname><given-names>Kyungjoo</given-names></name>
+        <name><surname>Kouri</surname><given-names>Drew P.</given-names></name>
+        <name><surname>Kuberry</surname><given-names>Paul</given-names></name>
+        <name><surname>Liegeois</surname><given-names>Kim</given-names></name>
+        <name><surname>Ober</surname><given-names>Curtis C.</given-names></name>
+        <name><surname>Pawlowski</surname><given-names>Roger</given-names></name>
+        <name><surname>Pearson</surname><given-names>Carl</given-names></name>
+        <name><surname>Perego</surname><given-names>Mauro</given-names></name>
+        <name><surname>Phipps</surname><given-names>Eric</given-names></name>
+        <name><surname>Ridzal</surname><given-names>Denis</given-names></name>
+        <name><surname>Roberts</surname><given-names>Nathan V.</given-names></name>
+        <name><surname>Siefert</surname><given-names>Christopher</given-names></name>
+        <name><surname>Thornquist</surname><given-names>Heidi</given-names></name>
+        <name><surname>Tomasetti</surname><given-names>Romin</given-names></name>
+        <name><surname>Trott</surname><given-names>Christian R.</given-names></name>
+        <name><surname>Tuminaro</surname><given-names>Raymond S.</given-names></name>
+        <name><surname>Willenbring</surname><given-names>James M.</given-names></name>
+        <name><surname>Wolf</surname><given-names>Michael M.</given-names></name>
+        <name><surname>Yamazaki</surname><given-names>Ichitaro</given-names></name>
+      </person-group>
+      <article-title>Trilinos: Enabling scientific computing across diverse hardware architectures at scale</article-title>
+      <source>ACM Transactions on Mathematical Software</source>
+      <publisher-name>Association for Computing Machinery</publisher-name>
+      <year iso-8601-date="2026">2026</year>
+      <pub-id pub-id-type="doi">10.1145/3802822</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-ncu2026">
+    <element-citation>
+      <person-group person-group-type="author">
+        <string-name>NVIDIA Corporation</string-name>
+      </person-group>
+      <article-title>NVIDIA Nsight Compute Version v2026.2.1</article-title>
+      <publisher-name>https://archive.docs.nvidia.com/nsight-compute/2026.2/index.html</publisher-name>
+      <year iso-8601-date="2026">2026</year>
+    </element-citation>
+  </ref>
+  <ref id="ref-nsys2026">
+    <element-citation>
+      <person-group person-group-type="author">
+        <string-name>NVIDIA Corporation</string-name>
+      </person-group>
+      <article-title>NVIDIA Nsight Systems Version v2026.1</article-title>
+      <publisher-name>https://archive.docs.nvidia.com/nsight-systems/2026.1/index.html</publisher-name>
+      <year iso-8601-date="2026">2026</year>
+    </element-citation>
+  </ref>
+  <ref id="ref-nvtx2026">
+    <element-citation>
+      <person-group person-group-type="author">
+        <string-name>NVIDIA Corporation</string-name>
+      </person-group>
+      <article-title>NVTX: NVIDIA Tools Extension Library Version v3.5.0</article-title>
+      <publisher-name>https://github.com/NVIDIA/NVTX</publisher-name>
+      <year iso-8601-date="2026">2026</year>
+    </element-citation>
+  </ref>
+  <ref id="ref-ptx2026">
+    <element-citation>
+      <person-group person-group-type="author">
+        <string-name>NVIDIA Corporation</string-name>
+      </person-group>
+      <article-title>Parallel Thread Execution ISA Version 9.3</article-title>
+      <publisher-name>https://docs.nvidia.com/cuda/archive/13.3.0/parallel-thread-execution/index.html</publisher-name>
+      <year iso-8601-date="2026">2026</year>
+    </element-citation>
+  </ref>
+  <ref id="ref-terpstra2010">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Terpstra</surname><given-names>Dan</given-names></name>
+        <name><surname>Jagode</surname><given-names>Heike</given-names></name>
+        <name><surname>You</surname><given-names>Haihang</given-names></name>
+        <name><surname>Dongarra</surname><given-names>Jack</given-names></name>
+      </person-group>
+      <article-title>Collecting performance data with PAPI-C</article-title>
+      <source>Tools for High Performance Computing 2009</source>
+      <person-group person-group-type="editor">
+        <name><surname>Müller</surname><given-names>Matthias S.</given-names></name>
+        <name><surname>Resch</surname><given-names>Michael M.</given-names></name>
+        <name><surname>Schulz</surname><given-names>Alexander</given-names></name>
+        <name><surname>Nagel</surname><given-names>Wolfgang E.</given-names></name>
+      </person-group>
+      <publisher-name>Springer Berlin Heidelberg</publisher-name>
+      <publisher-loc>Berlin, Heidelberg</publisher-loc>
+      <year iso-8601-date="2010">2010</year>
+      <isbn>978-3-642-11261-4</isbn>
+      <pub-id pub-id-type="doi">10.1007/978-3-642-11261-4_11</pub-id>
+      <fpage>157</fpage>
+      <lpage>173</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-tomasetti-24">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Tomasetti</surname><given-names>Romin</given-names></name>
+        <name><surname>Arnst</surname><given-names>Maarten</given-names></name>
+      </person-group>
+      <article-title>Efficiently implementing FE boundary conditions using stream-orchestrated execution on GPU</article-title>
+      <publisher-name>https://hdl.handle.net/2268/314520</publisher-name>
+      <publisher-loc>Baltimore, United States</publisher-loc>
+      <year iso-8601-date="2024">2024</year>
+    </element-citation>
+  </ref>
+  <ref id="ref-zhang-2021">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Zhang</surname><given-names>Mengchi</given-names></name>
+        <name><surname>Alawneh</surname><given-names>Ahmad</given-names></name>
+        <name><surname>Rogers</surname><given-names>Timothy G.</given-names></name>
+      </person-group>
+      <article-title>Judging a type by its pointer: Optimizing GPU virtual functions</article-title>
+      <source>Proceedings of the 26th ACM international conference on architectural support for programming languages and operating systems</source>
+      <publisher-name>Association for Computing Machinery</publisher-name>
+      <year iso-8601-date="2021">2021</year>
+      <pub-id pub-id-type="doi">10.1145/3445814.3446734</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-zhou2021">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Zhou</surname><given-names>Keren</given-names></name>
+        <name><surname>Adhianto</surname><given-names>Laksono</given-names></name>
+        <name><surname>Anderson</surname><given-names>Jonathon</given-names></name>
+        <name><surname>Cherian</surname><given-names>Aaron</given-names></name>
+        <name><surname>Grubisic</surname><given-names>Dejan</given-names></name>
+        <name><surname>Krentel</surname><given-names>Mark</given-names></name>
+        <name><surname>Liu</surname><given-names>Yumeng</given-names></name>
+        <name><surname>Meng</surname><given-names>Xiaozhu</given-names></name>
+        <name><surname>Mellor-Crummey</surname><given-names>John</given-names></name>
+      </person-group>
+      <article-title>Measurement and analysis of GPU-accelerated applications with HPCToolkit</article-title>
+      <source>Parallel Computing</source>
+      <year iso-8601-date="2021">2021</year>
+      <volume>108</volume>
+      <issn>0167-8191</issn>
+      <pub-id pub-id-type="doi">10.1016/j.parco.2021.102837</pub-id>
+      <fpage>102837</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-he-2025">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>He</surname><given-names>Guoliang</given-names></name>
+        <name><surname>Yoneki</surname><given-names>Eiko</given-names></name>
+      </person-group>
+      <article-title>CuAsmRL: Optimizing GPU SASS schedules via deep reinforcement learning</article-title>
+      <source>Proceedings of the 23rd ACM/IEEE international symposium on code generation and optimization</source>
+      <publisher-name>Association for Computing Machinery</publisher-name>
+      <year iso-8601-date="2025">2025</year>
+      <pub-id pub-id-type="doi">10.1145/3696443.3708943</pub-id>
+      <fpage>493</fpage>
+      <lpage>506</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-cuassembler-2023">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Cloudcores</surname></name>
+      </person-group>
+      <article-title>CuAssembler: An unofficial CUDA assembler</article-title>
+      <publisher-name>https://github.com/cloudcores/CuAssembler</publisher-name>
+      <year iso-8601-date="2023">2023</year>
+    </element-citation>
+  </ref>
+  <ref id="ref-villa-2019">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Villa</surname><given-names>Oreste</given-names></name>
+        <name><surname>Stephenson</surname><given-names>Mark</given-names></name>
+        <name><surname>Nellans</surname><given-names>David</given-names></name>
+        <name><surname>Keckler</surname><given-names>Stephen W.</given-names></name>
+      </person-group>
+      <article-title>NVBit: A dynamic binary instrumentation framework for NVIDIA GPUs</article-title>
+      <source>Proceedings of the 52nd annual IEEE/ACM international symposium on microarchitecture</source>
+      <publisher-name>Association for Computing Machinery</publisher-name>
+      <year iso-8601-date="2019">2019</year>
+      <pub-id pub-id-type="doi">10.1145/3352460.3358307</pub-id>
+      <fpage>372</fpage>
+      <lpage>383</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-desclaux-2012">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Desclaux</surname><given-names>Fabrice</given-names></name>
+      </person-group>
+      <article-title>Miasm: Framework de reverse engineering</article-title>
+      <source>Actes de la conférence francophone sur le thème de la sécurité de l’information</source>
+      <year iso-8601-date="2012">2012</year>
+      <uri>https://www.sstic.org/media/SSTIC2012/SSTIC-actes/miasm_framework_de_reverse_engineering/SSTIC2012-Article-miasm_framework_de_reverse_engineering-desclaux_1.pdf</uri>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
