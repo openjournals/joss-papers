@@ -1,0 +1,540 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">11293</article-id>
+<article-id pub-id-type="doi">10.21105/joss.11293</article-id>
+<title-group>
+<article-title>Boost.Int128: A C++14 Library for Portable and Performant
+128-Bit Integer Arithmetic</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0009-0005-8183-4254</contrib-id>
+<name>
+<surname>Borland</surname>
+<given-names>Matt</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>The C++ Alliance, United States</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2026-08-21">
+<day>21</day>
+<month>8</month>
+<year>2026</year>
+</pub-date>
+<volume>11</volume>
+<issue>125</issue>
+<fpage>11293</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2026</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>C++</kwd>
+<kwd>GPU</kwd>
+<kwd>CUDA</kwd>
+<kwd>SYCL</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p>Boost.Int128 is a header-only, C++14 implementation of 128-bit
+  integer arithmetic through two types, <monospace>int128</monospace>
+  and <monospace>uint128</monospace>, that behave like built-in integers
+  and integrate with the C++ Standard Library and other Boost libraries
+  (<xref alt="Boost Authors, 2026" rid="ref-boost" ref-type="bibr">Boost
+  Authors, 2026</xref>). Both types are exactly 128 bits wide on every
+  supported platform, and both are usable unchanged in GPU kernels
+  through CUDA
+  (<xref alt="Nickolls et al., 2008" rid="ref-NickollsU003A2008" ref-type="bibr">Nickolls
+  et al., 2008</xref>) and SYCL
+  (<xref alt="Reyes et al., 2020" rid="ref-ReyesU003A2020" ref-type="bibr">Reyes
+  et al., 2020</xref>). The library is available at
+  <ext-link ext-link-type="uri" xlink:href="https://github.com/boostorg/int128">https://github.com/boostorg/int128</ext-link>,
+  and in the Boost distribution starting with version 1.93.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p>C++ specifies no integer type wider than
+  <monospace>long long</monospace>, which in practice means 64 bits, yet
+  quantities exceeding that range are common. An IPv6 address
+  (<xref alt="Hinden &amp; Deering, 2006" rid="ref-rfc4291" ref-type="bibr">Hinden
+  &amp; Deering, 2006</xref>) and a UUID
+  (<xref alt="Davis et al., 2024" rid="ref-rfc9562" ref-type="bibr">Davis
+  et al., 2024</xref>) are each 128 bits, so each needs a 128-bit
+  integer or a byte array that cannot be compared, masked, or
+  incremented directly. The widening 64x64 to 128-bit product is the
+  central primitive of unbiased random integer generation in an interval
+  (<xref alt="Lemire, 2019" rid="ref-LemireU003A2019" ref-type="bibr">Lemire,
+  2019</xref>) and of shortest round-trip floating-point formatting
+  (<xref alt="Adams, 2018" rid="ref-AdamsU003A2018" ref-type="bibr">Adams,
+  2018</xref>). GCC and Clang expose <monospace>__int128</monospace>
+  only on 64-bit targets, with no
+  <monospace>std::numeric_limits</monospace>,
+  <monospace>&lt;iostream&gt;</monospace>, or
+  <monospace>std::hash</monospace> support, and MSVC lacks it entirely,
+  so dependent code either restricts its portability or maintains a
+  second implementation. The portable alternative, a general
+  multiprecision integer, pays for that generality in object size and in
+  throughput. The types began as the arithmetic backend of Boost.Decimal
+  (<xref alt="Borland &amp; Kormanyos, 2026" rid="ref-Borland2026" ref-type="bibr">Borland
+  &amp; Kormanyos, 2026</xref>), which needs an exact 128-bit product on
+  every platform Boost supports, and were extracted and generalized once
+  that need proved broader than one library. What is needed is a type
+  that is exactly 16 bytes everywhere, as fast as the compiler’s
+  extension where that exists, and usable across the host-to-device
+  boundary without an interchange format.</p>
+</sec>
+<sec id="state-of-the-field">
+  <title>State of the field</title>
+  <p>The portable host implementations are Abseil’s
+  <monospace>absl::int128</monospace> and
+  <monospace>absl::uint128</monospace>
+  (<xref alt="Google, 2017" rid="ref-abseil" ref-type="bibr">Google,
+  2017</xref>), Boost.Multiprecision’s 128-bit
+  <monospace>cpp_int</monospace> instantiation
+  (<xref alt="Kormanyos &amp; Maddock, 2026" rid="ref-multiprecision" ref-type="bibr">Kormanyos
+  &amp; Maddock, 2026</xref>), and MSVC’s undocumented
+  <monospace>std::_Signed128</monospace> and
+  <monospace>std::_Unsigned128</monospace>
+  (<xref alt="Microsoft Corporation, 2026" rid="ref-msvc_int128" ref-type="bibr">Microsoft
+  Corporation, 2026</xref>). Abseil is a close functional match, but it
+  requires C++17 and GCC 10 or later and carries no device annotations.
+  Boost.Multiprecision’s types instantiate a general
+  <monospace>number</monospace> template rather than a purpose-built
+  class, so they carry an extra word of bookkeeping and cost more per
+  operation.</p>
+  <p>On the device side, <monospace>nvcc</monospace> accepts
+  <monospace>__int128</monospace> only when the host compiler supports
+  it
+  (<xref alt="NVIDIA Corporation, 2026" rid="ref-cuda_guide" ref-type="bibr">NVIDIA
+  Corporation, 2026</xref>), which excludes every MSVC and 32-bit host,
+  and SYCL’s <monospace>spir64</monospace> target has no native 128-bit
+  integer at all
+  (<xref alt="Khronos SYCL Working Group, 2023" rid="ref-sycl_spec" ref-type="bibr">Khronos
+  SYCL Working Group, 2023</xref>). The implementations filling this
+  gap, such as CUDA-uint128
+  (<xref alt="Seizert, 2016" rid="ref-cuda_uint128" ref-type="bibr">Seizert,
+  2016</xref>), are unsigned only and tied to one toolchain. We are not
+  aware of another implementation offering one 128-bit type usable on
+  the host and in both CUDA and SYCL device code with bitwise identical
+  results.</p>
+</sec>
+<sec id="software-design">
+  <title>Software design</title>
+  <p>The library requires only C++14, is header-only, and has no
+  external dependencies, so a user need only
+  <monospace>#include &lt;boost/int128.hpp&gt;</monospace>, even with a
+  toolchain as old as <monospace>g++-5</monospace>. A single-header
+  amalgamation is published, and under C++20 the library can be consumed
+  as a module via <monospace>import boost.int128</monospace>. Relaxed
+  C++14 <monospace>constexpr</monospace> covers nearly the whole
+  interface.</p>
+  <p>Each type is a struct of two <monospace>std::uint64_t</monospace>
+  words ordered by target endianness, so the object representation and
+  alignment match a native 128-bit integer. Keeping both words unsigned
+  lets the compiler treat the pair as one wide access, so loops over
+  these types vectorize rather than scalarize. Operators forward to a
+  native 128-bit type or intrinsic where one exists, and follow Knuth
+  (<xref alt="1998" rid="ref-KnuthU003A1998" ref-type="bibr">1998</xref>)
+  and Warren
+  (<xref alt="2013" rid="ref-WarrenU003A2013" ref-type="bibr">2013</xref>)
+  over the two words elsewhere, with identical results. The library also
+  supplies the interfaces the extension lacks, among them
+  <monospace>&lt;limits&gt;</monospace>,
+  <monospace>&lt;bit&gt;</monospace>,
+  <monospace>&lt;charconv&gt;</monospace>,
+  <monospace>&lt;format&gt;</monospace>,
+  <monospace>&lt;iostream&gt;</monospace>, hashing, Boost.Random and
+  Boost.Math integration, saturating arithmetic, the C23
+  checked-arithmetic interface
+  (<xref alt="ISO/IEC, 2024" rid="ref-c23" ref-type="bibr">ISO/IEC,
+  2024</xref>), and the <monospace>div_*</monospace> family of P3724
+  (<xref alt="Schultke, 2025" rid="ref-p3724" ref-type="bibr">Schultke,
+  2025</xref>).</p>
+  <p>Continuous integration runs the test suite natively on Linux,
+  macOS, and Windows across x86_64, x86_32, aarch64, ARM32v7, ARM64, and
+  big-endian s390x, plus PPC64LE under QEMU, using GCC 5 and later,
+  Clang 5 and later, Visual Studio 2017 and later, Intel oneAPI DPC++,
+  and NVCC. Because half of these targets have no native 128-bit type,
+  the software fallbacks are tested as thoroughly as the intrinsic
+  paths. GPU support is expressed through one annotation macro,
+  <monospace>BOOST_INT128_HOST_DEVICE</monospace>, which expands to
+  <monospace>__host__ __device__</monospace> under
+  <monospace>nvcc</monospace> and <monospace>SYCL_EXTERNAL</monospace>
+  under a SYCL compiler. More than eighty CUDA and eighty SYCL tests
+  compare device results against the host, so agreement across that
+  boundary is tested rather than assumed.</p>
+  <p>Where a native type exists, Boost.Int128 matches or beats it: with
+  GCC 14.2 on Linux x86_64, <monospace>uint128</monospace> division and
+  modulo are roughly 16 percent faster than
+  <monospace>unsigned __int128</monospace>, and signed multiplication is
+  1.5 times faster on big-endian s390x. Where no native type exists, the
+  margins are larger: signed multiplication is 1.7 times faster than
+  <monospace>std::_Signed128</monospace> on MSVC x86_64 and 6.2 times
+  faster on MSVC ARM64, and 32-bit x86 addition is 8 times faster than
+  Boost.Multiprecision. A handful of cells favor an alternative, so the
+  complete tables, rerun on every pull request, are published rather
+  than a summary, at
+  <ext-link ext-link-type="uri" xlink:href="https://develop.int128.cpp.al/int128/u128_benchmarks.html">https://develop.int128.cpp.al/int128/u128_benchmarks.html</ext-link>
+  and
+  <ext-link ext-link-type="uri" xlink:href="https://develop.int128.cpp.al/int128/i128_benchmarks.html">https://develop.int128.cpp.al/int128/i128_benchmarks.html</ext-link>.
+  To enable reproducibility, information on how to run the benchmarks
+  locally as well as run our provided analysis scripts can be found on
+  the same benchmark pages under the “Running the Benchmarks”
+  heading.</p>
+  <p>Figure 1 shows the difference between a 64-bit and a 128-bit
+  product.</p>
+  <code language="c++">#include &lt;boost/int128.hpp&gt;
+#include &lt;cstdint&gt;
+#include &lt;iostream&gt;
+
+int main()
+{
+    using boost::int128::uint128;
+
+    // Two values that each fit in 64 bits, but whose product does not
+    constexpr std::uint64_t a {11400714819323198485ULL};
+    constexpr std::uint64_t b {14029467366897019727ULL};
+
+    // A 64-bit product silently wraps modulo 2^64
+    std::cout &lt;&lt; &quot; 64-bit: a * b = &quot; &lt;&lt; a * b &lt;&lt; std::endl;
+
+    // The same multiplication is exact when the result is 128 bits wide
+    constexpr uint128 exact {uint128{a} * uint128{b}};
+    std::cout &lt;&lt; &quot;128-bit: a * b = &quot; &lt;&lt; exact &lt;&lt; std::endl;
+
+    // Like a built-in integer, the types work in constant expressions
+    static_assert(exact / uint128{b} == uint128{a}, &quot;Recovers a exactly&quot;);
+    static_assert(sizeof(uint128) == 16, &quot;Exactly 128 bits on every platform&quot;);
+
+    return 0;
+}</code>
+  <preformat> 64-bit: a * b = 17693923505768731003
+128-bit: a * b = 159945956516994065446882290339781513595</preformat>
+  <p><italic>Figure 1: The 64-bit product wraps modulo 2^64 while the
+  <monospace>uint128</monospace> product is exact and compile-time
+  checked. The lower block is the program output.</italic></p>
+</sec>
+<sec id="research-impact-statement">
+  <title>Research Impact Statement</title>
+  <p>As a component distributed through the Boost libraries,
+  Boost.int128 is trivially in the reach of researchers everywhere.</p>
+  <p>Boost.int128 serves as the arithmetic backend to the Boost Decimal
+  Library
+  (<xref alt="Borland &amp; Kormanyos, 2026" rid="ref-Borland2026" ref-type="bibr">Borland
+  &amp; Kormanyos, 2026</xref>). Using Boost.int128 is what allowed
+  Boost.Decimal to be portable beyond the platforms served by competing
+  libraries, for example, on Apple’s ARM64. It also allowed portability
+  to CUDA, enabling quantitative finance researchers to process data at
+  much larger scales than previously available.</p>
+  <p>The Boost Graph Library
+  (<xref alt="Siek et al., 2002" rid="ref-bgl" ref-type="bibr">Siek et
+  al., 2002</xref>) already relies on 128-bit integers for exact
+  geometry, using <monospace>int128</monospace> in
+  is_straight_line_drawing to compute overflow-free orientation
+  determinants, showing that a dedicated Boost.Int128 would directly
+  serve computational-geometry and planarity research with applications
+  in VLSI circuit layout, graph visualization, network/map drawing, and
+  GIS.</p>
+</sec>
+<sec id="ai-usage-disclosure">
+  <title>AI usage disclosure</title>
+  <p>Generative AI tools were used in developing this library and
+  preparing this manuscript, for drafting and editing prose,
+  platform-specific optimizations, and generating test cases. All
+  library code, benchmark results, and text were reviewed and verified
+  by the author, who takes full responsibility for their
+  correctness.</p>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>We thank the C++ Alliance for sponsoring this work, the domain
+  experts who peer-reviewed the library in July 2026 before its
+  acceptance into the Boost library collection, and Arnaud Becheler for
+  managing that review.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <title></title>
+  <ref id="ref-boost">
+    <element-citation>
+      <person-group person-group-type="author">
+        <string-name>Boost Authors</string-name>
+      </person-group>
+      <article-title>Boost C++ libraries</article-title>
+      <source>GitHub repository</source>
+      <publisher-name>GitHub</publisher-name>
+      <year iso-8601-date="2026">2026</year>
+      <uri>https://github.com/boostorg/boost</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-abseil">
+    <element-citation>
+      <person-group person-group-type="author">
+        <string-name>Google</string-name>
+      </person-group>
+      <article-title>Abseil common libraries</article-title>
+      <source>GitHub repository</source>
+      <publisher-name>GitHub</publisher-name>
+      <year iso-8601-date="2017">2017</year>
+      <uri>https://github.com/abseil/abseil-cpp</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-multiprecision">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Kormanyos</surname><given-names>Christopher</given-names></name>
+        <name><surname>Maddock</surname><given-names>John</given-names></name>
+      </person-group>
+      <article-title>Boost.Multiprecision</article-title>
+      <source>GitHub repository</source>
+      <publisher-name>GitHub</publisher-name>
+      <year iso-8601-date="2026">2026</year>
+      <uri>https://github.com/boostorg/multiprecision</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-msvc_int128">
+    <element-citation>
+      <person-group person-group-type="author">
+        <string-name>Microsoft Corporation</string-name>
+      </person-group>
+      <article-title>Microsoft C++ standard library: __msvc_int128.hpp</article-title>
+      <source>GitHub repository</source>
+      <publisher-name>GitHub</publisher-name>
+      <year iso-8601-date="2026">2026</year>
+      <uri>https://github.com/microsoft/STL/blob/main/stl/inc/__msvc_int128.hpp</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-cuda_uint128">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Seizert</surname><given-names>Curtis</given-names></name>
+      </person-group>
+      <article-title>CUDA-uint128: A 128 bit unsigned integer class for CUDA</article-title>
+      <source>GitHub repository</source>
+      <publisher-name>GitHub</publisher-name>
+      <year iso-8601-date="2016">2016</year>
+      <uri>https://github.com/curtisseizert/CUDA-uint128</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-NickollsU003A2008">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Nickolls</surname><given-names>John</given-names></name>
+        <name><surname>Buck</surname><given-names>Ian</given-names></name>
+        <name><surname>Garland</surname><given-names>Michael</given-names></name>
+        <name><surname>Skadron</surname><given-names>Kevin</given-names></name>
+      </person-group>
+      <article-title>Scalable parallel programming with CUDA</article-title>
+      <source>Queue</source>
+      <publisher-name>Association for Computing Machinery</publisher-name>
+      <year iso-8601-date="2008">2008</year>
+      <volume>6</volume>
+      <issue>2</issue>
+      <pub-id pub-id-type="doi">10.1145/1365490.1365500</pub-id>
+      <fpage>40</fpage>
+      <lpage>53</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-cuda_guide">
+    <element-citation>
+      <person-group person-group-type="author">
+        <string-name>NVIDIA Corporation</string-name>
+      </person-group>
+      <article-title>CUDA C++ programming guide</article-title>
+      <year iso-8601-date="2026">2026</year>
+      <uri>https://docs.nvidia.com/cuda/cuda-c-programming-guide/</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-ReyesU003A2020">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Reyes</surname><given-names>Ruymán</given-names></name>
+        <name><surname>Brown</surname><given-names>Gordon</given-names></name>
+        <name><surname>Burns</surname><given-names>Rod</given-names></name>
+        <name><surname>Wong</surname><given-names>Michael</given-names></name>
+      </person-group>
+      <article-title>SYCL 2020: More than meets the eye</article-title>
+      <source>Proceedings of the international workshop on OpenCL (IWOCL ’20)</source>
+      <publisher-name>Association for Computing Machinery</publisher-name>
+      <year iso-8601-date="2020">2020</year>
+      <pub-id pub-id-type="doi">10.1145/3388333.3388649</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-sycl_spec">
+    <element-citation>
+      <person-group person-group-type="author">
+        <string-name>Khronos SYCL Working Group</string-name>
+      </person-group>
+      <article-title>SYCL 2020 Specification</article-title>
+      <publisher-name>The Khronos Group</publisher-name>
+      <year iso-8601-date="2023">2023</year>
+      <uri>https://registry.khronos.org/SYCL/specs/sycl-2020/html/sycl-2020.html</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-LemireU003A2019">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Lemire</surname><given-names>Daniel</given-names></name>
+      </person-group>
+      <article-title>Fast random integer generation in an interval</article-title>
+      <source>ACM Transactions on Modeling and Computer Simulation</source>
+      <publisher-name>Association for Computing Machinery</publisher-name>
+      <year iso-8601-date="2019">2019</year>
+      <volume>29</volume>
+      <issue>1</issue>
+      <pub-id pub-id-type="doi">10.1145/3230636</pub-id>
+      <fpage>1</fpage>
+      <lpage>12</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-AdamsU003A2018">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Adams</surname><given-names>Ulf</given-names></name>
+      </person-group>
+      <article-title>Ryu: Fast float-to-string conversion</article-title>
+      <source>Proceedings of the 39th ACM SIGPLAN conference on programming language design and implementation (PLDI 2018)</source>
+      <publisher-name>Association for Computing Machinery</publisher-name>
+      <year iso-8601-date="2018">2018</year>
+      <pub-id pub-id-type="doi">10.1145/3192366.3192369</pub-id>
+      <fpage>270</fpage>
+      <lpage>282</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-KnuthU003A1998">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Knuth</surname><given-names>Donald E.</given-names></name>
+      </person-group>
+      <source>The art of computer programming, volume 2: Seminumerical algorithms</source>
+      <publisher-name>Addison-Wesley</publisher-name>
+      <year iso-8601-date="1998">1998</year>
+      <edition>3rd</edition>
+      <isbn>9780201896848</isbn>
+    </element-citation>
+  </ref>
+  <ref id="ref-WarrenU003A2013">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Warren</surname><given-names>Henry S.</given-names></name>
+      </person-group>
+      <source>Hacker’s delight</source>
+      <publisher-name>Addison-Wesley</publisher-name>
+      <year iso-8601-date="2013">2013</year>
+      <edition>2nd</edition>
+      <isbn>9780321842688</isbn>
+    </element-citation>
+  </ref>
+  <ref id="ref-rfc4291">
+    <element-citation publication-type="report">
+      <person-group person-group-type="author">
+        <name><surname>Hinden</surname><given-names>Robert M.</given-names></name>
+        <name><surname>Deering</surname><given-names>Stephen E.</given-names></name>
+      </person-group>
+      <article-title>IP version 6 addressing architecture</article-title>
+      <publisher-name>Internet Engineering Task Force</publisher-name>
+      <year iso-8601-date="2006">2006</year>
+      <pub-id pub-id-type="doi">10.17487/RFC4291</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-rfc9562">
+    <element-citation publication-type="report">
+      <person-group person-group-type="author">
+        <name><surname>Davis</surname><given-names>Kyzer R.</given-names></name>
+        <name><surname>Peabody</surname><given-names>Brad</given-names></name>
+        <name><surname>Leach</surname><given-names>Paul J.</given-names></name>
+      </person-group>
+      <article-title>Universally unique IDentifiers (UUIDs)</article-title>
+      <publisher-name>Internet Engineering Task Force</publisher-name>
+      <year iso-8601-date="2024-05">2024</year><month>05</month>
+      <pub-id pub-id-type="doi">10.17487/RFC9562</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-c23">
+    <element-citation publication-type="report">
+      <person-group person-group-type="author">
+        <string-name>ISO/IEC</string-name>
+      </person-group>
+      <article-title>ISO/IEC 9899:2024, Programming Languages - C</article-title>
+      <publisher-name>International Organization for Standardization</publisher-name>
+      <year iso-8601-date="2024">2024</year>
+      <uri>https://www.iso.org/standard/82075.html</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-p3724">
+    <element-citation publication-type="report">
+      <person-group person-group-type="author">
+        <name><surname>Schultke</surname><given-names>Jan</given-names></name>
+      </person-group>
+      <article-title>P3724: Integer division</article-title>
+      <publisher-name>ISO/IEC JTC1/SC22/WG21</publisher-name>
+      <year iso-8601-date="2025">2025</year>
+      <uri>https://wg21.link/p3724</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-Borland2026">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Borland</surname><given-names>Matt</given-names></name>
+        <name><surname>Kormanyos</surname><given-names>Christopher</given-names></name>
+      </person-group>
+      <article-title>Boost.Decimal: A C++14 library for decimal floating point arithmetic</article-title>
+      <source>Journal of Open Source Software</source>
+      <publisher-name>The Open Journal</publisher-name>
+      <year iso-8601-date="2026">2026</year>
+      <volume>11</volume>
+      <issue>124</issue>
+      <uri>https://doi.org/10.21105/joss.10345</uri>
+      <pub-id pub-id-type="doi">10.21105/joss.10345</pub-id>
+      <fpage>10345</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-bgl">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Siek</surname><given-names>Jeremy G.</given-names></name>
+        <name><surname>Lee</surname><given-names>Lie-Quan</given-names></name>
+        <name><surname>Lumsdaine</surname><given-names>Andrew</given-names></name>
+      </person-group>
+      <source>The Boost Graph library: User guide and reference manual</source>
+      <publisher-name>Addison-Wesley</publisher-name>
+      <year iso-8601-date="2002">2002</year>
+      <isbn>9780201729146</isbn>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
