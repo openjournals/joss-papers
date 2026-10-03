@@ -1,0 +1,636 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">11131</article-id>
+<article-id pub-id-type="doi">10.21105/joss.11131</article-id>
+<title-group>
+<article-title>Consist: Provenance-Aware Caching and Queryable
+Provenance for Scientific Workflows</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author" corresp="yes">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0001-6190-5186</contrib-id>
+<name>
+<surname>Needell</surname>
+<given-names>Zachary A.</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+<xref ref-type="corresp" rid="cor-1"><sup>*</sup></xref>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Lawrence Berkeley National Laboratory</institution>
+<institution-id institution-id-type="ROR">02jbv0t02</institution-id>
+</institution-wrap>
+</aff>
+</contrib-group>
+<author-notes>
+<corresp id="cor-1">* E-mail: <email></email></corresp>
+</author-notes>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2026-06-16">
+<day>16</day>
+<month>6</month>
+<year>2026</year>
+</pub-date>
+<volume>11</volume>
+<issue>125</issue>
+<fpage>11131</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2026</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>Python</kwd>
+<kwd>provenance</kwd>
+<kwd>caching</kwd>
+<kwd>reproducibility</kwd>
+<kwd>scientific workflows</kwd>
+<kwd>transportation modeling</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p>Computational scientific workflows produce outputs that depend on
+  three things: the code used to produce them, the configuration
+  settings that parameterize their behavior, and the set of input
+  objects they consume. Each of those inputs may itself be the output of
+  an earlier computational step, creating dependency chains that can
+  extend across model runs. In practice, these chains are rarely
+  explicit: researchers frequently cannot trace which exact code,
+  configuration, and upstream inputs produced a given result, or which
+  downstream outputs are affected by an upstream change.</p>
+  <p>Consist is a Python library that makes this lineage explicit,
+  persistent, and queryable. It wraps ordinary Python computations in a
+  provenance layer that records which code, configuration, and input
+  artifacts produced each output, computing a deterministic identity
+  signature. Each step’s identity incorporates the identities of its
+  inputs, including the signatures of the runs that produced them. As a
+  result, any output can be traced back through its full chain of
+  upstream dependencies to the original inputs and assumptions at the
+  system boundary. A consequence of this identity-based lineage is
+  correct, automatic caching: upstream changes invalidate only the
+  downstream steps that genuinely depend on them, and unchanged steps
+  are safely reused without re-execution.</p>
+  <p>Provenance is persisted in a local DuckDB database
+  (<xref alt="Raasveldt &amp; Mühleisen, 2019" rid="ref-raasveldt2019duckdb" ref-type="bibr">Raasveldt
+  &amp; Mühleisen, 2019</xref>) that also serves as an analytical
+  engine: users can query across run outputs—whether ingested or
+  remaining distributed on disk—so that cross-scenario comparison,
+  lineage tracing, and result recovery are available through standard
+  SQL. The entire stack is self-contained with no external services,
+  reducing barriers to provenance tracking in research settings where
+  simplicity of deployment matters.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of Need</title>
+  <p>Many scientific domains rely on workflows where multiple simulation
+  models interact iteratively: climate projections couple atmosphere and
+  ocean models, energy system analyses couple capacity expansion with
+  dispatch, and epidemiological studies couple population dynamics with
+  interventions. In transportation planning—the domain that motivated
+  Consist—land-use models produce population and employment forecasts;
+  vehicle ownership models determine household fleets; activity-based
+  demand models generate travel behavior; and network assignment models
+  evaluate congestion. These models run iteratively across multi-year
+  horizons under multiple policy scenarios, with congestion feeding back
+  into demand and demand feeding back into land use.</p>
+  <p>These workflows create four recurring problems. First,
+  <bold>provenance ambiguity</bold>: when a result changes between runs,
+  it is often unclear which upstream input, configuration parameter, or
+  code change caused the difference. Second, <bold>redundant
+  recomputation</bold>: extending a converged 10-iteration equilibrium
+  run to 15 iterations should not require re-executing the first 10, yet
+  without explicit state management it typically does. Third,
+  <bold>scattered outputs</bold>: results accumulate as directories of
+  files with ad hoc naming, making systematic comparison across
+  scenarios difficult. Fourth, <bold>implicit wiring</bold>:
+  dependencies between steps are encoded through file paths, global
+  variables, or framework conventions rather than in inspectable,
+  queryable structure. Consist addresses these problems by treating each
+  workflow step as a provenance-aware computation with explicit identity
+  and lineage.</p>
+</sec>
+<sec id="state-of-the-field">
+  <title>State of the Field</title>
+  <p>Existing tools address fragments of this problem. Snakemake
+  (<xref alt="Mölder et al., 2021" rid="ref-molder2021snakemake" ref-type="bibr">Mölder
+  et al., 2021</xref>) provides directed acyclic graph (DAG)-based
+  execution with file-content-based recomputation, but it requires
+  expressing workflows in its own rule-based domain-specific language
+  (DSL) rather than wrapping existing Python code, and its focus is
+  correct re-execution rather than a persistent, queryable provenance
+  store. Workflow engines such as Nextflow
+  (<xref alt="Di Tommaso et al., 2017" rid="ref-ditommaso2017nextflow" ref-type="bibr">Di
+  Tommaso et al., 2017</xref>) similarly emphasize orchestration without
+  providing queryable provenance. Earlier Python-native provenance tools
+  such as Sumatra
+  (<xref alt="Davison, 2012" rid="ref-davison2012sumatra" ref-type="bibr">Davison,
+  2012</xref>) and Recipy
+  (<xref alt="Jackson et al., 2018" rid="ref-recipy" ref-type="bibr">Jackson
+  et al., 2018</xref>) track runs with minimal code changes but lack
+  identity-based caching, multi-step lineage propagation, and queryable
+  output stores. DVC
+  (<xref alt="Kuprieiev et al., 2026" rid="ref-iterative2020dvc" ref-type="bibr">Kuprieiev
+  et al., 2026</xref>) versions data files and pipelines but targets
+  data-asset management rather than run-level identity and experiment
+  history, while MLflow
+  (<xref alt="Chen et al., 2020" rid="ref-chen2020mlflow" ref-type="bibr">Chen
+  et al., 2020</xref>) offers rich experiment tracking oriented toward
+  machine-learning training loops rather than multi-step simulations
+  with heterogeneous configuration ecosystems. OpenLineage
+  (<xref alt="OpenLineage contributors, 2026" rid="ref-openlineage2026" ref-type="bibr">OpenLineage
+  contributors, 2026</xref>) standardizes lineage event emission but
+  does not itself persist or use provenance or lineage metadata; Consist
+  can optionally emit OpenLineage events while natively handling
+  provenance storage, querying, and identity-based cache resolution.</p>
+  <p>Apache Hamilton
+  (<xref alt="Krawczyk &amp; Izzy, 2022" rid="ref-hamilton2024" ref-type="bibr">Krawczyk
+  &amp; Izzy, 2022</xref>) is the closest existing tool: it builds
+  function-level DAGs with caching and Merkle-style identity
+  propagation. However, Hamilton requires its steps to be pure Python
+  functions, a major barrier for scientific workflows that rely on
+  containers and subprocesses. It also lacks support for the complex
+  configuration structures common in simulation pipelines and provides
+  no analytical engine to make provenance metadata and artifact contents
+  queryable.</p>
+  <p>Consist fills this gap by combining non-invasive provenance
+  tracking, deterministic identity-based caching with lineage
+  propagation, and a queryable analytical surface for post-hoc
+  comparison—without requiring a workflow DSL or external services.</p>
+</sec>
+<sec id="software-design">
+  <title>Software Design</title>
+  <sec id="the-identity-model">
+    <title>The Identity Model</title>
+    <p>Consist’s core mechanism is a deterministic three-part signature
+    computed for each computational step:
+    <monospace>signature = SHA256(code_hash || config_hash || input_hash)</monospace>.
+    The code hash captures relevant implementation state (configurable
+    from Git state, callable-scoped source code, or container manifest).
+    The config hash captures a canonicalized dictionary of model
+    settings. The input hash captures the identity of declared input
+    artifacts, and when those artifacts were themselves produced by
+    Consist, their identity incorporates the producing run’s signature,
+    inducing a Merkle-style DAG. A change to any upstream step
+    propagates invalidation only through genuinely dependent downstream
+    computations
+    (<xref alt="[fig:diagram]" rid="figU003Adiagram">[fig:diagram]</xref>).</p>
+    <fig>
+      <caption><p>Figure 1. Identity propagation across workflow steps.
+      Each step’s signature is computed from its code identity,
+      configuration, and input identity. When Step B consumes an
+      artifact produced by Step A, Signature A is incorporated into Step
+      B’s input identity (solid arrow), propagating cache invalidation
+      through the workflow. The artifact’s bytes are consumed separately
+      at runtime (dashed arrow) and need not be materialized when a
+      cache hit makes re-execution
+      unnecessary.<styled-content id="figU003Adiagram"></styled-content></p></caption>
+      <graphic mimetype="application" mime-subtype="pdf" xlink:href="diagram.pdf" />
+    </fig>
+  </sec>
+  <sec id="why-this-is-hard-in-practice">
+    <title>Why This Is Hard in Practice</title>
+    <p>Real workflows complicate this clean conceptual model.</p>
+    <p><bold>Structured configurations:</bold> In complex simulation
+    ecosystems, “configuration” simultaneously plays several roles:
+    experimental parameters, descriptive metadata, and external file
+    trees (YAML, CSV, XML). Consist separates these explicitly into
+    identity-bearing configuration (structured parameters that are both
+    hashed for cache identity and indexed for analytical queries),
+    facets (indexed but not hashed), and identity inputs (files or
+    directories hashed but not indexed).</p>
+    <p><bold>Functions with side effects:</bold> Domain models can write
+    files, call subprocesses, and interact with external tools. Consist
+    tracks such processes through their declared inputs, configuration,
+    and outputs without requiring changes to domain code. Artifacts live
+    on disk rather than in memory, and Consist loads or attaches them to
+    steps only as required, better accommodating outputs too large to
+    hold in memory. Separating “hydration” (recovering metadata and
+    provenance) and “materialization” (ensuring bytes exist on disk)
+    allows a cache hit to resolve cheaply without reading or duplicating
+    files at all. Correctness, however, depends on inputs and code
+    changes being faithfully declared—undeclared dependencies (e.g.,
+    untracked files, environment state, or non-deterministic
+    computation) can produce stale cache hits.</p>
+    <p><bold>Post-run analysis:</bold> Consist persists provenance in
+    both JSON snapshots and a DuckDB database for analytical querying.
+    Selected tabular outputs can be ingested alongside provenance
+    metadata, while large or infrequently queried outputs remain
+    file-backed. Users can query across both through a unified
+    analytical surface with provenance columns (run ID, scenario, year)
+    attached for grouping and filtering. Consequently, agent-level trip
+    records and population tables—millions of rows stored as distributed
+    Parquet files—can be queried through a single SQL surface, enabling
+    analyses such as grouping vehicle miles traveled by home geography
+    across policy scenarios without loading full datasets into
+    memory.</p>
+  </sec>
+  <sec id="graduated-formalization">
+    <title>Graduated Formalization</title>
+    <p>At a minimum, Consist requires explicit inputs, outputs, and
+    identity-bearing configuration for each step—typically a few
+    additional lines per function call. Users can optionally add facets
+    for analytical filtering, configuration adapters for complex domain
+    settings (current adapters exist for ActivitySim
+    (<xref alt="Zephyr Foundation, n.d." rid="ref-activitysim2026" ref-type="bibr">Zephyr
+    Foundation, n.d.</xref>) and BEAM
+    (<xref alt="Laarabi et al., 2024" rid="ref-laarabi2024beam" ref-type="bibr">Laarabi
+    et al., 2024</xref>)), and typed artifact schemas. Each layer
+    delivers proportionally richer capabilities, from basic cache reuse
+    through queryable provenance to memory-efficient typed analytical
+    views over large simulation outputs.</p>
+  </sec>
+</sec>
+<sec id="research-impact-statement">
+  <title>Research Impact Statement</title>
+  <p>Consist was developed to support PILATES, a workflow runtime used
+  in the BEAM CORE modeling ecosystem at Lawrence Berkeley National Lab
+  (<xref alt="Spurlock et al., 2024" rid="ref-spurlock2024beamcore" ref-type="bibr">Spurlock
+  et al., 2024</xref>). PILATES coordinates UrbanSim
+  (<xref alt="Waddell, 2002" rid="ref-waddell2002urbansim" ref-type="bibr">Waddell,
+  2002</xref>) (land use), ATLAS
+  (<xref alt="Jin et al., 2024" rid="ref-jin2024atlas" ref-type="bibr">Jin
+  et al., 2024</xref>) (vehicle ownership), ActivitySim
+  (<xref alt="Zephyr Foundation, n.d." rid="ref-activitysim2026" ref-type="bibr">Zephyr
+  Foundation, n.d.</xref>) (travel demand), and BEAM
+  (<xref alt="Laarabi et al., 2024" rid="ref-laarabi2024beam" ref-type="bibr">Laarabi
+  et al., 2024</xref>) (network assignment) across multi-year,
+  multi-iteration scenario lifecycles. PILATES is currently used in
+  DOE-funded scenario analyses of vehicle technology change, curb
+  utilization, and supply-chain optimization.</p>
+  <p>During PILATES integration, adding Consist required making
+  model-step input and output bindings explicit. That process surfaced a
+  latent cross-model dependency error: ActivitySim’s population-source
+  input was bound to a valid but wrong-year UrbanSim artifact, using the
+  current-year datastore rather than the forecast-year population
+  snapshot produced after ATLAS updates. The issue was difficult to
+  detect from individual files alone because each artifact was
+  internally valid; the lineage graph made the semantic mismatch between
+  upstream artifact roles visible.</p>
+  <p>Consist’s caching also delivers practical savings: scenarios that
+  vary ActivitySim or BEAM configurations can reuse cached upstream
+  UrbanSim and ATLAS steps. Six example notebooks demonstrating these
+  mechanics in self-contained workflows, covering cache behavior,
+  scenario comparison, parameter sweeps, iterative extension, and
+  cross-run analysis.</p>
+</sec>
+<sec id="availability">
+  <title>Availability</title>
+  <p>Consist is available on PyPI
+  (<monospace>pip install consist</monospace>) and developed openly at
+  https://github.com/LBNL-UCB-STI/consist under a BSD 3-Clause license.
+  Documentation including a quickstart, usage guide, API documentation,
+  and the example notebook gallery is hosted at
+  https://lbnl-ucb-sti.github.io/consist/latest/. The repository
+  includes automated tests run via continuous integration and
+  contribution guidelines (CONTRIBUTING.md) that include a code of
+  conduct. Consist requires Python 3.11+ and depends on DuckDB,
+  SQLModel, pandas, and PyArrow, with optional dependencies for spatial
+  formats, xarray-based matrix views, and data ingestion via dlt.</p>
+</sec>
+<sec id="ai-usage-disclosure">
+  <title>AI Usage Disclosure</title>
+  <p>Anthropic Claude Opus 4.5-4.7 and OpenAI ChatGPT 5.2-5.5 used
+  across software development, documentation, and paper editing. The
+  authors reviewed, edited, and validated all AI-assisted text and code;
+  AI-assisted software components were validated through automated tests
+  and real-world research use in PILATES. All architectural decisions,
+  technical claims, and domain-specific content reflect the authors’
+  direct experience developing and deploying Consist.</p>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>This paper and the work described were sponsored by the U.S.
+  Department of Energy (DOE) Vehicle Technologies Office (VTO) under the
+  Systems and Modeling for Accelerated Research in Transportation
+  (SMART) Mobility Laboratory Consortium, an initiative of the Energy
+  Efficient Mobility Systems (EEMS) Program. Lawrence Berkeley National
+  Laboratory operates under DOE Contract No.DE-AC02-05CH11231. The views
+  expressed in the article do not necessarily represent the views of the
+  DOE or the U.S. Government. The U.S. Government retains a
+  nonexclusive, paid-up, irrevocable, worldwide license to publish or
+  reproduce the published form of this work, or allow others to do so,
+  for U.S. Government purposes.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <title></title>
+  <ref id="ref-molder2021snakemake">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Mölder</surname><given-names>Felix</given-names></name>
+        <name><surname>Jablonski</surname><given-names>Kim Philipp</given-names></name>
+        <name><surname>Letcher</surname><given-names>Brice</given-names></name>
+        <name><surname>Hall</surname><given-names>Michael B.</given-names></name>
+        <name><surname>Tomkins-Tinch</surname><given-names>Christopher H.</given-names></name>
+        <name><surname>Sochat</surname><given-names>Vanessa</given-names></name>
+        <name><surname>Forster</surname><given-names>Jan</given-names></name>
+        <name><surname>Lee</surname><given-names>Soohyun</given-names></name>
+        <name><surname>Twardziok</surname><given-names>Sven O.</given-names></name>
+        <name><surname>Kanitz</surname><given-names>Alexander</given-names></name>
+        <name><surname>Wilm</surname><given-names>Andreas</given-names></name>
+        <name><surname>Holtgrewe</surname><given-names>Manuel</given-names></name>
+        <name><surname>Rahmann</surname><given-names>Sven</given-names></name>
+        <name><surname>Nahnsen</surname><given-names>Sven</given-names></name>
+        <name><surname>Köster</surname><given-names>Johannes</given-names></name>
+      </person-group>
+      <article-title>Sustainable data analysis with Snakemake</article-title>
+      <source>F1000Research</source>
+      <year iso-8601-date="2021">2021</year>
+      <volume>10</volume>
+      <uri>https://doi.org/10.12688/f1000research.29032.2</uri>
+      <pub-id pub-id-type="doi">10.12688/f1000research.29032.2</pub-id>
+      <fpage>33</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-jin2024atlas">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Jin</surname><given-names>Ling</given-names></name>
+        <name><surname>Jackson</surname><given-names>Connor P</given-names></name>
+        <name><surname>Wang</surname><given-names>Yuhan</given-names></name>
+        <name><surname>Chen</surname><given-names>Qianmiao</given-names></name>
+        <name><surname>Ho</surname><given-names>Tin</given-names></name>
+        <name><surname>Spurlock</surname><given-names>C Anna</given-names></name>
+        <name><surname>Brooker</surname><given-names>Aaron</given-names></name>
+        <name><surname>Holden</surname><given-names>Jacob</given-names></name>
+        <name><surname>Gonder</surname><given-names>Jeffrey</given-names></name>
+        <name><surname>Bouzaghrane</surname><given-names>Mohamed Amine</given-names></name>
+        <name><surname>others</surname></name>
+      </person-group>
+      <article-title>Technology progress and clean vehicle policies on fleet turnover and equity: Insights from household vehicle fleet micro-simulations with ATLAS</article-title>
+      <source>Transportation Planning and Technology</source>
+      <publisher-name>Taylor &amp; Francis</publisher-name>
+      <year iso-8601-date="2024">2024</year>
+      <volume>47</volume>
+      <issue>8</issue>
+      <pub-id pub-id-type="doi">10.1080/03081060.2024.2353784</pub-id>
+      <fpage>1399</fpage>
+      <lpage>1422</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-raasveldt2019duckdb">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Raasveldt</surname><given-names>Mark</given-names></name>
+        <name><surname>Mühleisen</surname><given-names>Hannes</given-names></name>
+      </person-group>
+      <article-title>DuckDB: An embeddable analytical database</article-title>
+      <source>Proceedings of the 2019 international conference on management of data</source>
+      <publisher-name>Association for Computing Machinery</publisher-name>
+      <year iso-8601-date="2019">2019</year>
+      <uri>https://doi.org/10.1145/3299869.3320212</uri>
+      <pub-id pub-id-type="doi">10.1145/3299869.3320212</pub-id>
+      <fpage>1981</fpage>
+      <lpage>1984</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-chen2020mlflow">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Chen</surname><given-names>Andrew</given-names></name>
+        <name><surname>Chow</surname><given-names>Andy</given-names></name>
+        <name><surname>Davidson</surname><given-names>Aaron</given-names></name>
+        <name><surname>DCunha</surname><given-names>Arjun</given-names></name>
+        <name><surname>Ghodsi</surname><given-names>Ali</given-names></name>
+        <name><surname>Hong</surname><given-names>Sue Ann</given-names></name>
+        <name><surname>Konwinski</surname><given-names>Andy</given-names></name>
+        <name><surname>Mewald</surname><given-names>Clemens</given-names></name>
+        <name><surname>Murching</surname><given-names>Siddharth</given-names></name>
+        <name><surname>Nykodym</surname><given-names>Tomas</given-names></name>
+        <name><surname>Ogilvie</surname><given-names>Paul</given-names></name>
+        <name><surname>Parkhe</surname><given-names>Mani</given-names></name>
+        <name><surname>Singh</surname><given-names>Avesh</given-names></name>
+        <name><surname>Xie</surname><given-names>Fen</given-names></name>
+        <name><surname>Zaharia</surname><given-names>Matei</given-names></name>
+        <name><surname>Zang</surname><given-names>Richard</given-names></name>
+        <name><surname>Zheng</surname><given-names>Juntai</given-names></name>
+        <name><surname>Zumar</surname><given-names>Corey</given-names></name>
+      </person-group>
+      <article-title>Developments in MLflow: A system to accelerate the machine learning lifecycle</article-title>
+      <source>Proceedings of the fourth workshop on data management for end-to-end machine learning</source>
+      <publisher-name>Association for Computing Machinery</publisher-name>
+      <year iso-8601-date="2020">2020</year>
+      <uri>https://doi.org/10.1145/3399579.3399867</uri>
+      <pub-id pub-id-type="doi">10.1145/3399579.3399867</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-iterative2020dvc">
+    <element-citation publication-type="software">
+      <person-group person-group-type="author">
+        <name><surname>Kuprieiev</surname><given-names>Ruslan</given-names></name>
+        <name><surname>skshetry</surname></name>
+        <name><surname>(변기호)</surname><given-names>Peter Rowlands</given-names></name>
+        <name><surname>Petrov</surname><given-names>Dmitry</given-names></name>
+        <name><surname>Redzyński</surname><given-names>Paweł</given-names></name>
+        <name><surname>Costa-Luis</surname><given-names>Casper da</given-names></name>
+        <name><surname>Iglesia Castro</surname><given-names>David de la</given-names></name>
+        <name><surname>Schepanovski</surname><given-names>Alexander</given-names></name>
+        <name><surname>Shcheklein</surname><given-names>Ivan</given-names></name>
+        <name><surname>Gao</surname><given-names>Yanxiang</given-names></name>
+        <name><surname>Taskaya</surname><given-names>Batuhan</given-names></name>
+        <name><surname>Orpinel</surname><given-names>Jorge</given-names></name>
+        <name><surname>Santos</surname><given-names>Fábio</given-names></name>
+        <name><surname>Daniele</surname></name>
+        <name><surname>Lamy</surname><given-names>Ronan</given-names></name>
+        <name><surname>Sharma</surname><given-names>Aman</given-names></name>
+        <name><surname>Kaimuldenov</surname><given-names>Zhanibek</given-names></name>
+        <name><surname>Hodovic</surname><given-names>Dani</given-names></name>
+        <name><surname>Kodenko</surname><given-names>Nikita</given-names></name>
+        <name><surname>Earl</surname></name>
+        <name><surname>Grigorev</surname><given-names>Andrew</given-names></name>
+        <name><surname>Dash</surname><given-names>Nabanita</given-names></name>
+        <name><surname>Berenbaum</surname><given-names>Dave</given-names></name>
+        <name><surname>Vyshnya</surname><given-names>George</given-names></name>
+        <name><surname>maykulkarni</surname></name>
+        <name><surname>Hora</surname><given-names>Max</given-names></name>
+        <name><surname>Vera</surname></name>
+        <name><surname>Mangal</surname><given-names>Sanidhya</given-names></name>
+      </person-group>
+      <article-title>DVC: Data version control - git for data &amp; models</article-title>
+      <publisher-name>Zenodo</publisher-name>
+      <year iso-8601-date="2026-03">2026</year><month>03</month>
+      <uri>https://doi.org/10.5281/zenodo.19344026</uri>
+      <pub-id pub-id-type="doi">10.5281/zenodo.19344026</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-openlineage2026">
+    <element-citation>
+      <person-group person-group-type="author">
+        <string-name>OpenLineage contributors</string-name>
+      </person-group>
+      <article-title>OpenLineage: An open framework for data lineage collection and analysis</article-title>
+      <publisher-name>Software documentation</publisher-name>
+      <year iso-8601-date="2026">2026</year>
+      <uri>https://openlineage.io/</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-hamilton2024">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Krawczyk</surname><given-names>Stefan</given-names></name>
+        <name><surname>Izzy</surname><given-names>Elijah ben</given-names></name>
+      </person-group>
+      <article-title>Hamilton: A modular open source declarative paradigm for high level modeling of dataflows</article-title>
+      <source>1st international workshop on composable data management systems, CDMS@VLDB 2022, sydney, australia, september 9, 2022</source>
+      <person-group person-group-type="editor">
+        <name><surname>Valluri</surname><given-names>Satyanarayana R.</given-names></name>
+        <name><surname>Zait</surname><given-names>Mohamed</given-names></name>
+      </person-group>
+      <year iso-8601-date="2022">2022</year>
+      <uri>https://cdmsworkshop.github.io/2022/Proceedings/ShortPapers/Paper6_StefanKrawczyk.pdf</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-activitysim2026">
+    <element-citation publication-type="software">
+      <person-group person-group-type="author">
+        <string-name>Zephyr Foundation</string-name>
+      </person-group>
+      <article-title>ActivitySim</article-title>
+      <uri>https://github.com/ActivitySim/activitysim</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-laarabi2024beam">
+    <element-citation publication-type="report">
+      <person-group person-group-type="author">
+        <name><surname>Laarabi</surname><given-names>Haitam</given-names></name>
+        <name><surname>Needell</surname><given-names>Zachary</given-names></name>
+        <name><surname>Waraich</surname><given-names>Rashid</given-names></name>
+        <name><surname>Poliziani</surname><given-names>Cristian</given-names></name>
+        <name><surname>Wenzel</surname><given-names>Thomas P.</given-names></name>
+      </person-group>
+      <article-title>A modeling framework for behavior, energy, autonomy and mobility (BEAM)</article-title>
+      <publisher-name>Lawrence Berkeley National Laboratory</publisher-name>
+      <year iso-8601-date="2024">2024</year>
+      <uri>https://transportation.lbl.gov/publications/modeling-framework-behavior-energy</uri>
+      <pub-id pub-id-type="doi">10.48550/arXiv.2308.02073</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-spurlock2024beamcore">
+    <element-citation publication-type="report">
+      <person-group person-group-type="author">
+        <name><surname>Spurlock</surname><given-names>C Anna</given-names></name>
+        <name><surname>Bouzaghrane</surname><given-names>Mohamed Amine</given-names></name>
+        <name><surname>Brooker</surname><given-names>Aaron</given-names></name>
+        <name><surname>Caicedo</surname><given-names>Juan</given-names></name>
+        <name><surname>Gonder</surname><given-names>Jeff</given-names></name>
+        <name><surname>Holden</surname><given-names>Jake</given-names></name>
+        <name><surname>Jeong</surname><given-names>Kyungsoo</given-names></name>
+        <name><surname>Jin</surname><given-names>Ling</given-names></name>
+        <name><surname>Laarabi</surname><given-names>Haitam</given-names></name>
+        <name><surname>Needell</surname><given-names>Zachary</given-names></name>
+        <name><surname>others</surname></name>
+      </person-group>
+      <article-title>Behavior, energy, autonomy &amp; mobility comprehensive regional evaluator: Overview, calibration and validation summary of an agent-based integrated regional transportation modeling workflow</article-title>
+      <publisher-name>Lawrence Berkeley National Laboratory</publisher-name>
+      <year iso-8601-date="2024">2024</year>
+      <uri>https://transportation.lbl.gov/publications/behavior-energy-autonomy-mobility</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-waddell2002urbansim">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Waddell</surname><given-names>Paul</given-names></name>
+      </person-group>
+      <article-title>UrbanSim: Modeling urban development for land use, transportation, and environmental planning</article-title>
+      <source>Journal of the American Planning Association</source>
+      <year iso-8601-date="2002">2002</year>
+      <volume>68</volume>
+      <issue>3</issue>
+      <uri>https://doi.org/10.1080/01944360208976274</uri>
+      <pub-id pub-id-type="doi">10.1080/01944360208976274</pub-id>
+      <fpage>297</fpage>
+      <lpage>314</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-davison2012sumatra">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Davison</surname><given-names>Andrew</given-names></name>
+      </person-group>
+      <article-title>Automated capture of experiment context for easier reproducibility in computational research</article-title>
+      <source>Computing in Science &amp; Engineering</source>
+      <publisher-name>IEEE</publisher-name>
+      <year iso-8601-date="2012">2012</year>
+      <volume>14</volume>
+      <issue>4</issue>
+      <pub-id pub-id-type="doi">10.1109/MCSE.2012.41</pub-id>
+      <fpage>48</fpage>
+      <lpage>56</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-ditommaso2017nextflow">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Di Tommaso</surname><given-names>Paolo</given-names></name>
+        <name><surname>Chatzou</surname><given-names>Maria</given-names></name>
+        <name><surname>Floden</surname><given-names>Evan W</given-names></name>
+        <name><surname>Barja</surname><given-names>Pablo Prieto</given-names></name>
+        <name><surname>Palumbo</surname><given-names>Emilio</given-names></name>
+        <name><surname>Notredame</surname><given-names>Cedric</given-names></name>
+      </person-group>
+      <article-title>Nextflow enables reproducible computational workflows</article-title>
+      <source>Nature biotechnology</source>
+      <publisher-name>Nature Publishing Group US New York</publisher-name>
+      <year iso-8601-date="2017">2017</year>
+      <volume>35</volume>
+      <issue>4</issue>
+      <pub-id pub-id-type="doi">10.1038/nbt.3820</pub-id>
+      <fpage>316</fpage>
+      <lpage>319</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-recipy">
+    <element-citation publication-type="software">
+      <person-group person-group-type="author">
+        <name><surname>Jackson</surname><given-names>Michael</given-names></name>
+        <name><surname>Wilson</surname><given-names>Robin</given-names></name>
+        <name><surname>Zwaan</surname><given-names>Janneke van der</given-names></name>
+        <name><surname>Steinbrook</surname><given-names>Daniel W.</given-names></name>
+        <name><surname>Rathgeber</surname><given-names>Florian</given-names></name>
+        <name><surname>Alegre</surname><given-names>Raquel</given-names></name>
+        <name><surname>Edwards</surname><given-names>Thomas</given-names></name>
+        <name><surname>Costello</surname><given-names>Cash</given-names></name>
+        <name><surname>Danny</surname><given-names>Samuel</given-names></name>
+        <name><surname>Chwiejczak</surname><given-names>Jan</given-names></name>
+        <name><surname>Cottaar</surname><given-names>Michiel</given-names></name>
+        <name><surname>Martinez-Ortiz</surname><given-names>Carlos</given-names></name>
+        <name><surname>Vieglais</surname><given-names>Dave</given-names></name>
+        <name><surname>Kucharavy</surname><given-names>Andrei</given-names></name>
+        <name><surname>Ruben</surname><given-names>Gary</given-names></name>
+        <name><surname>Upadhyay</surname><given-names>Utkarsh</given-names></name>
+      </person-group>
+      <article-title>recipy</article-title>
+      <year iso-8601-date="2018-10">2018</year><month>10</month>
+      <uri>https://github.com/recipy/recipy</uri>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
