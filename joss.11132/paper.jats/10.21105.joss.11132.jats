@@ -1,0 +1,592 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">11132</article-id>
+<article-id pub-id-type="doi">10.21105/joss.11132</article-id>
+<title-group>
+<article-title>BM3DORNL: High-Performance BM3D Denoising for Neutron
+Tomography</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author" corresp="yes">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0001-8374-4467</contrib-id>
+<name>
+<surname>Zhang</surname>
+<given-names>Chen</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+<xref ref-type="corresp" rid="cor-1"><sup>*</sup></xref>
+</contrib>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0003-2172-6487</contrib-id>
+<name>
+<surname>Bilheux</surname>
+<given-names>Jean-Christophe</given-names>
+</name>
+<xref ref-type="aff" rid="aff-2"/>
+</contrib>
+<contrib contrib-type="author">
+<name>
+<surname>Ganyushin</surname>
+<given-names>Dmitry</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0002-1353-0348</contrib-id>
+<name>
+<surname>Peterson</surname>
+<given-names>Pete</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Computing and Computational Sciences Directorate, Oak Ridge
+National Laboratory, Oak Ridge, TN, USA</institution>
+</institution-wrap>
+</aff>
+<aff id="aff-2">
+<institution-wrap>
+<institution>Neutron Sciences Directorate, Oak Ridge National
+Laboratory, Oak Ridge, TN, USA</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<author-notes>
+<corresp id="cor-1">* E-mail: <email></email></corresp>
+</author-notes>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2026-01-11">
+<day>11</day>
+<month>1</month>
+<year>2026</year>
+</pub-date>
+<volume>11</volume>
+<issue>126</issue>
+<fpage>11132</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2026</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>Python</kwd>
+<kwd>Rust</kwd>
+<kwd>neutron imaging</kwd>
+<kwd>tomography</kwd>
+<kwd>denoising</kwd>
+<kwd>ring artifacts</kwd>
+<kwd>BM3D</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<p><bold>Notice:</bold> This manuscript has been authored by
+UT-Battelle, LLC, under contract DE-AC05-00OR22725 with the US
+Department of Energy (DOE). The US government retains and the publisher,
+by accepting the article for publication, acknowledges that the US
+government retains a nonexclusive, paid-up, irrevocable, worldwide
+license to publish or reproduce the published form of this manuscript,
+or allow others to do so, for US government purposes. DOE will provide
+public access to these results of federally sponsored research in
+accordance with the DOE Public Access Plan
+(https://www.energy.gov/doe-public-access-plan).</p>
+<sec id="summary">
+  <title>Summary</title>
+  <p>BM3DORNL is a high-performance Python library for denoising neutron
+  and X-ray tomography data using a modified Block-Matching and 3D
+  Filtering (BM3D) algorithm. The library provides two denoising modes:
+  a generic mode for standard noise removal, and a specialized streak
+  mode optimized for removing vertical streak patterns in sinograms that
+  manifest as ring artifacts in reconstructed images. Built with a Rust
+  backend and Python bindings via PyO3, BM3DORNL processes a sinogram
+  340<inline-formula><alternatives>
+  <tex-math><![CDATA[\times]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>×</mml:mi></mml:math></alternatives></inline-formula>
+  faster than the reference bm3d-streak-removal implementation while
+  maintaining cross-platform compatibility including native Apple
+  Silicon support.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of Need</title>
+  <p>Ring artifacts are a persistent challenge in neutron and X-ray
+  computed tomography, arising from variations in detector pixel
+  response, beam intensity fluctuations, and systematic errors
+  (<xref alt="Münch et al., 2009" rid="ref-münch2009" ref-type="bibr">Münch
+  et al., 2009</xref>). These artifacts appear as concentric rings in
+  reconstructed images, obscuring sample structure and degrading
+  quantitative analysis. Pre-reconstruction streak removal addresses
+  these artifacts directly in sinograms, avoiding the spatial spreading
+  that occurs during reconstruction. Existing approaches include
+  wavelet-Fourier filtering
+  (<xref alt="Münch et al., 2009" rid="ref-münch2009" ref-type="bibr">Münch
+  et al., 2009</xref>), polynomial fitting
+  (<xref alt="Vo et al., 2018" rid="ref-vo2018" ref-type="bibr">Vo et
+  al., 2018</xref>), and sorting-based methods
+  (<xref alt="Miqueles et al., 2014" rid="ref-miqueles2014" ref-type="bibr">Miqueles
+  et al., 2014</xref>), with implementations available in TomoPy
+  (<xref alt="Gürsoy et al., 2014" rid="ref-gürsoy2014" ref-type="bibr">Gürsoy
+  et al., 2014</xref>).</p>
+  <p>Mäkinen et al.
+  (<xref alt="Mäkinen et al., 2021" rid="ref-mäkinen2021" ref-type="bibr">Mäkinen
+  et al., 2021</xref>) demonstrated that applying BM3D
+  (<xref alt="Dabov et al., 2007" rid="ref-dabov2007" ref-type="bibr">Dabov
+  et al., 2007</xref>) across multiple scales achieves superior artifact
+  removal by exploiting the self-similarity of streak patterns. However,
+  their bm3d-streak-removal implementation is closed-source, restricted
+  to non-commercial use, and provides only x86_64 binaries incompatible
+  with Apple Silicon and modern Python versions. BM3DORNL provides the
+  neutron imaging community with an open-source, MIT-licensed,
+  high-performance implementation that enables both high-throughput
+  batch processing and interactive parameter tuning.</p>
+</sec>
+<sec id="state-of-the-field">
+  <title>State of the Field</title>
+  <p>Several software packages implement pre-processing streak removal
+  for tomography: TomoPy
+  (<xref alt="Gürsoy et al., 2014" rid="ref-gürsoy2014" ref-type="bibr">Gürsoy
+  et al., 2014</xref>) provides wavelet-Fourier filtering
+  (<xref alt="Münch et al., 2009" rid="ref-münch2009" ref-type="bibr">Münch
+  et al., 2009</xref>) and Vo’s sorting/fitting methods
+  (<xref alt="Vo et al., 2018" rid="ref-vo2018" ref-type="bibr">Vo et
+  al., 2018</xref>); ASTRA Toolbox
+  (<xref alt="Aarle et al., 2016" rid="ref-van2016" ref-type="bibr">Aarle
+  et al., 2016</xref>) offers GPU-accelerated preprocessing; and
+  bm3d-streak-removal
+  (<xref alt="Mäkinen et al., 2021" rid="ref-mäkinen2021" ref-type="bibr">Mäkinen
+  et al., 2021</xref>) implements multiscale BM3D but remains
+  closed-source and platform-limited.</p>
+  <p><xref alt="[fig:input]" rid="figU003Ainput">[fig:input]</xref>
+  shows the benchmark input data: a synthetic sinogram
+  (<inline-formula><alternatives>
+  <tex-math><![CDATA[720\times725]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mn>720</mml:mn><mml:mo>×</mml:mo><mml:mn>725</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>
+  pixels) with simulated ring artifacts and the corresponding clean
+  ground truth. The figures and the quality comparison use Linux x86_64
+  results so that bm3d-streak-removal, which provides only x86_64
+  binaries, can be included; the Apple Silicon timings quoted below come
+  from a separate run of the same code. We compared eight methods: four
+  BM3DORNL variants (streak, generic, multiscale, and Fourier-SVD),
+  three TomoPy algorithms (wavelet-Fourier, sorting-fitting, and
+  sorting-based), and the original bm3d-streak-removal. The multiscale
+  variant implements the pyramid approach from Mäkinen et al.
+  (<xref alt="Mäkinen et al., 2021" rid="ref-mäkinen2021" ref-type="bibr">Mäkinen
+  et al., 2021</xref>), while Fourier-SVD is a lightweight FFT-guided
+  method that reaches a similar PSNR at 23<inline-formula><alternatives>
+  <tex-math><![CDATA[\times]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>×</mml:mi></mml:math></alternatives></inline-formula>
+  the speed of the multiscale variant.</p>
+  <fig>
+    <caption><p>Benchmark input data. (a) Input sinogram with simulated
+    ring artifacts. (b) Ground truth (clean sinogram). The dashed
+    rectangle indicates the crop region shown in
+    <xref alt="[fig:results]" rid="figU003Aresults">[fig:results]</xref>.<styled-content id="figU003Ainput"></styled-content></p></caption>
+    <graphic mimetype="image" mime-subtype="png" xlink:href="figure1_input.png" />
+  </fig>
+  <p><bold>Speed comparison:</bold>
+  <xref alt="[fig:metrics]" rid="figU003Ametrics">[fig:metrics]</xref>(a)
+  shows processing times (n=100 runs on Linux x86_64). Fourier-SVD is
+  the fastest method at 0.017 seconds, achieving
+  1900<inline-formula><alternatives>
+  <tex-math><![CDATA[\times]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>×</mml:mi></mml:math></alternatives></inline-formula>
+  speedup over bm3d-streak-removal (31.8 seconds). The BM3D-based
+  methods span a performance range: standard BM3DORNL processes
+  sinograms in 0.094 seconds (340<inline-formula><alternatives>
+  <tex-math><![CDATA[\times]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>×</mml:mi></mml:math></alternatives></inline-formula>
+  faster than bm3d-streak-removal), while multiscale BM3DORNL takes
+  0.389 seconds (82<inline-formula><alternatives>
+  <tex-math><![CDATA[\times]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>×</mml:mi></mml:math></alternatives></inline-formula>
+  faster) due to pyramid processing. TomoPy methods achieve processing
+  times of 0.22–0.29 seconds. Cross-platform behaviour differs
+  substantially: on an Apple M2 Max laptop (12 cores) the TomoPy methods
+  take 3.5–3.6 seconds per sinogram, 12–16<inline-formula><alternatives>
+  <tex-math><![CDATA[\times]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>×</mml:mi></mml:math></alternatives></inline-formula>
+  their times on the 24-core Linux x86_64 host, whereas BM3DORNL’s
+  streak mode takes 0.20 seconds and Fourier-SVD 0.022 seconds, about
+  2<inline-formula><alternatives>
+  <tex-math><![CDATA[\times]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>×</mml:mi></mml:math></alternatives></inline-formula>
+  and 1.3<inline-formula><alternatives>
+  <tex-math><![CDATA[\times]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>×</mml:mi></mml:math></alternatives></inline-formula>
+  their Linux times. Because the two hosts differ in core count, only
+  same-machine ratios are comparable: BM3DORNL’s speed advantage over
+  the fastest TomoPy method grows from 2.4<inline-formula><alternatives>
+  <tex-math><![CDATA[\times]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>×</mml:mi></mml:math></alternatives></inline-formula>
+  on Linux x86_64 to 17<inline-formula><alternatives>
+  <tex-math><![CDATA[\times]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>×</mml:mi></mml:math></alternatives></inline-formula>
+  on Apple Silicon, and the quality metrics agree on both platforms to
+  within 0.001 in SSIM.</p>
+  <p><bold>Quality analysis:</bold> We quantify agreement with the
+  ground truth by the peak signal-to-noise ratio (PSNR, in dB) and the
+  structural similarity index measure (SSIM)
+  (<xref alt="Wang et al., 2004" rid="ref-wang2004" ref-type="bibr">Wang
+  et al., 2004</xref>), both computed after rescaling result and ground
+  truth to <inline-formula><alternatives>
+  <tex-math><![CDATA[[0, 1]]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mo stretchy="false" form="prefix">[</mml:mo><mml:mn>0</mml:mn><mml:mo>,</mml:mo><mml:mn>1</mml:mn><mml:mo stretchy="false" form="postfix">]</mml:mo></mml:mrow></mml:math></alternatives></inline-formula>.
+  <xref alt="[fig:results]" rid="figU003Aresults">[fig:results]</xref>
+  shows the crop marked in
+  <xref alt="[fig:input]" rid="figU003Ainput">[fig:input]</xref> for the
+  unprocessed input and for all eight methods, each with its difference
+  from the ground truth (image minus ground truth: red above, blue
+  below). Every column, the input included, carries the same faint blue
+  tint: the benchmark rescales the artifact-laden input to
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[[0, 1]]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mo stretchy="false" form="prefix">[</mml:mo><mml:mn>0</mml:mn><mml:mo>,</mml:mo><mml:mn>1</mml:mn><mml:mo stretchy="false" form="postfix">]</mml:mo></mml:mrow></mml:math></alternatives></inline-formula>,
+  which pins its brightest pixel to the ground truth’s maximum and
+  leaves the bulk of the image about 3% low, and stripe removal
+  preserves that level rather than restoring it. The tint is therefore
+  not a sign of artifact removal; the artifacts are the vertical
+  stripes, shown in full in the input column, and a method’s quality is
+  read from how much of that stripe pattern remains in its own
+  difference image. Generic BM3DORNL, a standard denoiser rather than a
+  streak remover, leaves the stripes essentially untouched; streak and
+  multiscale BM3DORNL, Fourier-SVD, and bm3d-streak-removal reduce them
+  to a near-uniform residual. TomoPy SF and BSD leave somewhat stronger
+  stripe residue than those four but also smooth the pixel noise, which
+  the BM3D-based methods largely preserve; SSIM, computed over local
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[7\times7]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mn>7</mml:mn><mml:mo>×</mml:mo><mml:mn>7</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>
+  windows in which narrow vertical stripes affect few pixels, rewards
+  that smoothing more than it penalises the remaining stripes, which is
+  why TomoPy SF reaches the highest SSIM (0.987, see
+  <xref alt="[fig:metrics]" rid="figU003Ametrics">[fig:metrics]</xref>(b)).
+  PSNR, which weighs every pixel equally, ranks bm3d-streak-removal
+  first (43.8 dB). TomoPy FW alters the low-frequency content of the
+  sinogram, visible as the large red and blue regions in its difference
+  image, and that distortion dominates its error. All BM3DORNL variants
+  achieve SSIM scores of 0.943–0.976, with multiscale BM3DORNL reaching
+  0.976 – above the reference bm3d-streak-removal implementation
+  (0.967). Fourier-SVD reaches 0.951 in 0.017 seconds while reducing the
+  stripes to a near-uniform residual, showing that most of the artifact
+  can be removed without multi-scale processing.</p>
+  <fig>
+    <caption><p>Method comparison on the crop marked in
+    <xref alt="[fig:input]" rid="figU003Ainput">[fig:input]</xref>. Top
+    row: the unprocessed input, then the result of each method with its
+    processing time. Bottom row: difference from the ground truth (image
+    minus ground truth) on one zero-centered red–blue scale shared by
+    all columns; red marks pixels above the ground truth, blue marks
+    pixels below it, and white marks agreement, so a perfect result
+    would leave a uniformly white difference image. The faint blue tint
+    common to every column, including the input, comes from the
+    benchmark’s rescaling of the input to <inline-formula><alternatives>
+    <tex-math><![CDATA[[0, 1]]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mo stretchy="false" form="prefix">[</mml:mo><mml:mn>0</mml:mn><mml:mo>,</mml:mo><mml:mn>1</mml:mn><mml:mo stretchy="false" form="postfix">]</mml:mo></mml:mrow></mml:math></alternatives></inline-formula>
+    and is not a sign of removal; the artifacts are the vertical
+    stripes, complete in the input column and remaining in the others to
+    the extent each method left them. Data from Linux
+    x86_64.<styled-content id="figU003Aresults"></styled-content></p></caption>
+    <graphic mimetype="image" mime-subtype="png" xlink:href="figure2_results.png" />
+  </fig>
+  <fig>
+    <caption><p>Performance metrics (Linux x86_64, n=100 runs). (a)
+    Processing time comparison on linear scale, showing Fourier-SVD’s
+    1900<inline-formula><alternatives>
+    <tex-math><![CDATA[\times]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>×</mml:mi></mml:math></alternatives></inline-formula>
+    speedup and standard BM3DORNL’s 340<inline-formula><alternatives>
+    <tex-math><![CDATA[\times]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>×</mml:mi></mml:math></alternatives></inline-formula>
+    speedup over bm3d-streak-removal. (b) Quality metrics, peak
+    signal-to-noise ratio (PSNR) against structural similarity index
+    measure (SSIM), showing trade-offs between methods. BM3DORNL
+    variants (blue/cyan), TomoPy (orange), bm3d-streak-removal
+    (green).<styled-content id="figU003Ametrics"></styled-content></p></caption>
+    <graphic mimetype="image" mime-subtype="png" xlink:href="figure3_metrics.png" />
+  </fig>
+  <p><bold>Platform support:</bold> bm3d-streak-removal is unavailable
+  on Apple Silicon (x86_64 binaries only), incompatible with Python
+  3.11+, and restricted to non-commercial use. BM3DORNL provides native
+  performance on all platforms, supports Python 3.12+, and uses the MIT
+  license for unrestricted commercial use.</p>
+</sec>
+<sec id="software-design">
+  <title>Software Design</title>
+  <p>BM3DORNL employs a hybrid Python-Rust architecture: the core
+  algorithm is implemented in Rust using the
+  <monospace>rayon</monospace> crate for work-stealing parallelism, with
+  Python bindings via PyO3 for seamless NumPy integration.</p>
+  <p><bold>Key optimizations:</bold></p>
+  <list list-type="bullet">
+    <list-item>
+      <p><bold>Integral image pre-screening:</bold> Before computing
+      expensive patch distances, the block matching stage uses integral
+      images to compute mean and norm bounds in O(1) time. Patches that
+      fail these bounds are skipped, eliminating approximately 80% of
+      distance calculations.</p>
+    </list-item>
+    <list-item>
+      <p><bold>FFT with SIMD acceleration:</bold> BM3DORNL defaults to
+      FFT-based transforms with batched row/column passes and
+      specialized <inline-formula><alternatives>
+      <tex-math><![CDATA[8\times8]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mn>8</mml:mn><mml:mo>×</mml:mo><mml:mn>8</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>
+      fast paths. FFT plans are computed once and shared across threads
+      via Arc, and a direct-mapped transform cache eliminates redundant
+      computations. An alternative Walsh-Hadamard path is available for
+      multiplication-free processing.</p>
+    </list-item>
+    <list-item>
+      <p><bold>SIMD-optimized block matching:</bold> The
+      <inline-formula><alternatives>
+      <tex-math><![CDATA[8\times8]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mn>8</mml:mn><mml:mo>×</mml:mo><mml:mn>8</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>
+      patch distance computation uses platform-specific SIMD
+      instructions with a contiguous-memory fast path, reducing the
+      block matching inner loop to near-hardware-limit throughput.</p>
+    </list-item>
+    <list-item>
+      <p><bold>Tile-owned aggregation:</bold> Sinograms are processed in
+      tiles that fit in L2/L3 cache, with SIMD-optimized weight
+      accumulation. Per-worker scratch buffers are reused across kernel
+      runs, minimizing memory allocation overhead.</p>
+    </list-item>
+  </list>
+  <p>The library provides a minimal Python API:</p>
+  <code language="python">from bm3dornl import bm3d_ring_artifact_removal
+
+# &quot;streak&quot; mode is the default; sigma_random=0.0 enables
+# automatic noise estimation (default is 0.1)
+cleaned = bm3d_ring_artifact_removal(sinogram, sigma_random=0.0)</code>
+  <p><bold>GUI application:</bold> BM3DORNL includes a native GUI built
+  with the egui framework for Rust, installable via
+  <monospace>pip install bm3dornl[gui]</monospace> or Homebrew on macOS.
+  The GUI enables interactive parameter tuning, side-by-side comparison
+  with difference visualization, HDF5/TIFF file loading with dataset
+  browsing, and real-time processing feedback with a fast-mode toggle.
+  At 0.094 seconds per sinogram in the default streak mode (Linux x86_64
+  benchmark), scientists can explore parameter space interactively at
+  about 11 frames per second—something impractical with
+  bm3d-streak-removal’s 32-second processing time.</p>
+</sec>
+<sec id="research-impact">
+  <title>Research Impact</title>
+  <p>BM3DORNL is being integrated into processing pipelines at the VENUS
+  and MARS beamlines at Oak Ridge National Laboratory. The library
+  provides multiple performance tiers: Fourier-SVD enables real-time
+  parameter exploration at 0.017 seconds per sinogram
+  (1900<inline-formula><alternatives>
+  <tex-math><![CDATA[\times]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>×</mml:mi></mml:math></alternatives></inline-formula>
+  faster than bm3d-streak-removal), standard BM3DORNL offers robust
+  denoising at 0.094 seconds (340<inline-formula><alternatives>
+  <tex-math><![CDATA[\times]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>×</mml:mi></mml:math></alternatives></inline-formula>
+  speedup), and multiscale BM3DORNL provides the highest structural
+  fidelity at 0.389 seconds (82<inline-formula><alternatives>
+  <tex-math><![CDATA[\times]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>×</mml:mi></mml:math></alternatives></inline-formula>
+  speedup). For batch processing, a 1000-sinogram dataset that would
+  take 9 hours with bm3d-streak-removal completes in 17 seconds
+  (Fourier-SVD), 94 seconds (standard BM3DORNL), or 6.5 minutes
+  (multiscale BM3DORNL).</p>
+  <p>The hybrid Rust-Python architecture demonstrates a modern approach
+  to scientific software development: Rust provides memory safety and
+  performance portability (single codebase compiles natively to arm64
+  and x86_64), while Python ensures integration with the NumPy/SciPy
+  ecosystem. This pattern is increasingly valuable as the scientific
+  computing community diversifies hardware platforms.</p>
+  <p>BM3DORNL fills a critical gap: the neutron imaging community needed
+  an open-source, actively maintained BM3D implementation that works on
+  modern platforms. The MIT license enables unrestricted use at national
+  facilities, and native Apple Silicon support ensures scientists can
+  use contemporary hardware for analysis workstations.</p>
+</sec>
+<sec id="ai-usage-disclosure">
+  <title>AI Usage Disclosure</title>
+  <p>Generative AI tools (Claude) were used for code assistance and
+  documentation drafting. All AI-generated content was reviewed, tested,
+  and validated by the authors.</p>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>This research used resources at the Spallation Neutron Source, a
+  DOE Office of Science User Facility operated by Oak Ridge National
+  Laboratory. This work is supported by the U.S. Department of Energy
+  under Contract No. DE-AC05-00OR22725.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <title></title>
+  <ref id="ref-dabov2007">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Dabov</surname><given-names>Kostadin</given-names></name>
+        <name><surname>Foi</surname><given-names>Alessandro</given-names></name>
+        <name><surname>Katkovnik</surname><given-names>Vladimir</given-names></name>
+        <name><surname>Egiazarian</surname><given-names>Karen</given-names></name>
+      </person-group>
+      <article-title>Image denoising by sparse 3-D transform-domain collaborative filtering</article-title>
+      <source>IEEE Transactions on Image Processing</source>
+      <year iso-8601-date="2007">2007</year>
+      <volume>16</volume>
+      <issue>8</issue>
+      <pub-id pub-id-type="doi">10.1109/TIP.2007.901238</pub-id>
+      <fpage>2080</fpage>
+      <lpage>2095</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-mäkinen2021">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Mäkinen</surname><given-names>Ymir</given-names></name>
+        <name><surname>Marchesini</surname><given-names>Stefano</given-names></name>
+        <name><surname>Foi</surname><given-names>Alessandro</given-names></name>
+      </person-group>
+      <article-title>Ring artifact reduction via multiscale nonlocal collaborative filtering of spatially correlated noise</article-title>
+      <source>Journal of Synchrotron Radiation</source>
+      <year iso-8601-date="2021">2021</year>
+      <volume>28</volume>
+      <issue>3</issue>
+      <pub-id pub-id-type="doi">10.1107/S1600577521001910</pub-id>
+      <fpage>876</fpage>
+      <lpage>888</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-vo2018">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Vo</surname><given-names>Nghia T.</given-names></name>
+        <name><surname>Atwood</surname><given-names>Robert C.</given-names></name>
+        <name><surname>Drakopoulos</surname><given-names>Michael</given-names></name>
+      </person-group>
+      <article-title>Superior techniques for eliminating ring artifacts in X-ray micro-tomography</article-title>
+      <source>Optics Express</source>
+      <year iso-8601-date="2018">2018</year>
+      <volume>26</volume>
+      <issue>22</issue>
+      <pub-id pub-id-type="doi">10.1364/OE.26.028396</pub-id>
+      <fpage>28396</fpage>
+      <lpage>28412</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-münch2009">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Münch</surname><given-names>Beat</given-names></name>
+        <name><surname>Trtik</surname><given-names>Pavel</given-names></name>
+        <name><surname>Marone</surname><given-names>Federica</given-names></name>
+        <name><surname>Stampanoni</surname><given-names>Marco</given-names></name>
+      </person-group>
+      <article-title>Stripe and ring artifact removal with combined wavelet—Fourier filtering</article-title>
+      <source>Optics Express</source>
+      <year iso-8601-date="2009">2009</year>
+      <volume>17</volume>
+      <issue>10</issue>
+      <pub-id pub-id-type="doi">10.1364/OE.17.008567</pub-id>
+      <fpage>8567</fpage>
+      <lpage>8591</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-gürsoy2014">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Gürsoy</surname><given-names>Doğa</given-names></name>
+        <name><surname>De Carlo</surname><given-names>Francesco</given-names></name>
+        <name><surname>Xiao</surname><given-names>Xianghui</given-names></name>
+        <name><surname>Jacobsen</surname><given-names>Chris</given-names></name>
+      </person-group>
+      <article-title>TomoPy: A framework for the analysis of synchrotron tomographic data</article-title>
+      <source>Journal of Synchrotron Radiation</source>
+      <year iso-8601-date="2014">2014</year>
+      <volume>21</volume>
+      <issue>5</issue>
+      <pub-id pub-id-type="doi">10.1107/S1600577514013939</pub-id>
+      <fpage>1188</fpage>
+      <lpage>1193</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-van2016">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Aarle</surname><given-names>Wim van</given-names></name>
+        <name><surname>Palenstijn</surname><given-names>Willem Jan</given-names></name>
+        <name><surname>Cant</surname><given-names>Jeroen</given-names></name>
+        <name><surname>Janssens</surname><given-names>Eline</given-names></name>
+        <name><surname>Bleichrodt</surname><given-names>Folkert</given-names></name>
+        <name><surname>Dabravolski</surname><given-names>Andrei</given-names></name>
+        <name><surname>De Beenhouwer</surname><given-names>Jan</given-names></name>
+        <name><surname>Batenburg</surname><given-names>K. Joost</given-names></name>
+        <name><surname>Sijbers</surname><given-names>Jan</given-names></name>
+      </person-group>
+      <article-title>Fast and flexible X-ray tomography using the ASTRA toolbox</article-title>
+      <source>Optics Express</source>
+      <year iso-8601-date="2016">2016</year>
+      <volume>24</volume>
+      <issue>22</issue>
+      <pub-id pub-id-type="doi">10.1364/OE.24.025129</pub-id>
+      <fpage>25129</fpage>
+      <lpage>25147</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-miqueles2014">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Miqueles</surname><given-names>Eduardo X.</given-names></name>
+        <name><surname>Rinkel</surname><given-names>Jean</given-names></name>
+        <name><surname>O’Dowd</surname><given-names>Fiona</given-names></name>
+        <name><surname>Bermúdez</surname><given-names>José S. V.</given-names></name>
+      </person-group>
+      <article-title>Generalized Titarenko’s algorithm for ring artefacts reduction</article-title>
+      <source>Journal of Synchrotron Radiation</source>
+      <year iso-8601-date="2014">2014</year>
+      <volume>21</volume>
+      <issue>6</issue>
+      <pub-id pub-id-type="doi">10.1107/S1600577514016919</pub-id>
+      <fpage>1333</fpage>
+      <lpage>1346</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-wang2004">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Wang</surname><given-names>Zhou</given-names></name>
+        <name><surname>Bovik</surname><given-names>Alan C.</given-names></name>
+        <name><surname>Sheikh</surname><given-names>Hamid R.</given-names></name>
+        <name><surname>Simoncelli</surname><given-names>Eero P.</given-names></name>
+      </person-group>
+      <article-title>Image quality assessment: From error visibility to structural similarity</article-title>
+      <source>IEEE Transactions on Image Processing</source>
+      <year iso-8601-date="2004">2004</year>
+      <volume>13</volume>
+      <issue>4</issue>
+      <pub-id pub-id-type="doi">10.1109/TIP.2003.819861</pub-id>
+      <fpage>600</fpage>
+      <lpage>612</lpage>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
