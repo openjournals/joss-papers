@@ -1,0 +1,1014 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">11033</article-id>
+<article-id pub-id-type="doi">10.21105/joss.11033</article-id>
+<title-group>
+<article-title>MatchCake: A Python Simulator for Non-Interacting
+Fermionic Quantum Circuits with Machine Learning
+Applications</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0009-0002-7179-375X</contrib-id>
+<name>
+<surname>Gince</surname>
+<given-names>Jérémie</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Institut Quantique &amp; Département de Physique,
+Université de Sherbrooke, Sherbrooke, QC J1K 2R1, Canada</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<volume>11</volume>
+<issue>126</issue>
+<fpage>11033</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2026</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>quantum computing</kwd>
+<kwd>machine learning</kwd>
+<kwd>quantum circuit simulation</kwd>
+<kwd>non-interacting fermions</kwd>
+<kwd>matchgates</kwd>
+<kwd>python</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p>We introduce <monospace>MatchCake</monospace>, a Python package
+  that simulates matchgate quantum circuits (matchcircuits). Matchgates
+  are a parity-preserving class of nearest-neighbour unitaries whose
+  dynamics are equivalent to those of non-interacting Majorana fermions,
+  making matchcircuits classically simulable in polynomial time while
+  retaining rich quantum structure. Built on PennyLane
+  (<xref alt="Bergholm et al., 2022" rid="ref-bergholm2022pennylane" ref-type="bibr">Bergholm
+  et al., 2022</xref>) and PyTorch
+  (<xref alt="Ansel et al., 2024" rid="ref-Ansel_PyTorch_2_Faster_2024" ref-type="bibr">Ansel
+  et al., 2024</xref>), <monospace>MatchCake</monospace> brings
+  automatic differentiation to this class of circuits, enabling research
+  on classically simulable quantum machine learning models. We
+  demonstrate it on quantum kernel methods for classification
+  (<xref alt="Gince et al., 2024" rid="ref-10821385" ref-type="bibr">Gince
+  et al., 2024</xref>) and on the simulation of physical systems.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p>Quantum circuits describe the discrete time evolution of a quantum
+  state under a sequence of gates, and are the backbone of quantum
+  algorithms and simulations. Since quantum hardware is still maturing,
+  efficiently simulating and analysing such circuits on classical
+  computers is essential, both for designing quantum algorithms and for
+  mapping the boundary between classical and quantum computational
+  power. In general, the state space of an
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[N]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>N</mml:mi></mml:math></alternatives></inline-formula>-qubit
+  system has dimension <inline-formula><alternatives>
+  <tex-math><![CDATA[\mathcal{O}(2^N)]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>𝒪</mml:mi><mml:mo stretchy="false" form="prefix">(</mml:mo><mml:msup><mml:mn>2</mml:mn><mml:mi>N</mml:mi></mml:msup><mml:mo stretchy="false" form="postfix">)</mml:mo></mml:mrow></mml:math></alternatives></inline-formula>,
+  so generic simulators scale exponentially in the number of qubits.
+  Efficient simulation is possible only for restricted circuit families
+  whose states or evolutions admit compact, polynomial-size
+  representations. Matchcircuits are one such family.</p>
+  <p>A two-qubit matchgate written in the computational basis</p>
+  <p><disp-formula><alternatives>
+  <tex-math><![CDATA[\begin{aligned}
+  M(A,W) &= \left[
+  \begin{matrix}
+  a & 0 & 0 & b \\
+  0 & w & x & 0 \\
+  0 & y & z & 0 \\
+  c & 0 & 0 & d
+  \end{matrix}
+  \right],
+  \end{aligned}]]></tex-math>
+  <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mtable><mml:mtr><mml:mtd columnalign="right" style="text-align: right; padding-right: 0"><mml:mi>M</mml:mi><mml:mo stretchy="false" form="prefix">(</mml:mo><mml:mi>A</mml:mi><mml:mo>,</mml:mo><mml:mi>W</mml:mi><mml:mo stretchy="false" form="postfix">)</mml:mo></mml:mtd><mml:mtd columnalign="left" style="text-align: left; padding-left: 0"><mml:mo>=</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">[</mml:mo><mml:mtable><mml:mtr><mml:mtd columnalign="center" style="text-align: center"><mml:mi>a</mml:mi></mml:mtd><mml:mtd columnalign="center" style="text-align: center"><mml:mn>0</mml:mn></mml:mtd><mml:mtd columnalign="center" style="text-align: center"><mml:mn>0</mml:mn></mml:mtd><mml:mtd columnalign="center" style="text-align: center"><mml:mi>b</mml:mi></mml:mtd></mml:mtr><mml:mtr><mml:mtd columnalign="center" style="text-align: center"><mml:mn>0</mml:mn></mml:mtd><mml:mtd columnalign="center" style="text-align: center"><mml:mi>w</mml:mi></mml:mtd><mml:mtd columnalign="center" style="text-align: center"><mml:mi>x</mml:mi></mml:mtd><mml:mtd columnalign="center" style="text-align: center"><mml:mn>0</mml:mn></mml:mtd></mml:mtr><mml:mtr><mml:mtd columnalign="center" style="text-align: center"><mml:mn>0</mml:mn></mml:mtd><mml:mtd columnalign="center" style="text-align: center"><mml:mi>y</mml:mi></mml:mtd><mml:mtd columnalign="center" style="text-align: center"><mml:mi>z</mml:mi></mml:mtd><mml:mtd columnalign="center" style="text-align: center"><mml:mn>0</mml:mn></mml:mtd></mml:mtr><mml:mtr><mml:mtd columnalign="center" style="text-align: center"><mml:mi>c</mml:mi></mml:mtd><mml:mtd columnalign="center" style="text-align: center"><mml:mn>0</mml:mn></mml:mtd><mml:mtd columnalign="center" style="text-align: center"><mml:mn>0</mml:mn></mml:mtd><mml:mtd columnalign="center" style="text-align: center"><mml:mi>d</mml:mi></mml:mtd></mml:mtr></mml:mtable><mml:mo stretchy="true" form="postfix">]</mml:mo></mml:mrow><mml:mo>,</mml:mo></mml:mtd></mml:mtr></mml:mtable></mml:math></alternatives></disp-formula></p>
+  <p>is a parity-preserving nearest-neighbour unitary gate defined by
+  two submatrices</p>
+  <p><disp-formula><alternatives>
+  <tex-math><![CDATA[\begin{aligned}
+  A = \left[
+  \begin{matrix}
+  a & b\\
+  c & d\\
+  \end{matrix}
+  \right],
+  W = \left[
+  \begin{matrix}
+  w & x\\
+  y & z
+  \end{matrix}
+  \right],
+  \end{aligned}]]></tex-math>
+  <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mtable><mml:mtr><mml:mtd columnalign="right" style="text-align: right"><mml:mi>A</mml:mi><mml:mo>=</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">[</mml:mo><mml:mtable><mml:mtr><mml:mtd columnalign="center" style="text-align: center"><mml:mi>a</mml:mi></mml:mtd><mml:mtd columnalign="center" style="text-align: center"><mml:mi>b</mml:mi></mml:mtd></mml:mtr><mml:mtr><mml:mtd columnalign="center" style="text-align: center"><mml:mi>c</mml:mi></mml:mtd><mml:mtd columnalign="center" style="text-align: center"><mml:mi>d</mml:mi></mml:mtd></mml:mtr><mml:mtr><mml:mtd columnalign="center" style="text-align: center"></mml:mtd></mml:mtr></mml:mtable><mml:mo stretchy="true" form="postfix">]</mml:mo></mml:mrow><mml:mo>,</mml:mo><mml:mi>W</mml:mi><mml:mo>=</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">[</mml:mo><mml:mtable><mml:mtr><mml:mtd columnalign="center" style="text-align: center"><mml:mi>w</mml:mi></mml:mtd><mml:mtd columnalign="center" style="text-align: center"><mml:mi>x</mml:mi></mml:mtd></mml:mtr><mml:mtr><mml:mtd columnalign="center" style="text-align: center"><mml:mi>y</mml:mi></mml:mtd><mml:mtd columnalign="center" style="text-align: center"><mml:mi>z</mml:mi></mml:mtd></mml:mtr></mml:mtable><mml:mo stretchy="true" form="postfix">]</mml:mo></mml:mrow><mml:mo>,</mml:mo></mml:mtd></mml:mtr></mml:mtable></mml:math></alternatives></disp-formula></p>
+  <p>subject to the constraint <inline-formula><alternatives>
+  <tex-math><![CDATA[\det(A) = \det(W)]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>det</mml:mi><mml:mo>&#8289;</mml:mo><mml:mo stretchy="false" form="prefix">(</mml:mo><mml:mi>A</mml:mi><mml:mo stretchy="false" form="postfix">)</mml:mo><mml:mo>=</mml:mo><mml:mi>det</mml:mi><mml:mo>&#8289;</mml:mo><mml:mo stretchy="false" form="prefix">(</mml:mo><mml:mi>W</mml:mi><mml:mo stretchy="false" form="postfix">)</mml:mo></mml:mrow></mml:math></alternatives></inline-formula>.
+  On a linear register, such matchcircuits evolve as non-interacting
+  Majorana fermions
+  (<xref alt="Dai et al., 2015" rid="ref-dai_extracting_2015" ref-type="bibr">Dai
+  et al., 2015</xref>;
+  <xref alt="Nielsen, 2005" rid="ref-nielsen2005fermionic" ref-type="bibr">Nielsen,
+  2005</xref>). Recent work
+  (<xref alt="Projansky et al., 2025" rid="ref-projansky2025gaussianity" ref-type="bibr">Projansky
+  et al., 2025</xref>) connects them to Clifford circuits through
+  fermionic Gaussian operations, framing matchcircuits as a natural
+  generalization that interpolates between stabilizer dynamics and more
+  general fermionic evolutions. Their extensions are also practically
+  relevant: augmenting matchcircuits with <inline-formula><alternatives>
+  <tex-math><![CDATA[ZZ]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>Z</mml:mi><mml:mi>Z</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>
+  interactions enables efficient simulation of interaction-limited
+  Fermi–Hubbard systems
+  (<xref alt="Mocherla et al., 2023" rid="ref-mocherla2023extending" ref-type="bibr">Mocherla
+  et al., 2023</xref>). More broadly, matchgate circuits have found
+  applications spanning quantum thermodynamics
+  (<xref alt="Chapman &amp; Miyake, 2018" rid="ref-PhysRevA.98.012309" ref-type="bibr">Chapman
+  &amp; Miyake, 2018</xref>), quantum machine learning (QML)
+  (<xref alt="Gince et al., 2024" rid="ref-10821385" ref-type="bibr">Gince
+  et al., 2024</xref>;
+  <xref alt="Laar, 2022" rid="ref-laar2022quantum" ref-type="bibr">Laar,
+  2022</xref>), and many-body simulation.</p>
+</sec>
+<sec id="state-of-the-field">
+  <title>State of the field</title>
+  <p>Simulators differ by the circuit class they handle efficiently.
+  Stim
+  (<xref alt="Gidney, 2021" rid="ref-gidney2021stim" ref-type="bibr">Gidney,
+  2021</xref>) targets stabilizer (Clifford) circuits with
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[\mathcal{O}(N^2)]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>𝒪</mml:mi><mml:mo stretchy="false" form="prefix">(</mml:mo><mml:msup><mml:mi>N</mml:mi><mml:mn>2</mml:mn></mml:msup><mml:mo stretchy="false" form="postfix">)</mml:mo></mml:mrow></mml:math></alternatives></inline-formula>
+  complexity, while quimb
+  (<xref alt="Gray, 2018" rid="ref-gray2018quimb" ref-type="bibr">Gray,
+  2018</xref>) uses tensor-network methods
+  (<xref alt="Biamonte &amp; Bergholm, 2017" rid="ref-biamonte_tensor_2017" ref-type="bibr">Biamonte
+  &amp; Bergholm, 2017</xref>) such as matrix product states to simulate
+  low-entanglement circuits at a cost of <inline-formula><alternatives>
+  <tex-math><![CDATA[\mathcal{O}(N\chi^3)]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>𝒪</mml:mi><mml:mo stretchy="false" form="prefix">(</mml:mo><mml:mi>N</mml:mi><mml:msup><mml:mi>χ</mml:mi><mml:mn>3</mml:mn></mml:msup><mml:mo stretchy="false" form="postfix">)</mml:mo></mml:mrow></mml:math></alternatives></inline-formula>
+  in the bond dimension <inline-formula><alternatives>
+  <tex-math><![CDATA[\chi]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>χ</mml:mi></mml:math></alternatives></inline-formula>.
+  PennyLane
+  (<xref alt="Bergholm et al., 2022" rid="ref-bergholm2022pennylane" ref-type="bibr">Bergholm
+  et al., 2022</xref>) is a widely used Python framework for quantum
+  circuit simulation and machine learning, supporting many backends and
+  hardware interfaces, but it lacks efficient native support for
+  matchgate circuits.</p>
+  <p>Its universal state-vector simulators (SVS) handle arbitrary
+  circuits but scale exponentially in <inline-formula><alternatives>
+  <tex-math><![CDATA[N]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>N</mml:mi></mml:math></alternatives></inline-formula>,
+  and its wrappers around specialized backends such as Stim and quimb do
+  not target matchgates (matchcircuits
+  (<xref alt="Valiant, 2001" rid="ref-valiant_quantum_2001" ref-type="bibr">Valiant,
+  2001</xref>)). Users are therefore forced onto exponentially scaling
+  simulators, even though matchcircuits admit polynomial-time
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[\mathcal{O}(N^3)]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>𝒪</mml:mi><mml:mo stretchy="false" form="prefix">(</mml:mo><mml:msup><mml:mi>N</mml:mi><mml:mn>3</mml:mn></mml:msup><mml:mo stretchy="false" form="postfix">)</mml:mo></mml:mrow></mml:math></alternatives></inline-formula>
+  classical simulation
+  (<xref alt="Bravyi, 2008" rid="ref-bravyi_contraction_2008" ref-type="bibr">Bravyi,
+  2008</xref>;
+  <xref alt="Brod, 2016" rid="ref-brod_efficient_2016" ref-type="bibr">Brod,
+  2016</xref>;
+  <xref alt="Hebenstreit et al., 2020" rid="ref-PhysRevA.102.052604" ref-type="bibr">Hebenstreit
+  et al., 2020</xref>). Unlike tensor-network methods, whose efficiency
+  relies on limited entanglement, matchcircuits derive their
+  tractability from an underlying free-fermionic (Gaussian) structure
+  and so support arbitrarily large entanglement. And unlike the discrete
+  Clifford gate set, matchgates
+  (<xref alt="Jozsa &amp; Miyake, 2008" rid="ref-jozsa_matchgates_2008" ref-type="bibr">Jozsa
+  &amp; Miyake, 2008</xref>) form a continuously parametrized family of
+  two-qubit gates corresponding to free-fermionic operations.
+  <monospace>MatchCake</monospace> fills the remaining tooling gap with
+  a dedicated matchcircuit simulator integrated with PennyLane and
+  PyTorch, whose automatic differentiation supports learning-based
+  models that exploit matchgate dynamics.</p>
+</sec>
+<sec id="software-design">
+  <title>Software design</title>
+  <p>Using <monospace>MatchCake</monospace>, the user provides a
+  matchcircuit <inline-formula><alternatives>
+  <tex-math><![CDATA[C]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>C</mml:mi></mml:math></alternatives></inline-formula>
+  (a list of matchgates), a product initial state
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[\left|\psi_\text{initial}\right\rangle]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mo stretchy="true" form="prefix">|</mml:mo><mml:msub><mml:mi>ψ</mml:mi><mml:mtext mathvariant="normal">initial</mml:mtext></mml:msub><mml:mo stretchy="true" form="postfix">⟩</mml:mo></mml:mrow></mml:math></alternatives></inline-formula>,
+  and an observable</p>
+  <p><disp-formula><alternatives>
+  <tex-math><![CDATA[\begin{aligned}
+  \mathcal{F} = \sum\limits_j \beta_j F_j
+  \end{aligned}]]></tex-math>
+  <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mtable><mml:mtr><mml:mtd columnalign="right" style="text-align: right"><mml:mi>ℱ</mml:mi><mml:mo>=</mml:mo><mml:munder><mml:mo>∑</mml:mo><mml:mi>j</mml:mi></mml:munder><mml:msub><mml:mi>β</mml:mi><mml:mi>j</mml:mi></mml:msub><mml:msub><mml:mi>F</mml:mi><mml:mi>j</mml:mi></mml:msub></mml:mtd></mml:mtr></mml:mtable></mml:math></alternatives></disp-formula></p>
+  <p>with real coefficients <inline-formula><alternatives>
+  <tex-math><![CDATA[\beta_j]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>β</mml:mi><mml:mi>j</mml:mi></mml:msub></mml:math></alternatives></inline-formula>,
+  whose terms are computational-basis projectors or Pauli words,</p>
+  <p><disp-formula><alternatives>
+  <tex-math><![CDATA[\begin{aligned}
+  F_j \in \left\{\left|y\right\rangle\left\langle y\right|: y \in \{0,1\}^N \right\} \cup \left\{ P \right\},
+  \end{aligned}]]></tex-math>
+  <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mtable><mml:mtr><mml:mtd columnalign="right" style="text-align: right"><mml:msub><mml:mi>F</mml:mi><mml:mi>j</mml:mi></mml:msub><mml:mo>∈</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">{</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">|</mml:mo><mml:mi>y</mml:mi><mml:mo stretchy="true" form="postfix">⟩</mml:mo></mml:mrow><mml:mrow><mml:mo stretchy="true" form="prefix">⟨</mml:mo><mml:mi>y</mml:mi><mml:mo stretchy="true" form="postfix">|</mml:mo></mml:mrow><mml:mo>:</mml:mo><mml:mi>y</mml:mi><mml:mo>∈</mml:mo><mml:mo stretchy="false" form="prefix">{</mml:mo><mml:mn>0</mml:mn><mml:mo>,</mml:mo><mml:mn>1</mml:mn><mml:msup><mml:mo stretchy="false" form="postfix">}</mml:mo><mml:mi>N</mml:mi></mml:msup><mml:mo stretchy="true" form="postfix">}</mml:mo></mml:mrow><mml:mo>∪</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">{</mml:mo><mml:mi>P</mml:mi><mml:mo stretchy="true" form="postfix">}</mml:mo></mml:mrow><mml:mo>,</mml:mo></mml:mtd></mml:mtr></mml:mtable></mml:math></alternatives></disp-formula></p>
+  <p>where <inline-formula><alternatives>
+  <tex-math><![CDATA[\left|y\right\rangle]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mo stretchy="true" form="prefix">|</mml:mo><mml:mi>y</mml:mi><mml:mo stretchy="true" form="postfix">⟩</mml:mo></mml:mrow></mml:math></alternatives></inline-formula>
+  is a computational-basis state and <inline-formula><alternatives>
+  <tex-math><![CDATA[P]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>P</mml:mi></mml:math></alternatives></inline-formula>
+  any Pauli word on the <inline-formula><alternatives>
+  <tex-math><![CDATA[N]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>N</mml:mi></mml:math></alternatives></inline-formula>-qubit
+  register. <monospace>MatchCake</monospace> then computes, in time
+  polynomial in <inline-formula><alternatives>
+  <tex-math><![CDATA[N]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>N</mml:mi></mml:math></alternatives></inline-formula>,
+  the expectation value</p>
+  <p><disp-formula><alternatives>
+  <tex-math><![CDATA[\begin{aligned}
+  \text{Output} = \left\langle\psi_\text{initial}\left|C^\dagger \mathcal{F} C\right|\psi_\text{initial}\right\rangle.
+  \end{aligned}]]></tex-math>
+  <mml:math display="block" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mtable><mml:mtr><mml:mtd columnalign="right" style="text-align: right"><mml:mtext mathvariant="normal">Output</mml:mtext><mml:mo>=</mml:mo><mml:mrow><mml:mo stretchy="true" form="prefix">⟨</mml:mo><mml:msub><mml:mi>ψ</mml:mi><mml:mtext mathvariant="normal">initial</mml:mtext></mml:msub><mml:mrow><mml:mo stretchy="true" form="prefix">|</mml:mo><mml:msup><mml:mi>C</mml:mi><mml:mo>†</mml:mo></mml:msup><mml:mi>ℱ</mml:mi><mml:mi>C</mml:mi><mml:mo stretchy="true" form="postfix">|</mml:mo></mml:mrow><mml:msub><mml:mi>ψ</mml:mi><mml:mtext mathvariant="normal">initial</mml:mtext></mml:msub><mml:mo stretchy="true" form="postfix">⟩</mml:mo></mml:mrow><mml:mi>.</mml:mi></mml:mtd></mml:mtr></mml:mtable></mml:math></alternatives></disp-formula></p>
+  <p>As shown in
+  <xref alt="[fig:matchgate-algorithm]" rid="figU003Amatchgate-algorithm">[fig:matchgate-algorithm]</xref>,
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[\mathcal{F}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>ℱ</mml:mi></mml:math></alternatives></inline-formula>
+  is evaluated term by term. The circuit <inline-formula><alternatives>
+  <tex-math><![CDATA[C]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>C</mml:mi></mml:math></alternatives></inline-formula>
+  is mapped to its transition matrix <inline-formula><alternatives>
+  <tex-math><![CDATA[R_C]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>R</mml:mi><mml:mi>C</mml:mi></mml:msub></mml:math></alternatives></inline-formula>
+  (<xref alt="Brod, 2016" rid="ref-brod_efficient_2016" ref-type="bibr">Brod,
+  2016</xref>), and each term is Majorana-decomposed through the
+  Jordan–Wigner transformation
+  (<xref alt="Jordan &amp; Wigner, 1928" rid="ref-jordan_uber_1928" ref-type="bibr">Jordan
+  &amp; Wigner, 1928</xref>;
+  <xref alt="Nielsen, 2005" rid="ref-nielsen2005fermionic" ref-type="bibr">Nielsen,
+  2005</xref>). When <inline-formula><alternatives>
+  <tex-math><![CDATA[\left|\psi_\text{initial}\right\rangle]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mo stretchy="true" form="prefix">|</mml:mo><mml:msub><mml:mi>ψ</mml:mi><mml:mtext mathvariant="normal">initial</mml:mtext></mml:msub><mml:mo stretchy="true" form="postfix">⟩</mml:mo></mml:mrow></mml:math></alternatives></inline-formula>
+  is a computational-basis state and <inline-formula><alternatives>
+  <tex-math><![CDATA[F_j]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>F</mml:mi><mml:mi>j</mml:mi></mml:msub></mml:math></alternatives></inline-formula>
+  is diagonal in that basis, the per-term expectation
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[\varepsilon_j]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>ε</mml:mi><mml:mi>j</mml:mi></mml:msub></mml:math></alternatives></inline-formula>
+  is read from a lookup table of Wick’s contractions
+  (<xref alt="Brod, 2016" rid="ref-brod_efficient_2016" ref-type="bibr">Brod,
+  2016</xref>;
+  <xref alt="Wick, 1950" rid="ref-wick_evaluation_1950" ref-type="bibr">Wick,
+  1950</xref>); otherwise it is obtained from the covariance matrix of
+  the circuit-evolved state. Both routes reduce to Pfaffian computation,
+  and the per-term values are accumulated as
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[\sum_j \beta_j \varepsilon_j]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:msub><mml:mo>∑</mml:mo><mml:mi>j</mml:mi></mml:msub><mml:msub><mml:mi>β</mml:mi><mml:mi>j</mml:mi></mml:msub><mml:msub><mml:mi>ε</mml:mi><mml:mi>j</mml:mi></mml:msub></mml:mrow></mml:math></alternatives></inline-formula>.</p>
+  <fig>
+    <caption><p>The <monospace>MatchCake</monospace> algorithm, which
+    evaluates the expectation value <inline-formula><alternatives>
+    <tex-math><![CDATA[\left\langle\mathcal{F}\right\rangle = \sum_j \beta_j \varepsilon_j]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mrow><mml:mo stretchy="true" form="prefix">⟨</mml:mo><mml:mi>ℱ</mml:mi><mml:mo stretchy="true" form="postfix">⟩</mml:mo></mml:mrow><mml:mo>=</mml:mo><mml:msub><mml:mo>∑</mml:mo><mml:mi>j</mml:mi></mml:msub><mml:msub><mml:mi>β</mml:mi><mml:mi>j</mml:mi></mml:msub><mml:msub><mml:mi>ε</mml:mi><mml:mi>j</mml:mi></mml:msub></mml:mrow></mml:math></alternatives></inline-formula>
+    of the observable <inline-formula><alternatives>
+    <tex-math><![CDATA[\mathcal{F}]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>ℱ</mml:mi></mml:math></alternatives></inline-formula>,
+    one Pauli string <inline-formula><alternatives>
+    <tex-math><![CDATA[F_j]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>F</mml:mi><mml:mi>j</mml:mi></mml:msub></mml:math></alternatives></inline-formula>
+    at a time. When the initial state <inline-formula><alternatives>
+    <tex-math><![CDATA[\left|\psi_\text{initial}\right\rangle]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mo stretchy="true" form="prefix">|</mml:mo><mml:msub><mml:mi>ψ</mml:mi><mml:mtext mathvariant="normal">initial</mml:mtext></mml:msub><mml:mo stretchy="true" form="postfix">⟩</mml:mo></mml:mrow></mml:math></alternatives></inline-formula>
+    is a computational-basis state and <inline-formula><alternatives>
+    <tex-math><![CDATA[F_j]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>F</mml:mi><mml:mi>j</mml:mi></mml:msub></mml:math></alternatives></inline-formula>
+    is diagonal in the computational basis (Yes), the per-term
+    expectation <inline-formula><alternatives>
+    <tex-math><![CDATA[\varepsilon_j]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>ε</mml:mi><mml:mi>j</mml:mi></mml:msub></mml:math></alternatives></inline-formula>
+    is read from a lookup table; otherwise (No), it is obtained from the
+    covariance matrix of the circuit-evolved state. Both routes share a
+    common Pfaffian evaluation.
+    <styled-content id="figU003Amatchgate-algorithm"></styled-content></p></caption>
+    <graphic mimetype="image" mime-subtype="svg+xml" xlink:href="matchcake-algorithm-detailed-v2.svg" />
+  </fig>
+  <sec id="minimal-example---quantum-circuit-simulation">
+    <title>Minimal Example - Quantum Circuit Simulation</title>
+    <p>The following example builds a matchcircuit and computes the
+    expectation value of a computational-basis projector after applying
+    the circuit to an initial state.</p>
+    <code language="python">import matchcake as mc
+import pennylane as qml
+import numpy as np
+from pennylane.ops.qubit.observables import BasisStateProjector
+
+# Create a Non-Interacting Fermionic Device with 4 qubits/wires
+nif_device = mc.NonInteractingFermionicDevice(wires=4)
+# Define the initial state as the all-zero computational basis state: |0000&gt;
+initial_state = np.zeros(len(nif_device.wires), dtype=int)
+
+
+# Define a quantum circuit
+def circuit(params, wires, initial_state):
+    # Prepare the initial state
+    qml.BasisState(initial_state, wires=wires)
+    for i, even_wire in enumerate(wires[:-1:2]):
+        idx = list(wires).index(even_wire)
+        curr_wires = [wires[idx], wires[idx + 1]]
+        # Apply the matchgate M(Rx(params), Rx(params))
+        mc.operations.CompRxRx(params, wires=curr_wires)
+        # Apply the matchgate M(Ry(params), Ry(params))
+        mc.operations.CompRyRy(params, wires=curr_wires)
+        # Apply the matchgate M(Rz(params), Rz(params))
+        mc.operations.CompRzRz(params, wires=curr_wires)
+    for i, odd_wire in enumerate(wires[1:-1:2]):
+        idx = list(wires).index(odd_wire)
+        mc.operations.fSWAP(wires=[wires[idx], wires[idx + 1]])
+    projector: BasisStateProjector = qml.Projector(initial_state, wires=wires)
+    return qml.expval(projector)
+
+
+# Create a QNode
+nif_qnode = qml.QNode(circuit, nif_device)
+qml.draw_mpl(nif_qnode)(
+    params=np.array([0.1, 0.2]),
+    wires=nif_device.wires,
+    initial_state=initial_state
+)
+
+# Evaluate the QNode
+expval = nif_qnode(
+    params=np.array([0.1, 0.2]),
+    wires=nif_device.wires,
+    initial_state=initial_state
+)
+print(f&quot;Expectation value: {expval:.4f}&quot;)</code>
+    <p>Output: <monospace>Expectation value: 0.9901</monospace></p>
+    <fig>
+      <caption><p>Quantum circuit generated by the
+      <monospace>circuit</monospace> function.
+      <styled-content id="figU003Aminimal_example_quantum_circuit_simulation"></styled-content></p></caption>
+      <graphic mimetype="image" mime-subtype="svg+xml" xlink:href="./images/minimal_example_quantum_circuit_simulation.svg" />
+    </fig>
+  </sec>
+  <sec id="minimal-example---qml">
+    <title>Minimal Example - QML</title>
+    <p>The next example builds quantum kernel classifiers with the
+    <monospace>FermionicPQCKernel</monospace> and
+    <monospace>LinearNIFKernel</monospace> classes and evaluates them on
+    the Iris dataset
+    (<xref alt="Fisher, 1936" rid="ref-iris_53" ref-type="bibr">Fisher,
+    1936</xref>) using 20-fold cross-validation.
+    <monospace>MatchCake.ml</monospace> builds on
+    <monospace>scikit-learn</monospace>
+    (<xref alt="Buitinck et al., 2013" rid="ref-sklearn_api" ref-type="bibr">Buitinck
+    et al., 2013</xref>;
+    <xref alt="Pedregosa et al., 2011" rid="ref-scikit-learn" ref-type="bibr">Pedregosa
+    et al., 2011</xref>), giving a familiar interface for machine
+    learning practitioners.</p>
+    <code language="python">import matplotlib as mpl
+from matchcake.ml import CrossValidation, CrossValidationVisualizer
+from matchcake.ml.kernels import FermionicPQCKernel
+from matchcake.ml.kernels.linear_nif_kernel import LinearNIFKernel
+from matchcake.ml.visualisation import ClassificationVisualizer
+from matplotlib import pyplot as plt
+from sklearn import datasets
+from sklearn.model_selection import train_test_split
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import MinMaxScaler
+from sklearn.svm import SVC
+
+# Load the Iris dataset
+dataset = datasets.load_iris(as_frame=True)
+X, y = dataset.data, dataset.target
+
+# Define estimators using different kernels for comparison
+n_qubits = 8
+estimators = {
+    &quot;Fermionic PQC&quot;: Pipeline(
+        [
+            (&quot;scaler&quot;, MinMaxScaler(feature_range=(0, 1))),
+            # Example of kernel without alignment, which is the default behaviour
+            (&quot;kernel&quot;, FermionicPQCKernel(n_qubits=n_qubits, rotations=&quot;X,Z&quot;)),
+            (&quot;classifier&quot;, SVC(kernel=&quot;precomputed&quot;)),
+        ]
+    ),
+    &quot;Fermionic Linear&quot;: Pipeline(
+        [
+            (&quot;scaler&quot;, MinMaxScaler(feature_range=(0, 1))),
+            # Example of kernel with alignment, which improves the performance
+            (&quot;kernel&quot;, LinearNIFKernel(n_qubits=n_qubits, alignment=True)),
+            (&quot;classifier&quot;, SVC(kernel=&quot;precomputed&quot;)),
+        ]
+    ),
+}
+
+# Run cross-validation
+cvo = CrossValidation(estimators, X, y).run()
+
+# Create subplots for visualization
+fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(12, 5))
+# Visualize the classification boundaries for a selected model and fold
+x_train, x_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=0
+)
+viz = ClassificationVisualizer(x=X, n_pts=25_000)
+viz.plot_2d_decision_boundaries(
+    model=estimators[&quot;Fermionic Linear&quot;].fit(x_train, y_train),
+    title=&quot;&quot;,
+    legend_labels=dataset.target_names,
+    y=y,
+    fig=fig,
+    ax=axes[0],
+    legend_loc=&quot;lower right&quot;,
+)
+# Visualize cross-validation results with violin plots
+cv_viz = CrossValidationVisualizer(cvo)
+cv_viz.plot(
+    ax=axes[1],
+    score_name=&quot;Accuracy&quot;,
+    estimator_name_key=&quot;Kernel&quot;,
+    score_name_map={&quot;train_score&quot;: &quot;Train&quot;, &quot;test_score&quot;: &quot;Test&quot;},
+    palette=&quot;pastel&quot;,
+)</code>
+    <fig>
+      <caption><p>Output of the machine learning example, using 8-qubit
+      kernels and 20-fold cross-validation. Left: decision boundaries
+      for the Fermionic Linear classifier on the Iris dataset. Right:
+      violin plots of training and testing accuracies across the
+      cross-validation folds for the Fermionic PQC and Fermionic Linear
+      classifiers.
+      <styled-content id="figU003Aminimal_example_quantum_machine_learning"></styled-content></p></caption>
+      <graphic mimetype="image" mime-subtype="svg+xml" xlink:href="./images/minimal_example_quantum_machine_learning.svg" />
+    </fig>
+  </sec>
+</sec>
+<sec id="research-impact-statement">
+  <title>Research impact statement</title>
+  <p><monospace>MatchCake</monospace> was central to “Fermionic Machine
+  Learning”
+  (<xref alt="Gince et al., 2024" rid="ref-10821385" ref-type="bibr">Gince
+  et al., 2024</xref>), enabling the benchmarking of kernel-based
+  free-fermionic classifiers at qubit counts infeasible with SVS.</p>
+  <p>That work underscores the need for classically simulable baselines
+  when benchmarking QML, to test whether claimed quantum resources are
+  actually necessary before asserting a quantum advantage. It also
+  highlights a key strength of free-fermionic models: the provable
+  absence of barren plateaus
+  (<xref alt="Diaz et al., 2023" rid="ref-diaz2023showcasing" ref-type="bibr">Diaz
+  et al., 2023</xref>), critical for efficient training.
+  <monospace>MatchCake</monospace> will therefore be an invaluable tool
+  for the quantum simulation and QML communities, supporting fundamental
+  research and the empirical validation of quantum advantage claims.</p>
+</sec>
+<sec id="ai-usage-disclosure">
+  <title>AI usage disclosure</title>
+  <p>The author used various Claude models to improve the grammar,
+  style, and clarity of the manuscript, and both Claude and GitHub
+  Copilot to help draft limited parts of the source-code and
+  documentation. Claude also helped write some tests and optimize parts
+  of the code. No scientific content, results, or conclusions were
+  generated by AI tools. The author made all design and architectural
+  decisions, and has reviewed, edited, and validated all AI-assisted
+  content and assumes full responsibility for the final version of the
+  manuscript and the software.</p>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>The author thanks Victor Drouin-Touchette for comments on the main
+  text and Stefanos Kourtis for his support on the topic. This research
+  was funded by the research Chair in Quantum Computing funded by
+  Ministère de l’Économie, de l’Innovation et de l’Énergie, the QSciTech
+  CREATE program funded by the Natural Sciences and Engineering Research
+  Council of Canada (NSERC), and NSERC Discovery and Alliance
+  grants.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <title></title>
+  <ref id="ref-gidney2021stim">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Gidney</surname><given-names>Craig</given-names></name>
+      </person-group>
+      <article-title>Stim: A fast stabilizer circuit simulator</article-title>
+      <source>Quantum</source>
+      <publisher-name>Verein zur Förderung des Open Access Publizierens in den Quantenwissenschaften</publisher-name>
+      <year iso-8601-date="2021">2021</year>
+      <volume>5</volume>
+      <pub-id pub-id-type="doi">10.22331/q-2021-07-06-497</pub-id>
+      <fpage>497</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-10821385">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Gince</surname><given-names>Jérémie</given-names></name>
+        <name><surname>Pagé</surname><given-names>Jean-Michel</given-names></name>
+        <name><surname>Armenta</surname><given-names>Marco</given-names></name>
+        <name><surname>Sarkar</surname><given-names>Ayana</given-names></name>
+        <name><surname>Kourtis</surname><given-names>Stefanos</given-names></name>
+      </person-group>
+      <article-title>Fermionic machine learning</article-title>
+      <source>2024 IEEE international conference on quantum computing and engineering (QCE)</source>
+      <year iso-8601-date="2024">2024</year>
+      <volume>01</volume>
+      <pub-id pub-id-type="doi">10.1109/QCE60285.2024.00195</pub-id>
+      <fpage>1672</fpage>
+      <lpage>1678</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-bergholm2022pennylane">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Bergholm</surname><given-names>Ville</given-names></name>
+        <name><surname>Izaac</surname><given-names>Josh</given-names></name>
+        <name><surname>Schuld</surname><given-names>Maria</given-names></name>
+        <name><surname>Gogolin</surname><given-names>Christian</given-names></name>
+        <name><surname>Ahmed</surname><given-names>Shahnawaz</given-names></name>
+        <name><surname>Ajith</surname><given-names>Vishnu</given-names></name>
+        <name><surname>Alam</surname><given-names>M. Sohaib</given-names></name>
+        <name><surname>Alonso-Linaje</surname><given-names>Guillermo</given-names></name>
+        <name><surname>AkashNarayanan</surname><given-names>B.</given-names></name>
+        <name><surname>Asadi</surname><given-names>Ali</given-names></name>
+        <name><surname>Arrazola</surname><given-names>Juan Miguel</given-names></name>
+        <name><surname>Azad</surname><given-names>Utkarsh</given-names></name>
+        <name><surname>Banning</surname><given-names>Sam</given-names></name>
+        <name><surname>Blank</surname><given-names>Carsten</given-names></name>
+        <name><surname>Bromley</surname><given-names>Thomas R</given-names></name>
+        <name><surname>Cordier</surname><given-names>Benjamin A.</given-names></name>
+        <name><surname>Ceroni</surname><given-names>Jack</given-names></name>
+        <name><surname>Delgado</surname><given-names>Alain</given-names></name>
+        <name><surname>Di Matteo</surname><given-names>Olivia</given-names></name>
+        <name><surname>Dusko</surname><given-names>Amintor</given-names></name>
+        <name><surname>Garg</surname><given-names>Tanya</given-names></name>
+        <name><surname>Guala</surname><given-names>Diego</given-names></name>
+        <name><surname>Hayes</surname><given-names>Anthony</given-names></name>
+        <name><surname>Hill</surname><given-names>Ryan</given-names></name>
+        <name><surname>Ijaz</surname><given-names>Aroosa</given-names></name>
+        <name><surname>Isacsson</surname><given-names>Theodor</given-names></name>
+        <name><surname>Ittah</surname><given-names>David</given-names></name>
+        <name><surname>Jahangiri</surname><given-names>Soran</given-names></name>
+        <name><surname>Jain</surname><given-names>Prateek</given-names></name>
+        <name><surname>Jiang</surname><given-names>Edward</given-names></name>
+        <name><surname>Khandelwal</surname><given-names>Ankit</given-names></name>
+        <name><surname>Kottmann</surname><given-names>Korbinian</given-names></name>
+        <name><surname>Lang</surname><given-names>Robert A.</given-names></name>
+        <name><surname>Lee</surname><given-names>Christina</given-names></name>
+        <name><surname>Loke</surname><given-names>Thomas</given-names></name>
+        <name><surname>Lowe</surname><given-names>Angus</given-names></name>
+        <name><surname>McKiernan</surname><given-names>Keri</given-names></name>
+        <name><surname>Meyer</surname><given-names>Johannes Jakob</given-names></name>
+        <name><surname>Montañez-Barrera</surname><given-names>J. A.</given-names></name>
+        <name><surname>Moyard</surname><given-names>Romain</given-names></name>
+        <name><surname>Niu</surname><given-names>Zeyue</given-names></name>
+        <name><surname>O’Riordan</surname><given-names>Lee James</given-names></name>
+        <name><surname>Oud</surname><given-names>Steven</given-names></name>
+        <name><surname>Panigrahi</surname><given-names>Ashish</given-names></name>
+        <name><surname>Park</surname><given-names>Chae-Yeun</given-names></name>
+        <name><surname>Polatajko</surname><given-names>Daniel</given-names></name>
+        <name><surname>Quesada</surname><given-names>Nicolás</given-names></name>
+        <name><surname>Roberts</surname><given-names>Chase</given-names></name>
+        <name><surname>Sá</surname><given-names>Nahum</given-names></name>
+        <name><surname>Schoch</surname><given-names>Isidor</given-names></name>
+        <name><surname>Shi</surname><given-names>Borun</given-names></name>
+        <name><surname>Shu</surname><given-names>Shuli</given-names></name>
+        <name><surname>Sim</surname><given-names>Sukin</given-names></name>
+        <name><surname>Singh</surname><given-names>Arshpreet</given-names></name>
+        <name><surname>Strandberg</surname><given-names>Ingrid</given-names></name>
+        <name><surname>Soni</surname><given-names>Jay</given-names></name>
+        <name><surname>Száva</surname><given-names>Antal</given-names></name>
+        <name><surname>Thabet</surname><given-names>Slimane</given-names></name>
+        <name><surname>Vargas-Hernández</surname><given-names>Rodrigo A.</given-names></name>
+        <name><surname>Vincent</surname><given-names>Trevor</given-names></name>
+        <name><surname>Vitucci</surname><given-names>Nicola</given-names></name>
+        <name><surname>Weber</surname><given-names>Maurice</given-names></name>
+        <name><surname>Wierichs</surname><given-names>David</given-names></name>
+        <name><surname>Wiersema</surname><given-names>Roeland</given-names></name>
+        <name><surname>Willmann</surname><given-names>Moritz</given-names></name>
+        <name><surname>Wong</surname><given-names>Vincent</given-names></name>
+        <name><surname>Zhang</surname><given-names>Shaoming</given-names></name>
+        <name><surname>Killoran</surname><given-names>Nathan</given-names></name>
+      </person-group>
+      <article-title>PennyLane: Automatic differentiation of hybrid quantum-classical computations</article-title>
+      <year iso-8601-date="2022">2022</year>
+      <uri>https://arxiv.org/abs/1811.04968</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-PhysRevA.98.012309">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Chapman</surname><given-names>Adrian</given-names></name>
+        <name><surname>Miyake</surname><given-names>Akimasa</given-names></name>
+      </person-group>
+      <article-title>Classical simulation of quantum circuits by dynamical localization: Analytic results for Pauli-observable scrambling in time-dependent disorder</article-title>
+      <source>Phys. Rev. A</source>
+      <publisher-name>American Physical Society</publisher-name>
+      <year iso-8601-date="2018-07">2018</year><month>07</month>
+      <volume>98</volume>
+      <uri>https://link.aps.org/doi/10.1103/PhysRevA.98.012309</uri>
+      <pub-id pub-id-type="doi">10.1103/PhysRevA.98.012309</pub-id>
+      <fpage>012309</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-PhysRevA.102.052604">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Hebenstreit</surname><given-names>M.</given-names></name>
+        <name><surname>Jozsa</surname><given-names>R.</given-names></name>
+        <name><surname>Kraus</surname><given-names>B.</given-names></name>
+        <name><surname>Strelchuk</surname><given-names>S.</given-names></name>
+      </person-group>
+      <article-title>Computational power of matchgates with supplementary resources</article-title>
+      <source>Phys. Rev. A</source>
+      <publisher-name>American Physical Society</publisher-name>
+      <year iso-8601-date="2020-11">2020</year><month>11</month>
+      <volume>102</volume>
+      <uri>https://link.aps.org/doi/10.1103/PhysRevA.102.052604</uri>
+      <pub-id pub-id-type="doi">10.1103/PhysRevA.102.052604</pub-id>
+      <fpage>052604</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-jozsa_matchgates_2008">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Jozsa</surname><given-names>Richard</given-names></name>
+        <name><surname>Miyake</surname><given-names>Akimasa</given-names></name>
+      </person-group>
+      <article-title>Matchgates and classical simulation of quantum circuits</article-title>
+      <source>Proceedings of the Royal Society A: Mathematical, Physical and Engineering Sciences</source>
+      <year iso-8601-date="2008-12-08">2008</year><month>12</month><day>08</day>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2023-09-12">2023</year><month>09</month><day>12</day></date-in-citation>
+      <volume>464</volume>
+      <issue>2100</issue>
+      <issn>1364-5021</issn>
+      <uri>http://arxiv.org/abs/0804.4050</uri>
+      <pub-id pub-id-type="doi">10.1098/rspa.2008.0189</pub-id>
+      <fpage>3089</fpage>
+      <lpage>3106</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-brod_efficient_2016">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Brod</surname><given-names>Daniel J.</given-names></name>
+      </person-group>
+      <article-title>Efficient classical simulation of matchgate circuits with generalized inputs and measurements</article-title>
+      <source>Physical Review A</source>
+      <year iso-8601-date="2016-06-23">2016</year><month>06</month><day>23</day>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2023-10-02">2023</year><month>10</month><day>02</day></date-in-citation>
+      <volume>93</volume>
+      <issue>6</issue>
+      <issn>2469-9926</issn>
+      <uri>http://arxiv.org/abs/1602.03539</uri>
+      <pub-id pub-id-type="doi">10.1103/PhysRevA.93.062332</pub-id>
+      <fpage>062332</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-valiant_quantum_2001">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Valiant</surname><given-names>Leslie G.</given-names></name>
+      </person-group>
+      <article-title>Quantum computers that can be simulated classically in polynomial time</article-title>
+      <source>Proceedings of the thirty-third annual ACM symposium on theory of computing</source>
+      <publisher-name>Association for Computing Machinery</publisher-name>
+      <publisher-loc>New York, NY, USA</publisher-loc>
+      <year iso-8601-date="2001-07-06">2001</year><month>07</month><day>06</day>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2023-10-20">2023</year><month>10</month><day>20</day></date-in-citation>
+      <isbn>978-1-58113-349-3</isbn>
+      <uri>https://dl.acm.org/doi/10.1145/380752.380785</uri>
+      <pub-id pub-id-type="doi">10.1145/380752.380785</pub-id>
+      <fpage>114</fpage>
+      <lpage>123</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-projansky2025gaussianity">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Projansky</surname><given-names>Andrew M</given-names></name>
+        <name><surname>Necaise</surname><given-names>Jason</given-names></name>
+        <name><surname>Whitfield</surname><given-names>James D</given-names></name>
+      </person-group>
+      <article-title>Gaussianity and simulability of Cliffords and matchgates</article-title>
+      <source>Journal of Physics A: Mathematical and Theoretical</source>
+      <publisher-name>IOP Publishing</publisher-name>
+      <year iso-8601-date="2025">2025</year>
+      <volume>58</volume>
+      <issue>19</issue>
+      <pub-id pub-id-type="doi">10.1088/1751-8121/adcd15</pub-id>
+      <fpage>195302</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-bravyi_contraction_2008">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Bravyi</surname><given-names>Sergey</given-names></name>
+      </person-group>
+      <article-title>Contraction of matchgate tensor networks on non-planar graphs</article-title>
+      <publisher-name>arXiv</publisher-name>
+      <year iso-8601-date="2008-01-18">2008</year><month>01</month><day>18</day>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2023-10-19">2023</year><month>10</month><day>19</day></date-in-citation>
+      <uri>http://arxiv.org/abs/0801.2989</uri>
+      <pub-id pub-id-type="doi">10.48550/arXiv.0801.2989</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-laar2022quantum">
+    <element-citation publication-type="thesis">
+      <person-group person-group-type="author">
+        <name><surname>Laar</surname><given-names>Marius Johannes van</given-names></name>
+      </person-group>
+      <article-title>Quantum aspects of variational quantum circuit-based models</article-title>
+      <year iso-8601-date="2022">2022</year>
+    </element-citation>
+  </ref>
+  <ref id="ref-mocherla2023extending">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Mocherla</surname><given-names>Avinash</given-names></name>
+        <name><surname>Lao</surname><given-names>Lingling</given-names></name>
+        <name><surname>Browne</surname><given-names>Dan E</given-names></name>
+      </person-group>
+      <article-title>Extending matchgate simulation methods to universal quantum circuits</article-title>
+      <source>arXiv preprint arXiv:2302.02654</source>
+      <year iso-8601-date="2023">2023</year>
+    </element-citation>
+  </ref>
+  <ref id="ref-Ansel_PyTorch_2_Faster_2024">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Ansel</surname><given-names>Jason</given-names></name>
+        <name><surname>Yang</surname><given-names>Edward</given-names></name>
+        <name><surname>He</surname><given-names>Horace</given-names></name>
+        <name><surname>Gimelshein</surname><given-names>Natalia</given-names></name>
+        <name><surname>Jain</surname><given-names>Animesh</given-names></name>
+        <name><surname>Voznesensky</surname><given-names>Michael</given-names></name>
+        <name><surname>Bao</surname><given-names>Bin</given-names></name>
+        <name><surname>Bell</surname><given-names>Peter</given-names></name>
+        <name><surname>Berard</surname><given-names>David</given-names></name>
+        <name><surname>Burovski</surname><given-names>Evgeni</given-names></name>
+        <name><surname>Chauhan</surname><given-names>Geeta</given-names></name>
+        <name><surname>Chourdia</surname><given-names>Anjali</given-names></name>
+        <name><surname>Constable</surname><given-names>Will</given-names></name>
+        <name><surname>Desmaison</surname><given-names>Alban</given-names></name>
+        <name><surname>DeVito</surname><given-names>Zachary</given-names></name>
+        <name><surname>Ellison</surname><given-names>Elias</given-names></name>
+        <name><surname>Feng</surname><given-names>Will</given-names></name>
+        <name><surname>Gong</surname><given-names>Jiong</given-names></name>
+        <name><surname>Gschwind</surname><given-names>Michael</given-names></name>
+        <name><surname>Hirsh</surname><given-names>Brian</given-names></name>
+        <name><surname>Huang</surname><given-names>Sherlock</given-names></name>
+        <name><surname>Kalambarkar</surname><given-names>Kshiteej</given-names></name>
+        <name><surname>Kirsch</surname><given-names>Laurent</given-names></name>
+        <name><surname>Lazos</surname><given-names>Michael</given-names></name>
+        <name><surname>Lezcano</surname><given-names>Mario</given-names></name>
+        <name><surname>Liang</surname><given-names>Yanbo</given-names></name>
+        <name><surname>Liang</surname><given-names>Jason</given-names></name>
+        <name><surname>Lu</surname><given-names>Yinghai</given-names></name>
+        <name><surname>Luk</surname><given-names>CK</given-names></name>
+        <name><surname>Maher</surname><given-names>Bert</given-names></name>
+        <name><surname>Pan</surname><given-names>Yunjie</given-names></name>
+        <name><surname>Puhrsch</surname><given-names>Christian</given-names></name>
+        <name><surname>Reso</surname><given-names>Matthias</given-names></name>
+        <name><surname>Saroufim</surname><given-names>Mark</given-names></name>
+        <name><surname>Siraichi</surname><given-names>Marcos Yukio</given-names></name>
+        <name><surname>Suk</surname><given-names>Helen</given-names></name>
+        <name><surname>Suo</surname><given-names>Michael</given-names></name>
+        <name><surname>Tillet</surname><given-names>Phil</given-names></name>
+        <name><surname>Wang</surname><given-names>Eikan</given-names></name>
+        <name><surname>Wang</surname><given-names>Xiaodong</given-names></name>
+        <name><surname>Wen</surname><given-names>William</given-names></name>
+        <name><surname>Zhang</surname><given-names>Shunting</given-names></name>
+        <name><surname>Zhao</surname><given-names>Xu</given-names></name>
+        <name><surname>Zhou</surname><given-names>Keren</given-names></name>
+        <name><surname>Zou</surname><given-names>Richard</given-names></name>
+        <name><surname>Mathews</surname><given-names>Ajit</given-names></name>
+        <name><surname>Chanan</surname><given-names>Gregory</given-names></name>
+        <name><surname>Wu</surname><given-names>Peng</given-names></name>
+        <name><surname>Chintala</surname><given-names>Soumith</given-names></name>
+      </person-group>
+      <article-title>PyTorch 2: Faster machine learning through dynamic Python bytecode transformation and graph compilation</article-title>
+      <source>29th ACM international conference on architectural support for programming languages and operating systems, volume 2 (ASPLOS ’24)</source>
+      <publisher-name>ACM</publisher-name>
+      <year iso-8601-date="2024-04">2024</year><month>04</month>
+      <uri>https://docs.pytorch.org/assets/pytorch2-2.pdf</uri>
+      <pub-id pub-id-type="doi">10.1145/3620665.3640366</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-biamonte_tensor_2017">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Biamonte</surname><given-names>Jacob</given-names></name>
+        <name><surname>Bergholm</surname><given-names>Ville</given-names></name>
+      </person-group>
+      <article-title>Tensor networks in a nutshell</article-title>
+      <source>arXiv preprint arXiv:1708.00006</source>
+      <year iso-8601-date="2017">2017</year>
+    </element-citation>
+  </ref>
+  <ref id="ref-gray2018quimb">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Gray</surname><given-names>Johnnie</given-names></name>
+      </person-group>
+      <article-title>quimb: A Python package for quantum information and many-body calculations</article-title>
+      <source>Journal of Open Source Software</source>
+      <year iso-8601-date="2018">2018</year>
+      <volume>3</volume>
+      <issue>29</issue>
+      <pub-id pub-id-type="doi">10.21105/joss.00819</pub-id>
+      <fpage>819</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-nielsen2005fermionic">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Nielsen</surname><given-names>Michael A</given-names></name>
+      </person-group>
+      <article-title>The fermionic canonical commutation relations and the Jordan-Wigner transform</article-title>
+      <source>School of Physical Sciences The University of Queensland</source>
+      <year iso-8601-date="2005">2005</year>
+      <volume>59</volume>
+      <fpage>75</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-dai_extracting_2015">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Dai</surname><given-names>Li</given-names></name>
+        <name><surname>Kuo</surname><given-names>Watson</given-names></name>
+        <name><surname>Chung</surname><given-names>Ming-Chiang</given-names></name>
+      </person-group>
+      <article-title>Extracting entangled qubits from Majorana fermions in quantum dot chains through the measurement of parity</article-title>
+      <source>Scientific Reports</source>
+      <year iso-8601-date="2015-06">2015</year><month>06</month>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2025-11-06">2025</year><month>11</month><day>06</day></date-in-citation>
+      <volume>5</volume>
+      <issue>1</issue>
+      <issn>2045-2322</issn>
+      <uri>https://www.nature.com/articles/srep11188</uri>
+      <pub-id pub-id-type="doi">10.1038/srep11188</pub-id>
+      <fpage>11188</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-iris_53">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Fisher</surname><given-names>R. A.</given-names></name>
+      </person-group>
+      <article-title>Iris</article-title>
+      <publisher-name>UCI Machine Learning Repository</publisher-name>
+      <year iso-8601-date="1936">1936</year>
+    </element-citation>
+  </ref>
+  <ref id="ref-scikit-learn">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Pedregosa</surname><given-names>F.</given-names></name>
+        <name><surname>Varoquaux</surname><given-names>G.</given-names></name>
+        <name><surname>Gramfort</surname><given-names>A.</given-names></name>
+        <name><surname>Michel</surname><given-names>V.</given-names></name>
+        <name><surname>Thirion</surname><given-names>B.</given-names></name>
+        <name><surname>Grisel</surname><given-names>O.</given-names></name>
+        <name><surname>Blondel</surname><given-names>M.</given-names></name>
+        <name><surname>Prettenhofer</surname><given-names>P.</given-names></name>
+        <name><surname>Weiss</surname><given-names>R.</given-names></name>
+        <name><surname>Dubourg</surname><given-names>V.</given-names></name>
+        <name><surname>Vanderplas</surname><given-names>J.</given-names></name>
+        <name><surname>Passos</surname><given-names>A.</given-names></name>
+        <name><surname>Cournapeau</surname><given-names>D.</given-names></name>
+        <name><surname>Brucher</surname><given-names>M.</given-names></name>
+        <name><surname>Perrot</surname><given-names>M.</given-names></name>
+        <name><surname>Duchesnay</surname><given-names>E.</given-names></name>
+      </person-group>
+      <article-title>Scikit-learn: Machine learning in Python</article-title>
+      <source>Journal of Machine Learning Research</source>
+      <year iso-8601-date="2011">2011</year>
+      <volume>12</volume>
+      <fpage>2825</fpage>
+      <lpage>2830</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-sklearn_api">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Buitinck</surname><given-names>Lars</given-names></name>
+        <name><surname>Louppe</surname><given-names>Gilles</given-names></name>
+        <name><surname>Blondel</surname><given-names>Mathieu</given-names></name>
+        <name><surname>Pedregosa</surname><given-names>Fabian</given-names></name>
+        <name><surname>Mueller</surname><given-names>Andreas</given-names></name>
+        <name><surname>Grisel</surname><given-names>Olivier</given-names></name>
+        <name><surname>Niculae</surname><given-names>Vlad</given-names></name>
+        <name><surname>Prettenhofer</surname><given-names>Peter</given-names></name>
+        <name><surname>Gramfort</surname><given-names>Alexandre</given-names></name>
+        <name><surname>Grobler</surname><given-names>Jaques</given-names></name>
+        <name><surname>Layton</surname><given-names>Robert</given-names></name>
+        <name><surname>VanderPlas</surname><given-names>Jake</given-names></name>
+        <name><surname>Joly</surname><given-names>Arnaud</given-names></name>
+        <name><surname>Holt</surname><given-names>Brian</given-names></name>
+        <name><surname>Varoquaux</surname><given-names>Gaël</given-names></name>
+      </person-group>
+      <article-title>API design for machine learning software: Experiences from the scikit-learn project</article-title>
+      <source>ECML PKDD workshop: Languages for data mining and machine learning</source>
+      <year iso-8601-date="2013">2013</year>
+      <fpage>108</fpage>
+      <lpage>122</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-jordan_uber_1928">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Jordan</surname><given-names>P.</given-names></name>
+        <name><surname>Wigner</surname><given-names>E.</given-names></name>
+      </person-group>
+      <article-title>Über das Paulische Äquivalenzverbot</article-title>
+      <source>Zeitschrift für Physik</source>
+      <year iso-8601-date="1928-09-01">1928</year><month>09</month><day>01</day>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2026-01-27">2026</year><month>01</month><day>27</day></date-in-citation>
+      <volume>47</volume>
+      <issue>9</issue>
+      <issn>0044-3328</issn>
+      <uri>https://doi.org/10.1007/BF01331938</uri>
+      <pub-id pub-id-type="doi">10.1007/BF01331938</pub-id>
+      <fpage>631</fpage>
+      <lpage>651</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-wick_evaluation_1950">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Wick</surname><given-names>G. C.</given-names></name>
+      </person-group>
+      <article-title>The evaluation of the collision matrix</article-title>
+      <source>Physical Review</source>
+      <publisher-name>American Physical Society</publisher-name>
+      <year iso-8601-date="1950-10-15">1950</year><month>10</month><day>15</day>
+      <date-in-citation content-type="access-date"><year iso-8601-date="2026-01-11">2026</year><month>01</month><day>11</day></date-in-citation>
+      <volume>80</volume>
+      <issue>2</issue>
+      <uri>https://link.aps.org/doi/10.1103/PhysRev.80.268</uri>
+      <pub-id pub-id-type="doi">10.1103/PhysRev.80.268</pub-id>
+      <fpage>268</fpage>
+      <lpage>272</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-diaz2023showcasing">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Diaz</surname><given-names>N. L.</given-names></name>
+        <name><surname>García-Martín</surname><given-names>Diego</given-names></name>
+        <name><surname>Kazi</surname><given-names>Sujay</given-names></name>
+        <name><surname>Larocca</surname><given-names>Martin</given-names></name>
+        <name><surname>Cerezo</surname><given-names>M.</given-names></name>
+      </person-group>
+      <article-title>Showcasing a barren plateau theory beyond the dynamical Lie algebra</article-title>
+      <source>arXiv preprint arXiv:2310.11505</source>
+      <year iso-8601-date="2023">2023</year>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
