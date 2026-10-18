@@ -1,0 +1,915 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">11400</article-id>
+<article-id pub-id-type="doi">10.21105/joss.11400</article-id>
+<title-group>
+<article-title>qis: reproducible performance analytics and portfolio
+backtesting in Python</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0002-7038-1748</contrib-id>
+<name>
+<surname>Sepp</surname>
+<given-names>Artur</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>LGT Bank (Schweiz) AG, Zürich, Switzerland</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2026-10-11">
+<day>11</day>
+<month>10</month>
+<year>2026</year>
+</pub-date>
+<volume>11</volume>
+<issue>126</issue>
+<fpage>11400</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2026</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>Python</kwd>
+<kwd>quantitative finance</kwd>
+<kwd>portfolio analytics</kwd>
+<kwd>backtesting</kwd>
+<kwd>performance attribution</kwd>
+<kwd>risk analysis</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p>Quantitative portfolio managers and investors evaluate a strategy
+  by simulating a portfolio that implements it and reporting its risk
+  and return. Using the target weights of a strategy and the prices of
+  its assets, <monospace>qis</monospace> simulates the portfolio’s net
+  asset value. It then measures the portfolio against a benchmark and
+  renders the result as a factsheet. In addition to the backtesting
+  engine, the package provides building blocks for systematic strategies
+  and reports, including exponentially weighted covariance, bootstrap
+  resampling, risk measures, stress testing, regime-conditional
+  statistics, currency hedging, and return unsmoothing.</p>
+  <p>Signal generation and portfolio construction remain with the
+  researcher. The <monospace>qis</monospace> library reconstructs
+  holdings from the target weights and applies explicit accounting and
+  reporting conventions.</p>
+  <p>The <monospace>qis</monospace> package is the base layer of a
+  public stack of quantitative finance packages, whose other members are
+  <monospace>optimalportfolios</monospace>,
+  <monospace>trendfollowing</monospace>, and
+  <monospace>privateassets</monospace>. The package depends on NumPy
+  (<xref alt="Harris et al., 2020" rid="ref-numpy" ref-type="bibr">Harris
+  et al., 2020</xref>), SciPy
+  (<xref alt="Virtanen et al., 2020" rid="ref-scipy" ref-type="bibr">Virtanen
+  et al., 2020</xref>), pandas
+  (<xref alt="McKinney, 2010" rid="ref-pandas" ref-type="bibr">McKinney,
+  2010</xref>), statsmodels
+  (<xref alt="Seabold &amp; Perktold, 2010" rid="ref-statsmodels" ref-type="bibr">Seabold
+  &amp; Perktold, 2010</xref>), Matplotlib
+  (<xref alt="Hunter, 2007" rid="ref-matplotlib" ref-type="bibr">Hunter,
+  2007</xref>), seaborn
+  (<xref alt="Waskom, 2021" rid="ref-seaborn" ref-type="bibr">Waskom,
+  2021</xref>), Numba
+  (<xref alt="Lam et al., 2015" rid="ref-numba" ref-type="bibr">Lam et
+  al., 2015</xref>), openpyxl, and PyYAML, runs on Python 3.10 to 3.14
+  and is released under the MIT licence.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p>The reported performance of a portfolio depends on conventions that
+  are rarely stated. Portfolio volatility depends on the return
+  frequency, and a Sharpe ratio depends on whether a risk-free rate is
+  subtracted and on which rate. A backtested return depends on whether
+  holdings drift between rebalancings or are reset every period. Two
+  implementations of the same target weights can therefore report
+  different performance statistics without either containing an
+  error.</p>
+  <p>The target users of <monospace>qis</monospace> are researchers and
+  portfolio managers who generate weights with their own models. The
+  <monospace>qis</monospace> package settles each convention once and
+  applies it to every factsheet it generates. The caller states the
+  return convention as an argument, and the reporting frequency appears
+  on every rendered output. Three Sharpe conventions, with compounded,
+  log, and arithmetic numerators, are named and selected explicitly.</p>
+</sec>
+<sec id="state-of-the-field">
+  <title>State of the field</title>
+  <table-wrap>
+    <caption>
+      <p>Documented interfaces of related Python packages, consulted on
+      11–14 October 2026.
+      <styled-content id="tabU003Afield"></styled-content></p>
+    </caption>
+    <table>
+      <colgroup>
+        <col width="33%" />
+        <col width="33%" />
+        <col width="33%" />
+      </colgroup>
+      <thead>
+        <tr>
+          <th>Package</th>
+          <th>Documented input</th>
+          <th>Documented output</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><monospace>pyfolio-reloaded</monospace>
+          (<xref alt="pyfolio-reloaded contributors, 2026" rid="ref-pyfolio" ref-type="bibr">pyfolio-reloaded
+          contributors, 2026</xref>)</td>
+          <td>returns, optionally positions and transactions</td>
+          <td>tear sheets and round-trip analysis</td>
+        </tr>
+        <tr>
+          <td><monospace>bt</monospace>
+          (<xref alt="bt contributors, 2026" rid="ref-bt" ref-type="bibr">bt
+          contributors, 2026</xref>)</td>
+          <td>target weights through <monospace>WeighTarget</monospace>
+          in an Algo stack</td>
+          <td>statistics, weights, positions, and turnover</td>
+        </tr>
+        <tr>
+          <td><monospace>cvxportfolio</monospace>
+          (<xref alt="Boyd et al., 2017" rid="ref-cvxportfolio" ref-type="bibr">Boyd
+          et al., 2017</xref>)</td>
+          <td>a trading policy, such as
+          <monospace>FixedWeights</monospace> for supplied target
+          weights, and market data</td>
+          <td>value, weights, holdings, turnover, and statistics</td>
+        </tr>
+        <tr>
+          <td><monospace>cvxsimulator</monospace>
+          (<xref alt="Schmelzer, 2026" rid="ref-cvxsimulator" ref-type="bibr">Schmelzer,
+          2026</xref>)</td>
+          <td>prices, with units, weights, or cash positions set in a
+          loop over time</td>
+          <td>a portfolio object tracking units, cash and profit, with a
+          snapshot plot</td>
+        </tr>
+        <tr>
+          <td><monospace>vectorbt</monospace>
+          (<xref alt="vectorbt contributors, 2026" rid="ref-vectorbt" ref-type="bibr">vectorbt
+          contributors, 2026</xref>)</td>
+          <td>orders, including target portfolio percentages, signals,
+          or an order-generating callback</td>
+          <td>order and trade records, statistics, and plots</td>
+        </tr>
+        <tr>
+          <td><monospace>zipline-reloaded</monospace>
+          (<xref alt="zipline-reloaded contributors, 2026" rid="ref-zipline" ref-type="bibr">zipline-reloaded
+          contributors, 2026</xref>)</td>
+          <td>orders placed from a callback on each bar, including
+          target portfolio percentages</td>
+          <td>a daily performance frame</td>
+        </tr>
+        <tr>
+          <td><monospace>backtrader</monospace>
+          (<xref alt="backtrader contributors, 2026" rid="ref-backtrader" ref-type="bibr">backtrader
+          contributors, 2026</xref>)</td>
+          <td>orders placed from a <monospace>Strategy</monospace>
+          callback on each bar, including target portfolio
+          percentages</td>
+          <td>strategy instances with analysers, observers, and
+          plots</td>
+        </tr>
+        <tr>
+          <td><monospace>Riskfolio-Lib</monospace>
+          (<xref alt="Riskfolio-Lib contributors, 2026" rid="ref-riskfolio" ref-type="bibr">Riskfolio-Lib
+          contributors, 2026</xref>)</td>
+          <td>returns and optimisation constraints</td>
+          <td>weights, reports, and plots</td>
+        </tr>
+        <tr>
+          <td><monospace>skfolio</monospace>
+          (<xref alt="Nicolini et al., 2026" rid="ref-skfolio" ref-type="bibr">Nicolini
+          et al., 2026</xref>)</td>
+          <td>returns fitted through a scikit-learn interface</td>
+          <td>weights, cross-validation, risk measures, and plots</td>
+        </tr>
+        <tr>
+          <td><monospace>quantstats</monospace>
+          (<xref alt="QuantStats contributors, 2026" rid="ref-quantstats" ref-type="bibr">QuantStats
+          contributors, 2026</xref>)</td>
+          <td>returns</td>
+          <td>metrics, plots, and HTML tear sheets</td>
+        </tr>
+        <tr>
+          <td><monospace>empyrical-reloaded</monospace>
+          (<xref alt="empyrical-reloaded contributors, 2026" rid="ref-empyrical" ref-type="bibr">empyrical-reloaded
+          contributors, 2026</xref>)</td>
+          <td>returns</td>
+          <td>return and risk metrics</td>
+        </tr>
+        <tr>
+          <td><monospace>ffn</monospace>
+          (<xref alt="ffn contributors, 2026" rid="ref-ffn" ref-type="bibr">ffn
+          contributors, 2026</xref>)</td>
+          <td>prices</td>
+          <td>analytics, with simulation referred to
+          <monospace>bt</monospace></td>
+        </tr>
+        <tr>
+          <td><monospace>PyPortfolioOpt</monospace>
+          (<xref alt="Martin, 2021" rid="ref-Martin2021" ref-type="bibr">Martin,
+          2021</xref>)</td>
+          <td>prices, or expected returns and a risk model</td>
+          <td>weights, discrete allocation, performance, and plots</td>
+        </tr>
+      </tbody>
+    </table>
+  </table-wrap>
+  <p>The <monospace>qis</monospace> backtester accepts dated target
+  weights and asset prices directly, with optional per-instrument costs
+  and carry. For strategies expressed in this form, researchers can
+  evaluate allocations generated by their own models without
+  implementing a strategy callback or policy object. Target-weight
+  support is shared with other packages in
+  <xref alt="Table 1" rid="tabU003Afield">Table 1</xref>:
+  <monospace>vectorbt</monospace> supports percentage targets, and
+  <monospace>zipline-reloaded</monospace> and
+  <monospace>backtrader</monospace> provide target-percent order
+  methods.</p>
+  <p>The contribution of <monospace>qis</monospace> is the integration
+  of held-unit accounting, instrument attribution, and comparative
+  reporting under explicit conventions. The simulation returns a
+  <monospace>PortfolioData</monospace> object carrying net asset value,
+  held units, realised weights, realised costs, and instrument profit
+  and loss. Factsheets and comparative reports are rendered from it. The
+  chart, the summary table, and the factsheet of one strategy therefore
+  show one Sharpe ratio under one stated convention. The analytics
+  packages <monospace>pyfolio-reloaded</monospace>,
+  <monospace>quantstats</monospace>,
+  <monospace>empyrical-reloaded</monospace>, and
+  <monospace>ffn</monospace> measure a portfolio from its history of
+  returns. That history does not record the holdings or the trading
+  costs incurred, so these packages cannot show which holding earned or
+  lost the money unless holdings are supplied separately. The closest
+  package is <monospace>cvxportfolio</monospace>, whose
+  <monospace>FixedWeights</monospace> policy trades to supplied target
+  weights and holds the positions between them. Its documented backtest
+  result reports value, weights, holdings, turnover, and total profit,
+  within a framework built around optimisation policies and cost
+  models.</p>
+  <p>We built a separate library, instead of extending
+  <monospace>bt</monospace>, <monospace>ffn</monospace>, or
+  <monospace>cvxportfolio</monospace>, because our research packages
+  exchange one result object. The <monospace>bt</monospace> package
+  already accepts target weights, and <monospace>ffn</monospace> already
+  supplies analytics. The <monospace>qis</monospace> package combines
+  holdings, costs, attribution, and comparative reports, and its callers
+  adopt neither an Algo stack nor a policy framework. The user keeps the
+  freedom to generate allocation weights in their own strategy code. The
+  trade-off is that <monospace>qis</monospace> ships no optimiser and no
+  signal library of its own.</p>
+  <p>The integrated analytics include return unsmoothing for
+  appraisal-based valuations
+  (<xref alt="Geltner, 1993" rid="ref-geltner1993" ref-type="bibr">Geltner,
+  1993</xref>;
+  <xref alt="Getmansky et al., 2004" rid="ref-getmansky2004" ref-type="bibr">Getmansky
+  et al., 2004</xref>), regime-conditional reporting by benchmark return
+  quantile
+  (<xref alt="Sepp &amp; Dézeraud, 2019" rid="ref-Sepp2019" ref-type="bibr">Sepp
+  &amp; Dézeraud, 2019</xref>), and paired resampling of aligned factor
+  and residual panels with the stationary bootstrap of Politis &amp;
+  Romano
+  (<xref alt="1994" rid="ref-politis1994" ref-type="bibr">1994</xref>).
+  We do not claim these methods as unique. R’s
+  <monospace>PerformanceAnalytics</monospace> implements the first-order
+  unsmoothing of Geltner
+  (<xref alt="1993" rid="ref-geltner1993" ref-type="bibr">1993</xref>;
+  <xref alt="Peterson &amp; Carl, 2026" rid="ref-performanceanalytics" ref-type="bibr">Peterson
+  &amp; Carl, 2026</xref>), and the
+  <monospace>StationaryBootstrap</monospace> class of
+  <monospace>arch</monospace> resamples several aligned arrays with one
+  index draw
+  (<xref alt="Sheppard &amp; others, 2026" rid="ref-arch" ref-type="bibr">Sheppard
+  &amp; others, 2026</xref>). The <monospace>qis</monospace> unsmoothing
+  extends the first-order case to any lag order, estimated once for the
+  sample or over an exponentially weighted rolling window. Its bootstrap
+  resamples returns and recompounds them into price panels.</p>
+</sec>
+<sec id="software-design">
+  <title>Software design</title>
+  <p>The backtester is 460 lines, so its accounting can be audited line
+  by line. The backtester converts target weights to units at each
+  rebalancing, holds those units until the next one, applies costs and
+  carry, and returns the result. Holding units lets the realised weights
+  drift with prices, whereas multiplying each period’s returns by fixed
+  target weights would assume rebalancing in every period. The path
+  dependence of held units motivates a date-sequential
+  <monospace>numba</monospace> kernel
+  (<xref alt="Lam et al., 2015" rid="ref-numba" ref-type="bibr">Lam et
+  al., 2015</xref>), and array-based analytics operate on its outputs.
+  The backtester suits portfolio research, while order-book events and
+  signal generation remain outside it. Market frictions enter instead as
+  proportional rebalancing costs, set per instrument and per date.</p>
+  <p>The subpackage <monospace>qis.discrete_portfolio</monospace> covers
+  strategies that emit orders from a callback on each observation. The
+  replay supports full fills at the next observation and converts the
+  ledgers into the same <monospace>PortfolioData</monospace> object,
+  reconciled against net asset value. Partial fills, cancellations, and
+  market impact remain outside this version.</p>
+  <p>We build the chart, the summary table, and the factsheet of a
+  strategy from one <monospace>PortfolioData</monospace> object,
+  constructed from weights and prices. The same object feeds the three
+  comparisons of a research pipeline: a strategy against its benchmark,
+  a parameter perturbation against its base case, and the sub-strategies
+  of one strategy side by side. One reporting layer renders all three
+  comparisons under the same conventions for performance evaluation.</p>
+  <p>Beyond backtesting, <monospace>qis</monospace> supports analysis of
+  currency exposure and factor risk. <monospace>FxRatesData</monospace>
+  aligns spot exchange rates and short interest rates to express asset
+  returns in a reference currency and evaluate partial currency hedges,
+  including carry implied by covered interest parity. Exponentially
+  weighted factor models estimate time-varying loadings, while risk
+  analytics report portfolio factor exposures and systematic and
+  residual risk contributions. Stress-testing functions apply specified
+  or conditionally derived factor shocks to current holdings and report
+  scenario profit and loss with reconciled factor attribution.</p>
+  <p>The public interface is <monospace>qis.__all__</monospace>, which
+  holds 480 names. The module <monospace>src/qis/api.py</monospace>
+  records that list as a literal, together with a documented core of 166
+  symbols in 14 capability groups. The broad namespace preserves
+  convenient imports and compatibility for existing consumers, at the
+  cost of discoverability. The curated core gives new users a smaller
+  entry point without removing any export.</p>
+  <p>Tests check exported plots on synthetic panels, the documented
+  arguments of the core, local documentation links, and the recorded
+  software measurements this paper quotes. Selected offline examples
+  execute in the suite, and static checks cover the imports and calls of
+  all examples. Plot smoke tests establish that figures draw, while
+  layout and readability require visual review. The suite runs without
+  network access on a core installation, using a frozen, seeded
+  simulator that reproduces the defects of real price panels.</p>
+</sec>
+<sec id="research-impact-statement">
+  <title>Research impact statement</title>
+  <p>Within our research stack, <monospace>qis</monospace> carries the
+  analytics behind our papers, so others can reproduce their
+  calculations with public code. The package supports papers on
+  cryptocurrency allocation
+  (<xref alt="Sepp, 2023" rid="ref-sepp2023crypto" ref-type="bibr">Sepp,
+  2023</xref>) and robust strategic and tactical asset allocation
+  (<xref alt="Sepp et al., 2026" rid="ref-sepp2026robust" ref-type="bibr">Sepp
+  et al., 2026</xref>). Its bootstrap resampling supports research on
+  capital market assumptions using multi-asset tradable factors,
+  forthcoming in The Journal of Portfolio Management
+  (<xref alt="Sepp et al., 2027" rid="ref-sepp2027matf" ref-type="bibr">Sepp
+  et al., 2027</xref>). Its regime-conditional analytics support the
+  working paper on trend-following systems
+  (<xref alt="Sepp &amp; Lucic, 2026" rid="ref-sepp2026trend" ref-type="bibr">Sepp
+  &amp; Lucic, 2026</xref>) and research on portfolio overlays,
+  forthcoming in the Journal of Investment Management
+  (<xref alt="Sepp &amp; Kastenholz, 2026" rid="ref-sepp2026convexity" ref-type="bibr">Sepp
+  &amp; Kastenholz, 2026</xref>). The
+  <ext-link ext-link-type="uri" xlink:href="https://github.com/ArturSepp/OptimalPortfolios/tree/main/papers/smart_diversification_joim_2026">public
+  companion example</ext-link> of the overlay paper demonstrates these
+  calculations on synthetic data.</p>
+  <p>Two public projects outside our package stack use
+  <monospace>qis</monospace>. The
+  <ext-link ext-link-type="uri" xlink:href="https://github.com/tradingstrategy-ai/optimalportfolios-defi/blob/ea8970bcd7aff61a22078b7baa55600bbb0bfd31/scripts/example.py">example</ext-link>
+  in
+  <ext-link ext-link-type="uri" xlink:href="https://github.com/tradingstrategy-ai/optimalportfolios-defi"><monospace>tradingstrategy-ai/optimalportfolios-defi</monospace></ext-link>
+  runs the <monospace>qis</monospace> backtester, strategy factsheet and
+  report export on an optimised ETF portfolio. The
+  <ext-link ext-link-type="uri" xlink:href="https://github.com/luna-007/extra/blob/c71e30753aa47beb3e622a6123a3d9f949228cca/backtest.py">backtesting
+  example</ext-link> in
+  <ext-link ext-link-type="uri" xlink:href="https://github.com/luna-007/extra"><monospace>luna-007/extra</monospace></ext-link>
+  uses <monospace>qis</monospace> to compare leveraged ETF allocations
+  with funding costs and to generate a performance factsheet.</p>
+</sec>
+<sec id="ai-usage-disclosure">
+  <title>AI usage disclosure</title>
+  <p>From July to October 2026, Anthropic’s Claude (Opus 5 and 5.5,
+  Fable 5 and 5.1) and OpenAI Codex (Sol 5.6) assisted with software
+  development, tests, documentation, and paper preparation. The author
+  made the methodological and architectural decisions, reviewed and
+  validated the assisted outputs, and remains responsible for the work.
+  Assisted changes pass through the same test suite and continuous
+  integration as all other changes. The suite checks recorded software
+  measurements against recomputed values or recorded provenance.</p>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>We thank John D. Reynolds for contributions to numerical
+  correctness, performance, reporting, and regression test coverage in
+  <monospace>qis</monospace>. This work received no specific
+  funding.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <title></title>
+  <ref id="ref-getmansky2004">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Getmansky</surname><given-names>Mila</given-names></name>
+        <name><surname>Lo</surname><given-names>Andrew W.</given-names></name>
+        <name><surname>Makarov</surname><given-names>Igor</given-names></name>
+      </person-group>
+      <article-title>An econometric model of serial correlation and illiquidity in hedge fund returns</article-title>
+      <source>Journal of Financial Economics</source>
+      <year iso-8601-date="2004">2004</year>
+      <volume>74</volume>
+      <issue>3</issue>
+      <pub-id pub-id-type="doi">10.1016/j.jfineco.2004.04.001</pub-id>
+      <fpage>529</fpage>
+      <lpage>609</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-geltner1993">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Geltner</surname><given-names>David</given-names></name>
+      </person-group>
+      <article-title>Estimating market values from appraised values without assuming an efficient market</article-title>
+      <source>Journal of Real Estate Research</source>
+      <year iso-8601-date="1993">1993</year>
+      <volume>8</volume>
+      <issue>3</issue>
+      <pub-id pub-id-type="doi">10.1080/10835547.1993.12090713</pub-id>
+      <fpage>325</fpage>
+      <lpage>345</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-politis1994">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Politis</surname><given-names>Dimitris N.</given-names></name>
+        <name><surname>Romano</surname><given-names>Joseph P.</given-names></name>
+      </person-group>
+      <article-title>The stationary bootstrap</article-title>
+      <source>Journal of the American Statistical Association</source>
+      <year iso-8601-date="1994">1994</year>
+      <volume>89</volume>
+      <issue>428</issue>
+      <pub-id pub-id-type="doi">10.1080/01621459.1994.10476870</pub-id>
+      <fpage>1303</fpage>
+      <lpage>1313</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-sepp2026robust">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Sepp</surname><given-names>Artur</given-names></name>
+        <name><surname>Ossa</surname><given-names>Ivan</given-names></name>
+        <name><surname>Kastenholz</surname><given-names>Mika</given-names></name>
+      </person-group>
+      <article-title>Robust optimization of strategic and tactical asset allocation for multi-asset portfolios</article-title>
+      <source>The Journal of Portfolio Management</source>
+      <year iso-8601-date="2026">2026</year>
+      <volume>52</volume>
+      <issue>4</issue>
+      <uri>https://eprints.pm-research.com/17511/143431/index.html</uri>
+      <pub-id pub-id-type="doi">10.3905/jpm.2025.1.806</pub-id>
+      <fpage>86</fpage>
+      <lpage>120</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-sepp2023crypto">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Sepp</surname><given-names>Artur</given-names></name>
+      </person-group>
+      <article-title>Optimal allocation to cryptocurrencies in diversified portfolios</article-title>
+      <source>Risk</source>
+      <year iso-8601-date="2023-10">2023</year><month>10</month>
+      <uri>https://www.risk.net/cutting-edge/7957914/optimal-allocation-to-cryptocurrencies-in-diversified-portfolios</uri>
+      <pub-id pub-id-type="doi">10.2139/ssrn.4217841</pub-id>
+      <fpage>1</fpage>
+      <lpage>6</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-sepp2026trend">
+    <element-citation publication-type="manuscript">
+      <person-group person-group-type="author">
+        <name><surname>Sepp</surname><given-names>Artur</given-names></name>
+        <name><surname>Lucic</surname><given-names>Vladimir</given-names></name>
+      </person-group>
+      <article-title>The science and practice of trend-following systems</article-title>
+      <year iso-8601-date="2026">2026</year>
+      <uri>https://arxiv.org/abs/2607.19497</uri>
+      <pub-id pub-id-type="doi">10.48550/arXiv.2607.19497</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-sepp2027matf">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Sepp</surname><given-names>Artur</given-names></name>
+        <name><surname>Hansen</surname><given-names>Emilie H.</given-names></name>
+        <name><surname>Kastenholz</surname><given-names>Mika</given-names></name>
+      </person-group>
+      <article-title>Capital market assumptions and strategic asset allocation using multi-asset tradable factors</article-title>
+      <source>The Journal of Portfolio Management</source>
+      <year iso-8601-date="2027">2027</year>
+      <uri>https://ssrn.com/abstract=6785958</uri>
+      <pub-id pub-id-type="doi">10.2139/ssrn.6785958</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-sepp2026convexity">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Sepp</surname><given-names>Artur</given-names></name>
+        <name><surname>Kastenholz</surname><given-names>Mika</given-names></name>
+      </person-group>
+      <article-title>The convexity premium of portfolio overlays</article-title>
+      <source>Journal of Investment Management</source>
+      <year iso-8601-date="2026">2026</year>
+    </element-citation>
+  </ref>
+  <ref id="ref-Sepp2019">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Sepp</surname><given-names>Artur</given-names></name>
+        <name><surname>Dézeraud</surname><given-names>Louis</given-names></name>
+      </person-group>
+      <article-title>Trend-following CTAs vs alternative risk-premia: Crisis beta vs risk-premia alpha</article-title>
+      <source>The Hedge Fund Journal</source>
+      <year iso-8601-date="2019">2019</year>
+      <volume>138</volume>
+      <uri>https://thehedgefundjournal.com/trend-following-ctas-vs-alternative-risk-premia/</uri>
+      <fpage>20</fpage>
+      <lpage>31</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-pyfolio">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <string-name>pyfolio-reloaded contributors</string-name>
+      </person-group>
+      <source>pyfolio-reloaded: API reference</source>
+      <year iso-8601-date="2026">2026</year>
+      <uri>https://pyfolio.ml4trading.io/api-reference.html</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-bt">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <string-name>bt contributors</string-name>
+      </person-group>
+      <source>bt: Flexible backtesting for Python</source>
+      <year iso-8601-date="2026">2026</year>
+      <uri>https://pmorissette.github.io/bt/</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-cvxportfolio">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Boyd</surname><given-names>Stephen</given-names></name>
+        <name><surname>Busseti</surname><given-names>Enzo</given-names></name>
+        <name><surname>Diamond</surname><given-names>Steven</given-names></name>
+        <name><surname>Kahn</surname><given-names>Ronald N.</given-names></name>
+        <name><surname>Koh</surname><given-names>Kwangmoo</given-names></name>
+        <name><surname>Nystrup</surname><given-names>Peter</given-names></name>
+        <name><surname>Speth</surname><given-names>Jan</given-names></name>
+      </person-group>
+      <article-title>Multi-period trading via convex optimization</article-title>
+      <source>Foundations and Trends in Optimization</source>
+      <year iso-8601-date="2017">2017</year>
+      <volume>3</volume>
+      <issue>1</issue>
+      <pub-id pub-id-type="doi">10.1561/2400000023</pub-id>
+      <fpage>1</fpage>
+      <lpage>76</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-cvxsimulator">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Schmelzer</surname><given-names>Thomas</given-names></name>
+      </person-group>
+      <source>cvxsimulator: Simple simulator for investors</source>
+      <year iso-8601-date="2026">2026</year>
+      <uri>https://github.com/cvxgrp/simulator</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-vectorbt">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <string-name>vectorbt contributors</string-name>
+      </person-group>
+      <source>vectorbt: Portfolio API reference</source>
+      <year iso-8601-date="2026">2026</year>
+      <uri>https://vectorbt.dev/api/portfolio/base/</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-riskfolio">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <string-name>Riskfolio-Lib contributors</string-name>
+      </person-group>
+      <source>Riskfolio-Lib: Portfolio optimization in Python</source>
+      <year iso-8601-date="2026">2026</year>
+      <uri>https://riskfolio-lib.readthedocs.io/en/latest/</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-skfolio">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Nicolini</surname><given-names>Carlo</given-names></name>
+        <name><surname>Manzi</surname><given-names>Matteo</given-names></name>
+        <name><surname>Delatte</surname><given-names>Hugo</given-names></name>
+      </person-group>
+      <article-title>skfolio: Portfolio optimization in Python</article-title>
+      <source>Proceedings of the 2025 international research and industry symposium on artificial intelligence</source>
+      <publisher-name>Associazione Culturale IRIS-AI</publisher-name>
+      <year iso-8601-date="2026">2026</year>
+      <uri>https://iris-ai.org/proceedings/2025/article/3</uri>
+      <pub-id pub-id-type="doi">10.65236/iris-ai/proceedings/2025/article/3</pub-id>
+      <fpage>35</fpage>
+      <lpage>41</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-quantstats">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <string-name>QuantStats contributors</string-name>
+      </person-group>
+      <source>QuantStats: Portfolio analytics for quants</source>
+      <year iso-8601-date="2026">2026</year>
+      <uri>https://github.com/ranaroussi/quantstats</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-empyrical">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <string-name>empyrical-reloaded contributors</string-name>
+      </person-group>
+      <source>empyrical-reloaded: Common financial risk and performance metrics</source>
+      <year iso-8601-date="2026">2026</year>
+      <uri>https://empyrical.ml4trading.io/</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-ffn">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <string-name>ffn contributors</string-name>
+      </person-group>
+      <source>ffn: Financial function library for Python</source>
+      <year iso-8601-date="2026">2026</year>
+      <uri>https://pmorissette.github.io/ffn/</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-Martin2021">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Martin</surname><given-names>Robert Andrew</given-names></name>
+      </person-group>
+      <article-title>PyPortfolioOpt: Portfolio optimization in Python</article-title>
+      <source>Journal of Open Source Software</source>
+      <year iso-8601-date="2021">2021</year>
+      <volume>6</volume>
+      <issue>61</issue>
+      <pub-id pub-id-type="doi">10.21105/joss.03066</pub-id>
+      <fpage>3066</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-arch">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Sheppard</surname><given-names>Kevin</given-names></name>
+        <name><surname>others</surname></name>
+      </person-group>
+      <source>arch: StationaryBootstrap</source>
+      <year iso-8601-date="2026">2026</year>
+      <uri>https://arch.readthedocs.io/en/stable/bootstrap/generated/arch.bootstrap.StationaryBootstrap.html</uri>
+      <pub-id pub-id-type="doi">10.5281/zenodo.593254</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-zipline">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <string-name>zipline-reloaded contributors</string-name>
+      </person-group>
+      <source>zipline-reloaded: API reference</source>
+      <year iso-8601-date="2026">2026</year>
+      <uri>https://zipline.ml4trading.io/api-reference.html</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-backtrader">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <string-name>backtrader contributors</string-name>
+      </person-group>
+      <source>backtrader: strategy</source>
+      <year iso-8601-date="2026">2026</year>
+      <uri>https://www.backtrader.com/docu/strategy/</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-performanceanalytics">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Peterson</surname><given-names>Brian G.</given-names></name>
+        <name><surname>Carl</surname><given-names>Peter</given-names></name>
+      </person-group>
+      <source>PerformanceAnalytics: Econometric tools for performance and risk analysis</source>
+      <year iso-8601-date="2026">2026</year>
+      <uri>https://braverock.r-universe.dev/PerformanceAnalytics/doc/manual.html</uri>
+      <pub-id pub-id-type="doi">10.32614/CRAN.package.PerformanceAnalytics</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-numpy">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Harris</surname><given-names>Charles R.</given-names></name>
+        <name><surname>Millman</surname><given-names>K. Jarrod</given-names></name>
+        <name><surname>Walt</surname><given-names>Stéfan J. van der</given-names></name>
+        <name><surname>Gommers</surname><given-names>Ralf</given-names></name>
+        <name><surname>Virtanen</surname><given-names>Pauli</given-names></name>
+        <name><surname>Cournapeau</surname><given-names>David</given-names></name>
+        <name><surname>Wieser</surname><given-names>Eric</given-names></name>
+        <name><surname>Taylor</surname><given-names>Julian</given-names></name>
+        <name><surname>Berg</surname><given-names>Sebastian</given-names></name>
+        <name><surname>Smith</surname><given-names>Nathaniel J.</given-names></name>
+        <name><surname>Kern</surname><given-names>Robert</given-names></name>
+        <name><surname>Picus</surname><given-names>Matti</given-names></name>
+        <name><surname>Hoyer</surname><given-names>Stephan</given-names></name>
+        <name><surname>Kerkwijk</surname><given-names>Marten H. van</given-names></name>
+        <name><surname>Brett</surname><given-names>Matthew</given-names></name>
+        <name><surname>Haldane</surname><given-names>Allan</given-names></name>
+        <name><surname>Fernández del Río</surname><given-names>Jaime</given-names></name>
+        <name><surname>Wiebe</surname><given-names>Mark</given-names></name>
+        <name><surname>Peterson</surname><given-names>Pearu</given-names></name>
+        <name><surname>Gérard-Marchant</surname><given-names>Pierre</given-names></name>
+        <name><surname>Sheppard</surname><given-names>Kevin</given-names></name>
+        <name><surname>Reddy</surname><given-names>Tyler</given-names></name>
+        <name><surname>Weckesser</surname><given-names>Warren</given-names></name>
+        <name><surname>Abbasi</surname><given-names>Hameer</given-names></name>
+        <name><surname>Gohlke</surname><given-names>Christoph</given-names></name>
+        <name><surname>Oliphant</surname><given-names>Travis E.</given-names></name>
+      </person-group>
+      <article-title>Array programming with NumPy</article-title>
+      <source>Nature</source>
+      <year iso-8601-date="2020">2020</year>
+      <volume>585</volume>
+      <issue>7825</issue>
+      <pub-id pub-id-type="doi">10.1038/s41586-020-2649-2</pub-id>
+      <fpage>357</fpage>
+      <lpage>362</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-scipy">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Virtanen</surname><given-names>Pauli</given-names></name>
+        <name><surname>Gommers</surname><given-names>Ralf</given-names></name>
+        <name><surname>Oliphant</surname><given-names>Travis E.</given-names></name>
+        <name><surname>Haberland</surname><given-names>Matt</given-names></name>
+        <name><surname>Reddy</surname><given-names>Tyler</given-names></name>
+        <name><surname>Cournapeau</surname><given-names>David</given-names></name>
+        <name><surname>Burovski</surname><given-names>Evgeni</given-names></name>
+        <name><surname>Peterson</surname><given-names>Pearu</given-names></name>
+        <name><surname>Weckesser</surname><given-names>Warren</given-names></name>
+        <name><surname>Bright</surname><given-names>Jonathan</given-names></name>
+        <name><surname>Walt</surname><given-names>Stéfan J. van der</given-names></name>
+        <name><surname>Brett</surname><given-names>Matthew</given-names></name>
+        <name><surname>Wilson</surname><given-names>Joshua</given-names></name>
+        <name><surname>Millman</surname><given-names>K. Jarrod</given-names></name>
+        <name><surname>Mayorov</surname><given-names>Nikolay</given-names></name>
+        <name><surname>Nelson</surname><given-names>Andrew R. J.</given-names></name>
+        <name><surname>Jones</surname><given-names>Eric</given-names></name>
+        <name><surname>Kern</surname><given-names>Robert</given-names></name>
+        <name><surname>Larson</surname><given-names>Eric</given-names></name>
+        <name><surname>Carey</surname><given-names>C J</given-names></name>
+        <name><surname>Polat</surname><given-names>İlhan</given-names></name>
+        <name><surname>Feng</surname><given-names>Yu</given-names></name>
+        <name><surname>Moore</surname><given-names>Eric W.</given-names></name>
+        <name><surname>VanderPlas</surname><given-names>Jake</given-names></name>
+        <name><surname>Laxalde</surname><given-names>Denis</given-names></name>
+        <name><surname>Perktold</surname><given-names>Josef</given-names></name>
+        <name><surname>Cimrman</surname><given-names>Robert</given-names></name>
+        <name><surname>Henriksen</surname><given-names>Ian</given-names></name>
+        <name><surname>Quintero</surname><given-names>E. A.</given-names></name>
+        <name><surname>Harris</surname><given-names>Charles R.</given-names></name>
+        <name><surname>Archibald</surname><given-names>Anne M.</given-names></name>
+        <name><surname>Ribeiro</surname><given-names>Antônio H.</given-names></name>
+        <name><surname>Pedregosa</surname><given-names>Fabian</given-names></name>
+        <name><surname>Mulbregt</surname><given-names>Paul van</given-names></name>
+        <string-name>SciPy 1.0 Contributors</string-name>
+      </person-group>
+      <article-title>SciPy 1.0: Fundamental algorithms for scientific computing in Python</article-title>
+      <source>Nature Methods</source>
+      <year iso-8601-date="2020">2020</year>
+      <volume>17</volume>
+      <issue>3</issue>
+      <pub-id pub-id-type="doi">10.1038/s41592-019-0686-2</pub-id>
+      <fpage>261</fpage>
+      <lpage>272</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-pandas">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>McKinney</surname><given-names>Wes</given-names></name>
+      </person-group>
+      <article-title>Data structures for statistical computing in Python</article-title>
+      <source>Proceedings of the 9th Python in science conference</source>
+      <person-group person-group-type="editor">
+        <name><surname>Walt</surname><given-names>Stéfan van der</given-names></name>
+        <name><surname>Millman</surname><given-names>Jarrod</given-names></name>
+      </person-group>
+      <year iso-8601-date="2010">2010</year>
+      <pub-id pub-id-type="doi">10.25080/Majora-92bf1922-00a</pub-id>
+      <fpage>56</fpage>
+      <lpage>61</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-statsmodels">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Seabold</surname><given-names>Skipper</given-names></name>
+        <name><surname>Perktold</surname><given-names>Josef</given-names></name>
+      </person-group>
+      <article-title>statsmodels: Econometric and statistical modeling with Python</article-title>
+      <source>Proceedings of the 9th Python in science conference</source>
+      <person-group person-group-type="editor">
+        <name><surname>Walt</surname><given-names>Stéfan van der</given-names></name>
+        <name><surname>Millman</surname><given-names>Jarrod</given-names></name>
+      </person-group>
+      <year iso-8601-date="2010">2010</year>
+      <pub-id pub-id-type="doi">10.25080/Majora-92bf1922-011</pub-id>
+      <fpage>92</fpage>
+      <lpage>96</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-matplotlib">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Hunter</surname><given-names>John D.</given-names></name>
+      </person-group>
+      <article-title>Matplotlib: A 2D graphics environment</article-title>
+      <source>Computing in Science &amp; Engineering</source>
+      <year iso-8601-date="2007">2007</year>
+      <volume>9</volume>
+      <issue>3</issue>
+      <pub-id pub-id-type="doi">10.1109/MCSE.2007.55</pub-id>
+      <fpage>90</fpage>
+      <lpage>95</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-seaborn">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Waskom</surname><given-names>Michael L.</given-names></name>
+      </person-group>
+      <article-title>seaborn: Statistical data visualization</article-title>
+      <source>Journal of Open Source Software</source>
+      <year iso-8601-date="2021">2021</year>
+      <volume>6</volume>
+      <issue>60</issue>
+      <pub-id pub-id-type="doi">10.21105/joss.03021</pub-id>
+      <fpage>3021</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-numba">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Lam</surname><given-names>Siu Kwan</given-names></name>
+        <name><surname>Pitrou</surname><given-names>Antoine</given-names></name>
+        <name><surname>Seibert</surname><given-names>Stanley</given-names></name>
+      </person-group>
+      <article-title>Numba: A LLVM-based Python JIT compiler</article-title>
+      <source>Proceedings of the second workshop on the LLVM compiler infrastructure in HPC</source>
+      <publisher-name>Association for Computing Machinery</publisher-name>
+      <year iso-8601-date="2015">2015</year>
+      <pub-id pub-id-type="doi">10.1145/2833157.2833162</pub-id>
+      <fpage>1</fpage>
+      <lpage>6</lpage>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
