@@ -1,0 +1,901 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">11066</article-id>
+<article-id pub-id-type="doi">10.21105/joss.11066</article-id>
+<title-group>
+<article-title>DataSplits.jl: Data splitting strategies for machine
+learning in Julia</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0009-0006-9458-9793</contrib-id>
+<name>
+<surname>Crucitti</surname>
+<given-names>Davide</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+<xref ref-type="aff" rid="aff-2"/>
+</contrib>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0009-0004-7972-9431</contrib-id>
+<name>
+<surname>Pérez Míguez</surname>
+<given-names>Carlos</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0003-4838-6750</contrib-id>
+<name>
+<surname>Mosquera Orgueira</surname>
+<given-names>Adrián</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+<xref ref-type="aff" rid="aff-3"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Group of Computational Genomics and Hematology (GrHeCoXen),
+Health Research Institute of Santiago de Compostela (IDIS), Santiago de
+Compostela, Spain</institution>
+</institution-wrap>
+</aff>
+<aff id="aff-2">
+<institution-wrap>
+<institution>Departamento de Farmacología, Farmacia y Tecnología
+Farmacéutica, Universidade de Santiago de Compostela, Santiago de
+Compostela, Spain</institution>
+</institution-wrap>
+</aff>
+<aff id="aff-3">
+<institution-wrap>
+<institution>Division of Hematology, Complexo Hospitalario Universitario
+de Santiago de Compostela, SERGAS, Santiago de Compostela,
+Spain</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2026-06-02">
+<day>2</day>
+<month>6</month>
+<year>2026</year>
+</pub-date>
+<volume>11</volume>
+<issue>126</issue>
+<fpage>11066</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2026</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>Julia</kwd>
+<kwd>machine learning</kwd>
+<kwd>chemometrics</kwd>
+<kwd>spectroscopy</kwd>
+<kwd>cross-validation</kwd>
+<kwd>resampling</kwd>
+<kwd>data splitting</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p>DataSplits.jl is a Julia package
+  (<xref alt="Bezanson et al., 2017" rid="ref-Bezanson2017Julia" ref-type="bibr">Bezanson
+  et al., 2017</xref>) for constructing training, validation, test, and
+  cross-validation partitions in scientific machine learning workflows.
+  While random train/test splits and standard k-fold cross-validation
+  are widely available in machine learning libraries, many scientific
+  applications require more controlled splitting procedures. The package
+  exposes a single entry point:</p>
+  <code language="julia">res = partition(data, strategy; kwargs...)</code>
+  <p>Supported strategies include distance-based representative sample
+  selection for calibration modelling, group-aware validation to avoid
+  leakage between related observations, and time-aware validation for
+  temporally ordered data. The package is lightweight and interoperable
+  with MLUtils.jl, Flux.jl, and MLJ.jl. It can be installed from the
+  Julia General Registry with
+  <monospace>] add DataSplits</monospace>.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p>The choice of data partitioning strategy can strongly affect the
+  reliability of model evaluation, particularly in small-data scientific
+  domains such as chemometrics, spectroscopy, metabolomics, materials
+  informatics, and quantitative structure–property (QSPR) or
+  structure–activity (QSAR) modelling. In these settings, independent
+  and identically distributed (i.i.d.) random splits may be
+  inappropriate: samples can be highly structured, class distributions
+  may be imbalanced, repeated measurements may induce group leakage, and
+  calibration sets may need to span the relevant feature and response
+  spaces
+  (<xref alt="Kohavi, 1995" rid="ref-kohavi1995study" ref-type="bibr">Kohavi,
+  1995</xref>). Representative sample selection algorithms such as
+  Kennard–Stone/CADEX
+  (<xref alt="Kennard &amp; Stone, 1969" rid="ref-Kennard1969Computer" ref-type="bibr">Kennard
+  &amp; Stone, 1969</xref>) and SPXY/MDKS
+  (<xref alt="Galvão et al., 2005" rid="ref-Galvao2005method" ref-type="bibr">Galvão
+  et al., 2005</xref>;
+  <xref alt="Saptoro et al., 2012" rid="ref-Saptoro2012Modified" ref-type="bibr">Saptoro
+  et al., 2012</xref>) are commonly used in chemometrics to construct
+  calibration and validation sets with broad coverage of the
+  experimental domain. Related approaches include the Duplex algorithm
+  (<xref alt="Snee, 1977" rid="ref-sneeValidation77a" ref-type="bibr">Snee,
+  1977</xref>), which selects both training and test sets simultaneously
+  using the maximin criterion; OptiSim and dissimilarity-based selection
+  methods
+  (<xref alt="Clark, 1997" rid="ref-Clark1997OptiSim" ref-type="bibr">Clark,
+  1997</xref>); the Onion method
+  (<xref alt="Gallagher &amp; O’Sullivan, 2020" rid="ref-gallagherSelection20" ref-type="bibr">Gallagher
+  &amp; O’Sullivan, 2020</xref>) and its joint X–y extension, XY-Onion
+  (<xref alt="Ezenarro &amp; others, 2025" rid="ref-ezenarro2025xy" ref-type="bibr">Ezenarro
+  &amp; others, 2025</xref>); electrostatic field-strength selection
+  (<xref alt="He et al., 2026" rid="ref-heField26" ref-type="bibr">He et
+  al., 2026</xref>); spectral clustering-based splits
+  (<xref alt="Ng et al., 2001" rid="ref-ngSpectral01" ref-type="bibr">Ng
+  et al., 2001</xref>); and classification-oriented adaptations such as
+  the Morais–Lima–Martin algorithm
+  (<xref alt="Lelis Medeiros de Morais et al., 2019" rid="ref-Lelis2019Improving" ref-type="bibr">Lelis
+  Medeiros de Morais et al., 2019</xref>). Time-series and financial
+  machine learning workflows call for chronological splitting strategies
+  such as purged k-fold cross-validation and combinatorial purged
+  cross-validation
+  (<xref alt="López de Prado, 2018" rid="ref-lopezdepradoAdvances18" ref-type="bibr">López
+  de Prado, 2018</xref>), and blocked cross-validation
+  (<xref alt="Bergmeir &amp; Benítez, 2012" rid="ref-bergmeirUse12" ref-type="bibr">Bergmeir
+  &amp; Benítez, 2012</xref>;
+  <xref alt="Roberts et al., 2017" rid="ref-Roberts2017Cross" ref-type="bibr">Roberts
+  et al., 2017</xref>). Target-aware cross-validation strategies such as
+  Venetian blinds
+  (<xref alt="Næs et al., 2002" rid="ref-naes2002multivariate" ref-type="bibr">Næs
+  et al., 2002</xref>) assign samples sorted by response value across
+  folds in round-robin order, guaranteeing uniform target coverage
+  without binning. To our knowledge, these methods are not available
+  together in any general-purpose Julia library.</p>
+  <p>DataSplits.jl collects them in a single package with a consistent
+  interface, for researchers who need reproducible, inspectable, and
+  domain-appropriate partitions. For example, Kennard–Stone selection
+  constructs a training set that spans the descriptor space, which
+  random splits cannot guarantee
+  (<xref alt="[fig:ks]" rid="figU003Aks">[fig:ks]</xref>).</p>
+  <fig>
+    <caption><p>Random and Kennard–Stone training-set selection on a
+    synthetic dataset with a dense centre and a sparse boundary. Gray
+    points denote all samples (N=120) and blue points the training set
+    (n=35). Kennard–Stone covers the boundary of the experimental
+    domain, whereas random selection concentrates in the
+    centre.<styled-content id="figU003Aks"></styled-content></p></caption>
+    <graphic mimetype="image" mime-subtype="png" xlink:href="ks_vs_random.png" />
+  </fig>
+</sec>
+<sec id="state-of-the-field">
+  <title>State of the field</title>
+  <p>The closest Python equivalents are scikit-learn
+  (<xref alt="Pedregosa et al., 2018" rid="ref-pedregosaScikitlearn18" ref-type="bibr">Pedregosa
+  et al., 2018</xref>) and astartes
+  (<xref alt="Burns et al., 2023" rid="ref-Burns2023Machine" ref-type="bibr">Burns
+  et al., 2023</xref>). Scikit-learn provides group-aware and
+  time-series CV strategies (<monospace>GroupKFold</monospace>,
+  <monospace>TimeSeriesSplit</monospace>,
+  <monospace>StratifiedGroupKFold</monospace>) but does not implement
+  distance-based selection methods such as Kennard–Stone, SPXY, or
+  OptiSim. Astartes fills that gap for molecular and materials data,
+  offering Kennard–Stone and several dissimilarity-based splitters, but
+  does not cover group-aware CV, time-series CV, or nested
+  cross-validation. DataSplits.jl covers both families: distance-based
+  selection and a broad catalogue of standard CV strategies. On the
+  samplers the two packages share, DataSplits.jl is 1.2 to 27 times
+  faster than astartes and uses less peak memory
+  (<xref alt="Table 1" rid="tabU003Aastartes">Table 1</xref>). Both
+  packages precompute the full distance matrix for distance-based
+  samplers, which limits the dataset size that fits in memory;
+  DataSplits.jl also provides lazy variants that allow working with data
+  of any size.</p>
+  <table-wrap>
+    <caption>
+      <p>Median runtime and peak memory of DataSplits.jl and astartes on
+      identical synthetic inputs with 20 features. Scripts and results
+      are in <monospace>benchmark/experiment/</monospace>.
+      <styled-content id="tabU003Aastartes"></styled-content></p>
+    </caption>
+    <table>
+      <colgroup>
+        <col width="32%" />
+        <col width="8%" />
+        <col width="14%" />
+        <col width="11%" />
+        <col width="10%" />
+        <col width="14%" />
+        <col width="11%" />
+      </colgroup>
+      <thead>
+        <tr>
+          <th align="left">Sampler</th>
+          <th align="right">N</th>
+          <th align="right">DataSplits.jl (ms)</th>
+          <th align="right">astartes (ms)</th>
+          <th align="right">Speed-up</th>
+          <th align="right">DataSplits.jl (GiB)</th>
+          <th align="right">astartes (GiB)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td align="left">Kennard–Stone</td>
+          <td align="right">10,000</td>
+          <td align="right">389</td>
+          <td align="right">1,126</td>
+          <td align="right">2.9</td>
+          <td align="right">0.75</td>
+          <td align="right">1.58</td>
+        </tr>
+        <tr>
+          <td align="left">SPXY</td>
+          <td align="right">10,000</td>
+          <td align="right">987</td>
+          <td align="right">1,555</td>
+          <td align="right">1.6</td>
+          <td align="right">1.48</td>
+          <td align="right">2.33</td>
+        </tr>
+        <tr>
+          <td align="left">OptiSim</td>
+          <td align="right">10,000</td>
+          <td align="right">329</td>
+          <td align="right">1,098</td>
+          <td align="right">3.3</td>
+          <td align="right">0.75</td>
+          <td align="right">1.12</td>
+        </tr>
+        <tr>
+          <td align="left">Sphere exclusion</td>
+          <td align="right">10,000</td>
+          <td align="right">545</td>
+          <td align="right">676</td>
+          <td align="right">1.2</td>
+          <td align="right">0.75</td>
+          <td align="right">1.49</td>
+        </tr>
+        <tr>
+          <td align="left">Random</td>
+          <td align="right">100,000</td>
+          <td align="right">0.45</td>
+          <td align="right">12.1</td>
+          <td align="right">27</td>
+          <td align="right">0.02</td>
+          <td align="right">0.04</td>
+        </tr>
+        <tr>
+          <td align="left">Target property (high)</td>
+          <td align="right">100,000</td>
+          <td align="right">2.9</td>
+          <td align="right">56.2</td>
+          <td align="right">19</td>
+          <td align="right">0.02</td>
+          <td align="right">0.05</td>
+        </tr>
+        <tr>
+          <td align="left">Target property (low)</td>
+          <td align="right">100,000</td>
+          <td align="right">3.0</td>
+          <td align="right">51.1</td>
+          <td align="right">17</td>
+          <td align="right">0.02</td>
+          <td align="right">0.05</td>
+        </tr>
+        <tr>
+          <td align="left">Time-based</td>
+          <td align="right">100,000</td>
+          <td align="right">6.7</td>
+          <td align="right">21.1</td>
+          <td align="right">3.2</td>
+          <td align="right">0.02</td>
+          <td align="right">0.04</td>
+        </tr>
+      </tbody>
+    </table>
+  </table-wrap>
+  <p>Within Julia, MLUtils.jl provides an observation interface based on
+  <monospace>numobs</monospace>, <monospace>getobs</monospace>, and lazy
+  observation views, together with data loaders and basic splitting
+  utilities
+  (<xref alt="JuliaML, 2022" rid="ref-mlutils" ref-type="bibr">JuliaML,
+  2022</xref>). Flux.jl re-exports MLUtils data-loading functionality
+  for neural network training
+  (<xref alt="Innes, 2018" rid="ref-Innes2018Flux" ref-type="bibr">Innes,
+  2018</xref>). MLJ.jl provides a model-evaluation framework with
+  holdout and cross-validation resampling, and also accepts explicit
+  train/test row pairs
+  (<xref alt="Blaom et al., 2020" rid="ref-Blaom2020MLJ" ref-type="bibr">Blaom
+  et al., 2020</xref>). None of these three implement distance-based,
+  group-stratified, or purged time-series splitting strategies. The
+  closest Julia package in scope is ChemometricsTools.jl
+  (<xref alt="Kneale, 2021" rid="ref-chemometricstools" ref-type="bibr">Kneale,
+  2021</xref>), a broad chemometrics toolkit offering Kennard–Stone
+  selection, two-way <monospace>SplitByProportion</monospace> and
+  <monospace>VenetianBlinds</monospace> splits, and
+  <monospace>KFoldsValidation</monospace>/<monospace>LeaveOneOut</monospace>
+  iterators, all returning materialised arrays, but no group-stratified
+  or purged time-series splitting.</p>
+  <p>DataSplits.jl complements these packages, its core contribution is
+  split construction rather than model evaluation or data loading;
+  keeping it lightweight lets the same split definitions be reused
+  across MLJ, Flux, MLUtils, and custom workflows.</p>
+</sec>
+<sec id="software-design">
+  <title>Software design</title>
+  <p>The central abstraction in DataSplits.jl is a splitting strategy.
+  Each strategy is represented by a concrete subtype of
+  <monospace>AbstractSplitStrategy</monospace>, while cross-validation
+  strategies subtype <monospace>AbstractCVStrategy</monospace>. Users
+  call <monospace>partition(data, strategy; kwargs...)</monospace> to
+  produce an <monospace>AbstractSplitResult</monospace> (a two-way,
+  three-way, or per-fold cross-validation split). A single entry point
+  lets user code switch strategies without changing call sites.
+  <xref alt="Table 2" rid="tabU003Afamilies">Table 2</xref> lists the
+  strategy families.</p>
+  <table-wrap>
+    <caption>
+      <p>Splitting strategy families implemented in DataSplits.jl.
+      <styled-content id="tabU003Afamilies"></styled-content></p>
+    </caption>
+    <table>
+      <colgroup>
+        <col width="17%" />
+        <col width="49%" />
+        <col width="34%" />
+      </colgroup>
+      <thead>
+        <tr>
+          <th align="left">Strategy family</th>
+          <th align="left">Examples</th>
+          <th align="left">Typical use</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td align="left">Distance-based</td>
+          <td align="left">KennardStoneSplit, SPXYSplit, OptiSimSplit,
+          DuplexSplit, OnionSplit, FieldStrengthSplit,
+          SpectralSplit</td>
+          <td align="left">Calibration/test design in chemometrics and
+          descriptor spaces</td>
+        </tr>
+        <tr>
+          <td align="left">Target-aware</td>
+          <td align="left">TargetPropertySplit, StratifiedKFold,
+          StratifiedShuffleSplit, XYOnionSplit, VenetianBlindsCV</td>
+          <td align="left">Class-balanced or response-aware
+          validation</td>
+        </tr>
+        <tr>
+          <td align="left">Group-aware</td>
+          <td align="left">GroupShuffleSplit, GroupKFold,
+          StratifiedGroupKFold</td>
+          <td align="left">Avoiding leakage across related
+          observations</td>
+        </tr>
+        <tr>
+          <td align="left">Time-aware</td>
+          <td align="left">TimeSplit, BlockedCV, PurgedKFold,
+          CombinatorialPurgedKFold</td>
+          <td align="left">Temporally ordered validation</td>
+        </tr>
+        <tr>
+          <td align="left">Resampling</td>
+          <td align="left">BootstrapSplit, ShuffleSplit, RepeatedKFold,
+          NestedCV</td>
+          <td align="left">Repeated performance estimation and
+          hyperparameter tuning</td>
+        </tr>
+      </tbody>
+    </table>
+  </table-wrap>
+  <p>The package exposes stable accessors
+  (e.g. <monospace>trainindices</monospace>), so downstream code does
+  not need to depend on internal result fields. Exposing indices rather
+  than only data subsets lets the same split be applied to multiple
+  aligned arrays (features, labels, metadata) without re-running the
+  selection algorithm. Data can be extracted either as lazy
+  MLUtils-compatible observation views or as materialised subsets.</p>
+  <p>All distance-based strategies have a lazy counterpart that computes
+  distances on-the-fly in O(N) peak memory instead of precomputing the
+  full O(N²) distance matrix. This makes the strategies applicable to
+  datasets where the full matrix would not fit in RAM, at the cost of
+  increased runtime. At N = 10,000 the lazy variants allocate 236 KiB
+  where the eager ones allocate 763 MiB, for a 1.4 to 2.4 times increase
+  in runtime. Under a 4 GiB budget this raises the largest feasible
+  sample count from 10,000 to at least 100,000.</p>
+  <p>The package is designed to be extensible. Adding a custom strategy
+  requires subtyping <monospace>AbstractSplitStrategy</monospace>,
+  declaring which auxiliary slots (<monospace>:data</monospace>,
+  <monospace>:target</monospace>, <monospace>:time</monospace>,
+  <monospace>:groups</monospace>) the strategy reads via the
+  <monospace>consumes</monospace> trait, and implementing a single
+  <monospace>_partition</monospace> method. The
+  <monospace>partition</monospace> entry point handles cohort-size
+  resolution, slot validation, and feature-matrix conversion
+  automatically.</p>
+  <p>Ecosystem integration is kept lightweight: lazy views can be passed
+  directly to Flux/MLUtils data loaders, and
+  <monospace>rowpairs</monospace> converts any split result into the
+  <monospace>(train_indices, test_indices)</monospace> pairs accepted by
+  MLJ’s <monospace>evaluate!</monospace>, without a dependency on
+  MLJ.jl.</p>
+</sec>
+<sec id="research-impact-statement">
+  <title>Research impact statement</title>
+  <p>DataSplits.jl has been developed to support benchmarking and
+  validation workflows in scientific machine learning where split
+  construction directly affects reported performance estimates. The
+  package underpins a published companion study
+  (<xref alt="Crucitti &amp; Mosquera Orgueira, 2026" rid="ref-crucitti2025splits" ref-type="bibr">Crucitti
+  &amp; Mosquera Orgueira, 2026</xref>), which demonstrates empirically
+  that split strategy choice can dominate differences between modelling
+  algorithms in structured chemical datasets, with random splits
+  systematically producing more optimistic performance estimates than
+  distance-based and group-aware alternatives. A reproducible tutorial
+  (<monospace>notebooks/tutorial.jl</monospace>) compares random,
+  Kennard–Stone, SPXY, and group-aware splits on controlled datasets,
+  quantifying feature-space coverage and group leakage, and generates
+  <xref alt="[fig:ks]" rid="figU003Aks">[fig:ks]</xref>. A benchmark
+  suite (<monospace>benchmark/benchmarks.jl</monospace>) tracks runtime
+  scaling of all strategies. DataSplits.jl will be maintained by the
+  GrHeCo-Xen group through the public GitHub repository, where users can
+  report issues, request features, and contribute new splitting
+  strategies.</p>
+</sec>
+<sec id="ai-usage-disclosure">
+  <title>AI usage disclosure</title>
+  <p>Generative AI tools, including Claude Code (Anthropic), were used
+  to assist with software development — specifically in the integration
+  of some algorithms — documentation drafting, and drafting and language
+  editing of this paper. AI tools were not used to make autonomous
+  design, implementation, or scientific decisions. All AI-assisted code
+  was thoroughly verified against independent reference implementations
+  and covered by the test suite. All AI-assisted text was reviewed and
+  edited by the authors, and technical claims were checked against the
+  implementation, tests, documentation, and cited literature. The
+  authors are responsible for the final content of the manuscript, code,
+  and documentation.</p>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>This research project was made possible through the access granted
+  by the Galician Supercomputing Center (CESGA) to its supercomputing
+  infrastructure. The supercomputer FinisTerrae III and its permanent
+  data storage system have been funded by the NextGeneration EU 2021
+  Recovery, Transformation and Resilience Plan, ICT2021-006904, and also
+  from the Pluriregional Operational Programme of Spain 2014-2020 of the
+  European Regional Development Fund (ERDF), ICTS-2019-02-CESGA-3, and
+  from the State Programme for the Promotion of Scientific and Technical
+  Research of Excellence of the State Plan for Scientific and Technical
+  Research and Innovation 2013-2016 State subprogramme for scientific
+  and technical infrastructures and equipment of ERDF,
+  CESG15-DE-3114.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <title></title>
+  <ref id="ref-Kennard1969Computer">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Kennard</surname><given-names>R. W.</given-names></name>
+        <name><surname>Stone</surname><given-names>L. A.</given-names></name>
+      </person-group>
+      <article-title>Computer Aided Design of Experiments</article-title>
+      <source>Technometrics</source>
+      <year iso-8601-date="1969">1969</year>
+      <volume>11</volume>
+      <issue>1</issue>
+      <issn>0040-1706</issn>
+      <pub-id pub-id-type="doi">10.1080/00401706.1969.10490666</pub-id>
+      <fpage>137</fpage>
+      <lpage>148</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Clark1997OptiSim">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Clark</surname><given-names>Robert D.</given-names></name>
+      </person-group>
+      <article-title>OptiSim: An Extended Dissimilarity Selection Method for Finding Diverse Representative Subsets</article-title>
+      <source>Journal of Chemical Information and Computer Sciences</source>
+      <year iso-8601-date="1997">1997</year>
+      <volume>37</volume>
+      <issue>6</issue>
+      <issn>1520-5142</issn>
+      <pub-id pub-id-type="doi">10.1021/CI970282V</pub-id>
+      <fpage>1181</fpage>
+      <lpage>1188</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Galvao2005method">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Galvão</surname><given-names>Roberto Kawakami Harrop</given-names></name>
+        <name><surname>Araújo</surname><given-names>C</given-names></name>
+        <name><surname>José</surname><given-names>Gledson Emídio</given-names></name>
+        <name><surname>Pontes</surname><given-names>Marcio José Coelho</given-names></name>
+        <name><surname>Silva</surname><given-names>Edvan Cirino</given-names></name>
+        <name><surname>Saldanha</surname><given-names>Teresa Cristina Bezerra</given-names></name>
+      </person-group>
+      <article-title>A method for calibration and validation subset partitioning</article-title>
+      <source>Talanta</source>
+      <year iso-8601-date="2005">2005</year>
+      <volume>67</volume>
+      <issue>4</issue>
+      <issn>0039-9140</issn>
+      <pub-id pub-id-type="doi">10.1016/J.TALANTA.2005.03.025</pub-id>
+      <fpage>736</fpage>
+      <lpage>740</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Saptoro2012Modified">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Saptoro</surname><given-names>Agus</given-names></name>
+        <name><surname>O. Tadé</surname><given-names>Moses</given-names></name>
+        <name><surname>Vuthaluru</surname><given-names>Hari</given-names></name>
+      </person-group>
+      <article-title>A Modified Kennard-Stone Algorithm for Optimal Division of Data for Developing Artificial Neural Network Models</article-title>
+      <source>Chemical Product and Process Modeling</source>
+      <year iso-8601-date="2012">2012</year>
+      <volume>7</volume>
+      <issue>1</issue>
+      <issn>1934-2659</issn>
+      <pub-id pub-id-type="doi">10.1515/1934-2659.1645</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-Lelis2019Improving">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Lelis Medeiros de Morais</surname><given-names>Camilo de</given-names></name>
+        <name><surname>Santos</surname><given-names>Marfran C D</given-names></name>
+        <name><surname>Lima</surname><given-names>Kássio M G</given-names></name>
+        <name><surname>Martin</surname><given-names>Francis L</given-names></name>
+      </person-group>
+      <article-title>Improving data splitting for classification applications in spectrochemical analyses employing a random-mutation Kennard-Stone algorithm approach</article-title>
+      <source>Bioinformatics</source>
+      <year iso-8601-date="2019">2019</year>
+      <volume>35</volume>
+      <issue>24</issue>
+      <issn>1367-4803</issn>
+      <pub-id pub-id-type="doi">10.1093/BIOINFORMATICS/BTZ421</pub-id>
+      <fpage>5257</fpage>
+      <lpage>5263</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-lopezdepradoAdvances18">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>López de Prado</surname><given-names>Marcos M.</given-names></name>
+      </person-group>
+      <source>Advances in financial machine learning</source>
+      <publisher-name>Wiley</publisher-name>
+      <year iso-8601-date="2018">2018</year>
+      <isbn>978-1-119-48208-6</isbn>
+    </element-citation>
+  </ref>
+  <ref id="ref-bergmeirUse12">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Bergmeir</surname><given-names>Christoph</given-names></name>
+        <name><surname>Benítez</surname><given-names>José M.</given-names></name>
+      </person-group>
+      <article-title>On the use of cross-validation for time series predictor evaluation</article-title>
+      <source>Information Sciences</source>
+      <year iso-8601-date="2012">2012</year>
+      <volume>191</volume>
+      <uri>https://linkinghub.elsevier.com/retrieve/pii/S0020025511006773</uri>
+      <pub-id pub-id-type="doi">10.1016/j.ins.2011.12.028</pub-id>
+      <fpage>192</fpage>
+      <lpage>213</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Roberts2017Cross">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Roberts</surname><given-names>David R.</given-names></name>
+        <name><surname>Bahn</surname><given-names>Volker</given-names></name>
+        <name><surname>Ciuti</surname><given-names>Simone</given-names></name>
+        <name><surname>Boyce</surname><given-names>Mark S.</given-names></name>
+        <name><surname>Elith</surname><given-names>Jane</given-names></name>
+        <name><surname>Guillera-Arroita</surname><given-names>Gurutzeta</given-names></name>
+        <name><surname>Hauenstein</surname><given-names>Severin</given-names></name>
+        <name><surname>Lahoz-Monfort</surname><given-names>José J.</given-names></name>
+        <name><surname>Schröder</surname><given-names>Boris</given-names></name>
+        <name><surname>Thuiller</surname><given-names>Wilfried</given-names></name>
+        <name><surname>Warton</surname><given-names>David I.</given-names></name>
+        <name><surname>Wintle</surname><given-names>Brendan A.</given-names></name>
+        <name><surname>Hartig</surname><given-names>Florian</given-names></name>
+        <name><surname>Dormann</surname><given-names>Carsten F.</given-names></name>
+      </person-group>
+      <article-title>Cross-validation strategies for data with temporal, spatial, hierarchical, or phylogenetic structure</article-title>
+      <source>Ecography</source>
+      <year iso-8601-date="2017">2017</year>
+      <volume>40</volume>
+      <issue>8</issue>
+      <issn>0906-7590</issn>
+      <pub-id pub-id-type="doi">10.1111/ECOG.02881</pub-id>
+      <fpage>913</fpage>
+      <lpage>929</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Bezanson2017Julia">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Bezanson</surname><given-names>Jeff</given-names></name>
+        <name><surname>Edelman</surname><given-names>Alan</given-names></name>
+        <name><surname>Karpinski</surname><given-names>Stefan</given-names></name>
+        <name><surname>Shah</surname><given-names>Viral B.</given-names></name>
+      </person-group>
+      <article-title>Julia: A Fresh Approach to Numerical Computing</article-title>
+      <source>SIAM Review</source>
+      <year iso-8601-date="2017">2017</year>
+      <volume>59</volume>
+      <issue>1</issue>
+      <issn>0036-1445</issn>
+      <pub-id pub-id-type="doi">10.1137/141000671</pub-id>
+      <fpage>65</fpage>
+      <lpage>98</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Innes2018Flux">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Innes</surname><given-names>Mike</given-names></name>
+      </person-group>
+      <article-title>Flux: Elegant machine learning with Julia</article-title>
+      <source>Journal of Open Source Software</source>
+      <year iso-8601-date="2018">2018</year>
+      <volume>3</volume>
+      <issue>25</issue>
+      <issn>2475-9066</issn>
+      <pub-id pub-id-type="doi">10.21105/JOSS.00602</pub-id>
+      <fpage>602</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Blaom2020MLJ">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Blaom</surname><given-names>Anthony</given-names></name>
+        <name><surname>Kiraly</surname><given-names>Franz</given-names></name>
+        <name><surname>Lienart</surname><given-names>Thibaut</given-names></name>
+        <name><surname>Simillides</surname><given-names>Yiannis</given-names></name>
+        <name><surname>Arenas</surname><given-names>Diego</given-names></name>
+        <name><surname>Vollmer</surname><given-names>Sebastian</given-names></name>
+      </person-group>
+      <article-title>MLJ: A Julia package for composable machine learning</article-title>
+      <source>Journal of Open Source Software</source>
+      <year iso-8601-date="2020">2020</year>
+      <volume>5</volume>
+      <issue>55</issue>
+      <issn>2475-9066</issn>
+      <pub-id pub-id-type="doi">10.21105/JOSS.02704</pub-id>
+      <fpage>2704</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-chemometricstools">
+    <element-citation publication-type="software">
+      <person-group person-group-type="author">
+        <name><surname>Kneale</surname><given-names>Casey</given-names></name>
+      </person-group>
+      <article-title>ChemometricsTools.jl: A collection of tools for chemometrics and machine learning written in Julia</article-title>
+      <year iso-8601-date="2021">2021</year>
+      <uri>https://github.com/caseykneale/ChemometricsTools.jl</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-mlutils">
+    <element-citation publication-type="software">
+      <person-group person-group-type="author">
+        <string-name>JuliaML</string-name>
+      </person-group>
+      <article-title>MLUtils.jl: Machine learning utility functions for Julia</article-title>
+      <year iso-8601-date="2022">2022</year>
+      <uri>https://github.com/JuliaML/MLUtils.jl</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-ngSpectral01">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Ng</surname><given-names>Andrew Y.</given-names></name>
+        <name><surname>Jordan</surname><given-names>Michael I.</given-names></name>
+        <name><surname>Weiss</surname><given-names>Yair</given-names></name>
+      </person-group>
+      <article-title>On spectral clustering: Analysis and an algorithm</article-title>
+      <source>Proceedings of the 15th international conference on neural information processing systems: Natural and synthetic</source>
+      <publisher-name>MIT Press</publisher-name>
+      <publisher-loc>Cambridge, MA, USA</publisher-loc>
+      <year iso-8601-date="2001">2001</year>
+      <uri>https://proceedings.neurips.cc/paper/2001/hash/801272ee79cfde7fa5960571fee36b9b-Abstract.html</uri>
+      <fpage>849</fpage>
+      <lpage>856</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-kohavi1995study">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Kohavi</surname><given-names>Ron</given-names></name>
+      </person-group>
+      <article-title>A study of cross-validation and bootstrap for accuracy estimation and model selection</article-title>
+      <source>Proceedings of the 14th international joint conference on artificial intelligence - volume 2</source>
+      <publisher-name>Morgan Kaufmann Publishers Inc.</publisher-name>
+      <publisher-loc>San Francisco, CA, USA</publisher-loc>
+      <year iso-8601-date="1995">1995</year>
+      <isbn>1-55860-363-8</isbn>
+      <uri>https://dl.acm.org/doi/10.5555/1643031.1643047</uri>
+      <fpage>1137</fpage>
+      <lpage>1143</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Burns2023Machine">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Burns</surname><given-names>Jackson W.</given-names></name>
+        <name><surname>Spiekermann</surname><given-names>Kevin A.</given-names></name>
+        <name><surname>Bhattacharjee</surname><given-names>Himaghna</given-names></name>
+        <name><surname>Vlachos</surname><given-names>Dionisios G.</given-names></name>
+        <name><surname>Green</surname><given-names>William H.</given-names></name>
+      </person-group>
+      <article-title>Machine Learning Validation via Rational Dataset Sampling with astartes</article-title>
+      <source>Journal of Open Source Software</source>
+      <year iso-8601-date="2023">2023</year>
+      <volume>8</volume>
+      <issue>91</issue>
+      <issn>2475-9066</issn>
+      <pub-id pub-id-type="doi">10.21105/JOSS.05996</pub-id>
+      <fpage>5996</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-sneeValidation77a">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Snee</surname><given-names>Ronald D.</given-names></name>
+      </person-group>
+      <article-title>Validation of Regression Models: Methods and Examples</article-title>
+      <source>Technometrics</source>
+      <year iso-8601-date="1977">1977</year>
+      <volume>19</volume>
+      <issue>4</issue>
+      <issn>0040-1706</issn>
+      <uri>http://www.tandfonline.com/doi/abs/10.1080/00401706.1977.10489581</uri>
+      <pub-id pub-id-type="doi">10.1080/00401706.1977.10489581</pub-id>
+      <fpage>415</fpage>
+      <lpage>428</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-gallagherSelection20">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Gallagher</surname><given-names>Neal</given-names></name>
+        <name><surname>O’Sullivan</surname><given-names>Donal</given-names></name>
+      </person-group>
+      <article-title>Selection of Representative Learning and Test Sets Using the Onion Method</article-title>
+      <publisher-name>Unpublished</publisher-name>
+      <year iso-8601-date="2020">2020</year>
+      <uri>https://www.researchgate.net/doi/10.13140/RG.2.2.25372.67202</uri>
+      <pub-id pub-id-type="doi">10.13140/RG.2.2.25372.67202</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-heField26">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>He</surname><given-names>Zhonghai</given-names></name>
+        <name><surname>Sun</surname><given-names>Jialong</given-names></name>
+        <name><surname>Zhang</surname><given-names>Yi</given-names></name>
+        <name><surname>Zhang</surname><given-names>Xiaofang</given-names></name>
+      </person-group>
+      <article-title>Field Strength Distribution‐Based Sample Selection Method</article-title>
+      <source>Journal of Chemometrics</source>
+      <year iso-8601-date="2026">2026</year>
+      <volume>40</volume>
+      <issue>1</issue>
+      <issn>0886-9383</issn>
+      <uri>https://analyticalsciencejournals.onlinelibrary.wiley.com/doi/10.1002/cem.70094</uri>
+      <pub-id pub-id-type="doi">10.1002/cem.70094</pub-id>
+      <fpage>e70094</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-ezenarro2025xy">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Ezenarro</surname><given-names>Jokin J.</given-names></name>
+        <name><surname>others</surname></name>
+      </person-group>
+      <article-title>A novel method for the selection of calibration samples in near-infrared spectroscopy based on the onion algorithm: The XY-onion method</article-title>
+      <source>Analytica Chimica Acta</source>
+      <year iso-8601-date="2025">2025</year>
+      <pub-id pub-id-type="doi">10.1016/j.aca.2025.344229</pub-id>
+      <fpage>344229</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-naes2002multivariate">
+    <element-citation publication-type="book">
+      <person-group person-group-type="author">
+        <name><surname>Næs</surname><given-names>Tormod</given-names></name>
+        <name><surname>Isaksson</surname><given-names>Tomas</given-names></name>
+        <name><surname>Fearn</surname><given-names>Tom</given-names></name>
+        <name><surname>Davies</surname><given-names>Tony</given-names></name>
+      </person-group>
+      <source>A user-friendly guide to multivariate calibration and classification</source>
+      <publisher-name>NIR Publications</publisher-name>
+      <year iso-8601-date="2002">2002</year>
+      <isbn>978-0952866626</isbn>
+      <pub-id pub-id-type="doi">10.1255/978-1-906715-25-0</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-crucitti2025splits">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Crucitti</surname><given-names>Davide</given-names></name>
+        <name><surname>Mosquera Orgueira</surname><given-names>Adrián</given-names></name>
+      </person-group>
+      <article-title>Train-test splits matter more for evaluation than for performance</article-title>
+      <source>Journal of Cheminformatics</source>
+      <year iso-8601-date="2026">2026</year>
+      <pub-id pub-id-type="doi">10.1186/s13321-026-01266-7</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-pedregosaScikitlearn18">
+    <element-citation publication-type="webpage">
+      <person-group person-group-type="author">
+        <name><surname>Pedregosa</surname><given-names>Fabian</given-names></name>
+        <name><surname>Varoquaux</surname><given-names>Gaël</given-names></name>
+        <name><surname>Gramfort</surname><given-names>Alexandre</given-names></name>
+        <name><surname>Michel</surname><given-names>Vincent</given-names></name>
+        <name><surname>Thirion</surname><given-names>Bertrand</given-names></name>
+        <name><surname>Grisel</surname><given-names>Olivier</given-names></name>
+        <name><surname>Blondel</surname><given-names>Mathieu</given-names></name>
+        <name><surname>Müller</surname><given-names>Andreas</given-names></name>
+        <name><surname>Nothman</surname><given-names>Joel</given-names></name>
+        <name><surname>Louppe</surname><given-names>Gilles</given-names></name>
+        <name><surname>Prettenhofer</surname><given-names>Peter</given-names></name>
+        <name><surname>Weiss</surname><given-names>Ron</given-names></name>
+        <name><surname>Dubourg</surname><given-names>Vincent</given-names></name>
+        <name><surname>Vanderplas</surname><given-names>Jake</given-names></name>
+        <name><surname>Passos</surname><given-names>Alexandre</given-names></name>
+        <name><surname>Cournapeau</surname><given-names>David</given-names></name>
+        <name><surname>Brucher</surname><given-names>Matthieu</given-names></name>
+        <name><surname>Perrot</surname><given-names>Matthieu</given-names></name>
+        <name><surname>Duchesnay</surname><given-names>Édouard</given-names></name>
+      </person-group>
+      <article-title>Scikit-learn: Machine Learning in Python</article-title>
+      <year iso-8601-date="2018">2018</year>
+      <uri>http://arxiv.org/abs/1201.0490</uri>
+      <pub-id pub-id-type="doi">10.48550/arXiv.1201.0490</pub-id>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
