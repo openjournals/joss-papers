@@ -14,7 +14,6 @@ authors:
 date: 25 October 2026
 bibliography: paper.bib
 ---
-
 # Summary
 
 `SKSurrogate` is a `scikit-learn`-style suite that implements *surrogate-guided optimization* for
@@ -72,14 +71,14 @@ Public suite in `benchmarks/`, reproducible with one command
 `benchmarks/DESIGN.md` v1.9). Raw per-run records are git-ignored by design and archived
 \citep{sk:bench_data}.
 
-| Item | Setting |
-|---|---|
-| Estimator (all methods) | `StandardScaler → RandomForestClassifier(n_estimators=50)` |
-| Space | 3 params, one shared discrete grid of **224** configs |
-| Inner CV | `StratifiedKFold(5)` inside every search |
-| Outer split | one shared stratified 80/20 per (dataset, seed), identical for all methods; final "honest" score once on the hold-out |
-| Seeds | S = 7 per (method, dataset) |
-| Budgets | **B = 30** (five-method suite) and **B = 60** (SRS arms), in candidate-model evaluations |
+| Item                    | Setting                                                                                                                 |
+|-------------------------|-------------------------------------------------------------------------------------------------------------------------|
+| Estimator (all methods) | `StandardScaler → RandomForestClassifier(n_estimators=50)`                                                              |
+| Space                   | 3 params, one shared discrete grid of **224** configs                                                                   |
+| Inner CV                | `StratifiedKFold(5)` inside every search                                                                                |
+| Outer split             | one shared stratified 80/20 per (dataset, seed), identical for all methods; final "honest" score once on the hold-out |
+| Seeds                   | S = 7 per (method, dataset)                                                                                             |
+| Budgets                 | **B = 30** (five-method suite) and **B = 60** (SRS arms), in candidate-model evaluations                                |
 
 Methods under test: `sksurrogate` (default RBF-GP since v0.2), `srs-no-surrogate` (ablation arm A),
 `random`, `Optuna-TPE`; surface arms `SRS+GP` / `SRS+KRR`. `skopt-bayes` is recorded as not runnable
@@ -91,25 +90,25 @@ Methods under test: `sksurrogate` (default RBF-GP since v0.2), `srs-no-surrogate
 
 Mean final cross-validated accuracy over 7 seeds, **B = 30** (best per row in bold):
 
-| dataset | SRS (RBF-GP) | no surrogate | random | Optuna-TPE |
-|---|---|---|---:|
-| arrhythmia | 0.7020 | 0.6910 | 0.6941 | **0.7036** |
-| credit-g | 0.7423 | 0.7391 | 0.7405 | **0.7436** |
-| galaxy3 | 0.6473 | 0.6448 | 0.6484 | **0.6507** |
-| ionosphere | **0.9352** | 0.9347 | 0.9347 | 0.9337 |
-| optdigits | 0.9403 | 0.9392 | 0.9380 | **0.9405** |
-| spambase | 0.9280 | 0.9269 | 0.9272 | **0.9286** |
+| dataset    | SRS (RBF-GP) | no surrogate | random | Optuna-TPE |
+|------------|--------------|--------------|--------|------------|
+| arrhythmia | 0.7020       | 0.6910       | 0.6941 | **0.7036** |
+| credit-g   | 0.7423       | 0.7391       | 0.7405 | **0.7436** |
+| galaxy3    | 0.6473       | 0.6448       | 0.6484 | **0.6507** |
+| ionosphere | **0.9352**   | 0.9347       | 0.9347 | 0.9337     |
+| optdigits  | 0.9403       | 0.9392       | 0.9380 | **0.9405** |
+| spambase   | 0.9280       | 0.9269       | 0.9272 | **0.9286** |
 
 **B = 60** (SRS arms):
 
-| dataset | SRS (RBF-GP) | SRS (cubic Hilbert) | no surrogate |
-|---|---|---|---:|
-| arrhythmia | **0.7056** | 0.7000 | 0.7004 |
-| credit-g | **0.7446** | 0.7412 | 0.7430 |
-| galaxy3 | **0.6501** | 0.6485 | 0.6479 |
-| ionosphere | **0.9362** | 0.9352 | 0.9362 |
-| optdigits | **0.9413** | 0.9399 | 0.9403 |
-| spambase | **0.9286** | 0.9277 | 0.9281 |
+| dataset    | SRS (RBF-GP) | SRS (cubic Hilbert) | no surrogate |
+|------------|--------------|---------------------|-------------:|
+| arrhythmia | **0.7056**   | 0.7000              |       0.7004 |
+| credit-g   | **0.7446**   | 0.7412              |       0.7430 |
+| galaxy3    | **0.6501**   | 0.6485              |       0.6479 |
+| ionosphere | **0.9362**   | 0.9352              |       0.9362 |
+| optdigits  | **0.9413**   | 0.9399              |       0.9403 |
+| spambase   | **0.9286**   | 0.9277              |       0.9281 |
 
 At B=30, SRS (RBF-GP) matches Optuna-TPE within ~0.002 on 5/6 datasets and *beats* it on the hardest
 case (ionosphere); at B=60 it **leads all six**. The with-vs-without ablation shows the surrogate
