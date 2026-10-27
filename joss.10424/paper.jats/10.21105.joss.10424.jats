@@ -1,0 +1,1196 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">10424</article-id>
+<article-id pub-id-type="doi">10.21105/joss.10424</article-id>
+<title-group>
+<article-title>CWIPI: Coupling With Interpolation Parallel
+Interface</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0009-0007-2018-6358</contrib-id>
+<name>
+<surname>Quémerais</surname>
+<given-names>Eric</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0009-0000-9937-0244</contrib-id>
+<name>
+<surname>Andrieu</surname>
+<given-names>Bastien</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0009-0007-8251-1152</contrib-id>
+<name>
+<surname>Hoogveld</surname>
+<given-names>Karmijn</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>DMPE, ONERA, Université Paris-Saclay, 92320 Châtillon,
+France</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2026-01-27">
+<day>27</day>
+<month>1</month>
+<year>2026</year>
+</pub-date>
+<volume>11</volume>
+<issue>126</issue>
+<fpage>10424</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2026</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>parallel computing</kwd>
+<kwd>coupling</kwd>
+<kwd>multi-physics</kwd>
+<kwd>MPI</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p>CWIPI is an open-source library dedicated to the parallel coupling
+  of independent simulation codes for multi-physics research, a field
+  also covered by tools such as MUI
+  (<xref alt="Tang et al., 2015" rid="ref-Tang2015" ref-type="bibr">Tang
+  et al., 2015</xref>) and preCICE
+  (<xref alt="Chourdakis et al., 2022" rid="ref-Chourdakis2022" ref-type="bibr">Chourdakis
+  et al., 2022</xref>). It is aimed at anyone wishing to conduct studies
+  and research in this field. It provides MPI-based communication and
+  fully distributed data exchange on non-coincident meshes, including
+  on-the-fly spatial interpolation. CWIPI stands out for its support of
+  a wide variety of spatial interpolation families and a broad range of
+  geometric element types. This extensive spatial capability allows
+  users to leverage solver-specific numerical methods, including finite
+  volumes, finite elements, discontinuous Galerkin, and spectral
+  methods. Advanced users can further combine CWIPI’s geometric
+  algorithms with solvers’ internal interpolations through callbacks,
+  improving accuracy across highly heterogeneous solvers.</p>
+  <p>CWIPI supports a wide range of interface geometries, from linear,
+  surface, and volumetric elements to higher-order elements with curved
+  edges and faces. Performance-critical algorithms have been
+  specifically optimized for handling coupling cases involving dynamic
+  or adaptive meshes. Recent developments in the ParaDiGM library
+  (<xref alt="Quémerais et al., 2026" rid="ref-Quemerais2026" ref-type="bibr">Quémerais
+  et al., 2026</xref>) now provide dynamic load and memory balancing for
+  large-scale simulations. Ongoing work includes GPU acceleration of
+  geometric algorithms
+  (<xref alt="Cazalbou et al., 2024" rid="ref-Cazalbou2024" ref-type="bibr">Cazalbou
+  et al., 2024</xref>) and the development of temporal interpolation
+  methods
+  (<xref alt="Simon et al., 2025" rid="ref-Simon2025" ref-type="bibr">Simon
+  et al., 2025</xref>).</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of Need</title>
+  <p>Multi-physics problems can be approached either through monolithic
+  methods — where all physical phenomena are solved simultaneously
+  within a single solver — or through partitioned methods, where
+  independent solvers exchange data across shared interfaces.
+  Partitioned approaches are particularly attractive in high-performance
+  computing (HPC) contexts, as they allow the reuse of existing
+  specialized codes while maintaining their native parallel
+  architecture.</p>
+  <p>Robust and efficient coupling tools are essential to enable data
+  exchange between solvers operating on distinct meshes, geometries, and
+  discretization schemes. CWIPI was initially developed in 2009 to
+  provide an open-source solution complementary to MPCCI
+  (<xref alt="Joppich &amp; Kürschner, 2006" rid="ref-Joppich2006" ref-type="bibr">Joppich
+  &amp; Kürschner, 2006</xref>), whose closed-source nature limited
+  flexibility and transparency for multi-physics research.</p>
+  <p>To ensure a straightforward and efficient deployment of coupled
+  simulations, an HPC coupling tool must abstract the complexity of
+  parallelism by interacting solely with data local to each MPI rank.
+  Furthermore, it must deliver high-performance spatial interpolation
+  algorithms whose execution time remains negligible compared to a
+  single solver iteration, thereby avoiding any penalty on the overall
+  simulation wall-clock time. In an HPC context, the most expensive and
+  complex part of these algorithms lies in the underlying parallel
+  geometric computations, particularly for 3D volumetric couplings with
+  moving meshes; this is the challenge CWIPI was primarily designed to
+  address
+  (<xref alt="Andrieu et al., 2026" rid="ref-Andrieu2026" ref-type="bibr">Andrieu
+  et al., 2026</xref>). Alongside these, it must provide temporal
+  coupling schemes—or at least the essential building blocks to
+  implement them. While meeting these requirements is sufficient for
+  standard use cases, the ability to implement specific spatial
+  interpolation methods is critical to achieve a global accuracy order
+  close to the solvers’ internal precision. This necessity was
+  demonstrated by
+  (<xref alt="Léger et al., 2012" rid="ref-Leger2012" ref-type="bibr">Léger
+  et al., 2012</xref>) for an isophysical configuration based on the
+  linearized Euler equations: by exposing CWIPI’s geometric algorithms
+  to the solvers’ internal interpolation capabilities via callbacks, and
+  by employing the same Runge-Kutta scheme with coupling performed at
+  the sub-iteration level, a global accuracy order of 3.5 was preserved
+  when coupling a 4th-order finite difference code with a 4th-order
+  discontinuous Galerkin solver.</p>
+</sec>
+<sec id="state-of-the-field">
+  <title>State of the Field</title>
+  <p>Existing coupling frameworks differ significantly in scope,
+  geometry support, and interpolation capabilities. MUI
+  (<xref alt="Tang et al., 2015" rid="ref-Tang2015" ref-type="bibr">Tang
+  et al., 2015</xref>) primarily supports point clouds and focuses on
+  general-purpose temporal and spatial interpolation. preCICE
+  (<xref alt="Chourdakis et al., 2022" rid="ref-Chourdakis2022" ref-type="bibr">Chourdakis
+  et al., 2022</xref>) supports point clouds or meshes composed of
+  planar triangular/quadrilateral elements, or tetrahedral cells,
+  provides a broad ecosystem of adapters for established simulation
+  codes, and integrates numerically black-box temporal coupling
+  algorithms. OpenPALM
+  (<xref alt="Duchaine et al., 2015" rid="ref-Duchaine2015" ref-type="bibr">Duchaine
+  et al., 2015</xref>) is a dynamic code coupler that uses a supervision
+  process that orchestrates temporal coupling algorithms, which are
+  defined beforehand by the user through the PrePALM graphical user
+  interface. In this architecture, OpenPALM operates as a higher-level
+  coupler, relying entirely on CWIPI as its underlying spatial
+  interpolation and low-level communication engine. Although a
+  comparative study of coupling tools within an HPC framework
+  (<xref alt="Rubin, 2022" rid="ref-Rubin2022" ref-type="bibr">Rubin,
+  2022</xref>) has been conducted, it is not exhaustive; it mentions
+  other tools besides those cited above but only discusses CWIPI through
+  its utilization via OpenPALM.</p>
+  <p>Regarding temporal coupling algorithms, CWIPI provides the building
+  blocks to define the orchestration of exchanges. The user defines the
+  temporal coupling algorithm in the solver source code, in a
+  decentralized manner (see
+  (<xref alt="Errera et al., 2019" rid="ref-Errera2019" ref-type="bibr">Errera
+  et al., 2019</xref>) for an example of such an algorithm implemented
+  with CWIPI). In the broader field, such algorithms are typically
+  relaxation methods (such as Aitken, implemented in MUI and preCICE) or
+  quasi-Newton schemes (implemented in preCICE).</p>
+  <p>Regarding spatial interpolation of fields, a concept designated as
+  “mapping” or “sampling” depending on the framework, CWIPI implements
+  spatial interpolation methods based on local neighboring data, an
+  implementation well-suited for HPC
+  (<xref alt="Andrieu et al., 2026" rid="ref-Andrieu2026" ref-type="bibr">Andrieu
+  et al., 2026</xref>). Other coupling tools for HPC also use such
+  interpolation methods: MUI
+  (<xref alt="Liu et al., 2026" rid="ref-Liu2026" ref-type="bibr">Liu et
+  al., 2026</xref>) and preCICE
+  (<xref alt="Schneider &amp; Uekermann, 2025" rid="ref-Schneider2025" ref-type="bibr">Schneider
+  &amp; Uekermann, 2025</xref>) offer local RBF-type interpolation
+  methods using the Partition-of-Unity approach. In addition to that,
+  MUI includes gaussian sampler (e.g., for molecular dynamics
+  applications)
+  (<xref alt="Tang et al., 2015" rid="ref-Tang2015" ref-type="bibr">Tang
+  et al., 2015</xref>) and preCICE includes linear interpolation methods
+  among neighboring points and global (dense or sparse) RBF-type methods
+  (<xref alt="Chourdakis et al., 2022" rid="ref-Chourdakis2022" ref-type="bibr">Chourdakis
+  et al., 2022</xref>;
+  <xref alt="Schneider et al., 2023" rid="ref-Schneider2023" ref-type="bibr">Schneider
+  et al., 2023</xref>).</p>
+  <p>CWIPI offers a rich geometric representation of interfaces,
+  including linear, surface, and volumetric elements (similarly to other
+  tools), as well as polygons, polyhedra, and high-order elements with
+  curved edges and faces, which offer additional versatility compared to
+  other tools. To exploit these geometries, CWIPI provides three
+  families of interpolation methods based on an underlying geometric
+  algorithm: one based on point clouds, one based on locating target
+  points within the source mesh, and one based on the intersection of
+  source and target meshes. For each of these, a default method is
+  provided, supplemented by a callback interface allowing users to
+  implement the interpolation method best suited to their specific
+  context. If MUI also allows users to write a customized callback, this
+  is limited to point clouds; conversely, CWIPI extends this capability
+  to the three geometric families. Within a CWIPI callback, parallelism
+  management is entirely transparent: the user works exclusively with
+  local data, without having to manage remote communications, except in
+  the specific case where they invoke internal functions of their own
+  code requiring their intracommunicator. It should be noted that the
+  family based on locating target points was the first to be
+  implemented, which explains its privileged use in the vast majority of
+  CWIPI applications.</p>
+  <p>Strategies for launching and communication differ significantly
+  across frameworks. MUI and CWIPI follows an approach based on MPI MPMD
+  (Multiple Program, Multiple Data), whereas preCICE follows a decoupled
+  approach where each code is launched via its own independent MPI
+  command, with the connection between processes established a
+  posteriori. CWIPI also offers a TCP/IP communication mode, which is
+  rarely used in HPC simulations. This mode was developed to couple
+  CWIPI with commercial simulation codes that embed their own MPI
+  implementation in their binaries.</p>
+  <p>CWIPI offers high flexibility in distributing codes across MPI
+  ranks: a code can be placed on any rank, and several codes can share
+  the same ranks (see the
+  <ext-link ext-link-type="uri" xlink:href="https://github.com/onera/cwipi/blob/4ef866fdf2220ba839582e687b275fb7e8afb245/tests/c_new_api.c"><monospace>c_new_api.c</monospace></ext-link>
+  test).</p>
+  <p>Consequently, the intersection of the MPI intra-communicators of
+  different codes is not necessarily empty. In the limiting case where
+  codes share all their ranks, their intra-communicators become
+  duplications of the same communicator. This architecture offers high
+  flexibility: the same coupling case can be handled with disjoint
+  intra-communicators or fully overlapping ones, without any assumptions
+  regarding the location of the coupling interface. In practice,
+  although this capability is available in C and Fortran, it will mainly
+  be used in Python, since the flexibility of this language makes it
+  easy to load the module for a given coupled code depending on the MPI
+  rank number, and thus to distribute the codes as desired. This
+  capability therefore makes it possible to adjust this distribution in
+  order to improve load balancing across the whole coupled simulation.
+  CWIPI does not provide a capability for searching for an optimal
+  distribution, but this could constitute a future research
+  direction.</p>
+</sec>
+<sec id="software-design">
+  <title>Software Design</title>
+  <p>Since version 1.0, CWIPI is built on top of the ParaDiGM library
+  (<xref alt="Quémerais et al., 2026" rid="ref-Quemerais2026" ref-type="bibr">Quémerais
+  et al., 2026</xref>), originally created specifically to meet the
+  needs of CWIPI. ParaDiGM provides the low-level geometric algorithms
+  and parallel data structures. More broadly, ParaDiGM was designed to
+  mutualize parallel geometric algorithms that share common requirements
+  across other contexts, such as dynamic mesh adaptation and, more
+  generally, any geometric co-processing tasks performed by solvers
+  during runtime.</p>
+  <p>CWIPI provides three APIs: in C (which can be used from C++ codes
+  as well), Fortran, and Python/NumPy — making it compatible with a wide
+  range of scientific codes. The integration of CWIPI into an existing
+  solver is designed to be minimally intrusive: it does not require
+  modifying the code structure, and the API relies solely on simple
+  arrays, keeping the coupling layer lightweight and straightforward to
+  adopt (see the
+  <ext-link ext-link-type="uri" xlink:href="https://onera.github.io/cwipi/1.3.0/quick_start.html#quick-start">Quickstart</ext-link>
+  for a minimal example).</p>
+  <p>To support various discretization schemes, CWIPI’s three
+  interpolation families provide distinct default approaches and data
+  structures for customized implementations. The first family, based on
+  searching for the k-nearest source nodes for each target point,
+  operates on nodes, cell centers, or user-defined points for both
+  source and target locations. Its default method relies on a least
+  squares approach, and its callback interface exposes, for each target
+  point, the local data containing the k-nearest source points, their
+  distances, and the associated source field values. The second family
+  focuses on the location of target points within the source mesh. It
+  maps source fields defined at nodes or cell centers onto target fields
+  located at nodes, cell centers, or user-defined points. By default, it
+  uses the Lagrange basis functions of the source elements; for custom
+  interpolations, the callback interface provides the data local to each
+  source element, specifically the target points it contains (or their
+  projections) and the source element fields. The third family is based
+  on the intersection of source and target meshes, where both fields are
+  strictly located at cell centers. Its default method performs a
+  weighting by the volumes of the intersecting polyhedra, and the
+  callback interface supplies each target element with its exact
+  intersection volumes and the fields defined on the intersecting source
+  polyhedra.</p>
+  <p>At each coupling step, the execution sequence typically proceeds as
+  follows: first, the geometric algorithm corresponding to the selected
+  interpolation family is invoked; second, the physical fields are
+  exchanged across the communication graph established by the preceding
+  geometric step; and finally, the fields are interpolated onto the
+  target mesh. However, if the chosen family is based on the location of
+  target points within the source mesh, the field interpolation is
+  performed directly by the source code, which inverts the order of the
+  last two steps. Furthermore, in cases where the mesh interface remains
+  fixed throughout the simulation, the geometric algorithm is invoked
+  only once during the initialization phase, and its results are
+  subsequently stored in memory for all remaining coupling steps.</p>
+  <p>Within this coupling communicator, the geometric algorithms linked
+  to the interpolation families generate optimized point-to-point
+  communication graphs between the processes of the coupled codes. Each
+  geometric algorithm produces its own communication graph. This graph
+  also depends on the location of the fields’ degrees of freedom (nodes,
+  cell centers, etc.). Since the location of the degrees of freedom and
+  the choice of interpolation family are properties specific to each
+  field, CWIPI is capable of managing several distinct communication
+  graphs between the codes for a single coupling instance.</p>
+  <p>A major design challenge lies in the <bold>performance of geometric
+  algorithms</bold>, especially when the coupling interface moves during
+  the simulation or when solvers employ dynamic mesh adaptation. In the
+  0.x branch of CWIPI, algorithms relied on the FVM library from
+  Code_Saturne
+  (<xref alt="Archambeau et al., 2004" rid="ref-Archambeau2004" ref-type="bibr">Archambeau
+  et al., 2004</xref>), which later evolved into PLE, a lightweight
+  coupling library
+  (<xref alt="Fournier, 2020" rid="ref-Fournier2020" ref-type="bibr">Fournier,
+  2020</xref>). New algorithms
+  (<xref alt="Andrieu et al., 2026" rid="ref-Andrieu2026" ref-type="bibr">Andrieu
+  et al., 2026</xref>) developed within ParaDiGM provide <bold>dynamic
+  load and memory balancing</bold> at each coupling step, which is
+  critical because coupling problems are inherently unbalanced across
+  MPI processes. These developments bring significant performance gains
+  for large-scale and complex simulations.</p>
+  <sec id="future-directions">
+    <title>Future Directions</title>
+    <p>Two main research directions are currently pursued. The first
+    concerns the <bold>GPU porting</bold> of the most computationally
+    expensive geometric algorithms, for which new algorithms have
+    recently been designed
+    (<xref alt="Cazalbou et al., 2024" rid="ref-Cazalbou2024" ref-type="bibr">Cazalbou
+    et al., 2024</xref>) and will be integrated in an upcoming release.
+    The second focuses on the development of <bold>temporal
+    interpolation methods</bold>
+    (<xref alt="François &amp; Massot, 2023" rid="ref-Francois2023" ref-type="bibr">François
+    &amp; Massot, 2023</xref>;
+    <xref alt="Simon et al., 2025" rid="ref-Simon2025" ref-type="bibr">Simon
+    et al., 2025</xref>), complementary to those provided by existing
+    frameworks such as preCICE, aiming to improve accuracy and
+    flexibility for dynamic interfaces and heterogeneous solvers.</p>
+  </sec>
+</sec>
+<sec id="research-impact-statement">
+  <title>Research Impact Statement</title>
+  <p>From a scientific perspective, CWIPI is primarily used within the
+  aeronautics and aerospace community from which it originated. The
+  library is integrated into several codes developed at ONERA, including
+  elsA
+  (<xref alt="Cambier et al., 2013" rid="ref-Cambier2013" ref-type="bibr">Cambier
+  et al., 2013</xref>) for computational fluid dynamics, CEDRE
+  (<xref alt="Refloch et al., 2011" rid="ref-Refloch2011" ref-type="bibr">Refloch
+  et al., 2011</xref>) for multiphysics simulations, Z-set
+  (<xref alt="Garaud et al., 2019" rid="ref-Garaud2019" ref-type="bibr">Garaud
+  et al., 2019</xref>) for structural and materials mechanics, MoDeTheC
+  (<xref alt="Dellinger et al., 2024" rid="ref-Dellinger2024" ref-type="bibr">Dellinger
+  et al., 2024</xref>) for thermal degradation of materials, and SPACE
+  (<xref alt="Delorme et al., 2005" rid="ref-Delorme2005" ref-type="bibr">Delorme
+  et al., 2005</xref>) for acoustic propagation. Through these tools,
+  CWIPI enables advanced multiphysics simulations in aerothermodynamics
+  (<xref alt="Errera et al., 2019" rid="ref-Errera2019" ref-type="bibr">Errera
+  et al., 2019</xref>), aeroacoustics
+  (<xref alt="Langenais et al., 2019" rid="ref-Langenais2019" ref-type="bibr">Langenais
+  et al., 2019</xref>;
+  <xref alt="Moratilla-Vega et al., 2022" rid="ref-MoratillaVega2022" ref-type="bibr">Moratilla-Vega
+  et al., 2022</xref>), magnetohydrodynamics
+  (<xref alt="Rocamora et al., 2025" rid="ref-Rocamora2025" ref-type="bibr">Rocamora
+  et al., 2025</xref>), electric arc propagation, and fire safety
+  (<xref alt="Dellinger et al., 2023" rid="ref-Dellinger2023" ref-type="bibr">Dellinger
+  et al., 2023</xref>).</p>
+  <p>CWIPI is also employed as both an internal and external coupling
+  library in leading combustion simulation environments such as YALES2
+  (<xref alt="Moureau et al., 2011" rid="ref-Moureau2011" ref-type="bibr">Moureau
+  et al., 2011</xref>) and AVBP
+  (<xref alt="Schonfeld &amp; Rudgyard, 1999" rid="ref-Schonfeld1999" ref-type="bibr">Schonfeld
+  &amp; Rudgyard, 1999</xref>). A notable HPC application
+  (<xref alt="Dombard et al., 2018" rid="ref-Dombard2018" ref-type="bibr">Dombard
+  et al., 2018</xref>) combining CWIPI with AVBP on a complex geometry
+  demonstrated the robustness and scalability of the coupling approach
+  on massively parallel architectures. Its capabilities were highlighted
+  as early as 2017
+  (<xref alt="Duchaine et al., 2017" rid="ref-Duchaine2017" ref-type="bibr">Duchaine
+  et al., 2017</xref>) and confirmed by an invitation to the ExCALIBUR
+  workshop
+  (<xref alt="Andrieu &amp; Quémerais, 2021" rid="ref-Andrieu2021" ref-type="bibr">Andrieu
+  &amp; Quémerais, 2021</xref>). Recent work in aeroelasticity with
+  YALES2
+  (<xref alt="Fabbri et al., 2023" rid="ref-Fabbri2023" ref-type="bibr">Fabbri
+  et al., 2023</xref>) further demonstrates its versatility. CWIPI’s
+  integration into the software stack of national HPC facilities such as
+  the CCRT confirms its recognition at a national level.</p>
+  <p>Beyond its original ecosystem, the open-source community has
+  adopted CWIPI through GitHub-based interfacing projects with OpenFOAM
+  (<xref alt="Moratilla-Vega et al., 2022" rid="ref-MoratillaVega2022" ref-type="bibr">Moratilla-Vega
+  et al., 2022</xref>;
+  <xref alt="nd-92, 2025" rid="ref-nd922025" ref-type="bibr">nd-92,
+  2025</xref>;
+  <xref alt="Weller et al., 1998" rid="ref-Weller1998" ref-type="bibr">Weller
+  et al., 1998</xref>) and Nektar++
+  (<xref alt="Cantwell et al., 2015" rid="ref-Cantwell2015" ref-type="bibr">Cantwell
+  et al., 2015</xref>), enabling applications in aeroacoustics and data
+  assimilation
+  (<xref alt="L. et al., 2024" rid="ref-Valero2024" ref-type="bibr">L.
+  et al., 2024</xref>). Finally, CWIPI serves as the interpolation
+  engine of the OpenPALM coupler
+  (<xref alt="Duchaine et al., 2015" rid="ref-Duchaine2015" ref-type="bibr">Duchaine
+  et al., 2015</xref>), illustrating its central role in the broader
+  multiphysics and HPC coupling ecosystem.</p>
+</sec>
+<sec id="ai-usage-disclosure">
+  <title>AI Usage Disclosure</title>
+  <p>Generative AI tools were used to assist with the writing of this
+  paper: translation, formatting, and improving the fluency of the text.
+  No AI was used in the development of the CWIPI software. All
+  scientific content was written and validated by the authors.</p>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>The authors would like to thank the following people for their
+  contributions to the development, testing, and dissemination of the
+  CWIPI library within the community:</p>
+  <p>Romain Casta¹, Nicolas Dellinger², Florent Duchaine¹, Bastien
+  Frisulli², Jean-Didier Garaud², Thomas Hennion², Stéphanie Lala²,
+  Xavier Lamboley¹², Bruno Maugars², Thierry Morel¹, Christophe
+  Peyret²</p>
+  <p>¹ CERFACS — ² ONERA</p>
+  <p>The authors also wish to thank BPI France, the Directorate General
+  for Civil Aviation (DGAC), and the General Scientific Directorate of
+  ONERA for their financial support.</p>
+</sec>
+<sec id="author-contributions">
+  <title>Author Contributions</title>
+  <p>The contributions to this software are listed according to the
+  CRediT taxonomy:</p>
+  <list list-type="bullet">
+    <list-item>
+      <p><bold>Eric Quémerais</bold>: Conceptualization, Methodology,
+      Software, Validation, Writing – Original Review &amp; Editing,
+      Project Administration, Funding Acquisition, Supervision</p>
+    </list-item>
+    <list-item>
+      <p><bold>Bastien Andrieu</bold>: Software, Validation, Writing –
+      Original Draft</p>
+    </list-item>
+    <list-item>
+      <p><bold>Karmijn Hoogveld</bold>: Software, Validation, Writing –
+      Original Draft</p>
+    </list-item>
+  </list>
+</sec>
+</body>
+<back>
+<ref-list>
+  <title></title>
+  <ref id="ref-Leger2012">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Léger</surname><given-names>R.</given-names></name>
+        <name><surname>Peyret</surname><given-names>C.</given-names></name>
+        <name><surname>Piperno</surname><given-names>S.</given-names></name>
+      </person-group>
+      <article-title>Coupled discontinuous galerkin/finite difference solver on hybrid meshes for computational aeroacoustics</article-title>
+      <source>AIAA Journal</source>
+      <year iso-8601-date="2012">2012</year>
+      <volume>50</volume>
+      <pub-id pub-id-type="doi">10.2514/1.J051110</pub-id>
+      <fpage>338</fpage>
+      <lpage>349</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-MoratillaVega2022">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Moratilla-Vega</surname><given-names>M. A.</given-names></name>
+        <name><surname>Angelino</surname><given-names>M.</given-names></name>
+        <name><surname>Xia</surname><given-names>H.</given-names></name>
+        <name><surname>Page</surname><given-names>G. J.</given-names></name>
+      </person-group>
+      <article-title>An open-source coupled method for aeroacoustics modelling</article-title>
+      <source>Computer Physics Communications</source>
+      <year iso-8601-date="2022">2022</year>
+      <volume>278</volume>
+      <issn>0010-4655</issn>
+      <pub-id pub-id-type="doi">10.1016/j.cpc.2022.108420</pub-id>
+      <fpage>108420</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Langenais2019">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Langenais</surname><given-names>A.</given-names></name>
+        <name><surname>Vuillot</surname><given-names>F.</given-names></name>
+        <name><surname>Troyes</surname><given-names>J.</given-names></name>
+        <name><surname>Bailly</surname><given-names>C.</given-names></name>
+      </person-group>
+      <article-title>Accurate simulation of the noise generated by a hot supersonic jet including turbulence tripping and nonlinear acoustic propagation</article-title>
+      <source>Physics of Fluids</source>
+      <year iso-8601-date="2019">2019</year>
+      <volume>31</volume>
+      <issue>1</issue>
+      <pub-id pub-id-type="doi">10.1063/1.5050905</pub-id>
+      <fpage>016105</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Rocamora2025">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Rocamora</surname><given-names>A.</given-names></name>
+        <name><surname>Labaune</surname><given-names>J.</given-names></name>
+        <name><surname>Laux</surname><given-names>C. O.</given-names></name>
+        <name><surname>Tholin</surname><given-names>F.</given-names></name>
+      </person-group>
+      <article-title>Numerical study of plasma-assisted ignition and stabilisation of a supersonic hydrogen–air combustion in LAERTE facility by a quasi-DC gliding arc</article-title>
+      <source>Plasma Sources Science and Technology</source>
+      <year iso-8601-date="2025">2025</year>
+      <volume>34</volume>
+      <issue>10</issue>
+      <uri>https://doi.org/10.1088/1361-6595/ae00ee</uri>
+      <pub-id pub-id-type="doi">10.1088/1361-6595/ae00ee</pub-id>
+      <fpage>105002</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Andrieu2026">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Andrieu</surname><given-names>B.</given-names></name>
+        <name><surname>Maugars</surname><given-names>B.</given-names></name>
+        <name><surname>Quémerais</surname><given-names>E.</given-names></name>
+      </person-group>
+      <article-title>Dynamic load-balanced point location algorithm for data mapping</article-title>
+      <source>Comptes Rendus. Mécanique</source>
+      <publisher-name>Académie des sciences, Paris</publisher-name>
+      <year iso-8601-date="2026">2026</year>
+      <volume>354</volume>
+      <issue>G1</issue>
+      <pub-id pub-id-type="doi">10.5802/crmeca.335</pub-id>
+      <fpage>53</fpage>
+      <lpage>70</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Andrieu2021">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Andrieu</surname><given-names>B.</given-names></name>
+        <name><surname>Quémerais</surname><given-names>E.</given-names></name>
+      </person-group>
+      <article-title>The CWIPI library</article-title>
+      <source>ExCALIBUR ISE code coupling workshop 1</source>
+      <publisher-loc>Online, United Kingdom</publisher-loc>
+      <year iso-8601-date="2021-12">2021</year><month>12</month>
+      <uri>https://excalibur-coupling.github.io/workshop1_content/slides/B-Andrieu_ISE_CWIPI.pdf</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-Duchaine2017">
+    <element-citation publication-type="chapter">
+      <person-group person-group-type="author">
+        <name><surname>Duchaine</surname><given-names>F.</given-names></name>
+        <name><surname>Berger</surname><given-names>S.</given-names></name>
+        <name><surname>Staffelbach</surname><given-names>G.</given-names></name>
+        <name><surname>Gicquel</surname><given-names>L.</given-names></name>
+      </person-group>
+      <article-title>Partitioned high performance code coupling applied to CFD</article-title>
+      <source>High-performance scientific computing</source>
+      <person-group person-group-type="editor">
+        <name><surname>Di Napoli</surname><given-names>Edoardo</given-names></name>
+        <name><surname>Hermanns</surname><given-names>Marc A.</given-names></name>
+        <name><surname>Iliev</surname><given-names>Hristo</given-names></name>
+        <name><surname>Lintermann</surname><given-names>Andreas</given-names></name>
+        <name><surname>Peyser</surname><given-names>Alexander</given-names></name>
+      </person-group>
+      <publisher-name>Springer</publisher-name>
+      <publisher-loc>Cham</publisher-loc>
+      <year iso-8601-date="2017">2017</year>
+      <volume>10164</volume>
+      <pub-id pub-id-type="doi">10.1007/978-3-319-53862-4_1</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-Cazalbou2024">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Cazalbou</surname><given-names>R.</given-names></name>
+        <name><surname>Duchaine</surname><given-names>F.</given-names></name>
+        <name><surname>Quémerais</surname><given-names>E.</given-names></name>
+        <name><surname>Andrieu</surname><given-names>B.</given-names></name>
+        <name><surname>Staffelbach</surname><given-names>G.</given-names></name>
+        <name><surname>Maugars</surname><given-names>B.</given-names></name>
+      </person-group>
+      <article-title>Hybrid multi-GPU distributed octrees construction for massively parallel code coupling applications</article-title>
+      <publisher-name>Association for Computing Machinery</publisher-name>
+      <publisher-loc>New York, NY, USA</publisher-loc>
+      <year iso-8601-date="2024">2024</year>
+      <isbn>9798400706394</isbn>
+      <uri>https://doi.org/10.1145/3659914.3659928</uri>
+      <pub-id pub-id-type="doi">10.1145/3659914.3659928</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-Francois2023">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>François</surname><given-names>L.</given-names></name>
+        <name><surname>Massot</surname><given-names>M.</given-names></name>
+      </person-group>
+      <article-title>Multistep interface coupling for high-order adaptive black-box multiphysics simulations</article-title>
+      <source>Proceedings of the 10th international conference on computational methods for coupled problems in science and engineering</source>
+      <publisher-loc>Chaniá, Greece</publisher-loc>
+      <year iso-8601-date="2023">2023</year>
+      <pub-id pub-id-type="doi">10.23967/c.coupled.2023.027</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-Simon2025">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Simon</surname><given-names>A.</given-names></name>
+        <name><surname>François</surname><given-names>L.</given-names></name>
+        <name><surname>Massot</surname><given-names>M.</given-names></name>
+      </person-group>
+      <article-title>High-order multistep coupling: Convergence, stability and PDE application</article-title>
+      <source>Comptes Rendus. Mécanique</source>
+      <year iso-8601-date="2025">2025</year>
+      <volume>353</volume>
+      <pub-id pub-id-type="doi">10.5802/crmeca.333</pub-id>
+      <fpage>1159</fpage>
+      <lpage>1184</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Chourdakis2022">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Chourdakis</surname><given-names>G.</given-names></name>
+        <name><surname>Davis</surname><given-names>K.</given-names></name>
+        <name><surname>Rodenberg</surname><given-names>B.</given-names></name>
+        <name><surname>Schulte</surname><given-names>M.</given-names></name>
+        <name><surname>Simonis</surname><given-names>F.</given-names></name>
+        <name><surname>Uekermann</surname><given-names>B.</given-names></name>
+        <name><surname>Abrams</surname><given-names>G.</given-names></name>
+        <name><surname>Bungartz</surname><given-names>H.</given-names></name>
+        <name><surname>Cheung Yau</surname><given-names>L.</given-names></name>
+        <name><surname>Desai</surname><given-names>I.</given-names></name>
+        <name><surname>Eder</surname><given-names>K.</given-names></name>
+        <name><surname>Hertrich</surname><given-names>R.</given-names></name>
+        <name><surname>Lindner</surname><given-names>F.</given-names></name>
+        <name><surname>Rusch</surname><given-names>A.</given-names></name>
+        <name><surname>Sashko</surname><given-names>D.</given-names></name>
+        <name><surname>Schneider</surname><given-names>D.</given-names></name>
+        <name><surname>Totounferoush</surname><given-names>A.</given-names></name>
+        <name><surname>Volland</surname><given-names>D.</given-names></name>
+        <name><surname>Vollmer</surname><given-names>P.</given-names></name>
+        <name><surname>Koseomur</surname><given-names>O.</given-names></name>
+      </person-group>
+      <article-title>preCICE v2: A sustainable and user-friendly coupling library</article-title>
+      <source>Open Research Europe</source>
+      <year iso-8601-date="2022">2022</year>
+      <volume>2</volume>
+      <uri>https://doi.org/10.12688/openreseurope.14445.2</uri>
+      <pub-id pub-id-type="doi">10.12688/openreseurope.14445.2</pub-id>
+      <fpage>51</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Joppich2006">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Joppich</surname><given-names>W.</given-names></name>
+        <name><surname>Kürschner</surname><given-names>M.</given-names></name>
+      </person-group>
+      <article-title>MpCCI – a tool for the simulation of coupled applications</article-title>
+      <source>Concurrency and Computation: Practice and Experience</source>
+      <year iso-8601-date="2006">2006</year>
+      <volume>18</volume>
+      <issue>2</issue>
+      <pub-id pub-id-type="doi">10.1002/cpe.913</pub-id>
+      <fpage>183</fpage>
+      <lpage>192</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Tang2015">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Tang</surname><given-names>Y.-H.</given-names></name>
+        <name><surname>Kudo</surname><given-names>S.</given-names></name>
+        <name><surname>Bian</surname><given-names>X.</given-names></name>
+        <name><surname>Li</surname><given-names>Z.</given-names></name>
+        <name><surname>Karniadakis</surname><given-names>G. E.</given-names></name>
+      </person-group>
+      <article-title>Multiscale universal interface: A concurrent framework for coupling heterogeneous solvers</article-title>
+      <source>Journal of Computational Physics</source>
+      <publisher-name>Elsevier BV</publisher-name>
+      <year iso-8601-date="2015-09">2015</year><month>09</month>
+      <volume>297</volume>
+      <issn>0021-9991</issn>
+      <uri>http://dx.doi.org/10.1016/j.jcp.2015.05.004</uri>
+      <pub-id pub-id-type="doi">10.1016/j.jcp.2015.05.004</pub-id>
+      <fpage>13</fpage>
+      <lpage>31</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Fournier2020">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Fournier</surname><given-names>Y.</given-names></name>
+      </person-group>
+      <article-title>Massively parallel location and exchange tools for unstructured meshes</article-title>
+      <source>International Journal of Computational Fluid Dynamics</source>
+      <year iso-8601-date="2020">2020</year>
+      <volume>34</volume>
+      <issue>7-8</issue>
+      <pub-id pub-id-type="doi">10.1080/10618562.2020.1810676</pub-id>
+      <fpage>1</fpage>
+      <lpage>20</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Duchaine2015">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Duchaine</surname><given-names>F.</given-names></name>
+        <name><surname>Jauré</surname><given-names>S.</given-names></name>
+        <name><surname>Poitou</surname><given-names>D.</given-names></name>
+        <name><surname>Quémerais</surname><given-names>E.</given-names></name>
+        <name><surname>Staffelbach</surname><given-names>G.</given-names></name>
+        <name><surname>Morel</surname><given-names>T.</given-names></name>
+        <name><surname>Gicquel</surname><given-names>L.</given-names></name>
+      </person-group>
+      <article-title>Analysis of high performance conjugate heat transfer with the OpenPALM coupler</article-title>
+      <source>Computational Science &amp; Discovery</source>
+      <year iso-8601-date="2015">2015</year>
+      <volume>8</volume>
+      <issue>1</issue>
+      <uri>https://doi.org/10.1088/1749-4699/8/1/015003</uri>
+      <pub-id pub-id-type="doi">10.1088/1749-4699/8/1/015003</pub-id>
+      <fpage>015003</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Liu2026">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Liu</surname><given-names>W.</given-names></name>
+        <name><surname>Mahfoze</surname><given-names>O. A.</given-names></name>
+        <name><surname>Kumar</surname><given-names>M.</given-names></name>
+        <name><surname>Longshaw</surname><given-names>S. M.</given-names></name>
+        <name><surname>Ramos Fernandez</surname><given-names>E.</given-names></name>
+        <name><surname>Emerson</surname><given-names>D. R.</given-names></name>
+      </person-group>
+      <article-title>Multiscale universal interface v2.0: Lowering barriers to scalable multiphysics coupling</article-title>
+      <source>Computer Physics Communications</source>
+      <year iso-8601-date="2026">2026</year>
+      <volume>329</volume>
+      <issn>0010-4655</issn>
+      <uri>https://www.sciencedirect.com/science/article/pii/S001046552600353X</uri>
+      <pub-id pub-id-type="doi">10.1016/j.cpc.2026.110371</pub-id>
+      <fpage>110371</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Schneider2025">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Schneider</surname><given-names>D.</given-names></name>
+        <name><surname>Uekermann</surname><given-names>B.</given-names></name>
+      </person-group>
+      <article-title>Efficient partition-of-unity radial-basis-function interpolation for coupled problems</article-title>
+      <source>SIAM Journal on Scientific Computing</source>
+      <year iso-8601-date="2025">2025</year>
+      <volume>47</volume>
+      <issue>2</issue>
+      <pub-id pub-id-type="doi">10.1137/24M1663843</pub-id>
+      <fpage>B558</fpage>
+      <lpage>B582</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Tang2015">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Tang</surname><given-names>Y.-H.</given-names></name>
+        <name><surname>Kudo</surname><given-names>S.</given-names></name>
+        <name><surname>Bian</surname><given-names>X.</given-names></name>
+        <name><surname>Li</surname><given-names>Z</given-names></name>
+        <name><surname>Karniadakis</surname><given-names>G. E.</given-names></name>
+      </person-group>
+      <article-title>Multiscale universal interface: A concurrent framework for coupling heterogeneous solvers</article-title>
+      <source>Journal of Computational Physics</source>
+      <year iso-8601-date="2015">2015</year>
+      <volume>297</volume>
+      <issn>0021-9991</issn>
+      <uri>https://www.sciencedirect.com/science/article/pii/S0021999115003228</uri>
+      <pub-id pub-id-type="doi">10.1016/j.jcp.2015.05.004</pub-id>
+      <fpage>13</fpage>
+      <lpage>31</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Schneider2023">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Schneider</surname><given-names>D.</given-names></name>
+        <name><surname>Schrader</surname><given-names>T. P.</given-names></name>
+        <name><surname>Uekermann</surname><given-names>B.</given-names></name>
+      </person-group>
+      <article-title>Data-parallel radial-basis function interpolation in preCICE</article-title>
+      <source>X international conference on computational methods for coupled problems in science and engineering (COUPLED PROBLEMS 2023)</source>
+      <person-group person-group-type="editor">
+        <name><surname>Papadrakakis</surname><given-names>Manolis</given-names></name>
+        <name><surname>Schrefler</surname><given-names>Bernhard</given-names></name>
+        <name><surname>Oñate</surname><given-names>Eugenio</given-names></name>
+      </person-group>
+      <publisher-name>CIMNE</publisher-name>
+      <year iso-8601-date="2023">2023</year>
+      <uri>https://www.scipedia.com/public/2023r</uri>
+      <pub-id pub-id-type="doi">10.23967/c.coupled.2023.016</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-Dombard2018">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Dombard</surname><given-names>J.</given-names></name>
+        <name><surname>Duchaine</surname><given-names>F.</given-names></name>
+        <name><surname>Gicquel</surname><suffix>L. Y. M.</suffix></name>
+        <name><surname>Staffelbach</surname><given-names>G.</given-names></name>
+        <name><surname>Buffaz</surname><given-names>N.</given-names></name>
+        <name><surname>Trébinjac</surname><given-names>I.</given-names></name>
+      </person-group>
+      <article-title>Large eddy simulations in a transonic centrifugal compressor</article-title>
+      <year iso-8601-date="2018-06">2018</year><month>06</month>
+      <pub-id pub-id-type="doi">10.1115/GT2018-77023</pub-id>
+      <fpage>V02BT44A030</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Fabbri2023">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Fabbri</surname><given-names>T.</given-names></name>
+        <name><surname>Balarac</surname><given-names>G.</given-names></name>
+        <name><surname>Moureau</surname><given-names>V.</given-names></name>
+        <name><surname>Benard</surname><given-names>P.</given-names></name>
+      </person-group>
+      <article-title>Design of a high fidelity fluid-structure interaction solver using LES on unstructured grid</article-title>
+      <source>Computers &amp; Fluids</source>
+      <year iso-8601-date="2023">2023</year>
+      <volume>265</volume>
+      <pub-id pub-id-type="doi">10.1016/j.compfluid.2023.105963</pub-id>
+      <fpage>105963</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Errera2019">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Errera</surname><given-names>M.-P.</given-names></name>
+        <name><surname>Moretti</surname><given-names>R.</given-names></name>
+        <name><surname>Salem</surname><given-names>R.</given-names></name>
+        <name><surname>Bachelier</surname><given-names>Y.</given-names></name>
+        <name><surname>Arrivé</surname><given-names>T.</given-names></name>
+        <name><surname>Nguyen</surname><given-names>M.</given-names></name>
+      </person-group>
+      <article-title>A single stable scheme for steady conjugate heat transfer problems</article-title>
+      <source>Journal of Computational Physics</source>
+      <year iso-8601-date="2019">2019</year>
+      <volume>394</volume>
+      <pub-id pub-id-type="doi">10.1016/j.jcp.2019.05.036</pub-id>
+      <fpage>491</fpage>
+      <lpage>502</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Dellinger2023">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Dellinger</surname><given-names>N.</given-names></name>
+        <name><surname>Donjat</surname><given-names>D.</given-names></name>
+        <name><surname>Laroche</surname><given-names>E.</given-names></name>
+        <name><surname>Reulet</surname><given-names>P.</given-names></name>
+      </person-group>
+      <article-title>Experimental and numerical modelling of the interaction between a turbulent premixed propane/air flame and a composite flat plate</article-title>
+      <source>Fire Safety Journal</source>
+      <year iso-8601-date="2023">2023</year>
+      <volume>141</volume>
+      <issn>0379-7112</issn>
+      <uri>https://www.sciencedirect.com/science/article/pii/S0379711223002278</uri>
+      <pub-id pub-id-type="doi">10.1016/j.firesaf.2023.103959</pub-id>
+      <fpage>103959</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-nd922025">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>nd- 92</surname></name>
+      </person-group>
+      <article-title>cwipiFoam: Coupling between compressible OpenFOAM solvers and Nektar++ AcousticSolver</article-title>
+      <publisher-name>GitHub repository</publisher-name>
+      <year iso-8601-date="2025">2025</year>
+      <uri>https://github.com/nd-92/cwipiFoam</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-Valero2024">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>L.</surname><given-names>Villanueva</given-names></name>
+        <name><surname>M.</surname><given-names>Valero M.</given-names></name>
+        <name><surname>A.</surname><given-names>Šarkić Glumac</given-names></name>
+        <name><surname>M.</surname><given-names>Meldi</given-names></name>
+      </person-group>
+      <article-title>Augmented state estimation of urban settings using on-the-fly sequential data assimilation</article-title>
+      <source>Computers &amp; Fluids</source>
+      <year iso-8601-date="2024">2024</year>
+      <volume>269</volume>
+      <issn>0045-7930</issn>
+      <pub-id pub-id-type="doi">10.1016/j.compfluid.2023.106118</pub-id>
+      <fpage>106118</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Archambeau2004">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Archambeau</surname><given-names>F.</given-names></name>
+        <name><surname>Méchitoua</surname><given-names>N.</given-names></name>
+        <name><surname>Sakiz</surname><given-names>M.</given-names></name>
+      </person-group>
+      <article-title>Code_Saturne: A finite volume code for the computation of turbulent incompressible flows</article-title>
+      <source>International Journal on Finite Volumes</source>
+      <year iso-8601-date="2004">2004</year>
+      <uri>https://hal.archives-ouvertes.fr/hal-01115371/document</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-Quemerais2026">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Quémerais</surname><given-names>E.</given-names></name>
+        <name><surname>Andrieu</surname><given-names>B.</given-names></name>
+        <name><surname>Maugars</surname><given-names>B.</given-names></name>
+        <name><surname>Hoogveld</surname><given-names>K</given-names></name>
+      </person-group>
+      <article-title>ParaDiGM: Parallel Distributed General Mesh</article-title>
+      <source>Journal of Open Source Software</source>
+      <year iso-8601-date="2026">2026</year>
+      <volume>11</volume>
+      <pub-id pub-id-type="doi">10.21105/joss.10483</pub-id>
+      <fpage>10483</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Weller1998">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Weller</surname><given-names>Henry G.</given-names></name>
+        <name><surname>Tabor</surname><given-names>G.</given-names></name>
+        <name><surname>Jasak</surname><given-names>Hrvoje</given-names></name>
+        <name><surname>Fureby</surname><given-names>C.</given-names></name>
+      </person-group>
+      <article-title>A tensorial approach to computational continuum mechanics using object-oriented techniques</article-title>
+      <source>Computers in Physics</source>
+      <year iso-8601-date="1998">1998</year>
+      <volume>12</volume>
+      <issue>6</issue>
+      <pub-id pub-id-type="doi">10.1063/1.168744</pub-id>
+      <fpage>620</fpage>
+      <lpage>631</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Cantwell2015">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Cantwell</surname><given-names>C. D.</given-names></name>
+        <name><surname>Moxey</surname><given-names>D.</given-names></name>
+        <name><surname>Comerford</surname><given-names>A.</given-names></name>
+        <name><surname>Bolis</surname><given-names>A.</given-names></name>
+        <name><surname>Rocco</surname><given-names>G.</given-names></name>
+        <name><surname>Mengaldo</surname><given-names>G.</given-names></name>
+        <name><surname>De Grazia</surname><given-names>D.</given-names></name>
+        <name><surname>Yakovlev</surname><given-names>S.</given-names></name>
+        <name><surname>Lombard</surname><given-names>J.-E.</given-names></name>
+        <name><surname>Ekelschot</surname><given-names>D.</given-names></name>
+        <name><surname>others</surname></name>
+      </person-group>
+      <article-title>Nektar++: An open-source spectral/hp element framework</article-title>
+      <source>Computer Physics Communications</source>
+      <year iso-8601-date="2015">2015</year>
+      <volume>192</volume>
+      <pub-id pub-id-type="doi">10.1016/j.cpc.2015.02.008</pub-id>
+      <fpage>205</fpage>
+      <lpage>219</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Refloch2011">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Refloch</surname><given-names>A.</given-names></name>
+        <name><surname>Courbet</surname><given-names>B.</given-names></name>
+        <name><surname>Murrone</surname><given-names>A.</given-names></name>
+        <name><surname>Villedieu</surname><given-names>P.</given-names></name>
+        <name><surname>Laurent</surname><given-names>C.</given-names></name>
+        <name><surname>Gilbank</surname><given-names>P.</given-names></name>
+        <name><surname>Troyes</surname><given-names>J.</given-names></name>
+        <name><surname>Tessé</surname><given-names>L.</given-names></name>
+        <name><surname>Chaineray</surname><given-names>G.</given-names></name>
+        <name><surname>Dargaud</surname><given-names>J. B.</given-names></name>
+        <name><surname>Quémerais</surname><given-names>E.</given-names></name>
+        <name><surname>Vuillot</surname><given-names>F.</given-names></name>
+      </person-group>
+      <article-title>CEDRE Software</article-title>
+      <source>Aerospace Lab</source>
+      <publisher-name>Alain Appriou</publisher-name>
+      <year iso-8601-date="2011-03">2011</year><month>03</month>
+      <issue>2</issue>
+      <uri>https://hal.science/hal-01182463</uri>
+      <fpage>p. 1</fpage>
+      <lpage>10</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Moureau2011">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Moureau</surname><given-names>V.</given-names></name>
+        <name><surname>Domingo</surname><given-names>P.</given-names></name>
+        <name><surname>Vervisch</surname><given-names>L.</given-names></name>
+      </person-group>
+      <article-title>Design of a massively parallel CFD code for complex geometries</article-title>
+      <source>Comptes Rendus Mécanique</source>
+      <year iso-8601-date="2011">2011</year>
+      <volume>339</volume>
+      <issue>2</issue>
+      <pub-id pub-id-type="doi">10.1016/j.crme.2010.12.001</pub-id>
+      <fpage>141</fpage>
+      <lpage>148</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Cambier2013">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Cambier</surname><given-names>L.</given-names></name>
+        <name><surname>Heib</surname><given-names>S.</given-names></name>
+        <name><surname>Plot</surname><given-names>S.</given-names></name>
+      </person-group>
+      <article-title>The onera elsA CFD software: Input from research and feedback from industry</article-title>
+      <source>Mechanics &amp; Industry</source>
+      <year iso-8601-date="2013">2013</year>
+      <issue>14</issue>
+      <uri>https://www.mechanics-industry.org/articles/meca/abs/2013/03/mi130017/mi130017.html</uri>
+      <pub-id pub-id-type="doi">10.1051/meca/2013056</pub-id>
+      <fpage>159</fpage>
+      <lpage>174</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Schonfeld1999">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Schonfeld</surname><given-names>T.</given-names></name>
+        <name><surname>Rudgyard</surname><given-names>M.</given-names></name>
+      </person-group>
+      <article-title>Steady and unsteady flow simulations using the hybrid flow solver AVBP</article-title>
+      <source>AIAA Journal</source>
+      <year iso-8601-date="1999">1999</year>
+      <volume>37</volume>
+      <issue>11</issue>
+      <pub-id pub-id-type="doi">10.2514/2.636</pub-id>
+      <fpage>1378</fpage>
+      <lpage>1385</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Garaud2019">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Garaud</surname><given-names>JD.</given-names></name>
+        <name><surname>Rannou</surname><given-names>J.</given-names></name>
+        <name><surname>Bovet</surname><given-names>C.</given-names></name>
+        <name><surname>Feld-Payet</surname><given-names>S.</given-names></name>
+        <name><surname>Chiaruttini</surname><given-names>V.</given-names></name>
+        <name><surname>Marchand</surname><given-names>B.</given-names></name>
+        <name><surname>Lacourt</surname><given-names>L.</given-names></name>
+        <name><surname>Yastrebov</surname><given-names>V. A.</given-names></name>
+        <name><surname>Osipov</surname><given-names>N.</given-names></name>
+        <name><surname>Quilici</surname><given-names>S.</given-names></name>
+      </person-group>
+      <article-title>Z-set - suite logicielle pour la simulation des matériaux et structures</article-title>
+      <source>14ème Colloque National en Calcul de Structures (CSMA 2019)</source>
+      <publisher-loc>Presqu’île de Giens, France</publisher-loc>
+      <year iso-8601-date="2019-05">2019</year><month>05</month>
+      <uri>https://hal.science/hal-02115875</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-Delorme2005">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Delorme</surname><given-names>Ph.</given-names></name>
+        <name><surname>Mazet</surname><given-names>P.-A.</given-names></name>
+        <name><surname>Peyret</surname><given-names>C.</given-names></name>
+        <name><surname>Ventribout</surname><given-names>Y.</given-names></name>
+      </person-group>
+      <article-title>Computational aeroacoustics applications based on a discontinuous galerkin method</article-title>
+      <source>Comptes Rendus Mécanique</source>
+      <year iso-8601-date="2005">2005</year>
+      <volume>333</volume>
+      <issue>9</issue>
+      <issn>1631-0721</issn>
+      <uri>https://www.sciencedirect.com/science/article/pii/S1631072105001130</uri>
+      <pub-id pub-id-type="doi">10.1016/j.crme.2005.07.007</pub-id>
+      <fpage>676</fpage>
+      <lpage>682</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Dellinger2024">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Dellinger</surname><given-names>N.</given-names></name>
+        <name><surname>Leplat</surname><given-names>G.</given-names></name>
+        <name><surname>Huchette</surname><given-names>C.</given-names></name>
+        <name><surname>Biasi</surname><given-names>V.</given-names></name>
+        <name><surname>Feyel</surname><given-names>F.</given-names></name>
+      </person-group>
+      <article-title>Numerical modeling and experimental validation of heat and mass transfer within decomposing carbon fibers/epoxy resin composite laminates</article-title>
+      <source>International Journal of Thermal Sciences</source>
+      <year iso-8601-date="2024">2024</year>
+      <volume>201</volume>
+      <issn>1290-0729</issn>
+      <uri>https://www.sciencedirect.com/science/article/pii/S1290072924001625</uri>
+      <pub-id pub-id-type="doi">10.1016/j.ijthermalsci.2024.109040</pub-id>
+      <fpage>109040</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Cantwell2015">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Cantwell</surname><given-names>C. D.</given-names></name>
+        <name><surname>Moxey</surname><given-names>D.</given-names></name>
+        <name><surname>Comerford</surname><given-names>A.</given-names></name>
+        <name><surname>Bolis</surname><given-names>A.</given-names></name>
+        <name><surname>Rocco</surname><given-names>G.</given-names></name>
+        <name><surname>Mengaldo</surname><given-names>G.</given-names></name>
+        <name><surname>De Grazia</surname><given-names>D.</given-names></name>
+        <name><surname>Yakovlev</surname><given-names>S.</given-names></name>
+        <name><surname>Lombard</surname><given-names>J.-E.</given-names></name>
+        <name><surname>Ekelschot</surname><given-names>D.</given-names></name>
+        <name><surname>Jordi</surname><given-names>B.</given-names></name>
+        <name><surname>Xu</surname><given-names>H.</given-names></name>
+        <name><surname>Mohamied</surname><given-names>Y.</given-names></name>
+        <name><surname>Eskilsson</surname><given-names>C.</given-names></name>
+        <name><surname>Nelson</surname><given-names>B.</given-names></name>
+        <name><surname>Vos</surname><given-names>P.</given-names></name>
+        <name><surname>Biotto</surname><given-names>C.</given-names></name>
+        <name><surname>Kirby</surname><given-names>R. M.</given-names></name>
+        <name><surname>Sherwin</surname><given-names>S. J.</given-names></name>
+      </person-group>
+      <article-title>Nektar++: An open-source spectral/hp element framework</article-title>
+      <source>Computer Physics Communications</source>
+      <year iso-8601-date="2015">2015</year>
+      <volume>192</volume>
+      <issn>0010-4655</issn>
+      <uri>https://www.sciencedirect.com/science/article/pii/S0010465515000533</uri>
+      <pub-id pub-id-type="doi">10.1016/j.cpc.2015.02.008</pub-id>
+      <fpage>205</fpage>
+      <lpage>219</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Rubin2022">
+    <element-citation publication-type="report">
+      <person-group person-group-type="author">
+        <name><surname>Rubin</surname><given-names>P.</given-names></name>
+      </person-group>
+      <article-title>Comparison of code coupling libraries for high performance multi-physics simulation</article-title>
+      <publisher-name>Science; Technology Facilities Council</publisher-name>
+      <year iso-8601-date="2022">2022</year>
+      <uri>https://epubs.stfc.ac.uk/work/52144823</uri>
+      <pub-id pub-id-type="doi">10.5286/dltr.2022001</pub-id>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
