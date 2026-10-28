@@ -1,0 +1,897 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">11254</article-id>
+<article-id pub-id-type="doi">10.21105/joss.11254</article-id>
+<title-group>
+<article-title>OpenSR-SRGAN: A Flexible Super-Resolution Framework for
+Multispectral Earth Observation Data</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author" corresp="yes">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0002-4440-3835</contrib-id>
+<name>
+<surname>Donike</surname>
+<given-names>Simon</given-names>
+</name>
+<email>simon.donike@uv.es</email>
+<xref ref-type="aff" rid="aff-1"/>
+<xref ref-type="corresp" rid="cor-1"><sup>*</sup></xref>
+</contrib>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0003-2745-9535</contrib-id>
+<name>
+<surname>Aybar</surname>
+<given-names>Cesar</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0009-0001-5408-7055</contrib-id>
+<name>
+<surname>Contreras</surname>
+<given-names>Julio</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0003-3924-1269</contrib-id>
+<name>
+<surname>Gómez-Chova</surname>
+<given-names>Luis</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Image and Signal Processing Group, University of Valencia,
+Spain</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<author-notes>
+<corresp id="cor-1">* E-mail: <email>simon.donike@uv.es</email></corresp>
+</author-notes>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2026-10-28">
+<day>28</day>
+<month>10</month>
+<year>2026</year>
+</pub-date>
+<volume>11</volume>
+<issue>126</issue>
+<fpage>11254</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2026</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>super-resolution</kwd>
+<kwd>remote sensing</kwd>
+<kwd>GAN</kwd>
+<kwd>ESRGAN</kwd>
+<kwd>Sentinel-2</kwd>
+<kwd>multispectral</kwd>
+<kwd>PyTorch</kwd>
+<kwd>OpenSR</kwd>
+<kwd>technical report</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p>Satellite images often contain useful measurements beyond visible
+  red, green and blue light, but at a spatial resolution that is too
+  coarse for some applications. Super-resolution (SR) methods estimate a
+  finer-resolution image from these coarse observations.
+  <monospace>OpenSR-SRGAN</monospace> is a modular, configuration-driven
+  framework for training and benchmarking such models on multispectral
+  Earth-observation data. The software enables users to train and
+  evaluate configurable generator–discriminator architectures on
+  arbitrary sensor band setups using concise YAML configurations,
+  without modifying model code. All components, such as generators,
+  discriminators, loss functions, training schedules, normalizations,
+  and stability heuristics, are exposed through a common YAML interface.
+  <monospace>OpenSR-SRGAN</monospace> makes it straightforward to
+  reproduce experiments, compare architectures, and deploy
+  super-resolution pipelines across diverse remote-sensing datasets.</p>
+  <p><monospace>OpenSR-SRGAN</monospace> supports complete end-to-end
+  workflows with minimal setup: selecting architectures, scaling
+  factors, band combinations, and training strategies entirely from
+  configuration files. Although designed for remote-sensing
+  super-resolution, its tensor-based model components can be adapted to
+  other paired imaging data when suitable preprocessing and validation
+  are provided.</p>
+  <fig id="figU003Abanner">
+    <caption><p>Sentinel-2 RGB (B04/B03/B02) comparison for a synthetic
+    4× super-resolution task: (a) input downsampled to 40 m; (b)
+    <monospace>OpenSR-SRGAN</monospace> output on a 10 m grid; (c) the
+    original 10 m Sentinel-2 reference; and (d) mean absolute
+    SR–reference error across the three RGB bands, computed in
+    reflectance units before display stretching. The bottom row shows
+    matching enlargements of the regions outlined in yellow. The
+    overview and enlarged error maps use the same linear colour
+    scale.</p></caption>
+    <graphic mimetype="image" mime-subtype="png" xlink:href="rgb_4x_error.png" />
+  </fig>
+</sec>
+<sec id="introduction">
+  <title>Introduction</title>
+  <p>Optical satellite imagery supports many geospatial applications,
+  including agriculture
+  (<xref alt="Weiss et al., 2020" rid="ref-agriculture" ref-type="bibr">Weiss
+  et al., 2020</xref>), land-cover mapping
+  (<xref alt="Rogan &amp; Chen, 2004" rid="ref-mapping" ref-type="bibr">Rogan
+  &amp; Chen, 2004</xref>), ecosystem assessment
+  (<xref alt="Li et al., 2014" rid="ref-ecosysetm" ref-type="bibr">Li et
+  al., 2014</xref>) and disaster monitoring
+  (<xref alt="Ahmad, 2024" rid="ref-disaster" ref-type="bibr">Ahmad,
+  2024</xref>). Sensors such as Sentinel-2 provide rich multispectral
+  data but at moderate spatial resolution, motivating single-image
+  super-resolution (SISR) to recover finer detail from coarse
+  observations.</p>
+  <p>Deep learning has driven major progress in SISR, with convolutional
+  models improving fidelity and perceptual quality
+  (<xref alt="Dong et al., 2016" rid="ref-dong2015imagesuperresolutionusingdeep" ref-type="bibr">Dong
+  et al., 2016</xref>;
+  <xref alt="Kim et al., 2016" rid="ref-kim2016deeplyrecursiveconvolutionalnetworkimage" ref-type="bibr">Kim
+  et al., 2016</xref>). Generative adversarial networks (GANs)
+  (<xref alt="Goodfellow et al., 2014" rid="ref-goodfellow2014generativeadversarialnetworks" ref-type="bibr">Goodfellow
+  et al., 2014</xref>) introduced adversarial learning for synthesizing
+  realistic high-frequency detail and are widely used in remote sensing
+  (<xref alt="Donike, Aybar, Contreras, et al., 2025" rid="ref-11159252" ref-type="bibr">Donike,
+  Aybar, Contreras, et al., 2025</xref>;
+  <xref alt="Su et al., 2024" rid="ref-su2024intriguingpropertycounterfactualexplanation" ref-type="bibr">Su
+  et al., 2024</xref>). SRGAN
+  (<xref alt="Ledig et al., 2017" rid="ref-ledig2017photo" ref-type="bibr">Ledig
+  et al., 2017</xref>) extended these ideas to super-resolution and has
+  been applied to multispectral data
+  (<xref alt="Jia et al., 2022" rid="ref-9787539" ref-type="bibr">Jia et
+  al., 2022</xref>;
+  <xref alt="Meng et al., 2024" rid="ref-10375518" ref-type="bibr">Meng
+  et al., 2024</xref>;
+  <xref alt="Wang et al., 2023" rid="ref-rs15205062" ref-type="bibr">Wang
+  et al., 2023</xref>;
+  <xref alt="Wolters et al., 2023" rid="ref-satlassuperres" ref-type="bibr">Wolters
+  et al., 2023</xref>).</p>
+  <p>Although diffusion and transformer-based models increasingly define
+  the state of the art
+  (<xref alt="Donike, Aybar, Gómez-Chova, et al., 2025" rid="ref-s3" ref-type="bibr">Donike,
+  Aybar, Gómez-Chova, et al., 2025</xref>;
+  <xref alt="Liu et al., 2022" rid="ref-s2" ref-type="bibr">Liu et al.,
+  2022</xref>;
+  <xref alt="Xiao et al., 2024" rid="ref-s1" ref-type="bibr">Xiao et
+  al., 2024</xref>), GAN-based SR methods remain relevant for efficient
+  and deterministic enhancement workflows
+  (<xref alt="Panangian &amp; Bittner, 2025" rid="ref-g1" ref-type="bibr">Panangian
+  &amp; Bittner, 2025</xref>;
+  <xref alt="Wolters et al., 2023" rid="ref-satlassuperres" ref-type="bibr">Wolters
+  et al., 2023</xref>).</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of Need</title>
+  <p>GANs remain difficult to train
+  (<xref alt="Bau et al., 2019" rid="ref-p1" ref-type="bibr">Bau et al.,
+  2019</xref>;
+  <xref alt="Bowles et al., 2018" rid="ref-p3" ref-type="bibr">Bowles et
+  al., 2018</xref>;
+  <xref alt="Salimans et al., 2016" rid="ref-p2" ref-type="bibr">Salimans
+  et al., 2016</xref>), and these challenges are amplified in remote
+  sensing, where models must handle multispectral inputs, high
+  dynamic-range reflectance values, heterogeneous sensor
+  characteristics, and limited availability of aligned high-resolution
+  reference data. Many research implementations reproduce a single
+  architecture or assume RGB imagery, offering limited flexibility for
+  modifying band configurations, normalization schemes, loss
+  compositions, or training strategies. As a result, researchers who
+  need to adjust models for different sensors (e.g., Sentinel-2, SPOT,
+  Pleiades, or PlanetScope) must often re-engineer core components,
+  modify low-level code, and manually implement stabilization heuristics
+  such as warmup, ramping, or exponential moving average (EMA) tracking,
+  as well as logging mechanisms. This makes reproducing published
+  experiments or conducting systematic comparisons across architectures
+  labor-intensive, brittle, and inconsistent across studies. These
+  challenges call for a flexible, extensible and configuration-first
+  framework that reduces implementation overhead while enabling
+  systematic experimentation across architectures, loss designs and
+  multispectral sensor configurations. The primary audience is
+  researchers and practitioners developing, comparing, or deploying
+  multispectral super-resolution models for Earth-observation data.</p>
+</sec>
+<sec id="state-of-the-field">
+  <title>State of the Field</title>
+  <p>General-purpose restoration frameworks such as
+  <monospace>BasicSR</monospace><xref ref-type="fn" rid="fn1">1</xref>
+  and
+  <monospace>MMagic</monospace><xref ref-type="fn" rid="fn2">2</xref>
+  provide configurable implementations of SRGAN, ESRGAN, and other
+  super-resolution models. <monospace>TorchGeo</monospace> provides
+  complementary datasets, samplers, and multispectral utilities for
+  geospatial machine learning
+  (<xref alt="Stewart et al., 2022" rid="ref-stewart2022torchgeo" ref-type="bibr">Stewart
+  et al., 2022</xref>). The <monospace>BasicSR</monospace> package is
+  broad, but does not provide the complete combination of multispectral
+  GAN configurations, reflectance-aware normalization, spectral losses,
+  stabilization schedules, Sentinel-2 presets, and evaluation and
+  deployment interfaces necessary for remote-sensing specific
+  workflows.</p>
+  <p><monospace>OpenSR-SRGAN</monospace> was developed as a separate
+  focused package because its contribution is this shared
+  Earth-observation experimentation protocol rather than a new generator
+  architecture. Implementing the same functionality as isolated
+  additions to a general restoration framework would still leave
+  researchers responsible for assembling and maintaining the
+  sensor-specific training, evaluation, and large-scene inference
+  workflow. <monospace>OpenSR-SRGAN</monospace> instead integrates these
+  choices in one compact interface while reusing established libraries
+  and the wider OpenSR ecosystem.</p>
+</sec>
+<sec id="software-design">
+  <title>Software Design</title>
+  <p><monospace>OpenSR-SRGAN</monospace> provides a unified, modular and
+  configuration-driven framework for training and evaluating GAN-based
+  super-resolution models for multispectral remote sensing data. All
+  components of an experiment, including architectures, losses,
+  optimizers, data pipelines and training behavior, are defined through
+  concise YAML files, which makes runs repeatable and auditable without
+  modifying source code. The framework supports arbitrary band
+  configurations and adapts naturally to different sensors.</p>
+  <p>The configuration-first design was chosen to make comparisons
+  auditable: generators, discriminators, losses, and training schedules
+  are instantiated through shared factories. Flat YAML configurations
+  remain easy to archive, while <monospace>Hydra</monospace>-based
+  composition supports reusable presets and command-line overrides. This
+  design favors a stable and inspectable experiment schema.</p>
+  <p>The main features include:</p>
+  <list list-type="bullet">
+    <list-item>
+      <p><bold>Modular GAN framework:</bold> Interchangeable generator
+      and discriminator backbones with configurable depth, width and
+      scale factors.</p>
+    </list-item>
+    <list-item>
+      <p><bold>Configuration-first workflow:</bold> Repeatable training
+      and evaluation using concise YAML definitions.</p>
+    </list-item>
+    <list-item>
+      <p><bold>Training stabilization options:</bold> Warmup,
+      adversarial ramping, label smoothing, spectral normalization,
+      adaptive learning-rate scheduling and optional EMA tracking.</p>
+    </list-item>
+    <list-item>
+      <p><bold>Multispectral compatibility:</bold> Native support for
+      arbitrary band combinations across sensors.</p>
+    </list-item>
+    <list-item>
+      <p><bold>OpenSR ecosystem integration:</bold> Standardized
+      evaluation via <monospace>opensr-test</monospace>
+      (<xref alt="Aybar, Montero, Donike, et al., 2024" rid="ref-osrtest" ref-type="bibr">Aybar,
+      Montero, Donike, et al., 2024</xref>) and scalable inference
+      utilities via <monospace>opensr-utils</monospace>
+      (<xref alt="Donike &amp; contributors, 2025" rid="ref-osrutils" ref-type="bibr">Donike
+      &amp; contributors, 2025</xref>).</p>
+    </list-item>
+    <list-item>
+      <p><bold>HPC-ready inference:</bold> Inference scripts for
+      HPC-clusters enabling large-scale SR product generation.</p>
+    </list-item>
+  </list>
+  <p>A typical workflow in <monospace>OpenSR-SRGAN</monospace> involves
+  selecting an architecture, defining the desired scale factor,
+  specifying multispectral band ordering and choosing appropriate loss
+  terms, all through simple YAML file modifications. The framework then
+  handles model construction, dataset loading, training procedures and
+  evaluation, which allows researchers to focus on experiment design
+  rather than implementation details. This approach is particularly
+  useful when comparing multiple configurations or running ablation
+  studies, since each experiment is defined through its configuration
+  file. Internally, the framework supports flexible loss composition,
+  allowing pixel and spectral fidelity to be balanced against perceptual
+  sharpness and adversarial realism.
+  <monospace>PyTorch Lightning</monospace>’s manual-optimization path
+  was chosen to make generator and discriminator update order,
+  pretraining, adversarial ramping, and EMA updates explicit, at the
+  cost of not using <monospace>Lightning</monospace>’s automatic
+  optimizer handling. Users may also enable Wasserstein GAN training
+  (<xref alt="Arjovsky et al., 2017" rid="ref-arjovsky2017wasserstein" ref-type="bibr">Arjovsky
+  et al., 2017</xref>) with an optional R1 gradient penalty
+  (<xref alt="Mescheder et al., 2018" rid="ref-mescheder2018r1" ref-type="bibr">Mescheder
+  et al., 2018</xref>). These components together form a practical and
+  extensible foundation for SRGAN experimentation while keeping the
+  central training trade-offs visible.</p>
+</sec>
+<sec id="research-impact-statement">
+  <title>Research Impact Statement</title>
+  <p><monospace>OpenSR-SRGAN</monospace> is distributed through the
+  Python Package Index and archived on Zenodo. The repository provides
+  user and API documentation, a runnable <monospace>Colab</monospace>
+  example, contribution guidelines, and automated tests exercised by
+  continuous integration on <monospace>Python</monospace> 3.12, 3.13,
+  and 3.14. Resolved experiment configurations, example data, pretrained
+  weights, and a <monospace>Slurm</monospace>-based large-area inference
+  workflow provide concrete reproducibility and community-readiness
+  evidence beyond the software source alone.</p>
+  <p><monospace>OpenSR-SRGAN</monospace> is the adversarial-model
+  component of the European Space Agency OpenSR project. It includes a
+  loader for the published SEN2NAIP dataset
+  (<xref alt="Aybar, Montero, Contreras, et al., 2024" rid="ref-sen2naip" ref-type="bibr">Aybar,
+  Montero, Contreras, et al., 2024</xref>), produces models that can be
+  evaluated with <monospace>opensr-test</monospace>
+  (<xref alt="Aybar, Montero, Donike, et al., 2024" rid="ref-osrtest" ref-type="bibr">Aybar,
+  Montero, Donike, et al., 2024</xref>), and integrates
+  <monospace>opensr-utils</monospace>
+  (<xref alt="Donike &amp; contributors, 2025" rid="ref-osrutils" ref-type="bibr">Donike
+  &amp; contributors, 2025</xref>) for tiled inference on large
+  Sentinel-2 products. Public pretrained configurations and checkpoints
+  support ongoing experiments on four-band RGB–NIR and six-band
+  short-wave-infrared super-resolution.</p>
+</sec>
+<sec id="limitations">
+  <title>Limitations</title>
+  <p>Super-resolution methods enhance apparent detail but cannot replace
+  imagery collected at native high resolution.
+  <monospace>OpenSR-SRGAN</monospace> focuses on flexibility and
+  reproducibility rather than state-of-the-art performance, and results
+  depend on proper preprocessing and accurate low-resolution
+  (LR)–high-resolution (HR) alignment. GAN training and SR in general
+  remain sensitive to dataset size and diversity, and may produce
+  instability or spectral artifacts, particularly when reference data
+  are geographically skewed, biased by land cover, or limited in size
+  and scope.</p>
+</sec>
+<sec id="licensing-and-availability">
+  <title>Licensing and Availability</title>
+  <p>The source code is made available through the
+  <ext-link ext-link-type="uri" xlink:href="https://github.com/ESAOpenSR/SRGAN"><monospace>ESAOpenSR/OpenSR-SRGAN</monospace></ext-link>
+  Github repository. Full documentation, API references, quickstart
+  guides and tips and tricks can be found at
+  <ext-link ext-link-type="uri" xlink:href="https://srgan.opensr.eu">srgan.opensr.eu</ext-link>.
+  A reproducible notebook is permanently hosted on
+  <ext-link ext-link-type="uri" xlink:href="https://colab.research.google.com/drive/16W0FWr6py1J8P4po7JbNDMaepHUM97yL?usp=sharing"><monospace>Google Colab</monospace></ext-link>.
+  In the spirit of open science and collaboration, we encourage feature
+  requests and updates, bug fixes and reports, as well as general
+  questions and concerns via direct interaction with the repository.
+  <monospace>OpenSR-SRGAN</monospace> is licensed under the Apache-2.0
+  license.</p>
+</sec>
+<sec id="ai-usage-disclosure">
+  <title>AI Usage Disclosure</title>
+  <p><monospace>OpenAI Codex</monospace> (versions 5.1-5.5) was used to
+  assist with and generate parts of the documentation, automated tests
+  and continuous-integration workflows, and model training and
+  implementation code. The authors reviewed all AI-assisted changes and
+  retain responsibility for the final code and functionality. Software
+  changes are verified through targeted tests, the
+  continuous-integration suite, and frequent manual usage. Experimental
+  data, results, imagery, and pretrained model weights are fully
+  reproducible. The manuscript has been edited for clarity and
+  readability only, using <monospace>Writeful</monospace> embedded in
+  <monospace>Overleaf</monospace>.</p>
+</sec>
+<sec id="acknowledgement">
+  <title>Acknowledgement</title>
+  <p>This work has been supported by the European Space Agency (ESA)
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[\Phi]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi mathvariant="normal">Φ</mml:mi></mml:math></alternatives></inline-formula>-Lab,
+  within the framework of the
+  <ext-link ext-link-type="uri" xlink:href="https://eo4society.esa.int/projects/opensr/">‘Explainable
+  AI: Application to Trustworthy Super-Resolution (OpenSR)’</ext-link>
+  Project.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <title></title>
+  <ref id="ref-ledig2017photo">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Ledig</surname><given-names>Christian</given-names></name>
+        <name><surname>Theis</surname><given-names>Lucas</given-names></name>
+        <name><surname>Huszar</surname><given-names>Ferenc</given-names></name>
+        <name><surname>Caballero</surname><given-names>Jose</given-names></name>
+        <name><surname>Cunningham</surname><given-names>Andrew</given-names></name>
+        <name><surname>Acosta</surname><given-names>Alejandro</given-names></name>
+        <name><surname>Aitken</surname><given-names>Andrew</given-names></name>
+        <name><surname>Tejani</surname><given-names>Alykhan</given-names></name>
+        <name><surname>Totz</surname><given-names>Johannes</given-names></name>
+        <name><surname>Wang</surname><given-names>Zehan</given-names></name>
+        <name><surname>Shi</surname><given-names>Wenzhe</given-names></name>
+      </person-group>
+      <article-title>Photo-realistic single image super-resolution using a generative adversarial network</article-title>
+      <source>Proceedings of the IEEE conference on computer vision and pattern recognition</source>
+      <year iso-8601-date="2017">2017</year>
+      <pub-id pub-id-type="doi">10.1109/CVPR.2017.19</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-dong2015imagesuperresolutionusingdeep">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Dong</surname><given-names>Chao</given-names></name>
+        <name><surname>Loy</surname><given-names>Chen Change</given-names></name>
+        <name><surname>He</surname><given-names>Kaiming</given-names></name>
+        <name><surname>Tang</surname><given-names>Xiaoou</given-names></name>
+      </person-group>
+      <article-title>Image super-resolution using deep convolutional networks</article-title>
+      <source>IEEE Transactions on Pattern Analysis and Machine Intelligence</source>
+      <year iso-8601-date="2016">2016</year>
+      <volume>38</volume>
+      <issue>2</issue>
+      <pub-id pub-id-type="doi">10.1109/TPAMI.2015.2439281</pub-id>
+      <fpage>295</fpage>
+      <lpage>307</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-goodfellow2014generativeadversarialnetworks">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Goodfellow</surname><given-names>Ian J.</given-names></name>
+        <name><surname>Pouget-Abadie</surname><given-names>Jean</given-names></name>
+        <name><surname>Mirza</surname><given-names>Mehdi</given-names></name>
+        <name><surname>Xu</surname><given-names>Bing</given-names></name>
+        <name><surname>Warde-Farley</surname><given-names>David</given-names></name>
+        <name><surname>Ozair</surname><given-names>Sherjil</given-names></name>
+        <name><surname>Courville</surname><given-names>Aaron</given-names></name>
+        <name><surname>Bengio</surname><given-names>Yoshua</given-names></name>
+      </person-group>
+      <article-title>Generative adversarial networks</article-title>
+      <source>Advances in neural information processing systems</source>
+      <year iso-8601-date="2014">2014</year>
+      <volume>27</volume>
+      <uri>https://proceedings.neurips.cc/paper/2014/hash/f033ed80deb0234979a61f95710dbe25-Abstract.html</uri>
+      <pub-id pub-id-type="doi">10.1145/3422622</pub-id>
+      <fpage>2672</fpage>
+      <lpage>2680</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-kim2016deeplyrecursiveconvolutionalnetworkimage">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Kim</surname><given-names>Jiwon</given-names></name>
+        <name><surname>Lee</surname><given-names>Jung Kwon</given-names></name>
+        <name><surname>Lee</surname><given-names>Kyoung Mu</given-names></name>
+      </person-group>
+      <article-title>Deeply-recursive convolutional network for image super-resolution</article-title>
+      <source>Proceedings of the IEEE conference on computer vision and pattern recognition</source>
+      <year iso-8601-date="2016">2016</year>
+      <pub-id pub-id-type="doi">10.1109/CVPR.2016.181</pub-id>
+      <fpage>1637</fpage>
+      <lpage>1645</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-11159252">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Donike</surname><given-names>Simon</given-names></name>
+        <name><surname>Aybar</surname><given-names>Cesar</given-names></name>
+        <name><surname>Contreras</surname><given-names>Julio</given-names></name>
+        <name><surname>Gómez-Chova</surname><given-names>Luis</given-names></name>
+      </person-group>
+      <article-title>Near-infrared band synthesis from earth observation imagery with learned location embeddings and task-driven loss functions</article-title>
+      <source>IEEE Journal of Selected Topics in Applied Earth Observations and Remote Sensing</source>
+      <year iso-8601-date="2025">2025</year>
+      <volume>18</volume>
+      <issue></issue>
+      <pub-id pub-id-type="doi">10.1109/JSTARS.2025.3608941</pub-id>
+      <fpage>24319</fpage>
+      <lpage>24330</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-satlassuperres">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Wolters</surname><given-names>Piper</given-names></name>
+        <name><surname>Bastani</surname><given-names>Favyen</given-names></name>
+        <name><surname>Kembhavi</surname><given-names>Aniruddha</given-names></name>
+      </person-group>
+      <article-title>Zooming out on zooming in: Advancing super-resolution for remote sensing</article-title>
+      <year iso-8601-date="2023">2023</year>
+      <uri>https://arxiv.org/abs/2311.18082</uri>
+      <pub-id pub-id-type="doi">10.48550/arXiv.2311.18082</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-10375518">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Meng</surname><given-names>Fanen</given-names></name>
+        <name><surname>Wu</surname><given-names>Sensen</given-names></name>
+        <name><surname>Li</surname><given-names>Yadong</given-names></name>
+        <name><surname>Zhang</surname><given-names>Zhe</given-names></name>
+        <name><surname>Feng</surname><given-names>Tian</given-names></name>
+        <name><surname>Liu</surname><given-names>Renyi</given-names></name>
+        <name><surname>Du</surname><given-names>Zhenhong</given-names></name>
+      </person-group>
+      <article-title>Single remote sensing image super-resolution via a generative adversarial network with stratified dense sampling and chain training</article-title>
+      <source>IEEE Transactions on Geoscience and Remote Sensing</source>
+      <year iso-8601-date="2024">2024</year>
+      <volume>62</volume>
+      <issue></issue>
+      <pub-id pub-id-type="doi">10.1109/TGRS.2023.3344112</pub-id>
+      <fpage>1</fpage>
+      <lpage>22</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-su2024intriguingpropertycounterfactualexplanation">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Su</surname><given-names>Xingzhe</given-names></name>
+        <name><surname>Qiang</surname><given-names>Wenwen</given-names></name>
+        <name><surname>Hu</surname><given-names>Jie</given-names></name>
+        <name><surname>Wu</surname><given-names>Fengge</given-names></name>
+        <name><surname>Zheng</surname><given-names>Changwen</given-names></name>
+        <name><surname>Sun</surname><given-names>Fuchun</given-names></name>
+      </person-group>
+      <article-title>Intriguing property and counterfactual explanation of GAN for remote sensing image generation</article-title>
+      <year iso-8601-date="2024">2024</year>
+      <uri>https://arxiv.org/abs/2303.05240</uri>
+      <pub-id pub-id-type="doi">10.48550/arXiv.2303.05240</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-9787539">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Jia</surname><given-names>Sen</given-names></name>
+        <name><surname>Wang</surname><given-names>Zhihao</given-names></name>
+        <name><surname>Li</surname><given-names>Qingquan</given-names></name>
+        <name><surname>Jia</surname><given-names>Xiuping</given-names></name>
+        <name><surname>Xu</surname><given-names>Meng</given-names></name>
+      </person-group>
+      <article-title>Multiattention generative adversarial network for remote sensing image super-resolution</article-title>
+      <source>IEEE Transactions on Geoscience and Remote Sensing</source>
+      <year iso-8601-date="2022">2022</year>
+      <volume>60</volume>
+      <issue></issue>
+      <pub-id pub-id-type="doi">10.1109/TGRS.2022.3180068</pub-id>
+      <fpage>1</fpage>
+      <lpage>15</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-rs15205062">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Wang</surname><given-names>Xuan</given-names></name>
+        <name><surname>Sun</surname><given-names>Lijun</given-names></name>
+        <name><surname>Chehri</surname><given-names>Abdellah</given-names></name>
+        <name><surname>Song</surname><given-names>Yongchao</given-names></name>
+      </person-group>
+      <article-title>A review of GAN-based super-resolution reconstruction for optical remote sensing images</article-title>
+      <source>Remote Sensing</source>
+      <year iso-8601-date="2023">2023</year>
+      <volume>15</volume>
+      <issue>20</issue>
+      <issn>2072-4292</issn>
+      <uri>https://www.mdpi.com/2072-4292/15/20/5062</uri>
+      <pub-id pub-id-type="doi">10.3390/rs15205062</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-p1">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Bau</surname><given-names>David</given-names></name>
+        <name><surname>Zhu</surname><given-names>Jun-Yan</given-names></name>
+        <name><surname>Wulff</surname><given-names>Jonas</given-names></name>
+        <name><surname>Peebles</surname><given-names>William</given-names></name>
+        <name><surname>Strobelt</surname><given-names>Hendrik</given-names></name>
+        <name><surname>Zhou</surname><given-names>Bolei</given-names></name>
+        <name><surname>Torralba</surname><given-names>Antonio</given-names></name>
+      </person-group>
+      <article-title>Seeing what a GAN cannot generate</article-title>
+      <source>Proceedings of the IEEE/CVF international conference on computer vision (ICCV)</source>
+      <year iso-8601-date="2019">2019</year>
+      <pub-id pub-id-type="doi">10.48550/arXiv.1910.11626</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-p2">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Salimans</surname><given-names>Tim</given-names></name>
+        <name><surname>Goodfellow</surname><given-names>Ian</given-names></name>
+        <name><surname>Zaremba</surname><given-names>Wojciech</given-names></name>
+        <name><surname>Cheung</surname><given-names>Vicki</given-names></name>
+        <name><surname>Radford</surname><given-names>Alec</given-names></name>
+        <name><surname>Chen</surname><given-names>Xi</given-names></name>
+      </person-group>
+      <article-title>Improved techniques for training GANs</article-title>
+      <source>Advances in neural information processing systems</source>
+      <person-group person-group-type="editor">
+        <name><surname>Lee</surname><given-names>D.</given-names></name>
+        <name><surname>Sugiyama</surname><given-names>M.</given-names></name>
+        <name><surname>Luxburg</surname><given-names>U.</given-names></name>
+        <name><surname>Guyon</surname><given-names>I.</given-names></name>
+        <name><surname>Garnett</surname><given-names>R.</given-names></name>
+      </person-group>
+      <publisher-name>Curran Associates, Inc.</publisher-name>
+      <year iso-8601-date="2016">2016</year>
+      <volume>29</volume>
+      <pub-id pub-id-type="doi">10.48550/arXiv.1606.03498</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-p3">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Bowles</surname><given-names>Christopher</given-names></name>
+        <name><surname>Chen</surname><given-names>Liang</given-names></name>
+        <name><surname>Guerrero</surname><given-names>Ricardo</given-names></name>
+        <name><surname>Bentley</surname><given-names>Paul</given-names></name>
+        <name><surname>Gunn</surname><given-names>Roger</given-names></name>
+        <name><surname>Hammers</surname><given-names>Alexander</given-names></name>
+        <name><surname>Dickie</surname><given-names>David Alexander</given-names></name>
+        <name><surname>Hernández</surname><given-names>Maria Valdés</given-names></name>
+        <name><surname>Wardlaw</surname><given-names>Joanna</given-names></name>
+        <name><surname>Rueckert</surname><given-names>Daniel</given-names></name>
+      </person-group>
+      <article-title>GAN augmentation: Augmenting training data using generative adversarial networks</article-title>
+      <year iso-8601-date="2018">2018</year>
+      <uri>https://arxiv.org/abs/1810.10863</uri>
+      <pub-id pub-id-type="doi">10.48550/arXiv.1810.10863</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-agriculture">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Weiss</surname><given-names>M.</given-names></name>
+        <name><surname>Jacob</surname><given-names>F.</given-names></name>
+        <name><surname>Duveiller</surname><given-names>G.</given-names></name>
+      </person-group>
+      <article-title>Remote sensing for agricultural applications: A meta-review</article-title>
+      <source>Remote Sensing of Environment</source>
+      <year iso-8601-date="2020">2020</year>
+      <volume>236</volume>
+      <issn>0034-4257</issn>
+      <uri>https://www.sciencedirect.com/science/article/pii/S0034425719304213</uri>
+      <pub-id pub-id-type="doi">10.1016/j.rse.2019.111402</pub-id>
+      <fpage>111402</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-mapping">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Rogan</surname><given-names>John</given-names></name>
+        <name><surname>Chen</surname><given-names>DongMei</given-names></name>
+      </person-group>
+      <article-title>Remote sensing technology for mapping and monitoring land-cover and land-use change</article-title>
+      <source>Progress in Planning</source>
+      <year iso-8601-date="2004">2004</year>
+      <volume>61</volume>
+      <issue>4</issue>
+      <issn>0305-9006</issn>
+      <uri>https://www.sciencedirect.com/science/article/pii/S0305900603000667</uri>
+      <pub-id pub-id-type="doi">10.1016/S0305-9006(03)00066-7</pub-id>
+      <fpage>301</fpage>
+      <lpage>325</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-ecosysetm">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Li</surname><given-names>Zhaoqin</given-names></name>
+        <name><surname>Xu</surname><given-names>Dandan</given-names></name>
+        <name><surname>Guo</surname><given-names>Xulin</given-names></name>
+      </person-group>
+      <article-title>Remote sensing of ecosystem health: Opportunities, challenges, and future perspectives</article-title>
+      <source>Sensors</source>
+      <year iso-8601-date="2014">2014</year>
+      <volume>14</volume>
+      <issue>11</issue>
+      <issn>1424-8220</issn>
+      <uri>https://www.mdpi.com/1424-8220/14/11/21117</uri>
+      <pub-id pub-id-type="doi">10.3390/s141121117</pub-id>
+      <fpage>21117</fpage>
+      <lpage>21139</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-disaster">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Ahmad</surname><given-names>Rami</given-names></name>
+      </person-group>
+      <article-title>Smart remote sensing network for disaster management: An overview</article-title>
+      <source>Telecommunication Systems</source>
+      <publisher-name>Springer</publisher-name>
+      <year iso-8601-date="2024">2024</year>
+      <volume>87</volume>
+      <issue>1</issue>
+      <pub-id pub-id-type="doi">10.1007/s11235-024-01148-z</pub-id>
+      <fpage>213</fpage>
+      <lpage>237</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-osrtest">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Aybar</surname><given-names>Cesar</given-names></name>
+        <name><surname>Montero</surname><given-names>David</given-names></name>
+        <name><surname>Donike</surname><given-names>Simon</given-names></name>
+        <name><surname>Kalaitzis</surname><given-names>Freddie</given-names></name>
+        <name><surname>Gómez-Chova</surname><given-names>Luis</given-names></name>
+      </person-group>
+      <article-title>A comprehensive benchmark for optical remote sensing image super-resolution</article-title>
+      <source>IEEE Geoscience and Remote Sensing Letters</source>
+      <year iso-8601-date="2024">2024</year>
+      <volume>21</volume>
+      <issue></issue>
+      <pub-id pub-id-type="doi">10.1109/LGRS.2024.3401394</pub-id>
+      <fpage>1</fpage>
+      <lpage>5</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-osrutils">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Donike</surname><given-names>Simon</given-names></name>
+        <name><surname>contributors</surname></name>
+      </person-group>
+      <article-title>OpenSR-utils: Large-scale inference and data processing utilities for super-resolution of remote sensing imagery</article-title>
+      <publisher-name>https://github.com/ESAOpenSR/opensr-utils</publisher-name>
+      <year iso-8601-date="2025">2025</year>
+      <pub-id pub-id-type="doi">10.5281/zenodo.17599310</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-stewart2022torchgeo">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Stewart</surname><given-names>Adam J.</given-names></name>
+        <name><surname>Robinson</surname><given-names>Caleb</given-names></name>
+        <name><surname>Corley</surname><given-names>Isaac A.</given-names></name>
+        <name><surname>Ortiz</surname><given-names>Anthony</given-names></name>
+        <name><surname>Lavista Ferres</surname><given-names>Juan M.</given-names></name>
+        <name><surname>Banerjee</surname><given-names>Arindam</given-names></name>
+      </person-group>
+      <article-title>TorchGeo: Deep learning with geospatial data</article-title>
+      <source>Proceedings of the 30th international conference on advances in geographic information systems</source>
+      <year iso-8601-date="2022">2022</year>
+      <pub-id pub-id-type="doi">10.1145/3557915.3560953</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-g1">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Panangian</surname><given-names>Daniel</given-names></name>
+        <name><surname>Bittner</surname><given-names>Ksenia</given-names></name>
+      </person-group>
+      <article-title>Can location embeddings enhance super-resolution of satellite imagery?</article-title>
+      <year iso-8601-date="2025">2025</year>
+      <uri>https://arxiv.org/abs/2501.15847</uri>
+      <pub-id pub-id-type="doi">10.48550/arXiv.2501.15847</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-s1">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Xiao</surname><given-names>Yi</given-names></name>
+        <name><surname>Yuan</surname><given-names>Qiangqiang</given-names></name>
+        <name><surname>Jiang</surname><given-names>Kui</given-names></name>
+        <name><surname>He</surname><given-names>Jiang</given-names></name>
+        <name><surname>Jin</surname><given-names>Xianyu</given-names></name>
+        <name><surname>Zhang</surname><given-names>Liangpei</given-names></name>
+      </person-group>
+      <article-title>EDiffSR: An efficient diffusion probabilistic model for remote sensing image super-resolution</article-title>
+      <source>IEEE Transactions on Geoscience and Remote Sensing</source>
+      <year iso-8601-date="2024">2024</year>
+      <volume>62</volume>
+      <issue></issue>
+      <pub-id pub-id-type="doi">10.1109/TGRS.2023.3341437</pub-id>
+      <fpage>1</fpage>
+      <lpage>14</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-s2">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Liu</surname><given-names>Jinzhe</given-names></name>
+        <name><surname>Yuan</surname><given-names>Zhiqiang</given-names></name>
+        <name><surname>Pan</surname><given-names>Zhaoying</given-names></name>
+        <name><surname>Fu</surname><given-names>Yiqun</given-names></name>
+        <name><surname>Liu</surname><given-names>Li</given-names></name>
+        <name><surname>Lu</surname><given-names>Bin</given-names></name>
+      </person-group>
+      <article-title>Diffusion model with detail complement for super-resolution of remote sensing</article-title>
+      <source>Remote Sensing</source>
+      <year iso-8601-date="2022">2022</year>
+      <volume>14</volume>
+      <issue>19</issue>
+      <issn>2072-4292</issn>
+      <uri>https://www.mdpi.com/2072-4292/14/19/4834</uri>
+      <pub-id pub-id-type="doi">10.3390/rs14194834</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-s3">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Donike</surname><given-names>Simon</given-names></name>
+        <name><surname>Aybar</surname><given-names>Cesar</given-names></name>
+        <name><surname>Gómez-Chova</surname><given-names>Luis</given-names></name>
+        <name><surname>Kalaitzis</surname><given-names>Freddie</given-names></name>
+      </person-group>
+      <article-title>Trustworthy super-resolution of multispectral sentinel-2 imagery with latent diffusion</article-title>
+      <source>IEEE Journal of Selected Topics in Applied Earth Observations and Remote Sensing</source>
+      <year iso-8601-date="2025">2025</year>
+      <volume>18</volume>
+      <issue></issue>
+      <pub-id pub-id-type="doi">10.1109/JSTARS.2025.3542220</pub-id>
+      <fpage>6940</fpage>
+      <lpage>6952</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-sen2naip">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Aybar</surname><given-names>Cesar</given-names></name>
+        <name><surname>Montero</surname><given-names>David</given-names></name>
+        <name><surname>Contreras</surname><given-names>Julio</given-names></name>
+        <name><surname>Donike</surname><given-names>Simon</given-names></name>
+        <name><surname>Kalaitzis</surname><given-names>Freddie</given-names></name>
+        <name><surname>Gómez-Chova</surname><given-names>Luis</given-names></name>
+      </person-group>
+      <article-title>SEN2NAIP: A large-scale dataset for sentinel-2 image super-resolution</article-title>
+      <source>Scientific Data</source>
+      <year iso-8601-date="2024">2024</year>
+      <volume>11</volume>
+      <issue>1</issue>
+      <issn>2052-4463</issn>
+      <uri>https://doi.org/10.1038/s41597-024-04214-y</uri>
+      <pub-id pub-id-type="doi">10.1038/s41597-024-04214-y</pub-id>
+      <fpage>1389</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-arjovsky2017wasserstein">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Arjovsky</surname><given-names>Martin</given-names></name>
+        <name><surname>Chintala</surname><given-names>Soumith</given-names></name>
+        <name><surname>Bottou</surname><given-names>Léon</given-names></name>
+      </person-group>
+      <article-title>Wasserstein GAN</article-title>
+      <year iso-8601-date="2017">2017</year>
+      <uri>https://arxiv.org/abs/1701.07875</uri>
+      <pub-id pub-id-type="doi">10.48550/arXiv.1701.07875</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-mescheder2018r1">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Mescheder</surname><given-names>Lars</given-names></name>
+        <name><surname>Geiger</surname><given-names>Andreas</given-names></name>
+        <name><surname>Nowozin</surname><given-names>Sebastian</given-names></name>
+      </person-group>
+      <article-title>Which training methods for GANs do actually converge?</article-title>
+      <year iso-8601-date="2018">2018</year>
+      <uri>https://arxiv.org/abs/1801.04406</uri>
+      <pub-id pub-id-type="doi">10.48550/arXiv.1801.04406</pub-id>
+    </element-citation>
+  </ref>
+</ref-list>
+<fn-group>
+  <fn id="fn1">
+    <label>1</label><p><ext-link ext-link-type="uri" xlink:href="https://github.com/XPixelGroup/BasicSR">https://github.com/XPixelGroup/BasicSR</ext-link></p>
+  </fn>
+  <fn id="fn2">
+    <label>2</label><p><ext-link ext-link-type="uri" xlink:href="https://github.com/open-mmlab/mmagic">https://github.com/open-mmlab/mmagic</ext-link></p>
+  </fn>
+</fn-group>
+</back>
+</article>
