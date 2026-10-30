@@ -1,0 +1,779 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">11287</article-id>
+<article-id pub-id-type="doi">10.21105/joss.11287</article-id>
+<title-group>
+<article-title>kmhelpers: A Python toolkit for automated management of
+genomic indexes</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0009-0002-8429-284X</contrib-id>
+<name>
+<surname>Bellenous</surname>
+<given-names>Sébastien</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0003-1470-5450</contrib-id>
+<name>
+<surname>Jaron</surname>
+<given-names>Kamil S.</given-names>
+</name>
+<xref ref-type="aff" rid="aff-2"/>
+</contrib>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0003-0776-6407</contrib-id>
+<name>
+<surname>Peterlongo</surname>
+<given-names>Pierre</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Genscale, Univ. Rennes, Inria, CNRS, IRISA - UMR 6074,
+Rennes, F-35000 France</institution>
+</institution-wrap>
+</aff>
+<aff id="aff-2">
+<institution-wrap>
+<institution>Tree of Life, Wellcome Sanger Institute, Hinxton CB10 1SA,
+United Kingdom</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2026-07-06">
+<day>6</day>
+<month>7</month>
+<year>2026</year>
+</pub-date>
+<volume>11</volume>
+<issue>126</issue>
+<fpage>11287</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2026</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>Python</kwd>
+<kwd>bioinformatics</kwd>
+<kwd>k-mer indexing</kwd>
+<kwd>kmindex</kwd>
+<kwd>genomics</kwd>
+<kwd>sequence querying</kwd>
+<kwd>Bloom filters</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p>Large-scale genomic sequence search has become a central problem in
+  modern bioinformatics
+  (<xref alt="Karasikov et al., 2025" rid="ref-karasikov2025" ref-type="bibr">Karasikov
+  et al., 2025</xref>;
+  <xref alt="Marchet, 2024" rid="ref-marchet2024" ref-type="bibr">Marchet,
+  2024</xref>). A widely used family of methods relies on Bloom filters
+  (BFs) (<xref alt="Bloom, 1970" rid="ref-bloom" ref-type="bibr">Bloom,
+  1970</xref>) to record, for each indexed sample, which
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[k]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>k</mml:mi></mml:math></alternatives></inline-formula>-mers
+  (words of length <inline-formula><alternatives>
+  <tex-math><![CDATA[k]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>k</mml:mi></mml:math></alternatives></inline-formula>)
+  it contains; a query then reports the set of samples containing each
+  queried <inline-formula><alternatives>
+  <tex-math><![CDATA[k]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>k</mml:mi></mml:math></alternatives></inline-formula>-mer.
+  Building such an index over many samples is not a single operation but
+  a chain of interdependent steps, and each step demands specialist
+  knowledge: sizing each Bloom filter to its sample, configuring the
+  third-party components used internally by
+  <monospace>kmindex</monospace> (such as the
+  <monospace>findere</monospace>
+  (<xref alt="Robidou &amp; Peterlongo, 2021" rid="ref-robidou2021findere" ref-type="bibr">Robidou
+  &amp; Peterlongo, 2021</xref>) approximate-membership layer),
+  distributing data and computation, bounding peak RAM, and grouping
+  samples into sub-indexes so that the final index stays small without
+  slowing queries. An error at any step can invalidate downstream
+  results, waste significant computation, or produce an oversized
+  index.</p>
+  <p>We present <monospace>kmhelpers</monospace>, an open-source Python
+  toolkit that automates this entire workflow for indexes built with
+  <monospace>kmindex</monospace>
+  (<xref alt="Lemane et al., 2024" rid="ref-lemane2024" ref-type="bibr">Lemane
+  et al., 2024</xref>). It hides the technical decisions listed above
+  behind a command-line interface (CLI) and a matching Python API that
+  cover every stage of the <inline-formula><alternatives>
+  <tex-math><![CDATA[k]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>k</mml:mi></mml:math></alternatives></inline-formula>-mer
+  index lifecycle, from raw samples up to queries, including the
+  federation of independently built indexes into a single queryable
+  resource.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of Need</title>
+  <p><inline-formula><alternatives>
+  <tex-math><![CDATA[k]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>k</mml:mi></mml:math></alternatives></inline-formula>-mer-based
+  sequence databases built with tools such as
+  <monospace>kmindex</monospace>
+  (<xref alt="Lemane et al., 2024" rid="ref-lemane2024" ref-type="bibr">Lemane
+  et al., 2024</xref>) and <monospace>kmtricks</monospace>
+  (<xref alt="Lemane et al., 2022" rid="ref-lemane2022" ref-type="bibr">Lemane
+  et al., 2022</xref>) answer queries across large sample collections in
+  genomics, metagenomics, and population studies. They were recently
+  used to index 50 petabases of raw sequencing data
+  (<xref alt="Chikhi et al., 2024" rid="ref-ls" ref-type="bibr">Chikhi
+  et al., 2024</xref>). Yet a wide gap separates having the indexing
+  software installed from running a reproducible, end-to-end,
+  size-optimized indexing workflow.</p>
+  <p>Crossing that gap currently requires a user to simultaneously
+  master: Bloom filter sizing as a function of each sample’s
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[k]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>k</mml:mi></mml:math></alternatives></inline-formula>-mer
+  cardinality (number of <inline-formula><alternatives>
+  <tex-math><![CDATA[k]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>k</mml:mi></mml:math></alternatives></inline-formula>-mers
+  to be indexed per sample); configuring internal components of
+  <monospace>kmindex</monospace>; distributing data and computations;
+  controlling the peak memory; and partitioning the samples into
+  sub-indexes that balance index size against query speed. This
+  expertise is not required to obtain <italic>a</italic> functional
+  index but is needed to obtain an <italic>efficient</italic> one that
+  minimizes index size and maximizes query speed under a fixed
+  false-positive-rate constraint.</p>
+  <p><monospace>kmhelpers</monospace> removes that barrier. It makes the
+  complete process of building, updating, and querying a
+  <monospace>kmindex</monospace> search engine accessible to any group
+  (research teams, sequencing platforms, hospitals, or data-production
+  centers) that holds a potentially large genomic dataset, whether the
+  resulting index is kept private or shared, without repeated manual
+  re-optimization as the dataset grows. This opens to non-specialists
+  both the creation and maintenance of optimized indexes.</p>
+  <p>Indexes are rarely static: as new samples accumulate, they must be
+  regularly updated. <monospace>kmhelpers</monospace> therefore also
+  offers an update feature for easily adding new samples to an existing
+  index.</p>
+  <p>Formally, the input is a set <inline-formula><alternatives>
+  <tex-math><![CDATA[\mathcal{S}=\{S_1, \dots, S_n\}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>𝒮</mml:mi><mml:mo>=</mml:mo><mml:mo stretchy="false" form="prefix">{</mml:mo><mml:msub><mml:mi>S</mml:mi><mml:mn>1</mml:mn></mml:msub><mml:mo>,</mml:mo><mml:mi>…</mml:mi><mml:mo>,</mml:mo><mml:msub><mml:mi>S</mml:mi><mml:mi>n</mml:mi></mml:msub><mml:mo stretchy="false" form="postfix">}</mml:mo></mml:mrow></mml:math></alternatives></inline-formula>
+  of <inline-formula><alternatives>
+  <tex-math><![CDATA[n]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>n</mml:mi></mml:math></alternatives></inline-formula>
+  genomic samples of various sizes; each <inline-formula><alternatives>
+  <tex-math><![CDATA[S_i]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msub><mml:mi>S</mml:mi><mml:mi>i</mml:mi></mml:msub></mml:math></alternatives></inline-formula>
+  is either a raw sequencing dataset or a set of assembled sequences.
+  The output is a <monospace>kmindex</monospace> index subject to two
+  user-defined limits: (1) the maximum allowed false-positive rate, and
+  (2) the maximum number of sub-indexes, each a file storing a set of
+  BFs as a matrix. <monospace>kmhelpers</monospace> orchestrates every
+  step between input and output, automating the parametrization and the
+  data distribution.</p>
+</sec>
+<sec id="state-of-the-field">
+  <title>State of the Field</title>
+  <p>Several tools tackle large-scale sequence search with
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[k]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>k</mml:mi></mml:math></alternatives></inline-formula>-mer-based
+  data structures. <monospace>BIGSI</monospace>
+  (<xref alt="Bradley et al., 2019" rid="ref-bradley2019" ref-type="bibr">Bradley
+  et al., 2019</xref>) and <monospace>COBS</monospace>
+  (<xref alt="Bingmann et al., 2019" rid="ref-bingmann2019" ref-type="bibr">Bingmann
+  et al., 2019</xref>) use compressed Bloom-filter matrices to answer
+  presence/absence queries across collections of sequencing experiments.
+  <monospace>HowDeSBT</monospace>
+  (<xref alt="Harris &amp; Medvedev, 2020" rid="ref-harris2019" ref-type="bibr">Harris
+  &amp; Medvedev, 2020</xref>) and <monospace>Mantis</monospace>
+  (<xref alt="Pandey et al., 2018" rid="ref-pandey2018" ref-type="bibr">Pandey
+  et al., 2018</xref>) rely on sequence Bloom trees and counting
+  quotient filters, respectively. More recent
+  colored-<inline-formula><alternatives>
+  <tex-math><![CDATA[k]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>k</mml:mi></mml:math></alternatives></inline-formula>-mer
+  indexes such as <monospace>MetaGraph</monospace>
+  (<xref alt="Karasikov et al., 2025" rid="ref-karasikov2025" ref-type="bibr">Karasikov
+  et al., 2025</xref>) and <monospace>Fulgor</monospace>
+  (<xref alt="Fan et al., 2024" rid="ref-fulgor" ref-type="bibr">Fan et
+  al., 2024</xref>) push scalability further; see Marchet
+  (<xref alt="2024" rid="ref-marchet2024" ref-type="bibr">2024</xref>)
+  for a survey. <monospace>kmindex</monospace>, which
+  <monospace>kmhelpers</monospace> wraps, builds on the
+  <monospace>kmtricks</monospace>
+  (<xref alt="Lemane et al., 2022" rid="ref-lemane2022" ref-type="bibr">Lemane
+  et al., 2022</xref>) counting pipeline and is designed for efficient
+  querying of large sequence collections.</p>
+  <p><monospace>kmhelpers</monospace> does not compete with any of these
+  approaches at the algorithmic level. Its contribution lies in
+  correctly parametrizing <monospace>kmindex</monospace>’s individual
+  components and orchestrating them into a single, size-optimized
+  workflow. <monospace>kmhelpers</monospace> implements the decisions a
+  <monospace>kmindex</monospace> expert would otherwise make by hand:
+  <monospace>profile</monospace> computes Bloom filter sizes and
+  sample-to-sub-index assignments that minimize total index size under a
+  false-positive-rate constraint; <monospace>plan</monospace> estimates
+  disk and memory requirements before any build starts; and
+  <monospace>manage</monospace> federates independently built
+  sub-indexes into one logical index. No dedicated automation layer of
+  this kind existed for <monospace>kmindex</monospace> prior to
+  <monospace>kmhelpers</monospace>.</p>
+</sec>
+<sec id="software-design">
+  <title>Software design</title>
+  <sec id="background-the-sub-index-structure">
+    <title>Background: the sub-index structure</title>
+    <p>A Bloom-filter index stores all BFs of the same size as a single
+    (row-major) matrix in one file. In such a matrix each column is one
+    BF (one sample) and each row records the presence (1) or absence (0)
+    of a <inline-formula><alternatives>
+    <tex-math><![CDATA[k]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>k</mml:mi></mml:math></alternatives></inline-formula>-mer
+    across all samples sharing that filter size, assuming a common hash
+    function. A complete index is therefore a set of such matrices, each
+    one a <italic>sub-index</italic> holding all BFs of a given
+    size.</p>
+    <p>The difficulty is that each BF size must match the number of
+    items it stores, here the distinct <inline-formula><alternatives>
+    <tex-math><![CDATA[k]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>k</mml:mi></mml:math></alternatives></inline-formula>-mers
+    of a sample. If all samples had the same number of distinct
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[k]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>k</mml:mi></mml:math></alternatives></inline-formula>-mers,
+    every BF would share one size and a single matrix would suffice.
+    This is the ideal case, where only one file is opened per query and
+    one matrix row gives the answer across all
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[n]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>n</mml:mi></mml:math></alternatives></inline-formula>
+    samples. In practice, sample sizes differ by several orders of
+    magnitude. Sizing every BF for the largest sample wastes enormous
+    storage space. Giving each sample its own single-column matrix
+    minimizes storage but forces a query to open
+    <inline-formula><alternatives>
+    <tex-math><![CDATA[n]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>n</mml:mi></mml:math></alternatives></inline-formula>
+    files (potentially millions), severely slowing down queries.
+    <monospace>kmhelpers</monospace> takes the middle ground: the user
+    fixes the maximum number of sub-indexes, and the
+    <monospace>profile</monospace> step chooses the per-sub-index BF
+    size that minimizes total index size under that constraint, before
+    distributing each input sample to its respective sub-index.</p>
+  </sec>
+  <sec id="the-pipeline">
+    <title>The pipeline</title>
+    <p><monospace>kmhelpers</monospace> exposes the index lifecycle as a
+    sequence of commands, as illustrated in Figure 1:</p>
+    <list list-type="bullet">
+      <list-item>
+        <p><bold><monospace>list</monospace></bold> — recursively
+        discovers all samples in a given directory and counts each
+        sample’s distinct <inline-formula><alternatives>
+        <tex-math><![CDATA[k]]></tex-math>
+        <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>k</mml:mi></mml:math></alternatives></inline-formula>-mers
+        using <monospace>ntCard</monospace>
+        (<xref alt="Mohamadi et al., 2017" rid="ref-mohamadi2017" ref-type="bibr">Mohamadi
+        et al., 2017</xref>) (unless the counts are provided by the
+        user).</p>
+      </list-item>
+      <list-item>
+        <p><bold><monospace>profile</monospace></bold> — determines the
+        best set of sub-index BF sizes given the user-defined maximum
+        number of sub-indexes and target false-positive rate.</p>
+      </list-item>
+      <list-item>
+        <p><bold><monospace>compose</monospace></bold> — assigns each
+        sample to its sub-index and generates the
+        <italic>files-of-files</italic> describing the data origin of
+        each sub-index.</p>
+      </list-item>
+      <list-item>
+        <p><bold><monospace>plan</monospace></bold> — validates sample
+        files, available disk space, and memory upfront, and emits
+        ready-to-execute pipeline scripts.</p>
+      </list-item>
+      <list-item>
+        <p><bold><monospace>apply</monospace></bold> — builds all
+        sub-indexes by invoking <monospace>kmindex</monospace>, with
+        span-level and name-level filtering.</p>
+      </list-item>
+    </list>
+    <p>For ease of use, steps <monospace>list</monospace>,
+    <monospace>profile</monospace>, and <monospace>compose</monospace>
+    can be grouped under a single command named
+    <bold><monospace>design</monospace></bold>, and steps
+    <monospace>plan</monospace> and <monospace>apply</monospace> can be
+    grouped under the <bold><monospace>build</monospace></bold>
+    command.</p>
+    <p>Once an index is built, <monospace>kmhelpers</monospace> also
+    answers queries (<bold><monospace>query</monospace></bold>).
+    Multi-step workflows can be described as declarative YAML pipelines
+    (<bold><monospace>pipeline</monospace></bold>) and executed in a
+    single command.</p>
+    <p>An additional command,
+    <bold><monospace>manage</monospace></bold>, lets users register
+    several distinct indexes (built locally or hosted anywhere
+    accessible) into one logical index, redirecting each query to all
+    registered indexes at query time.</p>
+    <fig>
+      <caption><p>Overview of the <monospace>kmhelpers</monospace>
+      workflow</p></caption>
+      <graphic mimetype="application" mime-subtype="pdf" xlink:href="workflow_V2.pdf" />
+    </fig>
+  </sec>
+  <sec id="implementation">
+    <title>Implementation</title>
+    <p><monospace>kmhelpers</monospace> is implemented in Python
+    (<inline-formula><alternatives>
+    <tex-math><![CDATA[\geq 3.10]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mo>≥</mml:mo><mml:mn>3.10</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>)
+    and distributed via Conda, which installs its bioinformatics
+    dependencies (<monospace>kmindex</monospace>,
+    <monospace>ntCard</monospace>) automatically. The CLI is built with
+    <monospace>Click</monospace>
+    (<xref alt="Ronacher &amp; Click Contributors, 2023" rid="ref-click" ref-type="bibr">Ronacher
+    &amp; Click Contributors, 2023</xref>), and the package exposes a
+    public Python API covering all CLI functionality. Together, the
+    declarative YAML index-definition format and the
+    <monospace>plan</monospace>/<monospace>apply</monospace> separation
+    make <inline-formula><alternatives>
+    <tex-math><![CDATA[k]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>k</mml:mi></mml:math></alternatives></inline-formula>-mer
+    indexing workflows accessible to researchers who are not experts in
+    the underlying data structures, while remaining flexible enough for
+    large-scale production use.</p>
+  </sec>
+</sec>
+<sec id="research-impact-statement">
+  <title>Research impact statement</title>
+  <sec id="applying-kmhelpers-to-the-tree-of-life-dataset">
+    <title>Applying <monospace>kmhelpers</monospace> to the “Tree of
+    Life” dataset</title>
+    <p>In phase two, the Earth Biogenome Project aims to sequence
+    reference genomes of 150,000 family representatives across the tree
+    of life over the next four years
+    (<xref alt="Blaxter et al., 2025" rid="ref-blaxter2025" ref-type="bibr">Blaxter
+    et al., 2025</xref>). Tree of Life Programme at the Wellcome Sanger
+    Institute is one of the major contributors to this effort with large
+    sequencing projects, such as Darwin Tree of Life for all species
+    found in Britain and Ireland
+    (<xref alt="Darwin Tree of Life Project Consortium, 2022" rid="ref-darwinTol" ref-type="bibr">Darwin
+    Tree of Life Project Consortium, 2022</xref>). To date, Tree of Life
+    has already released more than 4,000 genomes and is in the process
+    of sequencing an additional 3,000. The project is based on robustly
+    identified specimens, but occasionally long-read datasets and
+    chromatin capture (HiC) sequencing do not match, which might happen
+    due to cryptic species, sequencing hybrid specimens, or mistakes in
+    sample handling either by the collector or during the sequencing
+    process. These cases we refer to as sample swaps.</p>
+    <p>This project is a perfect use case for applying
+    <monospace>kmhelpers</monospace>: from input data, here a mixture of
+    raw sequencing reads and assembled genomes, to a final index
+    powering a CLI search engine that is now being used for
+    identification of sample swaps (matching sequencing libraries) at
+    scale. Concretely, <monospace>kmhelpers</monospace> was applied to
+    7,394 samples and this project also helped shape the design of
+    <monospace>kmhelpers</monospace> itself. The index is continuously
+    updated as new sequencing data are progressively added, which is
+    essential for sustaining detection of sample swaps.</p>
+  </sec>
+  <sec id="using-kmhelpers-for-updating-the-logan-search-search-engine">
+    <title>Using <monospace>kmhelpers</monospace> for updating the
+    Logan-Search search engine</title>
+    <p>The Logan-Search search engine
+    (<xref alt="Chikhi et al., 2024" rid="ref-ls" ref-type="bibr">Chikhi
+    et al., 2024</xref>) indexes approximately 50 petabases of sequence
+    data from SRA
+    (<xref alt="Katz et al., 2022" rid="ref-sra" ref-type="bibr">Katz et
+    al., 2022</xref>). Since its creation, the SRA database size has
+    doubled. The index of Logan-Search will be updated using
+    <monospace>kmhelpers</monospace>, also optimizing the sub-indexes
+    design.</p>
+  </sec>
+</sec>
+<sec id="availability-and-documentation">
+  <title>Availability and documentation</title>
+  <p><monospace>kmhelpers</monospace> is released under the GNU General
+  Public License v3.0 and is available at
+  <ext-link ext-link-type="uri" xlink:href="https://github.com/sebllns/kmhelpers">https://github.com/sebllns/kmhelpers</ext-link>.
+  The full documentation is available at
+  <ext-link ext-link-type="uri" xlink:href="https://sebllns.github.io/kmhelpers/">https://sebllns.github.io/kmhelpers/</ext-link>.</p>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>The authors thank Téo Lemane for developing
+  <monospace>kmindex</monospace> and for his support in addressing
+  feature requests and issues raised during the development of
+  <monospace>kmhelpers</monospace>. We acknowledge the GenOuest core
+  facility
+  (<ext-link ext-link-type="uri" xlink:href="https://www.genouest.org">https://www.genouest.org</ext-link>)
+  for providing the computing infrastructure. The work was funded by the
+  Inria Challenge “OmicFinder”
+  (<ext-link ext-link-type="uri" xlink:href="https://project.inria.fr/omicfinder/">https://project.inria.fr/omicfinder/</ext-link>),
+  and by the state funding managed by the French National Research
+  Agency under the France 2030 program [ANR-22-PEAE-0005]. KSJ was
+  funded by Wellcome Trust 220540/Z/20/A.</p>
+</sec>
+<sec id="ai-usage-disclosure">
+  <title>AI Usage Disclosure</title>
+  <p>AI assistance was used for constrained tasks (code suggestions and
+  drafting the paper) under strict human review at every stage. AI
+  provider used: Claude (Anthropic, 2025).</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <title></title>
+  <ref id="ref-lemane2024">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Lemane</surname><given-names>Téo</given-names></name>
+        <name><surname>Lezzoche</surname><given-names>Nolan</given-names></name>
+        <name><surname>Lecubin</surname><given-names>Julien</given-names></name>
+        <name><surname>Pelletier</surname><given-names>Eric</given-names></name>
+        <name><surname>Lescot</surname><given-names>Magali</given-names></name>
+        <name><surname>Chikhi</surname><given-names>Rayan</given-names></name>
+        <name><surname>Peterlongo</surname><given-names>Pierre</given-names></name>
+      </person-group>
+      <article-title>Indexing and real-time user-friendly queries in terabyte-sized complex genomic datasets with kmindex and ORA</article-title>
+      <source>Nature Computational Science</source>
+      <year iso-8601-date="2024">2024</year>
+      <volume>4</volume>
+      <issue>2</issue>
+      <pub-id pub-id-type="doi">10.1038/s43588-024-00596-6</pub-id>
+      <fpage>104</fpage>
+      <lpage>109</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-lemane2022">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Lemane</surname><given-names>Téo</given-names></name>
+        <name><surname>Medvedev</surname><given-names>Paul</given-names></name>
+        <name><surname>Chikhi</surname><given-names>Rayan</given-names></name>
+        <name><surname>Peterlongo</surname><given-names>Pierre</given-names></name>
+      </person-group>
+      <article-title>Kmtricks: Efficient and flexible construction of Bloom filters for large sequencing data collections</article-title>
+      <source>Bioinformatics Advances</source>
+      <year iso-8601-date="2022">2022</year>
+      <volume>2</volume>
+      <issue>1</issue>
+      <pub-id pub-id-type="doi">10.1093/bioadv/vbac029</pub-id>
+      <fpage>vbac029</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-mohamadi2017">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Mohamadi</surname><given-names>Hamid</given-names></name>
+        <name><surname>Khan</surname><given-names>Hamza</given-names></name>
+        <name><surname>Birol</surname><given-names>Inanc</given-names></name>
+      </person-group>
+      <article-title>ntCard: A streaming algorithm for cardinality estimation in genomics data</article-title>
+      <source>Bioinformatics</source>
+      <year iso-8601-date="2017">2017</year>
+      <volume>33</volume>
+      <issue>9</issue>
+      <pub-id pub-id-type="doi">10.1093/bioinformatics/btw832</pub-id>
+      <fpage>1324</fpage>
+      <lpage>1330</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-bradley2019">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Bradley</surname><given-names>Phelim</given-names></name>
+        <name><surname>den Bakker</surname><given-names>Henk C.</given-names></name>
+        <name><surname>Rocha</surname><given-names>Eduardo P. C.</given-names></name>
+        <name><surname>McVean</surname><given-names>Gil</given-names></name>
+        <name><surname>Iqbal</surname><given-names>Zamin</given-names></name>
+      </person-group>
+      <article-title>Ultrafast search of all deposited bacterial and viral genomic data</article-title>
+      <source>Nature Biotechnology</source>
+      <year iso-8601-date="2019">2019</year>
+      <volume>37</volume>
+      <issue>2</issue>
+      <pub-id pub-id-type="doi">10.1038/s41587-018-0010-1</pub-id>
+      <fpage>152</fpage>
+      <lpage>159</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-bingmann2019">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Bingmann</surname><given-names>Timo</given-names></name>
+        <name><surname>Bradley</surname><given-names>Phelim</given-names></name>
+        <name><surname>Gauger</surname><given-names>Florian</given-names></name>
+        <name><surname>Iqbal</surname><given-names>Zamin</given-names></name>
+      </person-group>
+      <article-title>COBS: A compact bit-sliced signature index</article-title>
+      <source>String processing and information retrieval (SPIRE 2019)</source>
+      <year iso-8601-date="2019">2019</year>
+      <pub-id pub-id-type="doi">10.1007/978-3-030-32686-9_21</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-harris2019">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Harris</surname><given-names>Robert S.</given-names></name>
+        <name><surname>Medvedev</surname><given-names>Paul</given-names></name>
+      </person-group>
+      <article-title>Improved representation of sequence Bloom trees</article-title>
+      <source>Bioinformatics</source>
+      <year iso-8601-date="2020">2020</year>
+      <volume>36</volume>
+      <issue>3</issue>
+      <pub-id pub-id-type="doi">10.1093/bioinformatics/btz662</pub-id>
+      <fpage>721</fpage>
+      <lpage>727</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-pandey2018">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Pandey</surname><given-names>Prashant</given-names></name>
+        <name><surname>Almodaresi</surname><given-names>Fatemeh</given-names></name>
+        <name><surname>Bender</surname><given-names>Michael A.</given-names></name>
+        <name><surname>Ferdman</surname><given-names>Michael</given-names></name>
+        <name><surname>Johnson</surname><given-names>Rob</given-names></name>
+        <name><surname>Patro</surname><given-names>Rob</given-names></name>
+      </person-group>
+      <article-title>Mantis: A fast, small, and exact large-scale sequence-search index</article-title>
+      <source>Cell Systems</source>
+      <year iso-8601-date="2018">2018</year>
+      <volume>7</volume>
+      <issue>2</issue>
+      <pub-id pub-id-type="doi">10.1016/j.cels.2018.05.021</pub-id>
+      <fpage>201</fpage>
+      <lpage>207.e4</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-click">
+    <element-citation publication-type="software">
+      <person-group person-group-type="author">
+        <name><surname>Ronacher</surname><given-names>Armin</given-names></name>
+        <string-name>Click Contributors</string-name>
+      </person-group>
+      <article-title>Click: Python composable command line interface toolkit</article-title>
+      <year iso-8601-date="2023">2023</year>
+      <uri>https://click.palletsprojects.com</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-bloom">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Bloom</surname><given-names>Burton H.</given-names></name>
+      </person-group>
+      <article-title>Space/time trade-offs in hash coding with allowable errors</article-title>
+      <source>Communications of the ACM</source>
+      <year iso-8601-date="1970">1970</year>
+      <volume>13</volume>
+      <issue>7</issue>
+      <pub-id pub-id-type="doi">10.1145/362686.362692</pub-id>
+      <fpage>422</fpage>
+      <lpage>426</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-ls">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Chikhi</surname><given-names>Rayan</given-names></name>
+        <name><surname>Lemane</surname><given-names>Téo</given-names></name>
+        <name><surname>Loll-Krippleber</surname><given-names>Raphaël</given-names></name>
+        <name><surname>Montoliu-Nerin</surname><given-names>Mercè</given-names></name>
+        <name><surname>Raffestin</surname><given-names>Brice</given-names></name>
+        <name><surname>Camargo</surname><given-names>Antonio Pedro</given-names></name>
+        <name><surname>Miller</surname><given-names>Carson J.</given-names></name>
+        <name><surname>Fiamenghi</surname><given-names>Mateus Bernabe</given-names></name>
+        <name><surname>Agustinho</surname><given-names>Daniel Paiva</given-names></name>
+        <name><surname>Majidian</surname><given-names>Sina</given-names></name>
+        <name><surname>Autric</surname><given-names>Greg</given-names></name>
+        <name><surname>Hugues</surname><given-names>Maxime</given-names></name>
+        <name><surname>Lee</surname><given-names>Junkyoung</given-names></name>
+        <name><surname>Faure</surname><given-names>Roland</given-names></name>
+        <name><surname>Curry</surname><given-names>Kristen D.</given-names></name>
+        <name><surname>Moura de Sousa</surname><given-names>Jorge A.</given-names></name>
+        <name><surname>Rocha</surname><given-names>Eduardo P. C.</given-names></name>
+        <name><surname>Koslicki</surname><given-names>David</given-names></name>
+        <name><surname>Medvedev</surname><given-names>Paul</given-names></name>
+        <name><surname>Gupta</surname><given-names>Purav</given-names></name>
+        <name><surname>Shen</surname><given-names>Jessica</given-names></name>
+        <name><surname>Morales-Tapia</surname><given-names>Alejandro</given-names></name>
+        <name><surname>Sihuta</surname><given-names>Kate</given-names></name>
+        <name><surname>Roy</surname><given-names>Peter J.</given-names></name>
+        <name><surname>Brown</surname><given-names>Grant W.</given-names></name>
+        <name><surname>Edgar</surname><given-names>Robert C.</given-names></name>
+        <name><surname>Korobeynikov</surname><given-names>Anton</given-names></name>
+        <name><surname>Steinegger</surname><given-names>Martin</given-names></name>
+        <name><surname>Lareau</surname><given-names>Caleb A.</given-names></name>
+        <name><surname>Peterlongo</surname><given-names>Pierre</given-names></name>
+        <name><surname>Babaian</surname><given-names>Artem</given-names></name>
+      </person-group>
+      <article-title>Logan: Planetary-scale genome assembly surveys life’s diversity</article-title>
+      <source>bioRxiv</source>
+      <year iso-8601-date="2024">2024</year>
+      <pub-id pub-id-type="doi">10.1101/2024.07.30.605881</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-marchet2024">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Marchet</surname><given-names>Camille</given-names></name>
+      </person-group>
+      <article-title>Advances in colored k-mer sets: Essentials for the curious</article-title>
+      <source>arXiv preprint arXiv:2409.05214</source>
+      <year iso-8601-date="2024">2024</year>
+      <pub-id pub-id-type="doi">10.48550/arXiv.2409.05214</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-karasikov2025">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Karasikov</surname><given-names>Mikhail</given-names></name>
+        <name><surname>Mustafa</surname><given-names>Harun</given-names></name>
+        <name><surname>Danciu</surname><given-names>Daniel</given-names></name>
+        <name><surname>Kulkov</surname><given-names>Oleksandr</given-names></name>
+        <name><surname>Zimmermann</surname><given-names>Marc</given-names></name>
+        <name><surname>Barber</surname><given-names>Christopher</given-names></name>
+        <name><surname>Rätsch</surname><given-names>Gunnar</given-names></name>
+        <name><surname>Kahles</surname><given-names>André</given-names></name>
+      </person-group>
+      <article-title>Efficient and accurate search in petabase-scale sequence repositories</article-title>
+      <source>Nature</source>
+      <publisher-name>Nature Publishing Group UK London</publisher-name>
+      <year iso-8601-date="2025">2025</year>
+      <volume>647</volume>
+      <issue>8091</issue>
+      <pub-id pub-id-type="doi">10.1038/s41586-025-09603-w</pub-id>
+      <fpage>1036</fpage>
+      <lpage>1044</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-fulgor">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Fan</surname><given-names>Jason</given-names></name>
+        <name><surname>Khan</surname><given-names>Jamshed</given-names></name>
+        <name><surname>Singh</surname><given-names>Noor Pratap</given-names></name>
+        <name><surname>Pibiri</surname><given-names>Giulio Ermanno</given-names></name>
+        <name><surname>Patro</surname><given-names>Rob</given-names></name>
+      </person-group>
+      <article-title>Fulgor: A fast and compact k-mer index for large-scale matching and color queries</article-title>
+      <source>Algorithms for Molecular Biology</source>
+      <year iso-8601-date="2024">2024</year>
+      <volume>19</volume>
+      <pub-id pub-id-type="doi">10.1186/s13015-024-00251-9</pub-id>
+      <fpage>3</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-robidou2021findere">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Robidou</surname><given-names>Lucas</given-names></name>
+        <name><surname>Peterlongo</surname><given-names>Pierre</given-names></name>
+      </person-group>
+      <article-title>Findere: Fast and precise approximate membership query</article-title>
+      <source>String processing and information retrieval: 28th international symposium, SPIRE 2021, lille, france, october 4–6, 2021, proceedings 28</source>
+      <publisher-name>Springer</publisher-name>
+      <year iso-8601-date="2021">2021</year>
+      <pub-id pub-id-type="doi">10.1007/978-3-030-86692-1_13</pub-id>
+      <fpage>151</fpage>
+      <lpage>163</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-darwinTol">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <string-name>Darwin Tree of Life Project Consortium</string-name>
+      </person-group>
+      <article-title>Sequence locally, think globally: The Darwin Tree of Life Project</article-title>
+      <source>Proceedings of the National Academy of Sciences</source>
+      <publisher-name>National Academy of Sciences</publisher-name>
+      <year iso-8601-date="2022">2022</year>
+      <volume>119</volume>
+      <issue>4</issue>
+      <pub-id pub-id-type="doi">10.1073/pnas.2115642118</pub-id>
+      <fpage>e2115642118</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-sra">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Katz</surname><given-names>Kenneth</given-names></name>
+        <name><surname>Shutov</surname><given-names>Oleg</given-names></name>
+        <name><surname>Lapoint</surname><given-names>Richard</given-names></name>
+        <name><surname>Kimelman</surname><given-names>Michael</given-names></name>
+        <name><surname>Brister</surname><given-names>J Rodney</given-names></name>
+        <name><surname>O’Sullivan</surname><given-names>Christopher</given-names></name>
+      </person-group>
+      <article-title>The Sequence Read Archive: A decade more of explosive growth</article-title>
+      <source>Nucleic Acids Research</source>
+      <publisher-name>Oxford University Press</publisher-name>
+      <year iso-8601-date="2022">2022</year>
+      <volume>50</volume>
+      <issue>D1</issue>
+      <pub-id pub-id-type="doi">10.1093/nar/gkab1053</pub-id>
+      <fpage>D387</fpage>
+      <lpage>D390</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-blaxter2025">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Blaxter</surname><given-names>Mark</given-names></name>
+        <name><surname>Lewin</surname><given-names>Harris A</given-names></name>
+        <name><surname>DiPalma</surname><given-names>Federica</given-names></name>
+        <name><surname>Challis</surname><given-names>Richard</given-names></name>
+        <name><surname>da Silva</surname><given-names>Manuela</given-names></name>
+        <name><surname>Durbin</surname><given-names>Richard</given-names></name>
+        <name><surname>Formenti</surname><given-names>Giulio</given-names></name>
+        <name><surname>Franz</surname><given-names>Nico</given-names></name>
+        <name><surname>Guigo</surname><given-names>Roderic</given-names></name>
+        <name><surname>Harrison</surname><given-names>Peter W</given-names></name>
+        <name><surname>others</surname></name>
+      </person-group>
+      <article-title>The Earth BioGenome Project Phase II: Illuminating the eukaryotic tree of life</article-title>
+      <source>Frontiers in Science</source>
+      <publisher-name>Frontiers Media SA</publisher-name>
+      <year iso-8601-date="2025">2025</year>
+      <volume>3</volume>
+      <pub-id pub-id-type="doi">10.3389/fsci.2025.1514835</pub-id>
+      <fpage>1514835</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
