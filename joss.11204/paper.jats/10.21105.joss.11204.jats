@@ -1,0 +1,673 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">11204</article-id>
+<article-id pub-id-type="doi">10.21105/joss.11204</article-id>
+<title-group>
+<article-title>torchTT: A PyTorch-based Tensor-Train
+Toolbox</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0000-0002-2932-0396</contrib-id>
+<name>
+<surname>Ion</surname>
+<given-names>Ion Gabriel</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>Terra Quantum AG</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2026-01-06">
+<day>6</day>
+<month>1</month>
+<year>2026</year>
+</pub-date>
+<volume>11</volume>
+<issue>127</issue>
+<fpage>11204</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2026</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>Python</kwd>
+<kwd>PyTorch</kwd>
+<kwd>tensor decomposition</kwd>
+<kwd>tensor train</kwd>
+<kwd>high-dimensional data</kwd>
+<kwd>scientific computing</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p><monospace>torchTT</monospace> is a Python library enabling
+  Tensor-Train (TT) decomposition
+  (<xref alt="I. V. Oseledets, 2011" rid="ref-oseledets2011tensor" ref-type="bibr">I.
+  V. Oseledets, 2011</xref>) within the PyTorch framework
+  (<xref alt="Paszke et al., 2019" rid="ref-paszke2019pytorch" ref-type="bibr">Paszke
+  et al., 2019</xref>). It allows users to create and manipulate
+  high-dimensional tensors in compressed TT format using PyTorch-like
+  syntax and semantics. Operations such as basic linear algebra,
+  matrix-vector products, and Kronecker products can be performed
+  directly on the compressed representation without needing to form the
+  full tensor. All computations leverage PyTorch’s capabilities: TT
+  instances live on the same device as their underlying data,
+  facilitating seamless GPU acceleration, and automatic differentiation
+  works through TT operations. Under the hood,
+  <monospace>torchTT</monospace> exploits low-rank structure in
+  high-dimensional arrays, dramatically reducing memory and computation
+  compared to dense tensors. These features make
+  <monospace>torchTT</monospace> especially suitable for problems with
+  millions or billions of degrees of freedom where explicit storage is
+  infeasible.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of Need</title>
+  <p>High-dimensional tensors arise in many areas of science and
+  engineering, such as the discretization of partial differential
+  equations (PDEs), state spaces for systems of ordinary differential
+  equations (ODEs), and many-body wavefunctions in quantum chemistry.
+  Here, <inline-formula><alternatives>
+  <tex-math><![CDATA[d]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>d</mml:mi></mml:math></alternatives></inline-formula>
+  denotes the number of tensor dimensions, also called modes (indices).
+  In a tensor-product discretization, these modes correspond to the
+  discretized variables, such as asset prices in multi-asset
+  Black–Scholes PDEs or particle coordinates in many-body wavefunctions.
+  Such problems can involve tens or hundreds of variables. A full tensor
+  with <inline-formula><alternatives>
+  <tex-math><![CDATA[n]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>n</mml:mi></mml:math></alternatives></inline-formula>
+  entries per mode contains <inline-formula><alternatives>
+  <tex-math><![CDATA[n^d]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msup><mml:mi>n</mml:mi><mml:mi>d</mml:mi></mml:msup></mml:math></alternatives></inline-formula>
+  values: even <inline-formula><alternatives>
+  <tex-math><![CDATA[n=100]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>n</mml:mi><mml:mo>=</mml:mo><mml:mn>100</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>
+  and <inline-formula><alternatives>
+  <tex-math><![CDATA[d=10]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>d</mml:mi><mml:mo>=</mml:mo><mml:mn>10</mml:mn></mml:mrow></mml:math></alternatives></inline-formula>
+  require <inline-formula><alternatives>
+  <tex-math><![CDATA[10^{20}]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:msup><mml:mn>10</mml:mn><mml:mn>20</mml:mn></mml:msup></mml:math></alternatives></inline-formula>
+  values, or approximately 800 exabytes in double precision. This
+  exponential growth is the curse of dimensionality.</p>
+  <p>TT typically approximates the full tensor using a sequence of
+  smaller, three-dimensional cores, reducing storage to
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[\mathcal{O}(dnr^2)]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>𝒪</mml:mi><mml:mo stretchy="false" form="prefix">(</mml:mo><mml:mi>d</mml:mi><mml:mi>n</mml:mi><mml:msup><mml:mi>r</mml:mi><mml:mn>2</mml:mn></mml:msup><mml:mo stretchy="false" form="postfix">)</mml:mo></mml:mrow></mml:math></alternatives></inline-formula>
+  when the TT ranks are bounded by <inline-formula><alternatives>
+  <tex-math><![CDATA[r]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>r</mml:mi></mml:math></alternatives></inline-formula>.
+  Accurate, compact approximations depend on suitable low-rank
+  structure; arbitrary tensors need not admit small TT ranks.
+  <monospace>torchTT</monospace> targets researchers and engineers in
+  scientific computing, computational physics, and deep learning who
+  need to work with such high-dimensional objects. It addresses the
+  growing need for a single library that combines hardware-accelerated
+  tensor network algebra with advanced numerical algorithms within the
+  PyTorch ecosystem, enabling seamless integration into modern machine
+  learning workflows.</p>
+</sec>
+<sec id="state-of-the-field">
+  <title>State of the Field</title>
+  <p>Several open-source packages exist for tensor network computations
+  and the TT format specifically. The <monospace>ttpy</monospace> 1.x
+  series
+  (<xref alt="I. Oseledets, 2021" rid="ref-ttpy" ref-type="bibr">I.
+  Oseledets, 2021</xref>) provided AMEn (Alternating Minimal Energy)
+  linear solvers and cross-approximation through CPU-based NumPy/Fortran
+  routines, without native GPU acceleration. The subsequent
+  <monospace>ttpy 2</monospace> rewrite
+  (<xref alt="I. Oseledets &amp; ttpy contributors, 2026" rid="ref-ttpy2" ref-type="bibr">I.
+  Oseledets &amp; ttpy contributors, 2026</xref>), introduced in 2026,
+  adds NumPy and PyTorch backends with GPU support.</p>
+  <p>Libraries such as <monospace>tntorch</monospace>
+  (<xref alt="Usvyatsov et al., 2022" rid="ref-usvyatsov2022tntorch" ref-type="bibr">Usvyatsov
+  et al., 2022</xref>), <monospace>t3f</monospace>
+  (<xref alt="Novikov et al., 2020" rid="ref-novikov2020t3f" ref-type="bibr">Novikov
+  et al., 2020</xref>), and <monospace>TensorLy</monospace>
+  (<xref alt="Kossaifi et al., 2019" rid="ref-kossaifi2019tensorly" ref-type="bibr">Kossaifi
+  et al., 2019</xref>) have bridged the gap between tensor networks and
+  machine learning frameworks by utilizing PyTorch and TensorFlow. These
+  packages provide GPU acceleration and autograd capabilities, but offer
+  different sets of numerical algorithms. For example,
+  <monospace>tntorch</monospace> includes cross-approximation routines,
+  while the documented APIs of these three packages do not include the
+  AMEn solver for TT linear systems.</p>
+  <p>Additionally, in the domain of quantum physics, libraries such as
+  <monospace>TeNPy</monospace>
+  (<xref alt="Hauschild &amp; Pollmann, 2018" rid="ref-hauschild2018efficient" ref-type="bibr">Hauschild
+  &amp; Pollmann, 2018</xref>) provide highly optimized tools for
+  simulating many-body systems using Matrix Product States (the physics
+  equivalent of the TT format). However, these are deeply specialized
+  for physics applications, such as the density matrix renormalization
+  group (DMRG) algorithm, rather than general-purpose numerical
+  mathematics or deep learning.</p>
+  <p>Development of <monospace>torchTT</monospace> began in 2021 to
+  provide the combination of AMEn linear solves, cross-approximation,
+  GPU execution, and PyTorch integration that was not available in the
+  alternatives considered at that time. The package provides these
+  numerical methods, including DMRG- and AMEn-based cross-approximation,
+  alongside TT tensor and operator algebra and trainable TT layers
+  through a common PyTorch-based representation and API.</p>
+</sec>
+<sec id="software-design">
+  <title>Software Design</title>
+  <p>A central design trade-off in <monospace>torchTT</monospace> is
+  balancing the expressiveness needed for advanced numerical algorithms
+  with seamless integration into the PyTorch ecosystem. Two
+  architectural choices support this integration.</p>
+  <sec id="unified-tt-class-and-pytorch-native-design">
+    <title>Unified TT class and PyTorch-native design</title>
+    <p>The central component is the <monospace>torchtt.TT</monospace>
+    class, which provides a single, unified representation for both
+    TT-tensors and TT-matrices (tensor operators). This shared interface
+    supports both scientific computing routines and models with
+    TT-compressed parameters. Specialized algorithms such as AMEn and
+    cross-approximation are implemented as functions in separate
+    modules, separating algorithm-specific logic from the tensor
+    representation. The class stores its TT cores as standard
+    <monospace>torch.Tensor</monospace> objects, allowing PyTorch’s
+    autograd graph to track supported TT operations. This enables
+    end-to-end gradient-based training of models that include
+    TT-compressed layers or differentiable TT-based loss functions,
+    without requiring custom backward passes.</p>
+    <list list-type="bullet">
+      <list-item>
+        <p><bold>Python-like API</bold>: Operations such as addition
+        (<monospace>+</monospace>), subtraction
+        (<monospace>-</monospace>), elementwise multiplication
+        (<monospace>*</monospace>), and matrix multiplication
+        (<monospace>@</monospace>) are overloaded to work directly on
+        <monospace>torchtt.TT</monospace> instances, keeping user code
+        concise.</p>
+      </list-item>
+      <list-item>
+        <p><bold>Device management</bold>: Standard PyTorch methods like
+        <monospace>.to(device)</monospace>,
+        <monospace>.cuda()</monospace>, and
+        <monospace>.cpu()</monospace> are supported, enabling TT objects
+        and their computations to run on CPU or GPU without code
+        changes.</p>
+      </list-item>
+    </list>
+  </sec>
+  <sec id="dual-backend-strategy">
+    <title>Dual backend strategy</title>
+    <p>For performance-critical inner loops—particularly the AMEn
+    solver—<monospace>torchTT</monospace> optionally delegates to a
+    compiled C++ extension built with PyTorch’s C++ extension API. When
+    the extension is unavailable, all algorithms fall back to a
+    pure-PyTorch implementation of the same methods; the C++ AMEn solver
+    supports only real tensors and a subset of the solver options. This
+    dual-backend strategy ensures broad portability (any platform with
+    PyTorch) while offering near-native performance when the C++
+    extension is compiled.</p>
+  </sec>
+</sec>
+<sec id="functionality-and-features">
+  <title>Functionality and Features</title>
+  <p>Beyond the core class, the <monospace>torchTT</monospace> library
+  is organized into specialized modules targeting specific scientific
+  and machine learning applications:</p>
+  <list list-type="bullet">
+    <list-item>
+      <p><bold>Linear System Solvers</bold>
+      (<monospace>torchtt.solvers</monospace>): Implements advanced
+      solvers for linear systems <inline-formula><alternatives>
+      <tex-math><![CDATA[Ax=b]]></tex-math>
+      <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi>A</mml:mi><mml:mi>x</mml:mi><mml:mo>=</mml:mo><mml:mi>b</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>
+      directly in the TT format, including the AMEn method
+      (<xref alt="Dolgov &amp; Savostyanov, 2014" rid="ref-dolgov2014alternating" ref-type="bibr">Dolgov
+      &amp; Savostyanov, 2014</xref>). These solvers dynamically adapt
+      the TT ranks during iteration to maintain accuracy. The module
+      also includes elementwise division and inversion routines.</p>
+    </list-item>
+    <list-item>
+      <p><bold>Cross Approximation</bold>
+      (<monospace>torchtt.interpolate</monospace>): Provides adaptive
+      TT-cross interpolation methods
+      (<xref alt="I. V. Oseledets &amp; Tyrtyshnikov, 2010" rid="ref-oseledets2010tt" ref-type="bibr">I.
+      V. Oseledets &amp; Tyrtyshnikov, 2010</xref>). This module
+      constructs TT approximations of multivariate functions from
+      black-box evaluations, essential for tasks where the tensor is too
+      large to be formed explicitly but can be sampled.</p>
+    </list-item>
+    <list-item>
+      <p><bold>Neural Network Layers</bold>
+      (<monospace>torchtt.nn</monospace>): Defines PyTorch-compatible
+      neural network layers. <monospace>LinearLayerTT</monospace>
+      parametrizes dense weight matrices as TT-matrices, enabling
+      massive parameter reduction.
+      <monospace>CompressedTTLayer</monospace> extends this concept by
+      operating directly on TT-formatted inputs and applying nonlinear
+      activations between TT cores during multiplication, targeting deep
+      TT network architectures. All layers inherit from
+      <monospace>torch.nn.Module</monospace>, making them drop-in
+      replacements for standard layers in deep learning pipelines.</p>
+    </list-item>
+    <list-item>
+      <p><bold>Manifold Optimization</bold>
+      (<monospace>torchtt.manifold</monospace>): Offers tools for
+      Riemannian optimization on the manifold of tensors with fixed
+      TT-rank. This includes projections onto the tangent space and
+      Riemannian gradient calculation, facilitating advanced
+      optimization tasks like tensor completion.</p>
+    </list-item>
+  </list>
+  <sec id="example-solving-a-four-dimensional-pde">
+    <title>Example: Solving a Four-Dimensional PDE</title>
+    <p>The following example demonstrates how to solve a
+    four-dimensional Poisson equation <inline-formula><alternatives>
+    <tex-math><![CDATA[\Delta u = f]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mi mathvariant="normal">Δ</mml:mi><mml:mi>u</mml:mi><mml:mo>=</mml:mo><mml:mi>f</mml:mi></mml:mrow></mml:math></alternatives></inline-formula>
+    on <inline-formula><alternatives>
+    <tex-math><![CDATA[[0,1]^4]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mo stretchy="false" form="prefix">[</mml:mo><mml:mn>0</mml:mn><mml:mo>,</mml:mo><mml:mn>1</mml:mn><mml:msup><mml:mo stretchy="false" form="postfix">]</mml:mo><mml:mn>4</mml:mn></mml:msup></mml:mrow></mml:math></alternatives></inline-formula>
+    with zero boundary conditions using <monospace>torchTT</monospace>.
+    The right-hand side <inline-formula><alternatives>
+    <tex-math><![CDATA[f]]></tex-math>
+    <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mi>f</mml:mi></mml:math></alternatives></inline-formula>
+    is constructed using cross-approximation, and the system is solved
+    directly in the TT format using the AMEn solver. Additional runnable
+    examples are provided in the repository’s
+    <monospace>examples/</monospace> folder.</p>
+    <code language="python">import torchtt as tntt
+import torch as tn
+
+# Define the problem size
+N, d = 64, 4 
+
+# Construct the one-dimensional Laplacian operator (finite difference)
+L1d = (tn.diag(tn.ones(N-1),-1) + tn.diag(tn.ones(N-1),1) - \
+      2*tn.eye(N)) / (1/(N-1))**2
+L1d[0,1] = L1d[-1,-2] = 0 # Boundary conditions
+L1d_tt = tntt.TT(L1d, shape=[(N,N)])
+
+# Construct the d-dimensional Laplacian
+L = L1d_tt ** tntt.eye([N]*3) + tntt.eye([N]) ** L1d_tt ** tntt.eye([N]*2) + \
+    tntt.eye([N]*2) ** L1d_tt ** tntt.eye([N]) + tntt.eye([N]*3) ** L1d_tt 
+
+# Create the grid for cross approximation
+x = tntt.meshgrid([tn.linspace(0,1,N)]*d)
+
+# Approximate the RHS f(x) = x1(x1-1)*...*xd(xd-1)
+f = tntt.interpolate.function_interpolate(
+    lambda x: tn.prod(x * (x - 1), dim=1), x, eps=1e-8)
+
+# Solve the linear system Ax = f using AMEn on GPU
+u = tntt.solvers.amen_solve(L.to('cuda'), f.to('cuda'), eps=1e-6)</code>
+  </sec>
+</sec>
+<sec id="research-impact-statement">
+  <title>Research Impact Statement</title>
+  <p><monospace>torchTT</monospace> has demonstrated realized research
+  impact across multiple domains, as evidenced by its use in
+  peer-reviewed publications and ongoing collaborations:</p>
+  <list list-type="bullet">
+    <list-item>
+      <p><bold>High-Dimensional PDEs/ODEs</bold>:
+      <monospace>torchTT</monospace> can solve PDEs and dynamical
+      systems in high dimensions by representing solution spaces and
+      operators in TT form. Built-in solvers like AMEn make it practical
+      to compute time steps of multi-dimensional PDEs, breaking the
+      curse of dimensionality. Recent applications include isogeometric
+      analysis for parameter-dependent geometries
+      (<xref alt="Ion, Loukrezis, et al., 2022" rid="ref-ion2022tensor_iga" ref-type="bibr">Ion,
+      Loukrezis, et al., 2022</xref>) and solving the chemical master
+      equation for parameter inference
+      (<xref alt="Ion, Wildner, et al., 2022" rid="ref-ion2022tensor_cme" ref-type="bibr">Ion,
+      Wildner, et al., 2022</xref>).</p>
+    </list-item>
+    <list-item>
+      <p><bold>Computational Physics and Chemistry</bold>: The library
+      enables efficient representation of high-dimensional objects like
+      quantum many-body wavefunctions. Operators can be applied via
+      TT-matrix-vector products, and observables computed via TT inner
+      products, facilitating large-scale simulations. Furthermore, it
+      supports analyzing entanglement scaling in Matrix Product State
+      (MPS) representations and constructing shallow quantum circuits
+      (<xref alt="Bohun et al., 2026" rid="ref-bohun2024entanglement" ref-type="bibr">Bohun
+      et al., 2026</xref>).</p>
+    </list-item>
+    <list-item>
+      <p><bold>Machine Learning with Compressed Models</bold>: TT-layers
+      enable significant compression of model parameters in deep
+      learning. <monospace>torchTT</monospace>’s compatibility with
+      autograd allows for end-to-end training of compressed
+      architectures and efficient on-device inference.</p>
+    </list-item>
+    <list-item>
+      <p><bold>Data Science and Function Approximation</bold>: The
+      library is useful for surrogate modeling and uncertainty
+      quantification, where high-dimensional response surfaces can be
+      approximated adaptively using cross-approximation routines. Novel
+      methods for local interpolation allow for constructing fine-scale
+      TT representations from coarse-grid approximations with error
+      guarantees
+      (<xref alt="Guzman &amp; Tiunov, 2026" rid="ref-guzman2026local" ref-type="bibr">Guzman
+      &amp; Tiunov, 2026</xref>). This includes quantitative finance
+      applications, where TT-cross approximation provides efficient
+      option pricing surrogates for high-dimensional risk management
+      (<xref alt="Gribben et al., 2026" rid="ref-gribben2026stn" ref-type="bibr">Gribben
+      et al., 2026</xref>).</p>
+    </list-item>
+  </list>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>The author thanks the Terra Quantum AG team for their valuable
+  discussions, feedback, and support.</p>
+</sec>
+<sec id="ai-usage-disclosure">
+  <title>AI Usage Disclosure</title>
+  <p>Artificial Intelligence tools were used to rephrase and refine the
+  text of this paper. The core software implementation and the original
+  draft of the content were written mainly by the author. Claude Code
+  (Claude Opus 5 and 5.5) and OpenAI Codex (GPT-5.6 and GPT-6) were
+  later used in the development, in 2026, mainly for bug fixes, with
+  human review and validation.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <title></title>
+  <ref id="ref-oseledets2011tensor">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Oseledets</surname><given-names>Ivan V</given-names></name>
+      </person-group>
+      <article-title>Tensor-train decomposition</article-title>
+      <source>SIAM Journal on Scientific Computing</source>
+      <publisher-name>SIAM</publisher-name>
+      <year iso-8601-date="2011">2011</year>
+      <volume>33</volume>
+      <issue>5</issue>
+      <pub-id pub-id-type="doi">10.1137/090752286</pub-id>
+      <fpage>2295</fpage>
+      <lpage>2317</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-oseledets2010tt">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Oseledets</surname><given-names>Ivan V</given-names></name>
+        <name><surname>Tyrtyshnikov</surname><given-names>Eugene</given-names></name>
+      </person-group>
+      <article-title>TT-cross approximation for multidimensional arrays</article-title>
+      <source>Linear Algebra and its Applications</source>
+      <publisher-name>Elsevier</publisher-name>
+      <year iso-8601-date="2010">2010</year>
+      <volume>432</volume>
+      <issue>1</issue>
+      <pub-id pub-id-type="doi">10.1016/j.laa.2009.07.024</pub-id>
+      <fpage>70</fpage>
+      <lpage>88</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-dolgov2014alternating">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Dolgov</surname><given-names>Sergey V</given-names></name>
+        <name><surname>Savostyanov</surname><given-names>Dmitry V</given-names></name>
+      </person-group>
+      <article-title>Alternating minimal energy methods for linear systems in higher dimensions</article-title>
+      <source>SIAM Journal on Scientific Computing</source>
+      <publisher-name>SIAM</publisher-name>
+      <year iso-8601-date="2014">2014</year>
+      <volume>36</volume>
+      <issue>5</issue>
+      <pub-id pub-id-type="doi">10.1137/140953289</pub-id>
+      <fpage>A2248</fpage>
+      <lpage>A2271</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-paszke2019pytorch">
+    <element-citation publication-type="chapter">
+      <person-group person-group-type="author">
+        <name><surname>Paszke</surname><given-names>Adam</given-names></name>
+        <name><surname>Gross</surname><given-names>Sam</given-names></name>
+        <name><surname>Massa</surname><given-names>Francisco</given-names></name>
+        <name><surname>Lerer</surname><given-names>Adam</given-names></name>
+        <name><surname>Bradbury</surname><given-names>James</given-names></name>
+        <name><surname>Chanan</surname><given-names>Gregory</given-names></name>
+        <name><surname>Killeen</surname><given-names>Trevor</given-names></name>
+        <name><surname>Lin</surname><given-names>Zeming</given-names></name>
+        <name><surname>Gimelshein</surname><given-names>Natalia</given-names></name>
+        <name><surname>Antiga</surname><given-names>Luca</given-names></name>
+        <name><surname>Desmaison</surname><given-names>Alban</given-names></name>
+        <name><surname>Kopf</surname><given-names>Andreas</given-names></name>
+        <name><surname>Yang</surname><given-names>Edward</given-names></name>
+        <name><surname>DeVito</surname><given-names>Zachary</given-names></name>
+        <name><surname>Raison</surname><given-names>Martin</given-names></name>
+        <name><surname>Tejani</surname><given-names>Alykhan</given-names></name>
+        <name><surname>Chilamkurthy</surname><given-names>Sasank</given-names></name>
+        <name><surname>Steiner</surname><given-names>Benoit</given-names></name>
+        <name><surname>Fang</surname><given-names>Lu</given-names></name>
+        <name><surname>Bai</surname><given-names>Junjie</given-names></name>
+        <name><surname>Chintala</surname><given-names>Soumith</given-names></name>
+      </person-group>
+      <article-title>PyTorch: An imperative style, high-performance deep learning library</article-title>
+      <source>Advances in Neural Information Processing Systems 32</source>
+      <publisher-name>Curran Associates, Inc.</publisher-name>
+      <year iso-8601-date="2019">2019</year>
+      <uri>http://papers.nips.cc/paper/9015-pytorch-an-imperative-style-high-performance-deep-learning-library.pdf</uri>
+      <fpage>8024</fpage>
+      <lpage>8035</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-kossaifi2019tensorly">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Kossaifi</surname><given-names>Jean</given-names></name>
+        <name><surname>Panagakis</surname><given-names>Yannis</given-names></name>
+        <name><surname>Anandkumar</surname><given-names>Anima</given-names></name>
+        <name><surname>Pantic</surname><given-names>Maja</given-names></name>
+      </person-group>
+      <article-title>TensorLy: Tensor learning in Python</article-title>
+      <source>Journal of Machine Learning Research</source>
+      <year iso-8601-date="2019">2019</year>
+      <volume>20</volume>
+      <issue>26</issue>
+      <uri>http://jmlr.org/papers/v20/18-277.html</uri>
+      <fpage>1</fpage>
+      <lpage>6</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-ttpy">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Oseledets</surname><given-names>Ivan</given-names></name>
+      </person-group>
+      <article-title>ttpy: Python implementation of the Tensor Train (TT)-Toolbox</article-title>
+      <source>GitHub repository</source>
+      <publisher-name>GitHub</publisher-name>
+      <year iso-8601-date="2021">2021</year>
+      <uri>https://github.com/oseledets/ttpy/tree/ttpy1</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-ttpy2">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Oseledets</surname><given-names>Ivan</given-names></name>
+        <string-name>ttpy contributors</string-name>
+      </person-group>
+      <article-title>ttpy 2: Tensor Train Toolbox in Python</article-title>
+      <source>GitHub repository</source>
+      <publisher-name>GitHub</publisher-name>
+      <year iso-8601-date="2026">2026</year>
+      <uri>https://github.com/oseledets/ttpy/tree/0bd6622d9c425e6e98a2cd720c493e763225a4d6</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-usvyatsov2022tntorch">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Usvyatsov</surname><given-names>Mikhail</given-names></name>
+        <name><surname>Ballester-Ripoll</surname><given-names>Rafael</given-names></name>
+        <name><surname>Schindler</surname><given-names>Konrad</given-names></name>
+      </person-group>
+      <article-title>tntorch: Tensor network learning with PyTorch</article-title>
+      <source>Journal of Machine Learning Research</source>
+      <year iso-8601-date="2022">2022</year>
+      <volume>23</volume>
+      <issue>208</issue>
+      <uri>https://jmlr.org/papers/v23/21-1197.html</uri>
+      <fpage>1</fpage>
+      <lpage>6</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-guzman2026local">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Guzman</surname><given-names>J.</given-names></name>
+        <name><surname>Tiunov</surname><given-names>I.</given-names></name>
+      </person-group>
+      <article-title>Local interpolation via low-rank tensor trains</article-title>
+      <source>arXiv preprint arXiv:2601.03885</source>
+      <year iso-8601-date="2026">2026</year>
+      <uri>https://arxiv.org/abs/2601.03885</uri>
+    </element-citation>
+  </ref>
+  <ref id="ref-bohun2024entanglement">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Bohun</surname><given-names>Vladyslav</given-names></name>
+        <name><surname>Lukin</surname><given-names>Illia</given-names></name>
+        <name><surname>Luhanko</surname><given-names>Mykola</given-names></name>
+        <name><surname>Korpas</surname><given-names>Georgios</given-names></name>
+        <name><surname>De Brouwer</surname><given-names>Philippe J. S.</given-names></name>
+        <name><surname>Maksymenko</surname><given-names>Mykola</given-names></name>
+        <name><surname>Koch-Janusz</surname><given-names>Maciej</given-names></name>
+      </person-group>
+      <article-title>Entanglement scaling in matrix product state representation of smooth functions and their shallow quantum circuit approximations</article-title>
+      <source>Physical Review Research</source>
+      <publisher-name>American Physical Society</publisher-name>
+      <year iso-8601-date="2026">2026</year>
+      <volume>8</volume>
+      <issue>2</issue>
+      <pub-id pub-id-type="doi">10.1103/yyvr-dtsb</pub-id>
+      <fpage>023062</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-ion2022tensor_iga">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Ion</surname><given-names>Ion Gabriel</given-names></name>
+        <name><surname>Loukrezis</surname><given-names>Dimitrios</given-names></name>
+        <name><surname>De Gersem</surname><given-names>Herbert</given-names></name>
+      </person-group>
+      <article-title>Tensor train based isogeometric analysis for PDE approximation on parameter dependent geometries</article-title>
+      <source>Computer Methods in Applied Mechanics and Engineering</source>
+      <publisher-name>Elsevier</publisher-name>
+      <year iso-8601-date="2022">2022</year>
+      <volume>401</volume>
+      <pub-id pub-id-type="doi">10.1016/j.cma.2022.115593</pub-id>
+      <fpage>115593</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-ion2022tensor_cme">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Ion</surname><given-names>Ion Gabriel</given-names></name>
+        <name><surname>Wildner</surname><given-names>Christian</given-names></name>
+        <name><surname>Loukrezis</surname><given-names>Dimitrios</given-names></name>
+        <name><surname>Koeppl</surname><given-names>Heinz</given-names></name>
+        <name><surname>De Gersem</surname><given-names>Herbert</given-names></name>
+      </person-group>
+      <article-title>Tensor-train approximation of the chemical master equation and its application for parameter inference</article-title>
+      <source>MATHMOD 2022 discussion contribution volume</source>
+      <publisher-name>ARGESIM Publisher Vienna</publisher-name>
+      <year iso-8601-date="2022">2022</year>
+      <pub-id pub-id-type="doi">10.11128/arep.17.a17094</pub-id>
+      <fpage>39</fpage>
+      <lpage>40</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-novikov2020t3f">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Novikov</surname><given-names>Alexander</given-names></name>
+        <name><surname>Izmailov</surname><given-names>Pavel</given-names></name>
+        <name><surname>Khrulkov</surname><given-names>Valentin</given-names></name>
+        <name><surname>Figurnov</surname><given-names>Michael</given-names></name>
+        <name><surname>Oseledets</surname><given-names>Ivan</given-names></name>
+      </person-group>
+      <article-title>Tensor train decomposition on TensorFlow (T3F)</article-title>
+      <source>Journal of Machine Learning Research</source>
+      <year iso-8601-date="2020">2020</year>
+      <volume>21</volume>
+      <issue>30</issue>
+      <uri>https://jmlr.org/papers/v21/18-008.html</uri>
+      <fpage>1</fpage>
+      <lpage>7</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-hauschild2018efficient">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Hauschild</surname><given-names>Johannes</given-names></name>
+        <name><surname>Pollmann</surname><given-names>Frank</given-names></name>
+      </person-group>
+      <article-title>Efficient numerical simulations with tensor networks: Tensor Network Python (TeNPy)</article-title>
+      <source>SciPost Physics Lecture Notes</source>
+      <publisher-name>SciPost</publisher-name>
+      <year iso-8601-date="2018">2018</year>
+      <pub-id pub-id-type="doi">10.21468/SciPostPhysLectNotes.5</pub-id>
+      <fpage>005</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-gribben2026stn">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Gribben</surname><given-names>Dominic</given-names></name>
+        <name><surname>Allende</surname><given-names>Carolina</given-names></name>
+        <name><surname>Villarino</surname><given-names>Alba</given-names></name>
+        <name><surname>Cortines</surname><given-names>Aser</given-names></name>
+        <name><surname>Ali</surname><given-names>Mazen</given-names></name>
+        <name><surname>Orús</surname><given-names>Román</given-names></name>
+        <name><surname>Oswald</surname><given-names>Pascal</given-names></name>
+        <name><surname>Lehdili</surname><given-names>Noureddine</given-names></name>
+      </person-group>
+      <article-title>STN-GPR: A singularity tensor network framework for efficient option pricing</article-title>
+      <source>arXiv preprint arXiv:2603.26318</source>
+      <year iso-8601-date="2026">2026</year>
+      <uri>https://arxiv.org/abs/2603.26318</uri>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
