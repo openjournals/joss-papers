@@ -1,0 +1,662 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.2 20190208//EN"
+                  "JATS-publishing1.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" dtd-version="1.2" article-type="other">
+<front>
+<journal-meta>
+<journal-id></journal-id>
+<journal-title-group>
+<journal-title>Journal of Open Source Software</journal-title>
+<abbrev-journal-title>JOSS</abbrev-journal-title>
+</journal-title-group>
+<issn publication-format="electronic">2475-9066</issn>
+<publisher>
+<publisher-name>Open Journals</publisher-name>
+</publisher>
+</journal-meta>
+<article-meta>
+<article-id pub-id-type="publisher-id">10912</article-id>
+<article-id pub-id-type="doi">10.21105/joss.10912</article-id>
+<title-group>
+<article-title>HDH: A Python Library for Hypergraph-Based Distributed
+Quantum Computing Partitioning</article-title>
+</title-group>
+<contrib-group>
+<contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0009-0000-9018-7435</contrib-id>
+<name>
+<surname>Garces</surname>
+<given-names>Maria Gragera</given-names>
+</name>
+<xref ref-type="aff" rid="aff-1"/>
+</contrib>
+<aff id="aff-1">
+<institution-wrap>
+<institution>University of Edinburgh</institution>
+</institution-wrap>
+</aff>
+</contrib-group>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2025-12-15">
+<day>15</day>
+<month>12</month>
+<year>2025</year>
+</pub-date>
+<volume>11</volume>
+<issue>127</issue>
+<fpage>10912</fpage>
+<permissions>
+<copyright-statement>Authors of papers retain copyright and release the
+work under a Creative Commons Attribution 4.0 International License (CC
+BY 4.0)</copyright-statement>
+<copyright-year>2026</copyright-year>
+<copyright-holder>The article authors</copyright-holder>
+<license license-type="open-access" xlink:href="https://creativecommons.org/licenses/by/4.0/">
+<license-p>Authors of papers retain copyright and release the work under
+a Creative Commons Attribution 4.0 International License (CC BY
+4.0)</license-p>
+</license>
+</permissions>
+<kwd-group kwd-group-type="author">
+<kwd>Python</kwd>
+<kwd>distributed quantum computing</kwd>
+<kwd>quantum partitioning</kwd>
+<kwd>hypergraphs</kwd>
+</kwd-group>
+</article-meta>
+</front>
+<body>
+<sec id="summary">
+  <title>Summary</title>
+  <p>Today’s quantum computers are limited by how many qubits a single
+  device can hold. Distributed quantum computing (DQC) works around this
+  by linking multiple smaller devices together so they can jointly run
+  computations too large for any one of them alone, which first requires
+  deciding how to split, or partition, a computation across those
+  devices.</p>
+  <p><monospace>HDH</monospace> (Hybrid Dependency Hypergraphs) is a
+  Python library that gives researchers a common representation to
+  develop and compare partitioning strategies against. It converts a
+  quantum computation — expressed as a circuit, a measurement-based
+  quantum computing (MBQC) pattern, a quantum walk, or a quantum
+  cellular automaton — into a hypergraph that captures every way the
+  computation could be split across devices, including hard constraints
+  such as per-device qubit limits that prior abstractions treat as soft
+  penalties rather than requirements. Researchers can run their own
+  partitioning heuristics directly on this representation, or use
+  <monospace>HDH</monospace>’s built-in capacity-aware baseline, and
+  compare results on a consistent, model-agnostic footing.
+  <monospace>HDH</monospace> also imports circuits from popular quantum
+  SDKs (Qiskit, Cirq, PennyLane, Amazon Braket) and exports back to
+  Qiskit and PennyLane, so partitioned results can be turned back into
+  runnable circuits.</p>
+</sec>
+<sec id="statement-of-need">
+  <title>Statement of need</title>
+  <p>HDHs were originally proposed by Gragera Garces et al.
+  (<xref alt="2025" rid="ref-GrageraU003A2025" ref-type="bibr">2025</xref>)
+  as a unifying approach to quantum distribution, extending the
+  hypergraph abstraction that Andrés-Martínez &amp; Heunen
+  (<xref alt="2019" rid="ref-AndresU003A2019" ref-type="bibr">2019</xref>)
+  introduced for partitioning across devices. Various partitioning
+  strategies have since been proposed building on that earlier
+  abstraction
+  (<xref alt="Clark et al., 2023" rid="ref-ClarkU003A2023" ref-type="bibr">Clark
+  et al., 2023</xref>;
+  <xref alt="Escofet et al., 2023" rid="ref-EscofetU003A2023" ref-type="bibr">Escofet
+  et al., 2023</xref>;
+  <xref alt="Sundaram &amp; Gupta, 2023" rid="ref-SundaramU003A2023" ref-type="bibr">Sundaram
+  &amp; Gupta, 2023</xref>), but many are tested on inconsistent
+  hypergraph abstractions, hindering cross-partitioner comparison and
+  improvement.</p>
+  <p>An open-source, model-agnostic abstraction enables fair
+  cross-comparison of partitioning strategies, and extends it beyond the
+  circuit model, a current blind spot in DQC research.
+  <monospace>HDH</monospace> is designed for distributed quantum
+  architecture researchers and for compiler developers who need a
+  model-agnostic distribution layer.</p>
+</sec>
+<sec id="state-of-the-field">
+  <title>State of the field</title>
+  <p>Existing DQC approaches abstract computations to hypergraphs which
+  are then partitioned, using balanced hypergraph partitioning solvers
+  such as KaHyPar
+  (<xref alt="Schlag et al., 2023" rid="ref-schlag2023high" ref-type="bibr">Schlag
+  et al., 2023</xref>).</p>
+  <p>This framing has two fundamental limitations:</p>
+  <list list-type="order">
+    <list-item>
+      <p>It reduces distribution to a balanced partitioning problem that
+      ignores a hard physical constraint: individual QPUs have fixed
+      qubit capacities, and a valid distribution must respect these
+      limits strictly rather than treating them as soft penalties.</p>
+    </list-item>
+    <list-item>
+      <p>Existing hypergraph abstractions are model-specific and encode
+      only a subset of possible partition cuts, meaning partitioning
+      strategies are routinely evaluated on inconsistent abstractions,
+      making cross-comparison unreliable and hindering the systematic
+      development of improved heuristics.</p>
+    </list-item>
+  </list>
+  <p>Libraries for distributed quantum computing exist, such as DISQCO
+  (<xref alt="Burt et al., 2026" rid="ref-burt2026multilevel" ref-type="bibr">Burt
+  et al., 2026</xref>), Qdislib
+  (<xref alt="Tejedor et al., 2025" rid="ref-tejedor2025orchestrating" ref-type="bibr">Tejedor
+  et al., 2025</xref>), Optyx
+  (<xref alt="Kupper et al., 2025" rid="ref-kupper2025optyx" ref-type="bibr">Kupper
+  et al., 2025</xref>) and DC-MBQC
+  (<xref alt="Xue et al., 2026" rid="ref-xue2026dc" ref-type="bibr">Xue
+  et al., 2026</xref>), but they implement end-to-end distribution
+  pipelines rather than exposing the underlying abstraction as a
+  research tool. No existing library provides a model-agnostic
+  hypergraph abstraction designed to enable the development and fair
+  comparison of partitioning heuristics, which is the role
+  <monospace>HDH</monospace> is built to fill.</p>
+  <p>Quantum compilation frameworks like Qiskit
+  (<xref alt="Javadi-Abhari et al., 2024" rid="ref-Qiskit" ref-type="bibr">Javadi-Abhari
+  et al., 2024</xref>), Cirq
+  (<xref alt="Cirq Developers, 2026" rid="ref-Cirq" ref-type="bibr">Cirq
+  Developers, 2026</xref>), and PennyLane
+  (<xref alt="Bergholm et al., 2018" rid="ref-PennyLane" ref-type="bibr">Bergholm
+  et al., 2018</xref>) provide circuit optimization and device mapping,
+  but not model-agnostic abstractions for distributed quantum computing.
+  <monospace>HDH</monospace> is compatible with these SDKs and adds to
+  them rather than replacing them.</p>
+</sec>
+<sec id="software-design">
+  <title>Software design</title>
+  <p>The central design decision in <monospace>HDH</monospace> was to
+  separate the abstraction layer from the partitioning layer. Rather
+  than building a monolithic tool that both constructs hypergraphs and
+  partitions them, <monospace>HDH</monospace> exposes the HDH as a
+  first-class data structure that any downstream partitioner can
+  consume. This makes the library useful both as a standalone research
+  tool and as a substrate for third-party heuristics.</p>
+  <p><monospace>HDH</monospace> uses hypergraphs because quantum
+  operations are not limited to two qubits: a Toffoli gate, for
+  instance, acts on three at once. An ordinary graph is the special case
+  in which every edge joins exactly two nodes, so a multi-qubit
+  operation must be split into several pairwise edges. A partition that
+  cuts through it can then be charged once per severed edge, although
+  the operation is a single unit that is cut, and communicated, as a
+  whole. A hyperedge keeps it as one object, so the cut cost matches the
+  communication cost.</p>
+  <p>Two further design choices trade added complexity for partitioning
+  flexibility. First, HDHs represent each qubit’s state at every
+  timestep as a separate node rather than a single node per logical
+  qubit, and partitioning operates over these timestepped nodes rather
+  than whole qubits. This allows a single qubit’s history to be split
+  across devices at whichever point in the computation makes the split
+  cheapest, with its state teleported between them at that boundary,
+  rather than committing the qubit to one device for the circuit’s full
+  duration. Second, a multi-qubit gate is represented not as one
+  hyperedge but three: one linking each qubit’s pre-gate state to an
+  intermediate state, one spanning all involved qubits at that
+  intermediate point, and one linking each qubit’s post-gate state
+  onward. This staging is what allows a partitioner to cut through a
+  multi-qubit gate at either boundary — modelling either a non-local
+  gate executed over the network or a teleportation of one qubit’s state
+  immediately before or after the gate — instead of being limited to the
+  coarser choice of which side of a single gate-edge to place a device
+  boundary on.</p>
+  <p>The library includes a capacity-aware greedy heuristic as a
+  built-in baseline. Existing DQC research typically benchmarks against
+  KaHyPar
+  (<xref alt="Schlag et al., 2023" rid="ref-schlag2023high" ref-type="bibr">Schlag
+  et al., 2023</xref>), a general-purpose partitioner not designed for
+  quantum hardware constraints. The included heuristic is simpler, but
+  treats per-device qubit capacity as a hard constraint and returns a
+  feasible assignment whenever one exists, making it a more appropriate
+  DQC baseline and a starting point for improved strategies.</p>
+  <sec id="from-computational-models-to-hdhs">
+    <title>From computational models to HDHs</title>
+    <p>HDHs use the following notation to describe quantum workload
+    dependencies, including predicted elements that represent potential
+    future state transformations based on classical measurement
+    outcomes:</p>
+    <fig>
+      <caption><p>HDH symbol
+      legend.<styled-content id="figU003Ahdh_legend"></styled-content></p></caption>
+      <graphic mimetype="image" mime-subtype="svg+xml" xlink:href="HDHobjects.svg" />
+    </fig>
+    <p>Mapping a quantum workload such as a circuit to an HDH applies
+    correspondences between model elements and hypergraph motifs.
+    Model-specific classes such as <monospace>Circuit</monospace>
+    perform these conversions; any class with a
+    <monospace>build_hdh()</monospace> method satisfies the library’s
+    <monospace>Model</monospace> protocol and is checked by the same
+    conformance tests:</p>
+    <fig>
+      <caption><p>Circuit to HDH mapping
+      table.<styled-content id="figU003Acircuit_mappings"></styled-content></p></caption>
+      <graphic mimetype="image" mime-subtype="svg+xml" xlink:href="circuitmappings.svg" />
+    </fig>
+    <p>In the context of DQC, entangling operations in a model can be
+    made non-local (namely non-local gates) and thus partitioned through
+    a quantum network via quantum communication primitives
+    (<xref alt="Wu et al., 2022" rid="ref-WuU003A2022" ref-type="bibr">Wu
+    et al., 2022</xref>). Alternatively, qubit states can be
+    individually forwarded through teleportation protocols
+    (<xref alt="Zomorodi-Moghadam et al., 2018" rid="ref-MoghadamU003A2017" ref-type="bibr">Zomorodi-Moghadam
+    et al., 2018</xref>). Because HDHs represent both cut types within a
+    single structure, a partitioner is free to combine them within one
+    workload — e.g. keeping a qubit local to a device via non-local
+    gates during one phase of a computation, then teleporting it
+    elsewhere for a later phase — rather than being restricted to
+    whichever single strategy the chosen abstraction happens to
+    support.</p>
+    <p>Unlike prior abstractions, which represent only non-local gates
+    or only teleportation, HDHs capture both
+    (<xref alt="[fig:comparison_table]" rid="figU003Acomparison_table">[fig:comparison_table]</xref>).</p>
+    <fig>
+      <caption><p>Table showing HDH
+      expressivity.<styled-content id="figU003Acomparison_table"></styled-content></p></caption>
+      <graphic mimetype="image" mime-subtype="svg+xml" xlink:href="comparison_table.svg" />
+    </fig>
+    <p><xref alt="[fig:circuit_example]" rid="figU003Acircuit_example">[fig:circuit_example]</xref>
+    shows the HDH of a six-qubit circuit with a Toffoli gate, a
+    classically conditioned gate and mid-circuit measurements, drawn as
+    a graph. Each gate contributes the hyperedge of its state
+    transformation plus the preceding and following hyperedges that
+    allow pre- and post-teleportation, nodes are possible state
+    transformations rather than qubits or operations, and classical data
+    flow (orange) is part of the hypergraph.</p>
+    <fig>
+      <caption><p>Example circuit and its HDH
+      representation.<styled-content id="figU003Acircuit_example"></styled-content></p></caption>
+      <graphic mimetype="image" mime-subtype="svg+xml" xlink:href="hdhfromcircuit.svg" />
+    </fig>
+  </sec>
+</sec>
+<sec id="research-impact-statement">
+  <title>Research impact statement</title>
+  <p><monospace>HDH</monospace>’s capacity-aware partitioner is proven
+  optimal on 20 of 24 instances (83%) and averages
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[1.03\times]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mn>1.03</mml:mn><mml:mo>×</mml:mo></mml:mrow></mml:math></alternatives></inline-formula>
+  the optimal cut cost (worst case <inline-formula><alternatives>
+  <tex-math><![CDATA[1.33\times]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mn>1.33</mml:mn><mml:mo>×</mml:mo></mml:mrow></mml:math></alternatives></inline-formula>),
+  measured against exhaustive branch-and-bound search over MQT Bench
+  circuits
+  (<xref alt="Quetschlich et al., 2023" rid="ref-MQTBench" ref-type="bibr">Quetschlich
+  et al., 2023</xref>) at the tightest feasible capacity (three devices,
+  network overhead 1). It also returns a feasible assignment whenever
+  one exists, which the balance-based partitioners used as DQC baselines
+  do not guarantee.</p>
+  <p>Carrying teledata and telegate cuts in one structure means the
+  combined formulation automatically matches the best single-mode
+  strategy, whichever that is for a given interaction pattern. Where a
+  qubit interacts with one group of qubits per phase, shifting groups
+  between phases, exhaustive search over two, three and four phases
+  (one, two and three shifts) gives cut costs of 1, 2 and 3, one per
+  shift, against 3, 3 and 6 for the qubit-level formulation used by
+  prior hypergraph approaches (<inline-formula><alternatives>
+  <tex-math><![CDATA[1.5]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mn>1.5</mml:mn></mml:math></alternatives></inline-formula>–<inline-formula><alternatives>
+  <tex-math><![CDATA[3\times]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mn>3</mml:mn><mml:mo>×</mml:mo></mml:mrow></mml:math></alternatives></inline-formula>
+  less), matching the teleportation-only formulation throughout. On 30
+  feasible MQT Bench instances (12 circuits, three device settings),
+  where no such shift occurs, a greedy placer on the combined
+  formulation ties the qubit-level one on every instance, while
+  assigning <inline-formula><alternatives>
+  <tex-math><![CDATA[8.4\times]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mn>8.4</mml:mn><mml:mo>×</mml:mo></mml:mrow></mml:math></alternatives></inline-formula>
+  as many placement units per circuit (mean over 12 circuits;
+  <inline-formula><alternatives>
+  <tex-math><![CDATA[3.6]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mn>3.6</mml:mn></mml:math></alternatives></inline-formula>–<inline-formula><alternatives>
+  <tex-math><![CDATA[14.7\times]]></tex-math>
+  <mml:math display="inline" xmlns:mml="http://www.w3.org/1998/Math/MathML"><mml:mrow><mml:mn>14.7</mml:mn><mml:mo>×</mml:mo></mml:mrow></mml:math></alternatives></inline-formula>).
+  A simple greedy does not always reach the combined optimum, though: on
+  3 of those 30 instances, a greedy restricted to teleportation cuts did
+  better.</p>
+  <p>What has no counterpart elsewhere is that the same partitioner runs
+  unmodified over circuits, MBQC patterns, quantum walks, and quantum
+  cellular automata, exercised across all four by the test suite.
+  Comparing distribution overhead between computational models, which a
+  circuit-only library cannot do, is here a matter of swapping the
+  workload builder; a first such study is being developed by the
+  authors.</p>
+  <p>Every quantitative claim in this section regenerates from
+  <monospace>benchmarks/</monospace>.</p>
+  <p>Early community engagement has been encouraging. The project was
+  presented as a poster at SIGCOMM 2025
+  (<xref alt="Gragera Garces et al., 2025" rid="ref-GrageraU003A2025" ref-type="bibr">Gragera
+  Garces et al., 2025</xref>), has received funding through the Unitary
+  Fund microgrant program and has already seen external contributors
+  (acknowledged below). We are also in discussion with companies in the
+  distributed quantum computing space about integrating the library into
+  their stack.</p>
+</sec>
+<sec id="ai-usage-disclosure">
+  <title>AI usage disclosure</title>
+  <p>Claude was used during both library development and paper writing.
+  Claude Opus 5 and Claude Sonnet 5.5 (through Claude Code) were the
+  models used, for both the library and the paper.</p>
+  <p>In the library, Claude generated initial draft code implementations
+  that were subsequently rewritten by the author. It also assisted in
+  producing unit tests, which were validated against expected behaviour
+  across both passing and failing scenarios. These were not always fully
+  re-written but they were revised and thoroughly tested. Additionally,
+  AI was used to generate inline code comments throughout the library,
+  with the aim of improving readability for contributors and users who
+  may check the source code.</p>
+  <p>In the paper, Claude was used to assist with wording and
+  polish.</p>
+  <p>All AI-generated content (both code and text) was reviewed or
+  modified (as per the above descriptions) by the author before
+  inclusion in the present version.</p>
+</sec>
+<sec id="acknowledgements">
+  <title>Acknowledgements</title>
+  <p>We acknowledge contributions from
+  <ext-link ext-link-type="uri" xlink:href="https://github.com/josephtedds">Joseph
+  Tedds</ext-link>,
+  <ext-link ext-link-type="uri" xlink:href="https://github.com/manalejandro">Manuel
+  Alejandro</ext-link>, and
+  <ext-link ext-link-type="uri" xlink:href="https://github.com/cosenal">Alessandro
+  Cosentino</ext-link>.</p>
+  <p>We thank Unitary Fund for supporting this project through their
+  quantum microgrant program.</p>
+  <p>The work of the author is supported by the EPSRC UK Quantum
+  Technologies Programme under grant EP/T001062/1 and VeriQloud.</p>
+</sec>
+</body>
+<back>
+<ref-list>
+  <title></title>
+  <ref id="ref-GrageraU003A2025">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Gragera Garces</surname><given-names>M.</given-names></name>
+        <name><surname>Heunen</surname><given-names>C.</given-names></name>
+        <name><surname>Marina</surname><given-names>M. K.</given-names></name>
+      </person-group>
+      <article-title>Distributed Quantum Computing Across Heterogeneous Hardware with Hybrid Dependency Hypergraphs</article-title>
+      <source>Proceedings of the ACM SIGCOMM 2025 posters and demos</source>
+      <publisher-name>ACM</publisher-name>
+      <publisher-loc>New York, NY, USA</publisher-loc>
+      <year iso-8601-date="2025-09">2025</year><month>09</month>
+      <uri>https://doi.org/10.1145/3744969.3748417</uri>
+      <pub-id pub-id-type="doi">10.1145/3744969.3748417</pub-id>
+      <fpage>49</fpage>
+      <lpage>51</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-AndresU003A2019">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Andrés-Martínez</surname><given-names>P.</given-names></name>
+        <name><surname>Heunen</surname><given-names>C.</given-names></name>
+      </person-group>
+      <article-title>Automated distribution of quantum circuits via hypergraph partitioning</article-title>
+      <source>Physical Review A</source>
+      <year iso-8601-date="2019-09">2019</year><month>09</month>
+      <volume>100</volume>
+      <issue>3</issue>
+      <uri>https://journals.aps.org/pra/abstract/10.1103/PhysRevA.100.032308</uri>
+      <pub-id pub-id-type="doi">10.1103/PhysRevA.100.032308</pub-id>
+      <fpage>032308</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-ClarkU003A2023">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Clark</surname><given-names>J.</given-names></name>
+        <name><surname>Humble</surname><given-names>T.</given-names></name>
+        <name><surname>Thapliyal</surname><given-names>H.</given-names></name>
+      </person-group>
+      <article-title>TDAG: Tree-based Directed Acyclic Graph Partitioning for Quantum Circuits</article-title>
+      <source>Proceedings of the great lakes symposium on VLSI 2023</source>
+      <publisher-name>ACM</publisher-name>
+      <publisher-loc>New York, NY, USA</publisher-loc>
+      <year iso-8601-date="2023-06">2023</year><month>06</month>
+      <uri>https://dl.acm.org/doi/10.1145/3583781.3590234</uri>
+      <pub-id pub-id-type="doi">10.1145/3583781.3590234</pub-id>
+      <fpage>587</fpage>
+      <lpage>592</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-EscofetU003A2023">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Escofet</surname><given-names>P.</given-names></name>
+        <name><surname>Ovide</surname><given-names>A.</given-names></name>
+        <name><surname>Almudever</surname><given-names>C. G.</given-names></name>
+        <name><surname>Alarcón</surname><given-names>E.</given-names></name>
+        <name><surname>Abadal</surname><given-names>S.</given-names></name>
+      </person-group>
+      <article-title>Hungarian Qubit Assignment for Optimized Mapping of Quantum Circuits on Multi-Core Architectures</article-title>
+      <source>IEEE Computer Architecture Letters</source>
+      <year iso-8601-date="2023-07">2023</year><month>07</month>
+      <volume>22</volume>
+      <issue>2</issue>
+      <uri>https://ieeexplore.ieee.org/document/10262036</uri>
+      <pub-id pub-id-type="doi">10.1109/LCA.2023.3318857</pub-id>
+      <fpage>161</fpage>
+      <lpage>164</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-SundaramU003A2023">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Sundaram</surname><given-names>R. G.</given-names></name>
+        <name><surname>Gupta</surname><given-names>H.</given-names></name>
+      </person-group>
+      <article-title>Distributing Quantum Circuits Using Teleportations</article-title>
+      <source>2023 IEEE international conference on quantum software (QSW)</source>
+      <publisher-name>IEEE</publisher-name>
+      <year iso-8601-date="2023-07">2023</year><month>07</month>
+      <uri>https://www.computer.org/csdl/proceedings-article/qsw/2023/047900a186/1Q5oLz6DIZ2</uri>
+      <pub-id pub-id-type="doi">10.1109/QSW59989.2023.00030</pub-id>
+      <fpage>186</fpage>
+      <lpage>192</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-WuU003A2022">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Wu</surname><given-names>Anbang</given-names></name>
+        <name><surname>Zhang</surname><given-names>Hezi</given-names></name>
+        <name><surname>Li</surname><given-names>Gushu</given-names></name>
+        <name><surname>Shabani</surname><given-names>Alireza</given-names></name>
+        <name><surname>Xie</surname><given-names>Yuan</given-names></name>
+        <name><surname>Ding</surname><given-names>Yufei</given-names></name>
+      </person-group>
+      <article-title>AutoComm: A Framework for Enabling Efficient Communication in Distributed Quantum Programs</article-title>
+      <source>2022 55th IEEE/ACM international symposium on microarchitecture (MICRO)</source>
+      <publisher-name>IEEE</publisher-name>
+      <year iso-8601-date="2022-10">2022</year><month>10</month>
+      <uri>https://ieeexplore.ieee.org/document/9923799</uri>
+      <pub-id pub-id-type="doi">10.1109/MICRO56248.2022.00074</pub-id>
+      <fpage>1027</fpage>
+      <lpage>1041</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-MoghadamU003A2017">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Zomorodi-Moghadam</surname><given-names>M.</given-names></name>
+        <name><surname>Houshmand</surname><given-names>M.</given-names></name>
+        <name><surname>Houshmand</surname><given-names>M.</given-names></name>
+      </person-group>
+      <article-title>Optimizing Teleportation Cost in Distributed Quantum Circuits</article-title>
+      <source>International Journal of Theoretical Physics</source>
+      <year iso-8601-date="2018-03">2018</year><month>03</month>
+      <volume>57</volume>
+      <issue>3</issue>
+      <uri>https://link.springer.com/article/10.1007/s10773-017-3618-x</uri>
+      <pub-id pub-id-type="doi">10.1007/s10773-017-3618-x</pub-id>
+      <fpage>848</fpage>
+      <lpage>861</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Qiskit">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Javadi-Abhari</surname><given-names>Ali</given-names></name>
+        <name><surname>Treinish</surname><given-names>Matthew</given-names></name>
+        <name><surname>Krsulich</surname><given-names>Kevin</given-names></name>
+        <name><surname>Wood</surname><given-names>Christopher J.</given-names></name>
+        <name><surname>Lishman</surname><given-names>Jake</given-names></name>
+        <name><surname>Gacon</surname><given-names>Julien</given-names></name>
+        <name><surname>Martiel</surname><given-names>Simon</given-names></name>
+        <name><surname>Nation</surname><given-names>Paul D.</given-names></name>
+        <name><surname>Bishop</surname><given-names>Lev S.</given-names></name>
+        <name><surname>Cross</surname><given-names>Andrew W.</given-names></name>
+        <name><surname>Johnson</surname><given-names>Blake R.</given-names></name>
+        <name><surname>Gambetta</surname><given-names>Jay M.</given-names></name>
+      </person-group>
+      <article-title>Quantum computing with Qiskit</article-title>
+      <source>arXiv preprint arXiv:2405.08810</source>
+      <year iso-8601-date="2024-05">2024</year><month>05</month>
+      <uri>https://arxiv.org/abs/2405.08810</uri>
+      <pub-id pub-id-type="doi">10.48550/arXiv.2405.08810</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-Cirq">
+    <element-citation publication-type="software">
+      <person-group person-group-type="author">
+        <string-name>Cirq Developers</string-name>
+      </person-group>
+      <article-title>Cirq</article-title>
+      <publisher-name>Zenodo</publisher-name>
+      <year iso-8601-date="2026-06">2026</year><month>06</month>
+      <uri>https://doi.org/10.5281/zenodo.21080138</uri>
+      <pub-id pub-id-type="doi">10.5281/zenodo.21080138</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-PennyLane">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Bergholm</surname><given-names>Ville</given-names></name>
+        <name><surname>Izaac</surname><given-names>Josh</given-names></name>
+        <name><surname>Schuld</surname><given-names>Maria</given-names></name>
+        <name><surname>Gogolin</surname><given-names>Christian</given-names></name>
+        <name><surname>Ahmed</surname><given-names>Shahnawaz</given-names></name>
+        <name><surname>Ajith</surname><given-names>Vishnu</given-names></name>
+        <name><surname>Alam</surname><given-names>M Sohaib</given-names></name>
+        <name><surname>Alonso-Linaje</surname><given-names>Guillermo</given-names></name>
+        <name><surname>AkashNarayanan</surname><given-names>B</given-names></name>
+        <name><surname>Asadi</surname><given-names>Ali</given-names></name>
+        <name><surname>others</surname></name>
+      </person-group>
+      <article-title>PennyLane: Automatic differentiation of hybrid quantum-classical computations</article-title>
+      <source>arXiv preprint arXiv:1811.04968</source>
+      <year iso-8601-date="2018">2018</year>
+      <uri>https://arxiv.org/abs/1811.04968</uri>
+      <pub-id pub-id-type="doi">10.48550/arXiv.1811.04968</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-MQTBench">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Quetschlich</surname><given-names>Nils</given-names></name>
+        <name><surname>Burgholzer</surname><given-names>Lukas</given-names></name>
+        <name><surname>Wille</surname><given-names>Robert</given-names></name>
+      </person-group>
+      <article-title>MQT Bench: Benchmarking software and design automation tools for quantum computing</article-title>
+      <source>Quantum</source>
+      <year iso-8601-date="2023">2023</year>
+      <volume>7</volume>
+      <pub-id pub-id-type="doi">10.22331/q-2023-07-20-1062</pub-id>
+      <fpage>1062</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-burt2026multilevel">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Burt</surname><given-names>Felix</given-names></name>
+        <name><surname>Chen</surname><given-names>Kuan-Cheng</given-names></name>
+        <name><surname>Leung</surname><given-names>Kin K</given-names></name>
+      </person-group>
+      <article-title>A multilevel framework for partitioning quantum circuits</article-title>
+      <source>Quantum</source>
+      <publisher-name>Verein zur Förderung des Open Access Publizierens in den Quantenwissenschaften</publisher-name>
+      <year iso-8601-date="2026">2026</year>
+      <volume>10</volume>
+      <pub-id pub-id-type="doi">10.22331/q-2026-01-22-1984</pub-id>
+      <fpage>1984</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-tejedor2025orchestrating">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Tejedor</surname><given-names>Mar</given-names></name>
+        <name><surname>Casas</surname><given-names>Berta</given-names></name>
+        <name><surname>Conejero</surname><given-names>Javier</given-names></name>
+        <name><surname>Cervera-Lierta</surname><given-names>Alba</given-names></name>
+        <name><surname>Badia</surname><given-names>Rosa M</given-names></name>
+      </person-group>
+      <article-title>Orchestrating quantum-HPC workflows with distributed quantum circuit cutting</article-title>
+      <source>Proceedings of the SC’25 workshops of the international conference for High Performance Computing, networking, storage and analysis</source>
+      <publisher-name>ACM</publisher-name>
+      <publisher-loc>New York, NY, USA</publisher-loc>
+      <year iso-8601-date="2025">2025</year>
+      <pub-id pub-id-type="doi">10.1145/3731599.3767547</pub-id>
+      <fpage>1898</fpage>
+      <lpage>1906</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-kupper2025optyx">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Kupper</surname><given-names>Mateusz</given-names></name>
+        <name><surname>Yeung</surname><given-names>Richie</given-names></name>
+        <name><surname>Poór</surname><given-names>Boldizsár</given-names></name>
+        <name><surname>Toumi</surname><given-names>Alexis</given-names></name>
+        <name><surname>Cashman</surname><given-names>William</given-names></name>
+        <name><surname>Felice</surname><given-names>Giovanni de</given-names></name>
+      </person-group>
+      <article-title>Optyx: A ZX-based Python library for networked quantum architectures</article-title>
+      <source>arXiv preprint arXiv:2512.09648</source>
+      <year iso-8601-date="2025">2025</year>
+      <pub-id pub-id-type="doi">10.48550/arXiv.2512.09648</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-xue2026dc">
+    <element-citation publication-type="paper-conference">
+      <person-group person-group-type="author">
+        <name><surname>Xue</surname><given-names>Yecheng</given-names></name>
+        <name><surname>Yang</surname><given-names>Rui</given-names></name>
+        <name><surname>Liang</surname><given-names>Zhiding</given-names></name>
+        <name><surname>Li</surname><given-names>Tongyang</given-names></name>
+      </person-group>
+      <article-title>DC-MBQC: A distributed compilation framework for measurement-based quantum computing</article-title>
+      <source>2026 IEEE international symposium on high performance computer architecture (HPCA)</source>
+      <publisher-name>IEEE</publisher-name>
+      <year iso-8601-date="2026">2026</year>
+      <pub-id pub-id-type="doi">10.1109/HPCA68181.2026.11408612</pub-id>
+      <fpage>1</fpage>
+      <lpage>14</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-schlag2023high">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Schlag</surname><given-names>Sebastian</given-names></name>
+        <name><surname>Heuer</surname><given-names>Tobias</given-names></name>
+        <name><surname>Gottesbüren</surname><given-names>Lars</given-names></name>
+        <name><surname>Akhremtsev</surname><given-names>Yaroslav</given-names></name>
+        <name><surname>Schulz</surname><given-names>Christian</given-names></name>
+        <name><surname>Sanders</surname><given-names>Peter</given-names></name>
+      </person-group>
+      <article-title>High-quality hypergraph partitioning</article-title>
+      <source>ACM Journal of Experimental Algorithmics</source>
+      <publisher-name>ACM New York, NY</publisher-name>
+      <year iso-8601-date="2023">2023</year>
+      <volume>27</volume>
+      <pub-id pub-id-type="doi">10.1145/3529090</pub-id>
+      <fpage>1</fpage>
+      <lpage>39</lpage>
+    </element-citation>
+  </ref>
+</ref-list>
+</back>
+</article>
